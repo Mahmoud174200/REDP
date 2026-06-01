@@ -91,6 +91,8 @@ const MOCK_PIPELINE: Record<string, PipelineStage> = {
 const CrmKanban: React.FC = () => {
   const [pipeline, setPipeline] = useState<Record<string, PipelineStage>>(MOCK_PIPELINE);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterSource, setFilterSource] = useState('all');
+  const [filterScore, setFilterScore] = useState('all');
   const [draggedLead, setDraggedLead] = useState<{ lead: LeadCard; fromStage: string } | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -231,6 +233,45 @@ const CrmKanban: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Filters Control Panel ── */}
+      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <i className="fa-solid fa-filter" style={{ marginRight: '6px' }}></i> Filter By:
+          </span>
+          
+          {/* Source Filter Chips */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {['all', 'facebook', 'google', 'tiktok', 'broker', 'direct'].map(src => (
+              <button
+                key={src}
+                onClick={() => setFilterSource(src)}
+                className={filterSource === src ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '6px 14px', fontSize: '0.7rem', textTransform: 'uppercase', borderRadius: '9999px' }}
+              >
+                {src === 'all' ? 'All Sources' : src}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Score Filter Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Lead Score:</span>
+          <select
+            value={filterScore}
+            onChange={(e) => setFilterScore(e.target.value)}
+            className="form-control"
+            style={{ width: '150px', padding: '6px 12px', fontSize: '0.75rem', cursor: 'pointer' }}
+          >
+            <option value="all">🔥 All Scores</option>
+            <option value="high">🟢 High (≥ 80)</option>
+            <option value="mid">🟡 Medium (50 - 79)</option>
+            <option value="low">🔴 Low (&lt; 50)</option>
+          </select>
+        </div>
+      </div>
+
       {/* ── Stats Row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
         {stages.map(stageKey => {
@@ -256,10 +297,15 @@ const CrmKanban: React.FC = () => {
           const stage = pipeline[stageKey];
           const config = STAGE_CONFIG[stageKey];
           const isDragOver = dragOverStage === stageKey;
-          const filteredLeads = stage.leads.filter(l =>
-            !searchTerm || l.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            l.phone.includes(searchTerm)
-          );
+          const filteredLeads = stage.leads.filter(l => {
+            const matchesSearch = !searchTerm || l.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm);
+            const matchesSource = filterSource === 'all' || l.source === filterSource;
+            const matchesScore = filterScore === 'all' || 
+              (filterScore === 'high' && l.lead_score >= 80) ||
+              (filterScore === 'mid' && l.lead_score >= 50 && l.lead_score < 80) ||
+              (filterScore === 'low' && l.lead_score < 50);
+            return matchesSearch && matchesSource && matchesScore;
+          });
 
           return (
             <div
@@ -301,7 +347,16 @@ const CrmKanban: React.FC = () => {
               </div>
 
               {/* Cards Container */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '200px', flex: 1 }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                minHeight: '200px',
+                flex: 1,
+                maxHeight: 'calc(100vh - 380px)',
+                overflowY: 'auto',
+                paddingRight: '4px'
+              }} className="sidebar-scroll-container">
                 {filteredLeads.map(lead => (
                   <div
                     key={lead.id}
