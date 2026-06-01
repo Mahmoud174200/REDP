@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Building2, Users, Wallet, FileText, Settings, ShieldCheck, 
-  LogOut, Bell, BarChart3, Wrench, X, Terminal, FileSearch, ShieldAlert, AlertTriangle, CreditCard
+import {
+  Building2, Users, Wallet, FileText, Settings, ShieldCheck,
+  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, TrendingUp, X, Terminal,
+  AlertTriangle,
+  CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -24,16 +26,18 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
 
   const menuItems = [
     {
-      title: 'Acquisition 🟠 Ragab',
+      title: 'Acquisition',
       roles: ['admin', 'sales_agent', 'broker'],
       items: [
-        { name: 'Leads & KYC', path: '/acquisition/leads', icon: Users },
-        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: BarChart3 },
-        { name: 'Broker Portal', path: '/acquisition/brokers', icon: Building2 },
+        { name: 'Leads & KYC', path: '/acquisition/leads', icon: 'fa-solid fa-users' },
+        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple' },
+        { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
+        { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },
+        { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: 'fa-solid fa-bullhorn' },
       ]
     },
     {
-      title: 'Finance & Contracts 🔵 Melwany',
+      title: 'Finance & Contracts',
       roles: ['admin', 'finance_officer', 'client'],
       items: [
         { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
@@ -43,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       ]
     },
     {
-      title: 'Delivery & Platform 🟢 Mahmoud',
+      title: 'Delivery & Platform',
       roles: ['admin', 'delivery_engineer', 'client'],
       items: [
         { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2 },
@@ -57,14 +61,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
   ];
 
   return (
-    <aside 
+    <aside
       className={`glass-panel ${menuOpen ? 'menu-open' : ''}`}
-      style={{ 
-        width: '280px', 
-        borderRadius: 'var(--radius-lg)', 
+      style={{
+        width: '280px',
+        borderRadius: 'var(--radius-lg)',
         padding: '24px 16px', /* Balanced padding */
-        display: 'flex', 
-        flexDirection: 'column', 
+        display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'space-between',
         position: 'sticky',
         top: '16px',
@@ -75,12 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       }}
     >
       {/* 📜 Scrollable Flex Container containing Logo & Navigation List */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          overflowY: 'auto', 
-          flex: 1, 
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          flex: 1,
           marginBottom: '12px',
           paddingRight: '4px'
         }}
@@ -99,14 +103,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
           </div>
 
           {/* Mobile Close Button drawer */}
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="mobile-menu-close"
-            style={{ 
-              display: 'none', 
-              padding: '6px', 
-              borderRadius: '50%', 
-              alignItems: 'center', 
+            style={{
+              display: 'none',
+              padding: '6px',
+              borderRadius: '50%',
+              alignItems: 'center',
               justifyContent: 'center',
               border: 'none',
               background: 'rgba(255, 255, 255, 0.4)',
@@ -134,8 +138,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
                     const Icon = item.icon;
                     return (
                       <li key={item.path}>
-                        <Link 
-                          to={item.path} 
+                        <Link
+                          to={item.path}
                           onClick={() => onClose?.()}
                           style={{
                             display: 'flex',
@@ -153,7 +157,24 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
                             border: isActive ? '1px solid rgba(255,255,255,0.8)' : '1px solid transparent'
                           }}
                         >
-                          <Icon style={{ width: '15px', height: '15px', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)' }} />
+                          {typeof Icon === 'string' ? (
+                            <i
+                              className={Icon}
+                              style={{
+                                width: '15px',
+                                height: '15px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.82rem',
+                                color: isActive ? 'var(--color-primary)' : 'var(--text-muted)'
+                              }}
+                            />
+                          ) : (
+                            React.createElement(Icon, {
+                              style: { width: '15px', height: '15px', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)' }
+                            })
+                          )}
                           {item.name}
                         </Link>
                       </li>
@@ -178,7 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleLogout}
           className="btn-secondary"
           style={{ width: '100%', justifyContent: 'center', padding: '8px', fontSize: '0.75rem' }}
