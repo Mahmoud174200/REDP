@@ -5,13 +5,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('projects', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->string('name');
-            ->string('location');
-            ->integer('total_units')->default(0);
-            ->string('status')->default('planning');
-            ->timestamps();
+        Schema::create('projects', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->string('location');
+            $table->integer('total_units')->default(0);
+            $table->string('status')->default('planning');
+            $table->timestamps();
         });
     }
     public function down(): void {

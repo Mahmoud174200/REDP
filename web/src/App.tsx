@@ -15,6 +15,12 @@ import Inventory from './pages/finance/Inventory';
 
 // 🟢 Delivery Pages (Mahmoud)
 import Overview from './pages/delivery/Overview';
+import Maintenance from './pages/delivery/Maintenance';
+import Handover from './pages/delivery/Handover';
+import Documents from './pages/delivery/Documents';
+import Analytics from './pages/delivery/Analytics';
+import Workflows from './pages/delivery/Workflows';
+
 
 // 📞 Global Components
 import VoipDialerWidget from './components/acquisition/VoipDialerWidget';
@@ -93,8 +99,12 @@ const App: React.FC = () => {
 
         {/* 🟢 Delivery routes (Mahmoud) */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
-        <Route path="/delivery/maintenance" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
-        <Route path="/delivery/handover" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
+        <Route path="/delivery/maintenance" element={<DashboardWrapper><Maintenance /></DashboardWrapper>} />
+        <Route path="/delivery/handover" element={<DashboardWrapper><Handover /></DashboardWrapper>} />
+        <Route path="/delivery/documents" element={<DashboardWrapper><Documents /></DashboardWrapper>} />
+        <Route path="/delivery/analytics" element={<DashboardWrapper><Analytics /></DashboardWrapper>} />
+        <Route path="/delivery/workflows" element={<DashboardWrapper><Workflows /></DashboardWrapper>} />
+
 
         {/* 🔄 Fallback Catch-All */}
         <Route path="*" element={<Navigate to="/" replace />} />

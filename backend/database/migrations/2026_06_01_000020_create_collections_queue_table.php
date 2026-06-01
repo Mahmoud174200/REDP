@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('collections_queue', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('contract_id');
-            ->string('aging_bucket'); // '30_days', '60_days', '90_days_plus'
-            ->decimal('outstanding_amount', 15, 2);
-            ->string('status')->default('active');
-            ->timestamps();
-            ->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
+        Schema::create('collections_queue', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('contract_id');
+            $table->string('aging_bucket'); // '30_days', '60_days', '90_days_plus'
+            $table->decimal('outstanding_amount', 15, 2);
+            $table->string('status')->default('active');
+            $table->timestamps();
+            $table->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
         });
     }
     public function down(): void {

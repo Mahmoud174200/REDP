@@ -5,16 +5,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('reservations', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('unit_id');
-            ->uuid('client_id');
-            ->decimal('eoi_amount', 15, 2);
-            ->string('status')->default('pending');
-            ->timestamp('expires_at')->nullable();
-            ->timestamps();
-            ->foreign('unit_id')->references('id')->on('units')->onDelete('cascade');
-            ->foreign('client_id')->references('id')->on('users')->onDelete('cascade');
+        Schema::create('reservations', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('unit_id');
+            $table->uuid('client_id');
+            $table->decimal('eoi_amount', 15, 2);
+            $table->string('status')->default('pending');
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+            $table->foreign('unit_id')->references('id')->on('units')->onDelete('cascade');
+            $table->foreign('client_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
     public function down(): void {

@@ -506,12 +506,89 @@ class FinanceTab extends StatelessWidget {
 }
 
 // 🟢 Delivery Tab UI Stub (Mahmoud)
-class DeliveryTab extends StatelessWidget {
+class DeliveryTab extends StatefulWidget {
   final String role;
   const DeliveryTab({super.key, required this.role});
 
   @override
+  State<DeliveryTab> createState() => _DeliveryTabState();
+}
+
+class _DeliveryTabState extends State<DeliveryTab> {
+  // Homeowner states
+  final List<Map<String, String>> _myTickets = [
+    {'title': 'AC unit not cooling in guest room', 'cat': 'HVAC', 'status': 'open'},
+    {'title': 'Kitchen exhaust fan wiring issue', 'cat': 'Electrical', 'status': 'resolved'}
+  ];
+
+  final TextEditingController _ticketTitleController = TextEditingController();
+  String _selectedCategory = 'Plumbing';
+  String _selectedPriority = 'medium';
+
+  // Visitor Gate pass states
+  String? _guestPassQr;
+  String? _guestPassName;
+
+  // Inspector QC states
+  final List<Map<String, dynamic>> _qcItems = [
+    {'id': 'walls', 'item': 'Wall painting & plaster', 'passed': true},
+    {'id': 'plumb', 'item': 'Plumbing drains & flows', 'passed': true},
+    {'id': 'elect', 'item': 'Electric socket wiring', 'passed': false},
+  ];
+
+  final List<Map<String, String>> _loggedSnags = [];
+  final TextEditingController _snagDescController = TextEditingController();
+  String _snagSeverity = 'medium';
+  String _snagCat = 'walls';
+
+  void _addTicket() {
+    if (_ticketTitleController.text.isEmpty) return;
+    setState(() {
+      _myTickets.insert(0, {
+        'title': _ticketTitleController.text,
+        'cat': _selectedCategory,
+        'status': 'open'
+      });
+      _ticketTitleController.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✓ Maintenance ticket filed and dispatched!')),
+    );
+  }
+
+  void _generateQr() {
+    setState(() {
+      _guestPassName = 'Sherif Kamel';
+      _guestPassQr = 'SECURE_GATE_PASS_QR_KEY_29402';
+    });
+  }
+
+  void _submitSnag() {
+    if (_snagDescController.text.isEmpty) return;
+    setState(() {
+      _loggedSnags.insert(0, {
+        'cat': _snagCat == 'walls' ? 'Painting' : _snagCat == 'plumb' ? 'Plumbing' : 'Electrical',
+        'desc': _snagDescController.text,
+        'sev': _snagSeverity
+      });
+      // Toggle checklist item status to failed
+      for (var item in _qcItems) {
+        if (item['id'] == _snagCat) {
+          item['passed'] = false;
+        }
+      }
+      _snagDescController.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✓ Snag defect registered in QC catalog.')),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    bool isClient = widget.role == 'client' || widget.role == 'admin';
+    bool isInspector = widget.role == 'delivery_engineer' || widget.role == 'admin';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -519,46 +596,195 @@ class DeliveryTab extends StatelessWidget {
         children: [
           const Text(
             '🟢 Delivery & Operations Portal',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
           ),
-          const SizedBox(height: 8),
-          const Text('Compound entrance gate QR codes and warranty snag logs.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 6),
+          const Text(
+            'Compound guest passes, QC quality checklists, and repair dispatches.',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
           const SizedBox(height: 24),
-          Card(
-            color: const Color(0xFF131A2E),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: Colors.green, width: 1.5),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.terminal, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text(
-                        'مرحباً مهندس محمود! الهيكل مهيأ لك',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+
+          // 🐳 Homeowner / Client Panel
+          if (isClient) ...[
+            const Text('Homeowner Guest QR Generator (H.8)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 12),
+            Card(
+              color: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.07))),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Request high-speed guest entrance gate pass code:'),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _generateQr,
+                      icon: const Icon(Icons.qr_code),
+                      label: const Text('Generate Guest Gate pass'),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+                    ),
+                    if (_guestPassQr != null) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          color: Colors.white,
+                          child: const Icon(Icons.qr_code_scanner, size: 100, color: Colors.black),
+                        ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'بناءً على طلبك، قمنا بتهيئة شاشة العمليات الخاصة بك كـ Stub نظيف وجاهز للبرمجة محلياً.',
-                    style: TextStyle(height: 1.5),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    '✓ نماذج (Models) ومسارات (Routes) وجداول (Migrations) الصيانة والاستلام والفحص تم إعدادها بالكامل في الـ Laravel Backend.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.4),
-                  ),
-                ],
+                      const SizedBox(height: 8),
+                      Text('Pass for: $_guestPassName', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ]
+                  ],
+                ),
               ),
             ),
-          )
+            const SizedBox(height: 30),
+
+            const Text('Submit Maintenance Ticket (H.8)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 12),
+            Card(
+              color: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.07))),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _ticketTitleController,
+                      decoration: const InputDecoration(labelText: 'Repair Title (e.g. Broken faucet)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                      items: ['Plumbing', 'Electrical', 'HVAC', 'Landscape'].map((c) {
+                        return DropdownMenuItem(value: c, child: Text(c));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedCategory = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _addTicket,
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6)),
+                      child: const Text('File Ticket'),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('My Active Tickets:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ..._myTickets.map((t) => ListTile(
+                      leading: const Icon(Icons.build_circle, color: Colors.green),
+                      title: Text(t['title']!),
+                      subtitle: Text('Category: ${t['cat']}'),
+                      trailing: Chip(
+                        label: Text(t['status']!.toUpperCase()),
+                        backgroundColor: t['status'] == 'open' ? Colors.orange.withOpacity(0.2) : Colors.green.withOpacity(0.2),
+                      ),
+                    )),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // 🟢 Staff / Quality Inspector Panel
+          if (isInspector) ...[
+            if (isClient) const SizedBox(height: 40),
+            const Text('QC Handover checklist (H.17)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 12),
+            Card(
+              color: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.07))),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('QC Quality checkssheets for Unit A-101:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ..._qcItems.map((item) => CheckboxListTile(
+                      title: Text(item['item']),
+                      value: item['passed'],
+                      activeColor: Colors.green,
+                      onChanged: (val) {
+                        setState(() {
+                          item['passed'] = val;
+                        });
+                      },
+                    )),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            const Text('Log Inspection Snag / Defect', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 12),
+            Card(
+              color: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.07))),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: _snagCat,
+                      decoration: const InputDecoration(labelText: 'Snag Category', border: OutlineInputBorder()),
+                      items: [
+                        DropdownMenuItem(value: 'walls', child: const Text('Painting & Plaster')),
+                        DropdownMenuItem(value: 'plumb', child: const Text('Plumbing')),
+                        DropdownMenuItem(value: 'elect', child: const Text('Electrical sockets')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _snagCat = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _snagDescController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Defect description (e.g. wall crack)', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _snagSeverity,
+                      decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
+                      items: ['low', 'medium', 'high', 'critical'].map((s) {
+                        return DropdownMenuItem(value: s, child: Text(s.toUpperCase()));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _snagSeverity = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _submitSnag,
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                      child: const Text('Log Snag'),
+                    ),
+                    if (_loggedSnags.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      const Text('Logged Snags:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ..._loggedSnags.map((s) => ListTile(
+                        leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                        title: Text(s['desc']!),
+                        subtitle: Text('Category: ${s['cat']}'),
+                        trailing: Chip(
+                          label: Text(s['sev']!.toUpperCase()),
+                          backgroundColor: Colors.red.withOpacity(0.2),
+                        ),
+                      )),
+                    ]
+                  ],
+                ),
+              ),
+            ),
+          ]
         ],
       ),
     );
