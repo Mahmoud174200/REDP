@@ -135,6 +135,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/documents', [DocumentController::class, 'getDocuments']);
         Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
 
+        // Visual Workflow Automation Builder (H.19)
+        Route::get('/workflows', [ClientPortalController::class, 'getWorkflows']);
+        Route::post('/workflows', [ClientPortalController::class, 'storeWorkflow']);
+
         // Homeowner compound requests (Clients and Admins)
 
         Route::middleware('role:client')->group(function () {

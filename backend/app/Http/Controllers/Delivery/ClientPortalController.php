@@ -91,4 +91,46 @@ class ClientPortalController extends Controller
             'qr_code_data' => 'data:image/png;base64,' . base64_encode(json_encode($qrPayload))
         ], 201);
     }
+
+    /**
+     * Get visual workflow automation templates list.
+     * Section H.19: Automation rules registry.
+     */
+    public function getWorkflows(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'data' => \App\Models\WorkflowTemplate::latest()->get()
+        ], 200);
+    }
+
+    /**
+     * Store a visual workflow rule template.
+     */
+    public function storeWorkflow(Request $request)
+    {
+        $request->validate([
+            'trigger_name' => 'required|string',
+            'action_name' => 'required|string',
+            'rules_payload' => 'nullable|array'
+        ]);
+
+        $wfId = (string) Str::uuid();
+
+        $wf = \App\Models\WorkflowTemplate::create([
+            'id' => $wfId,
+            'trigger_name' => $request->trigger_name,
+            'action_name' => $request->action_name,
+            'rules_payload' => $request->rules_payload ?? [],
+            'active' => true
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'message' => 'Workflow rule compiled and stored in active runtime templates.',
+            'data' => $wf
+        ], 201);
+    }
 }
