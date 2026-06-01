@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'features/acquisition/presentation/screens/broker_dashboard_screen.dart';
+import 'features/acquisition/presentation/screens/sales_agent_screen.dart';
+
 
 void main() {
   runApp(const REDPMobileApp());
@@ -239,58 +242,218 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// 🟠 Acquisition Tab UI Stub (Ragab)
+// 🟠 Acquisition Tab (Developer 1: Ragab — Acquisition & Sales Engine)
 class AcquisitionTab extends StatelessWidget {
   final String role;
   const AcquisitionTab({super.key, required this.role});
 
   @override
   Widget build(BuildContext context) {
+    final bool isAdmin = role == 'admin';
+    final bool isSalesAgent = role == 'sales_agent' || isAdmin;
+    final bool isBroker = role == 'broker' || isAdmin;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '🟠 Lead & Broker Dashboard',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text('Lead Lock Referral register and EOI status check.', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 24),
-          Card(
-            color: const Color(0xFF131A2E),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.07)),
+            '🟠 Acquisition & Sales Engine',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Outfit',
             ),
-            child: const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Acquisition channels, active lead locking, and broker referral networks.',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 28),
+
+          // ── Sales Agent Desk Launcher ──
+          if (isSalesAgent) ...[
+            _buildLauncherCard(
+              context: context,
+              title: 'Sales Agent Desk',
+              subtitle: 'Manage assigned leads, track sales score, and log direct discussions/meetings.',
+              badgeText: 'SALES FORCE',
+              badgeColor: const Color(0xFF3B82F6),
+              icon: Icons.contact_phone,
+              gradientColors: [const Color(0xFF1E3A5F), const Color(0xFF131A2E)],
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SalesAgentScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // ── Broker Portal Launcher ──
+          if (isBroker) ...[
+            _buildLauncherCard(
+              context: context,
+              title: 'Broker Referral Hub',
+              subtitle: 'Generate and copy custom referral links, monitor lock progress bars, and check pending/approved commissions.',
+              badgeText: 'BROKER NETWORK',
+              badgeColor: const Color(0xFFA855F7),
+              icon: Icons.share_location,
+              gradientColors: [const Color(0xFF2C1A4D), const Color(0xFF131A2E)],
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BrokerDashboardScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ── Anti-Poaching System Visualizer Card ──
+          _buildAntiPoachingCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLauncherCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required String badgeText,
+    required Color badgeColor,
+    required IconData icon,
+    required List<Color> gradientColors,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: gradientColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: badgeColor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: badgeColor.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: badgeColor, size: 14),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 28, color: badgeColor),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Broker Lock referrals:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Chip(label: Text('ACTIVE'), backgroundColor: Color(0x3310B981)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                   ),
-                  Divider(height: 30, color: Colors.white12),
-                  ListTile(
-                    leading: Icon(Icons.person, color: Colors.orange),
-                    title: Text('Mohamed El-Sayed'),
-                    subtitle: Text('Lock expires in 45 days'),
-                    trailing: Text('Broker A'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAntiPoachingCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A2E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield, color: Color(0xFF10B981), size: 20),
+              const SizedBox(width: 10),
+              const Text(
+                'Anti-Poaching Lock System',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('ENFORCED', style: TextStyle(color: Color(0xFF10B981), fontSize: 9, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const Divider(height: 24, color: Colors.white10),
+          const Text(
+            'Brokers claim unique 90-day locks on lead identity credentials (Composite keys). Anti-fraud middleware rejects cross-channel duplication.',
+            style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+          ),
         ],
       ),
     );
   }
 }
+
 
 // 🔵 Finance Tab UI Stub (Melwany)
 class FinanceTab extends StatelessWidget {

@@ -11,67 +11,59 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * ─────────────────────────────────────────────────────────
  * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
- * Model: Broker
+ * Model: Campaign
+ * Tracks marketing campaigns from Facebook/Google/TikTok ads.
  * ─────────────────────────────────────────────────────────
  */
-class Broker extends Model
+class Campaign extends Model
 {
     use HasUuids, HasFactory, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;
 
-    public const STATUS_PENDING   = 'pending';
-    public const STATUS_ACTIVE    = 'active';
-    public const STATUS_SUSPENDED = 'suspended';
+    public const SOURCE_FACEBOOK = 'facebook';
+    public const SOURCE_GOOGLE   = 'google';
+    public const SOURCE_TIKTOK   = 'tiktok';
+    public const SOURCE_DIRECT   = 'direct';
+    public const SOURCE_REFERRAL = 'referral';
 
     protected $fillable = [
         'id',
-        'agency_name',
-        'agent_name',
-        'email',
-        'phone',
-        'license_no',
-        'status',
-        'referral_code',
+        'name',
+        'source',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'budget',
+        'leads_count',
+        'roi_percentage',
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
+        'budget'         => 'decimal:2',
+        'leads_count'    => 'integer',
+        'roi_percentage' => 'decimal:2',
+        'created_at'     => 'datetime',
+        'updated_at'     => 'datetime',
+        'deleted_at'     => 'datetime',
     ];
 
     // ── Relationships ──
-
-    public function commissions(): HasMany
-    {
-        return $this->hasMany(Commission::class);
-    }
-
-    public function leadLocks(): HasMany
-    {
-        return $this->hasMany(LeadLock::class);
-    }
 
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class);
     }
 
-    // ── Scopes ──
-
-    public function scopeActive($query)
-    {
-        return $query->where('status', self::STATUS_ACTIVE);
-    }
+    // ── Accessors ──
 
     /**
-     * Generate unique referral link URL.
+     * Calculate Customer Acquisition Cost (CAC).
      */
-    public function getReferralUrlAttribute(): string
+    public function getCacAttribute(): float
     {
-        $baseUrl = config('app.frontend_url', 'https://redp.com');
-        return "{$baseUrl}/register?ref={$this->referral_code}";
+        if ($this->leads_count === 0) return 0;
+        return round($this->budget / $this->leads_count, 2);
     }
 }

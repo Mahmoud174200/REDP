@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2, Users, Wallet, FileText, Settings, ShieldCheck, 
-  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert
+  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, TrendingUp
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +27,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         { name: 'Leads & KYC', path: '/acquisition/leads', icon: Users },
         { name: 'CRM Kanban Pipeline', path: '/acquisition/crm', icon: BarChart3 },
         { name: 'Broker Portal', path: '/acquisition/brokers', icon: Building2 },
+        { name: 'KYC Approvals', path: '/acquisition/kyc', icon: ShieldCheck },
+        { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: TrendingUp },
       ]
     },
     {

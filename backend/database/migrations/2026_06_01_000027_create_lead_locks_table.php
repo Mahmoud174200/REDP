@@ -8,30 +8,32 @@ return new class extends Migration {
     /**
      * ─────────────────────────────────────────────────────────
      * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
-     * Table: commissions
-     * Loose-link: unit_id references Finance domain (no FK)
+     * Table: lead_locks (Broker Anti-Poaching System)
+     * 90-day exclusive lock on leads registered via broker referral
      * ─────────────────────────────────────────────────────────
      */
     public function up(): void
     {
-        Schema::create('commissions', function (Blueprint $table) {
+        Schema::create('lead_locks', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
             $table->uuid('broker_id');
             $table->uuid('lead_id');
-            $table->uuid('unit_id')->nullable()->comment('Loose-link to Finance domain units table — no foreign key');
-            $table->decimal('rate_percent', 4, 2)->default(0.00);
-            $table->decimal('gross_amount', 12, 2)->default(0.00);
-            $table->enum('status', ['pending', 'approved', 'paid'])->default('pending');
+            $table->string('phone', 20);
+            $table->string('national_id', 30)->nullable();
+            $table->timestamp('locked_until');
+            $table->enum('status', ['active', 'expired', 'released'])->default('active');
 
             $table->timestamps();
             $table->softDeletes();
 
             // ── Indexes ──
-            $table->index('broker_id', 'idx_commissions_broker');
-            $table->index('lead_id', 'idx_commissions_lead');
-            $table->index('unit_id', 'idx_commissions_unit');
-            $table->index('status', 'idx_commissions_status');
+            $table->index('broker_id', 'idx_lead_locks_broker');
+            $table->index('lead_id', 'idx_lead_locks_lead');
+            $table->index('locked_until', 'idx_lead_locks_until');
+            $table->index('status', 'idx_lead_locks_status');
+            $table->index(['phone', 'national_id'], 'idx_lead_locks_phone_nid');
+            $table->unique(['phone', 'status'], 'uq_lead_locks_phone_active');
 
             // ── Foreign Keys ──
             $table->foreign('broker_id')
@@ -40,12 +42,11 @@ return new class extends Migration {
             $table->foreign('lead_id')
                   ->references('id')->on('leads')
                   ->onDelete('cascade');
-            // NOTE: unit_id is intentionally NOT a foreign key (loose-coupling with Finance domain)
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('commissions');
+        Schema::dropIfExists('lead_locks');
     }
 };
