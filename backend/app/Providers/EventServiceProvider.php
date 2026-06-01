@@ -2,11 +2,6 @@
 
 namespace App\Providers;
 
-use App\Events\ReservationConfirmed;
-use App\Events\PaymentReceived;
-use App\Events\ContractSigned;
-use App\Listeners\DeliveryEventListener;
-use App\Listeners\Finance\HandleReservationConfirmed;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 // ── 🟠 Acquisition Events (Ragab) ──
@@ -25,6 +20,9 @@ use App\Listeners\Acquisition\HandleContractSigned;
 
 // ── 🟢 Delivery Listeners ──
 use App\Listeners\DeliveryEventListener;
+
+// ── 🔵 Finance Listeners ──
+use App\Listeners\Finance\HandleReservationConfirmed;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -45,13 +43,6 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string|array>>
      */
     protected $listen = [
-        // From Acquisition (Ragab): auto-create contract + payment plan
-        ReservationConfirmed::class => [
-            HandleReservationConfirmed::class,
-            [DeliveryEventListener::class, 'handleReservationConfirmed'],
-        ],
-
-    protected $listen = [
         // ══════════════════════════════════════════════════
         // 🟠 ACQUISITION DOMAIN (Ragab)
         // ══════════════════════════════════════════════════
@@ -61,8 +52,8 @@ class EventServiceProvider extends ServiceProvider
         ],
 
         AcquisitionReservationConfirmed::class => [
-            // Consumed by Finance: create contract + payment plan
-            // Consumed by Delivery: schedule handover inspection
+            // Handled via bridge closure in boot() to auto-create client + reservation,
+            // which then fires the base ReservationConfirmed event below.
         ],
 
         BrokerRegistered::class => [
@@ -74,6 +65,7 @@ class EventServiceProvider extends ServiceProvider
         // ══════════════════════════════════════════════════
 
         BaseReservationConfirmed::class => [
+            HandleReservationConfirmed::class,
             [DeliveryEventListener::class, 'handleReservationConfirmed'],
         ],
 
@@ -82,17 +74,10 @@ class EventServiceProvider extends ServiceProvider
             [DeliveryEventListener::class, 'handlePaymentReceived'],
         ],
 
-        // From Finance (Melwany): contract signed timeline generation (Delivery)
         ContractSigned::class => [
             HandleContractSigned::class,
             [DeliveryEventListener::class, 'handleContractSigned'],
         ],
-
-        // From Delivery (Mahmoud): final financial settlement
-        // Note: HandoverCompleted event will be created by Mahmoud's module
-        // \App\Events\Delivery\HandoverCompleted::class => [
-        //     \App\Listeners\Finance\HandleHandoverCompleted::class,
-        // ],
     ];
 
     /**
@@ -101,10 +86,43 @@ class EventServiceProvider extends ServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        // Bridge Acquisition's ReservationConfirmed event to base ReservationConfirmed
+        \Illuminate\Support\Facades\Event::listen(
+            AcquisitionReservationConfirmed::class,
+            function (AcquisitionReservationConfirmed $event) {
+                $lead = \App\Models\Lead::findOrFail($event->leadId);
+                $unit = \App\Models\Unit::findOrFail($event->unitId);
+
+                // Find or create the client user from Lead details
+                $user = \App\Models\User::firstOrCreate(
+                    ['email' => $lead->email],
+                    [
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'name' => $lead->full_name,
+                        'phone' => $lead->phone,
+                        'role' => 'client',
+                        'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                    ]
+                );
+
+                // Create the Reservation record
+                $reservation = \App\Models\Reservation::create([
+                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'unit_id' => $unit->id,
+                    'client_id' => $user->id,
+                    'eoi_amount' => 50000.00, // Default EOI amount
+                    'status' => 'confirmed',
+                    'expires_at' => now()->addDays(7),
+                ]);
+
+                // Fire base ReservationConfirmed event to trigger Finance & Delivery listeners
+                event(new BaseReservationConfirmed($reservation->id, $unit->id, $user->id));
+            }
+        );
     }
 
     /**
-     * Determine if events and listeners should be automatically discovered.
      * Determine if events and listeners should be auto-discovered.
      */
     public function shouldDiscoverEvents(): bool
