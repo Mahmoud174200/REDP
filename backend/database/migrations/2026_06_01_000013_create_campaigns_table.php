@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('campaigns', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->string('name');
-            ->string('utm_source');
-            ->string('utm_medium');
-            ->decimal('budget', 15, 2)->default(0.00);
-            ->boolean('active')->default(true);
-            ->timestamps();
+        Schema::create('campaigns', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->string('utm_source');
+            $table->string('utm_medium');
+            $table->decimal('budget', 15, 2)->default(0.00);
+            $table->boolean('active')->default(true);
+            $table->timestamps();
         });
     }
     public function down(): void {

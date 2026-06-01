@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('interactions', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('lead_id');
-            ->string('type');
-            ->text('notes')->nullable();
-            ->timestamp('interacted_at')->useCurrent();
-            ->timestamps();
-            ->foreign('lead_id')->references('id')->on('leads')->onDelete('cascade');
+        Schema::create('interactions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('lead_id');
+            $table->string('type');
+            $table->text('notes')->nullable();
+            $table->timestamp('interacted_at')->useCurrent();
+            $table->timestamps();
+            $table->foreign('lead_id')->references('id')->on('leads')->onDelete('cascade');
         });
     }
     public function down(): void {

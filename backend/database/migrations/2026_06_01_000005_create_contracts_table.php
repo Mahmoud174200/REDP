@@ -5,16 +5,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('contracts', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('reservation_id');
-            ->uuid('client_id');
-            ->string('document_path')->nullable();
-            ->string('status')->default('draft');
-            ->timestamp('signed_at')->nullable();
-            ->timestamps();
-            ->foreign('reservation_id')->references('id')->on('reservations')->onDelete('cascade');
-            ->foreign('client_id')->references('id')->on('users')->onDelete('cascade');
+        Schema::create('contracts', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('reservation_id');
+            $table->uuid('client_id');
+            $table->string('document_path')->nullable();
+            $table->string('status')->default('draft');
+            $table->timestamp('signed_at')->nullable();
+            $table->timestamps();
+            $table->foreign('reservation_id')->references('id')->on('reservations')->onDelete('cascade');
+            $table->foreign('client_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
     public function down(): void {

@@ -5,15 +5,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('payments', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('contract_id');
-            ->decimal('amount', 15, 2);
-            ->string('status')->default('pending');
-            ->string('transaction_reference')->nullable();
-            ->timestamp('paid_at')->nullable();
-            ->timestamps();
-            ->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
+        Schema::create('payments', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('contract_id');
+            $table->decimal('amount', 15, 2);
+            $table->string('status')->default('pending');
+            $table->string('transaction_reference')->nullable();
+            $table->timestamp('paid_at')->nullable();
+            $table->timestamps();
+            $table->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
         });
     }
     public function down(): void {
