@@ -1,9 +1,4 @@
 import React, { useState, useCallback, useRef } from 'react';
-import {
-  Users, Phone, Mail, Calendar, ArrowRight, Search,
-  GripVertical, Star, Clock, MessageSquare, Filter,
-  ChevronDown, BarChart3, UserPlus, RefreshCw
-} from 'lucide-react';
 import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────
@@ -34,13 +29,13 @@ interface PipelineStage {
 }
 
 const STAGE_CONFIG: Record<string, { icon: string; gradient: string }> = {
-  new:             { icon: '🆕', gradient: 'linear-gradient(135deg, #3B82F6, #2563EB)' },
-  contacted:       { icon: '📞', gradient: 'linear-gradient(135deg, #8B5CF6, #7C3AED)' },
-  interested:      { icon: '⭐', gradient: 'linear-gradient(135deg, #F59E0B, #D97706)' },
-  visit_scheduled: { icon: '📅', gradient: 'linear-gradient(135deg, #06B6D4, #0891B2)' },
-  negotiation:     { icon: '🤝', gradient: 'linear-gradient(135deg, #F97316, #EA580C)' },
-  reserved:        { icon: '✅', gradient: 'linear-gradient(135deg, #10B981, #059669)' },
-  contracted:      { icon: '📝', gradient: 'linear-gradient(135deg, #6366F1, #4F46E5)' },
+  new:             { icon: 'fa-solid fa-user-plus', gradient: 'linear-gradient(135deg, #3B82F6, #2563EB)' },
+  contacted:       { icon: 'fa-solid fa-phone', gradient: 'linear-gradient(135deg, #8B5CF6, #7C3AED)' },
+  interested:      { icon: 'fa-solid fa-star', gradient: 'linear-gradient(135deg, #F59E0B, #D97706)' },
+  visit_scheduled: { icon: 'fa-solid fa-calendar-days', gradient: 'linear-gradient(135deg, #06B6D4, #0891B2)' },
+  negotiation:     { icon: 'fa-solid fa-handshake', gradient: 'linear-gradient(135deg, #F97316, #EA580C)' },
+  reserved:        { icon: 'fa-solid fa-circle-check', gradient: 'linear-gradient(135deg, #10B981, #059669)' },
+  contracted:      { icon: 'fa-solid fa-file-contract', gradient: 'linear-gradient(135deg, #6366F1, #4F46E5)' },
 };
 
 const MOCK_PIPELINE: Record<string, PipelineStage> = {
@@ -107,11 +102,12 @@ const CrmKanban: React.FC = () => {
   const handleDragStart = (e: React.DragEvent, lead: LeadCard, fromStage: string) => {
     setDraggedLead({ lead, fromStage });
     e.dataTransfer.effectAllowed = 'move';
-    (e.target as HTMLElement).style.opacity = '0.4';
+    e.dataTransfer.setData('text/plain', lead.id);
+    (e.currentTarget as HTMLElement).style.opacity = '0.4';
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
-    (e.target as HTMLElement).style.opacity = '1';
+    (e.currentTarget as HTMLElement).style.opacity = '1';
     setDraggedLead(null);
     setDragOverStage(null);
     dragCounter.current = 0;
@@ -212,14 +208,14 @@ const CrmKanban: React.FC = () => {
       <div className="glass-panel" style={{ padding: '28px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BarChart3 style={{ color: 'var(--color-warning)', width: '28px', height: '28px' }} />
+            <i className="fa-solid fa-chart-simple" style={{ color: 'var(--color-warning)', fontSize: '1.6rem' }}></i>
             CRM Sales Pipeline
           </h1>
           <p style={{ fontSize: '0.85rem' }}>Drag and drop leads between stages • {totalLeads} active leads in pipeline</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
-            <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
+            <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: 'var(--text-muted)' }}></i>
             <input
               type="text"
               className="form-control"
@@ -246,7 +242,7 @@ const CrmKanban: React.FC = () => {
               className="glass-panel"
               style={{ padding: '16px 20px', textAlign: 'center', borderTop: `3px solid ${stage.color}` }}
             >
-              <span style={{ fontSize: '1.4rem' }}>{config.icon}</span>
+              <i className={config.icon} style={{ fontSize: '1.4rem', color: stage.color, display: 'block', margin: '4px 0' }}></i>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: stage.color, marginTop: '4px' }}>{stage.count}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stage.label}</div>
             </div>
@@ -291,7 +287,7 @@ const CrmKanban: React.FC = () => {
                 paddingBottom: '12px', borderBottom: `2px solid ${stage.color}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.1rem' }}>{config.icon}</span>
+                  <i className={config.icon} style={{ fontSize: '1.1rem', color: stage.color }}></i>
                   <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stage.label}</h4>
                 </div>
                 <span style={{
@@ -318,6 +314,8 @@ const CrmKanban: React.FC = () => {
                       borderRadius: 'var(--radius-sm)',
                       padding: '14px',
                       cursor: 'grab',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none',
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       borderLeft: `3px solid ${stage.color}`,
                     }}
@@ -346,7 +344,7 @@ const CrmKanban: React.FC = () => {
                           <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: 0 }}>{lead.phone}</p>
                         </div>
                       </div>
-                      <GripVertical style={{ width: '14px', height: '14px', color: 'var(--text-muted)', opacity: 0.4, flexShrink: 0 }} />
+                      <i className="fa-solid fa-grip-vertical" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', opacity: 0.4, flexShrink: 0 }}></i>
                     </div>
 
                     {/* Score & Badges */}
@@ -357,7 +355,7 @@ const CrmKanban: React.FC = () => {
                         background: getScoreColor(lead.lead_score) + '20',
                         color: getScoreColor(lead.lead_score),
                       }}>
-                        <Star style={{ width: '8px', height: '8px', display: 'inline', marginRight: '2px' }} />
+                        <i className="fa-solid fa-star" style={{ fontSize: '0.55rem', marginRight: '2px' }}></i>
                         {lead.lead_score}
                       </span>
                       <span style={{
@@ -377,7 +375,7 @@ const CrmKanban: React.FC = () => {
                         background: 'rgba(50, 71, 58, 0.05)', borderRadius: '6px',
                         padding: '8px 10px', marginBottom: '8px',
                       }}>
-                        <MessageSquare style={{ width: '10px', height: '10px', display: 'inline', marginRight: '4px' }} />
+                        <i className="fa-solid fa-comment-dots" style={{ fontSize: '0.65rem', marginRight: '4px' }}></i>
                         {lead.last_interaction.notes?.substring(0, 60)}{(lead.last_interaction.notes?.length ?? 0) > 60 ? '...' : ''}
                       </div>
                     )}
@@ -403,7 +401,7 @@ const CrmKanban: React.FC = () => {
                           onMouseOver={(e) => (e.currentTarget.style.background = stage.color + '22')}
                           onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <ArrowRight style={{ width: '14px', height: '14px' }} />
+                          <i className="fa-solid fa-circle-arrow-right" style={{ fontSize: '0.9rem' }}></i>
                         </button>
                       )}
                     </div>
