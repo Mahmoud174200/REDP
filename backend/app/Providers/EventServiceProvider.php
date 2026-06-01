@@ -4,6 +4,23 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
+// ── 🟠 Acquisition Events (Ragab) ──
+use App\Events\Acquisition\LeadCreated;
+use App\Events\Acquisition\BrokerRegistered;
+use App\Events\Acquisition\ReservationConfirmed as AcquisitionReservationConfirmed;
+
+// ── 🟢 Base / Financial Events (Melwany / Mahmoud) ──
+use App\Events\ReservationConfirmed as BaseReservationConfirmed;
+use App\Events\PaymentReceived;
+use App\Events\ContractSigned;
+
+// ── 🟠 Acquisition Listeners ──
+use App\Listeners\Acquisition\HandlePaymentReceived;
+use App\Listeners\Acquisition\HandleContractSigned;
+
+// ── 🟢 Delivery Listeners ──
+use App\Listeners\DeliveryEventListener;
+
 /**
  * ─────────────────────────────────────────────────────────
  * REDP — Event Service Provider
@@ -23,17 +40,16 @@ class EventServiceProvider extends ServiceProvider
         // 🟠 ACQUISITION DOMAIN (Ragab)
         // ══════════════════════════════════════════════════
 
-        // Events emitted by Acquisition
-        \App\Events\Acquisition\LeadCreated::class => [
+        LeadCreated::class => [
             // Future: Notification listeners, analytics tracking
         ],
 
-        \App\Events\Acquisition\ReservationConfirmed::class => [
+        AcquisitionReservationConfirmed::class => [
             // Consumed by Finance: create contract + payment plan
             // Consumed by Delivery: schedule handover inspection
         ],
 
-        \App\Events\Acquisition\BrokerRegistered::class => [
+        BrokerRegistered::class => [
             // Future: Welcome email, compliance review queue
         ],
 
@@ -41,18 +57,18 @@ class EventServiceProvider extends ServiceProvider
         // 🟢 DELIVERY & BASE EVENTS (Mahmoud / Melwany)
         // ══════════════════════════════════════════════════
 
-        \App\Events\ReservationConfirmed::class => [
-            [\App\Listeners\DeliveryEventListener::class, 'handleReservationConfirmed'],
+        BaseReservationConfirmed::class => [
+            [DeliveryEventListener::class, 'handleReservationConfirmed'],
         ],
 
-        \App\Events\PaymentReceived::class => [
-            \App\Listeners\Acquisition\HandlePaymentReceived::class,
-            [\App\Listeners\DeliveryEventListener::class, 'handlePaymentReceived'],
+        PaymentReceived::class => [
+            HandlePaymentReceived::class,
+            [DeliveryEventListener::class, 'handlePaymentReceived'],
         ],
 
-        \App\Events\ContractSigned::class => [
-            \App\Listeners\Acquisition\HandleContractSigned::class,
-            [\App\Listeners\DeliveryEventListener::class, 'handleContractSigned'],
+        ContractSigned::class => [
+            HandleContractSigned::class,
+            [DeliveryEventListener::class, 'handleContractSigned'],
         ],
     ];
 
