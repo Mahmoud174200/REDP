@@ -1,0 +1,41 @@
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->statefulApi(); // Enable stateful Sanctum auth for SPA
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        // Customize global API error response behavior
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                
+                // Keep development exception tracing transparent
+                $data = [
+                    'success' => false,
+                    'message' => $e->getMessage() ?: 'An unexpected server error occurred.',
+                ];
+                
+                if (config('app.debug')) {
+                    $data['trace'] = $e->getTrace();
+                    $data['code'] = $e->getCode();
+                }
+                
+                return response()->json($data, $statusCode == 0 ? 500 : $statusCode);
+            }
+            return $response;
+        });
+    })->create();
