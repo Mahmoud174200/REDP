@@ -12,6 +12,9 @@ import Campaigns from './pages/acquisition/Campaigns';
 
 // 🔵 Finance Pages (Melwany)
 import Inventory from './pages/finance/Inventory';
+import Contracts from './pages/finance/Contracts';
+import Payments from './pages/finance/Payments';
+import Collections from './pages/finance/Collections';
 
 // 🟢 Delivery Pages (Mahmoud)
 import Overview from './pages/delivery/Overview';
@@ -38,7 +41,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const DashboardWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const userStr = localStorage.getItem('redp_user');
   const user = userStr ? JSON.parse(userStr) : { role: 'admin' };
-  
+
   return (
     <AuthGuard>
       <DashboardLayout userRole={user.role}>
@@ -56,10 +59,10 @@ const HomeRedirect: React.FC = () => {
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  
+
   const userStr = localStorage.getItem('redp_user');
   const user = userStr ? JSON.parse(userStr) : { role: 'admin' };
-  
+
   // Route to the appropriate sandbox based on who logged in
   if (user.role === 'sales_agent' || user.role === 'broker') {
     return <Navigate to="/acquisition/crm" replace />;
@@ -70,7 +73,7 @@ const HomeRedirect: React.FC = () => {
   if (user.role === 'delivery_engineer' || user.role === 'client') {
     return <Navigate to="/delivery/overview" replace />;
   }
-  
+
   // Admins land on CRM overview
   return <Navigate to="/acquisition/crm" replace />;
 };
@@ -92,10 +95,11 @@ const App: React.FC = () => {
         <Route path="/acquisition/kyc" element={<DashboardWrapper><KycApprovals /></DashboardWrapper>} />
         <Route path="/acquisition/campaigns" element={<DashboardWrapper><Campaigns /></DashboardWrapper>} />
 
-        {/* 🔵 Financial routes (Melwany) */}
+        {/* 🔵 Financial routes (Melwany) — Each route has its own dedicated component */}
         <Route path="/finance/inventory" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
-        <Route path="/finance/payments" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
-        <Route path="/finance/contracts" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
+        <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
+        <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
+        <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
 
         {/* 🟢 Delivery routes (Mahmoud) */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
