@@ -121,7 +121,7 @@ const KycApprovals: React.FC = () => {
                   style={{
                     padding: '6px 14px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600,
                     cursor: 'pointer', textTransform: 'capitalize', transition: 'all 0.2s',
-                    background: statusFilter === filter ? 'var(--color-primary)' : 'rgba(15, 23, 42, 0.5)',
+                    background: statusFilter === filter ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.45)',
                     color: statusFilter === filter ? '#fff' : 'var(--text-muted)',
                     border: `1px solid ${statusFilter === filter ? 'var(--color-primary)' : 'var(--border-glass)'}`,
                   }}
@@ -280,7 +280,7 @@ const KycApprovals: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
               {['ID Front', 'ID Back'].map((label, i) => (
                 <div key={i} style={{
-                  background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px',
+                  background: 'rgba(50, 71, 58, 0.05)', borderRadius: '8px',
                   height: '100px', display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: '6px',
                   border: '1px dashed var(--border-glass)',
@@ -293,7 +293,7 @@ const KycApprovals: React.FC = () => {
 
             {/* Selfie Match */}
             <div style={{
-              background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px',
+              background: 'rgba(50, 71, 58, 0.05)', borderRadius: '8px',
               padding: '16px', marginBottom: '16px', textAlign: 'center',
               border: `1px solid ${getScoreColor(selectedRecord.facial_match_score)}33`,
             }}>

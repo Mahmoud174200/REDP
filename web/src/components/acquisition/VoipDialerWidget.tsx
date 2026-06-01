@@ -224,13 +224,13 @@ const VoipDialerWidget: React.FC = () => {
                   key={key}
                   onClick={() => setDialNumber(prev => prev + key)}
                   style={{
-                    background: 'rgba(15, 23, 42, 0.5)', border: '1px solid var(--border-glass)',
+                    background: 'rgba(255, 255, 255, 0.45)', border: '1px solid var(--border-glass)',
                     borderRadius: '8px', padding: '10px', cursor: 'pointer',
                     color: 'var(--text-main)', fontSize: '1rem', fontWeight: 600,
                     transition: 'all 0.15s',
                   }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(15, 23, 42, 0.5)')}
+                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(50, 71, 58, 0.1)')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.45)')}
                 >
                   {key}
                 </button>
@@ -246,7 +246,7 @@ const VoipDialerWidget: React.FC = () => {
                 disabled={!dialNumber}
                 style={{
                   flex: 1, padding: '12px', borderRadius: '12px',
-                  background: dialNumber ? 'linear-gradient(135deg, #10B981, #059669)' : 'rgba(15, 23, 42, 0.5)',
+                  background: dialNumber ? 'linear-gradient(135deg, #10B981, #059669)' : 'rgba(255, 255, 255, 0.45)',
                   color: '#fff', border: 'none', cursor: dialNumber ? 'pointer' : 'not-allowed',
                   fontSize: '0.85rem', fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -262,7 +262,7 @@ const VoipDialerWidget: React.FC = () => {
                   onClick={() => setIsMuted(!isMuted)}
                   style={{
                     width: '44px', height: '44px', borderRadius: '50%',
-                    background: isMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(15, 23, 42, 0.5)',
+                    background: isMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.45)',
                     border: `1px solid ${isMuted ? 'var(--color-danger)' : 'var(--border-glass)'}`,
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: isMuted ? 'var(--color-danger)' : 'var(--text-muted)',
@@ -277,7 +277,7 @@ const VoipDialerWidget: React.FC = () => {
                   onClick={handleHold}
                   style={{
                     width: '44px', height: '44px', borderRadius: '50%',
-                    background: callState === 'on-hold' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(15, 23, 42, 0.5)',
+                    background: callState === 'on-hold' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.45)',
                     border: `1px solid ${callState === 'on-hold' ? 'var(--color-warning)' : 'var(--border-glass)'}`,
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: callState === 'on-hold' ? 'var(--color-warning)' : 'var(--text-muted)',
@@ -332,7 +332,7 @@ const VoipDialerWidget: React.FC = () => {
 
             {/* Notes Section */}
             <div style={{
-              background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px', padding: '10px',
+              background: 'rgba(50, 71, 58, 0.05)', borderRadius: '8px', padding: '10px',
               marginBottom: '12px', fontSize: '0.72rem', color: 'var(--text-muted)',
             }}>
               <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px', fontSize: '0.68rem' }}>
@@ -344,7 +344,7 @@ const VoipDialerWidget: React.FC = () => {
 
             {/* Last Interaction */}
             <div style={{
-              background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px', padding: '10px',
+              background: 'rgba(50, 71, 58, 0.05)', borderRadius: '8px', padding: '10px',
               marginBottom: '12px', fontSize: '0.72rem', color: 'var(--text-muted)',
             }}>
               <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px', fontSize: '0.68rem' }}>
@@ -365,7 +365,7 @@ const VoipDialerWidget: React.FC = () => {
                 placeholder="Type notes during call..."
                 style={{
                   width: '100%', height: '60px', resize: 'none',
-                  background: 'rgba(15, 23, 42, 0.6)',
+                  background: 'rgba(255, 255, 255, 0.5)',
                   border: '1px solid var(--border-glass)',
                   borderRadius: '8px', padding: '8px', fontSize: '0.72rem',
                   color: 'var(--text-main)', fontFamily: 'var(--font-body)',

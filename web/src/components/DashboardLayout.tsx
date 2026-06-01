@@ -31,7 +31,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, userRole })
             bottom: 0, 
             background: 'rgba(29, 45, 36, 0.25)', /* Soft forest overlay tint */
             backdropFilter: 'blur(4px)', 
-            webkitBackdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             zIndex: 90 
           }} 
         />

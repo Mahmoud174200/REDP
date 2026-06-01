@@ -119,7 +119,7 @@ const Brokers: React.FC = () => {
 
         <div style={{
           display: 'flex', gap: '8px', alignItems: 'center',
-          background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)',
+          background: 'rgba(255, 255, 255, 0.45)', borderRadius: 'var(--radius-sm)',
           padding: '4px 4px 4px 16px', border: '1px solid var(--border-glass)',
         }}>
           <code style={{ flex: 1, fontSize: '0.82rem', color: 'var(--color-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -257,7 +257,7 @@ const Brokers: React.FC = () => {
                 style={{
                   padding: '6px 14px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600,
                   cursor: 'pointer', textTransform: 'capitalize', transition: 'all 0.2s',
-                  background: commissionFilter === filter ? 'var(--color-primary)' : 'rgba(15, 23, 42, 0.5)',
+                  background: commissionFilter === filter ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.45)',
                   color: commissionFilter === filter ? '#fff' : 'var(--text-muted)',
                   border: `1px solid ${commissionFilter === filter ? 'var(--color-primary)' : 'var(--border-glass)'}`,
                 }}

@@ -274,7 +274,7 @@ const CrmKanban: React.FC = () => {
               onDrop={(e) => handleDrop(e, stageKey)}
               style={{
                 flex: '0 0 280px',
-                background: isDragOver ? 'rgba(59, 130, 246, 0.08)' : 'rgba(19, 26, 46, 0.4)',
+                background: isDragOver ? 'rgba(50, 71, 58, 0.08)' : 'rgba(255, 255, 255, 0.25)',
                 border: `1px solid ${isDragOver ? stage.color : 'var(--border-glass)'}`,
                 borderRadius: 'var(--radius-md)',
                 padding: '16px',
@@ -374,7 +374,7 @@ const CrmKanban: React.FC = () => {
                     {lead.last_interaction && (
                       <div style={{
                         fontSize: '0.68rem', color: 'var(--text-muted)',
-                        background: 'rgba(15, 23, 42, 0.5)', borderRadius: '6px',
+                        background: 'rgba(50, 71, 58, 0.05)', borderRadius: '6px',
                         padding: '8px 10px', marginBottom: '8px',
                       }}>
                         <MessageSquare style={{ width: '10px', height: '10px', display: 'inline', marginRight: '4px' }} />
