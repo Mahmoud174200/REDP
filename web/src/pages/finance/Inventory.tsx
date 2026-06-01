@@ -1,157 +1,349 @@
-import React, { useState } from 'react';
-import { Building2, Wallet, FileText, Lock, Unlock, BadgeCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X } from 'lucide-react';
+
+interface UnitData {
+  id: string;
+  unit_number: string;
+  type: string;
+  floor: number;
+  area: number;
+  bedrooms: number;
+  bathrooms: number;
+  view_type: string;
+  building: string;
+  price: number;
+  status: string;
+  project?: { name: string; location: string };
+}
+
+const mockUnits: UnitData[] = [
+  { id: 'u1', unit_number: 'A-101', type: 'apartment', floor: 1, area: 120, bedrooms: 2, bathrooms: 1, view_type: 'garden', building: 'Block A', price: 3400000, status: 'available', project: { name: 'Palm Hills October', location: '6th of October City' } },
+  { id: 'u2', unit_number: 'A-102', type: 'apartment', floor: 1, area: 145, bedrooms: 3, bathrooms: 2, view_type: 'pool', building: 'Block A', price: 3550000, status: 'available', project: { name: 'Palm Hills October', location: '6th of October City' } },
+  { id: 'u3', unit_number: 'V-501', type: 'villa', floor: 0, area: 350, bedrooms: 5, bathrooms: 4, view_type: 'landmark', building: 'Villas Zone', price: 12400000, status: 'reserved', project: { name: 'Palm Hills October', location: '6th of October City' } },
+  { id: 'u4', unit_number: 'O-204', type: 'office', floor: 2, area: 85, bedrooms: 0, bathrooms: 1, view_type: 'street', building: 'Commercial Hub', price: 6800000, status: 'available', project: { name: 'SODIC East', location: 'New Heliopolis' } },
+  { id: 'u5', unit_number: 'D-301', type: 'duplex', floor: 3, area: 220, bedrooms: 4, bathrooms: 3, view_type: 'sea', building: 'Block D', price: 8900000, status: 'sold', project: { name: 'Marassi', location: 'North Coast' } },
+  { id: 'u6', unit_number: 'P-801', type: 'penthouse', floor: 8, area: 280, bedrooms: 4, bathrooms: 3, view_type: 'sea', building: 'Tower 1', price: 15600000, status: 'available', project: { name: 'Marassi', location: 'North Coast' } },
+  { id: 'u7', unit_number: 'A-205', type: 'apartment', floor: 2, area: 110, bedrooms: 2, bathrooms: 1, view_type: 'garden', building: 'Block B', price: 2980000, status: 'reserved', project: { name: 'Mountain View iCity', location: 'New Cairo' } },
+  { id: 'u8', unit_number: 'A-306', type: 'apartment', floor: 3, area: 155, bedrooms: 3, bathrooms: 2, view_type: 'pool', building: 'Block C', price: 4200000, status: 'available', project: { name: 'Mountain View iCity', location: 'New Cairo' } },
+];
 
 const Inventory: React.FC = () => {
-  const [units, setUnits] = useState([
-    { id: 'u1', number: 'A-101', type: 'Apartment', floor: 1, price: 3400000.00, status: 'available', lockedBy: null },
-    { id: 'u2', number: 'A-102', type: 'Apartment', floor: 1, price: 3550000.00, status: 'available', lockedBy: null },
-    { id: 'u3', number: 'V-501', type: 'Villa (Corner)', floor: 0, price: 12400000.00, status: 'reserved', lockedBy: 'User_902' },
-    { id: 'u4', number: 'O-204', type: 'Office space', floor: 2, price: 6800000.00, status: 'available', lockedBy: null }
-  ]);
-
+  const [units, setUnits] = useState<UnitData[]>(mockUnits);
+  const [filteredUnits, setFilteredUnits] = useState<UnitData[]>(mockUnits);
   const [lockSimulation, setLockSimulation] = useState<string | null>(null);
+  const [lockProgress, setLockProgress] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+
+  // Stats calculations
+  const stats = {
+    total: units.length,
+    available: units.filter(u => u.status === 'available').length,
+    reserved: units.filter(u => u.status === 'reserved').length,
+    sold: units.filter(u => u.status === 'sold').length,
+    totalValue: units.reduce((acc, u) => acc + u.price, 0),
+    soldValue: units.filter(u => u.status === 'sold').reduce((acc, u) => acc + u.price, 0),
+    occupancy: Math.round(((units.filter(u => u.status === 'sold' || u.status === 'reserved').length) / units.length) * 100),
+  };
+
+  useEffect(() => {
+    let result = units;
+    if (searchTerm) {
+      result = result.filter(u => 
+        u.unit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.project?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    if (filterStatus !== 'all') {
+      result = result.filter(u => u.status === filterStatus);
+    }
+    if (filterType !== 'all') {
+      result = result.filter(u => u.type === filterType);
+    }
+    setFilteredUnits(result);
+  }, [searchTerm, filterStatus, filterType, units]);
 
   const simulateRowLock = (unitId: string) => {
-    setLockSimulation(`ACQUIRING ROW LOCK: SELECT * FROM units WHERE id = '${unitId}' FOR UPDATE...`);
-    
-    // Transact simulation
+    setLockProgress(0);
+    setLockSimulation(`⏳ ACQUIRING ROW LOCK: SELECT * FROM units WHERE id = '${unitId}' FOR UPDATE...`);
+
     setTimeout(() => {
-      setLockSimulation(`[SUCCESS] LOCK HELD! Processing Fawry/Stripe payment token...`);
-      
+      setLockProgress(33);
+      setLockSimulation(`🔒 LOCK ACQUIRED! Verifying unit availability within transaction...`);
+
       setTimeout(() => {
-        setUnits(prev => prev.map(u => {
-          if (u.id === unitId) {
-            return { ...u, status: 'reserved', lockedBy: 'Stripe_Gate_Active' };
-          }
-          return u;
-        }));
-        setLockSimulation(`[SUCCESS] Unit status updated to 'reserved'. Transaction committed. Row lock released! Decoupled 'ReservationConfirmed' event emitted to event bus.`);
+        setLockProgress(66);
+        setLockSimulation(`💳 Processing payment gateway token... Initiating Stripe/Fawry charge...`);
+
+        setTimeout(() => {
+          setLockProgress(100);
+          setUnits(prev => prev.map(u => u.id === unitId ? { ...u, status: 'reserved' } : u));
+          setLockSimulation(`✅ TRANSACTION COMMITTED! Unit status → 'reserved'. Row lock released. Events emitted: ReservationConfirmed → [Finance: Contract+PaymentPlan auto-generated] [Delivery: Inspection scheduled]`);
+
+          setTimeout(() => {
+            setLockSimulation(null);
+            setLockProgress(0);
+          }, 5000);
+        }, 1200);
       }, 1000);
-      
     }, 800);
   };
 
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, { class: string; label: string }> = {
+      available: { class: 'badge-success', label: 'Available' },
+      reserved: { class: 'badge-warning', label: 'Reserved' },
+      sold: { class: 'badge-info', label: 'Sold' },
+      blocked: { class: 'badge-danger', label: 'Blocked' },
+    };
+    const cfg = map[status] || { class: 'badge-info', label: status };
+    return <span className={`badge ${cfg.class}`}>{cfg.label}</span>;
+  };
+
+  const getTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      apartment: '🏢', villa: '🏡', office: '🏛️', duplex: '🏘️', penthouse: '✨', commercial: '🏪',
+    };
+    return icons[type] || '🏠';
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      
-      {/* Header Panel */}
-      <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* Header */}
+      <div className="glass-panel" style={{ padding: '28px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🔵 Real Estate Inventory & Billing Ledger</h1>
-          <p>Real-time units catalog, database transactional locking, and payment plans generator.</p>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Building2 style={{ color: 'var(--color-primary)' }} />
+            Real Estate Inventory
+          </h1>
+          <p style={{ fontSize: '0.85rem' }}>Unit catalog with transactional row locking, dynamic pricing & real-time availability</p>
         </div>
-        <div style={{ padding: '6px 12px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>MODULE: H.3 / H.5 (MELWANY)</span>
+        <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.5 — MELWANY</span>
         </div>
       </div>
 
-      {/* Row Lock Simulator Panel */}
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {[
+          { label: 'Total Units', value: stats.total, icon: <Building2 size={20} />, color: 'var(--color-primary)', bg: 'rgba(59,130,246,0.08)' },
+          { label: 'Available', value: stats.available, icon: <Unlock size={20} />, color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)' },
+          { label: 'Reserved', value: stats.reserved, icon: <Lock size={20} />, color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.08)' },
+          { label: 'Portfolio Value', value: `${(stats.totalValue / 1000000).toFixed(1)}M`, icon: <TrendingUp size={20} />, color: 'var(--color-secondary)', bg: 'rgba(168,85,247,0.08)' },
+        ].map((card, i) => (
+          <div key={i} className="glass-panel" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</span>
+              <div style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: card.bg }}>
+                <div style={{ color: card.color }}>{card.icon}</div>
+              </div>
+            </div>
+            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: card.color }}>{card.value}</h3>
+          </div>
+        ))}
+      </div>
+
+      {/* Occupancy Bar */}
+      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', minWidth: '120px' }}>Occupancy Rate</span>
+        <div style={{ flex: 1, height: '10px', borderRadius: '5px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+          <div style={{
+            width: `${stats.occupancy}%`,
+            height: '100%',
+            borderRadius: '5px',
+            background: `linear-gradient(90deg, var(--color-primary), var(--color-secondary))`,
+            transition: 'width 1s ease',
+          }} />
+        </div>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', minWidth: '40px' }}>{stats.occupancy}%</span>
+      </div>
+
+      {/* Row Lock Simulation */}
       {lockSimulation && (
-        <div className="glass-panel animate-pulse" style={{ padding: '20px', background: 'rgba(168,85,247,0.08)', borderColor: 'rgba(168,85,247,0.3)', color: 'var(--color-secondary)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Lock style={{ width: '14px', height: '14px' }} />
-            {lockSimulation}
-          </span>
+        <div className="glass-panel" style={{ padding: '20px 24px', background: 'rgba(168,85,247,0.06)', borderColor: 'rgba(168,85,247,0.25)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <Lock style={{ width: '16px', height: '16px', color: 'var(--color-secondary)' }} />
+            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--color-secondary)' }}>{lockSimulation}</span>
+          </div>
+          <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+            <div style={{
+              width: `${lockProgress}%`,
+              height: '100%',
+              borderRadius: '2px',
+              background: 'linear-gradient(90deg, var(--color-secondary), var(--color-primary))',
+              transition: 'width 0.6s ease',
+            }} />
+          </div>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', alignItems: 'start' }}>
-        
-        {/* Units catalog */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Building2 style={{ color: 'var(--color-primary)' }} />
-            Compounds Unit Stock
-          </h2>
-
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Unit Number</th>
-                <th>Type</th>
-                <th>Floor</th>
-                <th>Price (EGP)</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {units.map((unit) => (
-                <tr key={unit.id}>
-                  <td><strong>{unit.number}</strong></td>
-                  <td>{unit.type}</td>
-                  <td>{unit.floor}</td>
-                  <td>{unit.price.toLocaleString('en-US')} EGP</td>
-                  <td>
-                    {unit.status === 'available' && <span className="badge badge-success">Available</span>}
-                    {unit.status === 'reserved' && <span className="badge badge-warning">Reserved</span>}
-                  </td>
-                  <td>
-                    {unit.status === 'available' ? (
-                      <button 
-                        onClick={() => simulateRowLock(unit.id)}
-                        className="btn-primary" 
-                        style={{ padding: '8px 16px', fontSize: '0.75rem' }}
-                      >
-                        <Lock style={{ width: '12px', height: '12px' }} />
-                        Secure Row Purchase
-                      </button>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Lock style={{ width: '12px', height: '12px', color: 'var(--color-danger)' }} />
-                        Locked (ID: {unit.lockedBy})
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Search & Filter Bar */}
+      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Search style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
+          <input
+            className="form-control"
+            placeholder="Search units by number or project..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '40px', fontSize: '0.85rem' }}
+          />
         </div>
-
-        {/* Client Installment ledger */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Wallet style={{ color: 'var(--color-secondary)' }} />
-            Installment Ledger
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>REMAINING PRINCIPAL</span>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '4px', color: 'var(--color-primary)' }}>2,450,000.00 EGP</h3>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>INSTALLMENTS DUE TIMELINE</h4>
-              
-              <div className="glass-panel" style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ fontWeight: 600 }}>Q3 Installment</h4>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Due: 2026-07-01</span>
-                </div>
-                <div>
-                  <span style={{ fontWeight: 700, marginRight: '10px' }}>12,000 EGP</span>
-                  <span className="badge badge-danger">Unpaid</span>
-                </div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ fontWeight: 600 }}>Q4 Installment</h4>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Due: 2026-10-01</span>
-                </div>
-                <div>
-                  <span style={{ fontWeight: 700, marginRight: '10px' }}>12,000 EGP</span>
-                  <span className="badge badge-danger">Unpaid</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        <select
+          className="form-control"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          style={{ width: '160px', fontSize: '0.85rem' }}
+        >
+          <option value="all">All Status</option>
+          <option value="available">Available</option>
+          <option value="reserved">Reserved</option>
+          <option value="sold">Sold</option>
+        </select>
+        <select
+          className="form-control"
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+          style={{ width: '160px', fontSize: '0.85rem' }}
+        >
+          <option value="all">All Types</option>
+          <option value="apartment">Apartment</option>
+          <option value="villa">Villa</option>
+          <option value="duplex">Duplex</option>
+          <option value="penthouse">Penthouse</option>
+          <option value="office">Office</option>
+        </select>
       </div>
 
+      {/* Units Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+        {filteredUnits.map(unit => (
+          <div key={unit.id} className="glass-panel" style={{ padding: '0', overflow: 'hidden', cursor: 'pointer', position: 'relative' }} onClick={() => setSelectedUnit(unit)}>
+            {/* Color Accent Top Bar */}
+            <div style={{
+              height: '4px',
+              background: unit.status === 'available' ? 'var(--color-success)' : unit.status === 'reserved' ? 'var(--color-warning)' : unit.status === 'sold' ? 'var(--color-primary)' : 'var(--color-danger)',
+            }} />
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>{getTypeIcon(unit.type)}</span>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{unit.unit_number}</h3>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{unit.type} • {unit.building}</span>
+                  </div>
+                </div>
+                {getStatusBadge(unit.status)}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600 }}>Area:</span> {unit.area} m²
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600 }}>Floor:</span> {unit.floor === 0 ? 'Ground' : unit.floor}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600 }}>Beds:</span> {unit.bedrooms} • <span style={{ fontWeight: 600 }}>Baths:</span> {unit.bathrooms}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600 }}>View:</span> {unit.view_type}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '14px' }}>
+                <div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</span>
+                  <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)' }}>{unit.price.toLocaleString()} EGP</h4>
+                </div>
+                {unit.status === 'available' && (
+                  <button
+                    className="btn-primary"
+                    style={{ padding: '8px 18px', fontSize: '0.75rem' }}
+                    onClick={(e) => { e.stopPropagation(); simulateRowLock(unit.id); }}
+                  >
+                    <Lock style={{ width: '12px', height: '12px' }} />
+                    Reserve
+                  </button>
+                )}
+              </div>
+
+              {unit.project && (
+                <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  📍 {unit.project.name} — {unit.project.location}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredUnits.length === 0 && (
+        <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
+          <Search style={{ width: '48px', height: '48px', color: 'var(--text-muted)', margin: '0 auto 16px' }} />
+          <h3 style={{ fontWeight: 600, marginBottom: '8px' }}>No units found</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Try adjusting your search or filter criteria.</p>
+        </div>
+      )}
+
+      {/* Unit Detail Modal */}
+      {selectedUnit && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px',
+        }} onClick={() => setSelectedUnit(null)}>
+          <div className="glass-panel" style={{ maxWidth: '560px', width: '100%', padding: '32px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setSelectedUnit(null)} style={{
+              position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none',
+              color: 'var(--text-muted)', cursor: 'pointer', padding: '4px',
+            }}>
+              <X size={20} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+              <span style={{ fontSize: '2.5rem' }}>{getTypeIcon(selectedUnit.type)}</span>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{selectedUnit.unit_number}</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{selectedUnit.type} • {selectedUnit.building}</p>
+              </div>
+              <div style={{ marginLeft: 'auto' }}>{getStatusBadge(selectedUnit.status)}</div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              {[
+                { label: 'Area', value: `${selectedUnit.area} m²` },
+                { label: 'Floor', value: selectedUnit.floor === 0 ? 'Ground' : `Floor ${selectedUnit.floor}` },
+                { label: 'Bedrooms', value: selectedUnit.bedrooms },
+                { label: 'Bathrooms', value: selectedUnit.bathrooms },
+                { label: 'View', value: selectedUnit.view_type },
+                { label: 'Project', value: selectedUnit.project?.name || 'N/A' },
+              ].map((item, i) => (
+                <div key={i} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)' }}>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</span>
+                  <p style={{ fontWeight: 700, marginTop: '4px', color: 'var(--text-main)' }}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Unit Price</span>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '4px' }}>{selectedUnit.price.toLocaleString()} EGP</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~{(selectedUnit.price / selectedUnit.area).toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP/m²</span>
+            </div>
+
+            {selectedUnit.status === 'available' && (
+              <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} onClick={() => { setSelectedUnit(null); simulateRowLock(selectedUnit.id); }}>
+                <Lock style={{ width: '14px', height: '14px' }} />
+                Secure Row Lock & Reserve Unit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

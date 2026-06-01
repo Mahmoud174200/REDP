@@ -6,6 +6,8 @@ use App\Http\Controllers\Acquisition\LeadController;
 use App\Http\Controllers\Acquisition\BrokerController;
 use App\Http\Controllers\Finance\InventoryController;
 use App\Http\Controllers\Finance\PaymentController;
+use App\Http\Controllers\Finance\ContractController;
+use App\Http\Controllers\Finance\CollectionController;
 use App\Http\Controllers\Delivery\ClientPortalController;
 use App\Http\Controllers\Delivery\HandoverController;
 
@@ -18,6 +20,9 @@ use App\Http\Controllers\Delivery\HandoverController;
 // 🔓 Public Authentication Routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// 🔓 Public Payment Webhooks (no auth required)
+Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
 
 // 🔒 Protected API Routes (Laravel Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
@@ -44,14 +49,43 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // 🔵 Financial Engine (Owner: Melwany)
     Route::prefix('finance')->group(function () {
-        // Unit Inventory lookup is open to all logged in profiles
+        // ── Unit Inventory (open to all logged-in users) ──
         Route::get('/units', [InventoryController::class, 'index']);
+        Route::get('/units/{id}', [InventoryController::class, 'show']);
+        Route::get('/stats', [InventoryController::class, 'getStats']);
 
-        // Reservations and direct purchases (Clients and Admins)
+        // ── Client-facing financial operations ──
         Route::middleware('role:client')->group(function () {
             Route::post('/units/{id}/reserve', [InventoryController::class, 'reserveUnit']);
-            Route::get('/installments', [PaymentController::class, 'getInstallments']);
             Route::post('/charge', [PaymentController::class, 'chargeInstallment']);
+        });
+
+        // ── Admin / Finance Officer operations ──
+        Route::middleware('role:finance_officer')->group(function () {
+            // Unit management
+            Route::post('/units/{id}/release', [InventoryController::class, 'releaseUnit']);
+            Route::patch('/units/{id}/pricing', [InventoryController::class, 'updatePricing']);
+
+            // Contract management
+            Route::get('/contracts', [ContractController::class, 'index']);
+            Route::get('/contracts/{id}', [ContractController::class, 'show']);
+            Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
+            Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
+            Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
+            Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
+
+            // Payment management
+            Route::get('/payments/{contractId}', [PaymentController::class, 'getInstallments']);
+            Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
+            Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
+
+            // Collections & debt management
+            Route::get('/collections', [CollectionController::class, 'getQueue']);
+            Route::post('/collections/{id}/promise', [CollectionController::class, 'recordPromiseToPay']);
+            Route::post('/reschedule/{contractId}', [CollectionController::class, 'reschedule']);
+            Route::post('/reschedule/{id}/approve', [CollectionController::class, 'approveReschedule']);
+            Route::post('/cancel/{contractId}', [CollectionController::class, 'processCancellation']);
+            Route::get('/aging-report', [CollectionController::class, 'getAgingReport']);
         });
     });
 

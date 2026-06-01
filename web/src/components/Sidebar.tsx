@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2, Users, Wallet, FileText, Settings, ShieldCheck, 
-  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert
+  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, AlertTriangle, CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -34,8 +34,9 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
       roles: ['admin', 'finance_officer', 'client'],
       items: [
         { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
-        { name: 'Payment Scheduler', path: '/finance/payments', icon: Wallet },
+        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard },
         { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText },
+        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle },
       ]
     },
     {
@@ -56,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
           <Building2 style={{ color: 'var(--color-primary)', width: '32px', height: '32px' }} />
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>REDP System</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-secondary)', fontWeight: 600, letterSpacing: '0.05em' }}>BASE SKELETON</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-secondary)', fontWeight: 600, letterSpacing: '0.05em' }}>FINANCIAL ENGINE v1.0</span>
           </div>
         </div>
 

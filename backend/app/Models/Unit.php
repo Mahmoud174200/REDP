@@ -14,9 +14,19 @@ class Unit extends Model
         'project_id',
         'unit_number',
         'floor',
-        'type', // 'apartment', 'villa', 'commercial'
+        'type', // 'apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'
+        'area', // in square meters
+        'bedrooms',
+        'bathrooms',
+        'view_type', // 'garden', 'pool', 'street', 'sea', 'landmark'
+        'building',
         'price',
         'status', // 'available', 'reserved', 'sold', 'blocked'
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'area' => 'decimal:2',
     ];
 
     public function project()
@@ -27,5 +37,50 @@ class Unit extends Model
     public function reservations()
     {
         return $this->hasMany(Reservation::class);
+    }
+
+    public function activeReservation()
+    {
+        return $this->hasOne(Reservation::class)->where('status', 'confirmed');
+    }
+
+    /**
+     * Scope: Only available units.
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('status', 'available');
+    }
+
+    /**
+     * Scope: Filter by project.
+     */
+    public function scopeByProject($query, string $projectId)
+    {
+        return $query->where('project_id', $projectId);
+    }
+
+    /**
+     * Scope: Filter by type.
+     */
+    public function scopeByType($query, string $type)
+    {
+        return $query->where('type', $type);
+    }
+
+    /**
+     * Scope: Filter by price range.
+     */
+    public function scopePriceRange($query, float $min, float $max)
+    {
+        return $query->whereBetween('price', [$min, $max]);
+    }
+
+    /**
+     * Check if unit can be reserved.
+     */
+    public function isAvailable(): bool
+    {
+        return $this->status === 'available';
     }
 }

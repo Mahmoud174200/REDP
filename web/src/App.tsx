@@ -4,6 +4,9 @@ import Login from './pages/auth/Login';
 import DashboardLayout from './components/DashboardLayout';
 import Leads from './pages/acquisition/Leads';
 import Inventory from './pages/finance/Inventory';
+import Contracts from './pages/finance/Contracts';
+import Payments from './pages/finance/Payments';
+import Collections from './pages/finance/Collections';
 import Overview from './pages/delivery/Overview';
 
 // 🔒 Auth Guard component enforcing active session keys
@@ -69,10 +72,11 @@ const App: React.FC = () => {
         <Route path="/acquisition/crm" element={<DashboardWrapper><Leads /></DashboardWrapper>} />
         <Route path="/acquisition/brokers" element={<DashboardWrapper><Leads /></DashboardWrapper>} />
 
-        {/* 🔵 Financial routes (Melwany) */}
+        {/* 🔵 Financial routes (Melwany) — Each route has its own dedicated component */}
         <Route path="/finance/inventory" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
-        <Route path="/finance/payments" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
-        <Route path="/finance/contracts" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
+        <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
+        <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
+        <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
 
         {/* 🟢 Delivery routes (Mahmoud) */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
