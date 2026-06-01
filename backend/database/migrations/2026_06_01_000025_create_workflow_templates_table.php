@@ -5,13 +5,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('workflow_templates', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->string('trigger_name');
-            ->string('action_name');
-            ->json('rules_payload')->nullable();
-            ->boolean('active')->default(true);
-            ->timestamps();
+        Schema::create('workflow_templates', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('trigger_name');
+            $table->string('action_name');
+            $table->json('rules_payload')->nullable();
+            $table->boolean('active')->default(true);
+            $table->timestamps();
         });
     }
     public function down(): void {

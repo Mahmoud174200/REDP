@@ -16,7 +16,6 @@ const Login: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // Sandbox Local Auth Session bypass (Artisan seeders match this)
     setTimeout(() => {
       localStorage.setItem('redp_token', 'sandbox_auth_token_value');
       localStorage.setItem('redp_user', JSON.stringify({
@@ -36,44 +35,44 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top right, rgba(168,85,247,0.15), transparent), var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at 10% 20%, rgba(203, 222, 209, 0.45) 0%, rgba(246, 248, 244, 0.85) 60%, rgba(228, 237, 222, 0.4) 100%), #f2f6f1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '460px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '28px', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--border-glass)' }}>
         
         {/* Title & Logo */}
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '60px', height: '60px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
-            <Building2 style={{ color: '#ffffff', width: '32px', height: '32px' }} />
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
+            <Building2 style={{ color: '#ffffff', width: '28px', height: '28px' }} />
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>REDP Portal</h1>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Real Estate Digital Platform Blueprint</p>
+          <h1 style={{ fontSize: '1.65rem', fontWeight: 850, color: 'var(--text-main)' }}>Ether REDP</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Real Estate Digital Platform Portal</p>
         </div>
 
         {/* Sandbox Quick Fills */}
-        <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.15)' }}>
-          <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <UserCheck style={{ width: '14px', height: '14px' }} />
+        <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.6)' }}>
+          <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <UserCheck style={{ width: '12px', height: '12px' }} />
             Quick-Fill Developer Profiles
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>👑 Admin</button>
-            <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>🟠 Ragab (Sales)</button>
-            <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>🔵 Melwany (Finance)</button>
-            <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.75rem', justifyContent: 'center' }}>🟢 Mahmoud (Delivery)</button>
+            <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>👑 Admin</button>
+            <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟠 Ragab (Sales)</button>
+            <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🔵 Melwany (Finance)</button>
+            <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟢 Mahmoud (Delivery)</button>
           </div>
         </div>
 
         {/* Main form */}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.85rem', textAlign: 'center' }}>{error}</div>}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {error && <div style={{ color: 'var(--color-danger)', fontSize: '0.8rem', textAlign: 'center' }}>{error}</div>}
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Email Address</label>
             <div style={{ position: 'relative' }}>
-              <Mail style={{ position: 'absolute', left: '16px', top: '16px', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
+              <Mail style={{ position: 'absolute', left: '16px', top: '14px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
               <input 
                 type="email" 
                 className="form-control" 
-                style={{ paddingLeft: '48px' }} 
+                style={{ paddingLeft: '44px', fontSize: '0.85rem' }} 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@redp.com" 
@@ -85,11 +84,11 @@ const Login: React.FC = () => {
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Password</label>
             <div style={{ position: 'relative' }}>
-              <KeyRound style={{ position: 'absolute', left: '16px', top: '16px', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
+              <KeyRound style={{ position: 'absolute', left: '16px', top: '14px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
               <input 
                 type="password" 
                 className="form-control" 
-                style={{ paddingLeft: '48px' }} 
+                style={{ paddingLeft: '44px', fontSize: '0.85rem' }} 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" 
@@ -104,7 +103,7 @@ const Login: React.FC = () => {
               className="form-control"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', fontSize: '0.85rem' }}
             >
               <option value="admin">👑 Platform Administrator</option>
               <option value="sales_agent">🟠 Ragab (Acquisition & KYC)</option>
@@ -118,7 +117,7 @@ const Login: React.FC = () => {
           <button 
             type="submit" 
             className="btn-primary" 
-            style={{ width: '100%', justifyContent: 'center', padding: '14px', marginTop: '10px' }}
+            style={{ width: '100%', justifyContent: 'center', padding: '14px', marginTop: '8px', fontSize: '0.9rem' }}
             disabled={loading}
           >
             {loading ? 'Authenticating...' : 'Sign In'}

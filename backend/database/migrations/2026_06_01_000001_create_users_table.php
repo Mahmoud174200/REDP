@@ -5,16 +5,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('users', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->string('name');
-            ->string('email')->unique();
-            ->string('password');
-            ->string('phone')->nullable();
-            ->string('role')->default('client');
-            ->string('status')->default('active');
-            ->rememberToken();
-            ->timestamps();
+        Schema::create('users', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->string('phone')->nullable();
+            $table->string('role')->default('client');
+            $table->string('status')->default('active');
+            $table->rememberToken();
+            $table->timestamps();
         });
     }
     public function down(): void {

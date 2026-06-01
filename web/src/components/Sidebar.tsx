@@ -2,20 +2,23 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Building2, Users, Wallet, FileText, Settings, ShieldCheck, 
-  LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, AlertTriangle, CreditCard
+  LogOut, Bell, BarChart3, Wrench, X, Terminal, FileSearch, ShieldAlert, AlertTriangle, CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
   userRole: string;
+  menuOpen?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
+const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem('redp_token');
     localStorage.removeItem('redp_user');
+    onClose?.();
     navigate('/login');
   };
 
@@ -25,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
       roles: ['admin', 'sales_agent', 'broker'],
       items: [
         { name: 'Leads & KYC', path: '/acquisition/leads', icon: Users },
-        { name: 'CRM Kanban Pipeline', path: '/acquisition/crm', icon: BarChart3 },
+        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: BarChart3 },
         { name: 'Broker Portal', path: '/acquisition/brokers', icon: Building2 },
       ]
     },
@@ -46,32 +49,86 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2 },
         { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench },
         { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck },
+        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText },
+        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3 },
+        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal },
       ]
     }
   ];
 
   return (
-    <aside className="glass-panel" style={{ width: '300px', minHeight: '100vh', borderRadius: 0, borderTop: 'none', borderLeft: 'none', padding: '30px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid var(--border-glass)' }}>
-          <Building2 style={{ color: 'var(--color-primary)', width: '32px', height: '32px' }} />
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>REDP System</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-secondary)', fontWeight: 600, letterSpacing: '0.05em' }}>FINANCIAL ENGINE v1.0</span>
+    <aside 
+      className={`glass-panel ${menuOpen ? 'menu-open' : ''}`}
+      style={{ 
+        width: '280px', 
+        borderRadius: 'var(--radius-lg)', 
+        padding: '24px 16px', /* Balanced padding */
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: '16px',
+        height: 'calc(100vh - 32px)',
+        zIndex: 100,
+        boxSizing: 'border-box', /* Force border-box calculation */
+        overflow: 'hidden' /* Keep child scrolls contained */
+      }}
+    >
+      {/* 📜 Scrollable Flex Container containing Logo & Navigation List */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflowY: 'auto', 
+          flex: 1, 
+          marginBottom: '12px',
+          paddingRight: '4px'
+        }}
+        className="sidebar-scroll-container"
+      >
+        {/* Editorial Title Logo (Ether UI layout) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', padding: '0 8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-sm)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
+              <Building2 style={{ color: '#ffffff', width: '20px', height: '20px' }} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1.2' }}>Ether REDP</h2>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.1em' }}>EDITORIAL SOFT-FORM</span>
+            </div>
           </div>
+
+          {/* Mobile Close Button drawer */}
+          <button 
+            onClick={onClose} 
+            className="mobile-menu-close"
+            style={{ 
+              display: 'none', 
+              padding: '6px', 
+              borderRadius: '50%', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: 'none',
+              background: 'rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer'
+            }}
+          >
+            <X style={{ width: '14px', height: '14px', color: 'var(--text-main)' }} />
+          </button>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        {/* Floating Links Queue */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {menuItems.map((section, idx) => {
             const hasAccess = section.roles.includes(userRole) || userRole === 'admin';
             if (!hasAccess) return null;
 
             return (
               <div key={idx}>
-                <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '12px', paddingLeft: '8px' }}>
+                <h3 style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.12em', marginBottom: '6px', paddingLeft: '10px' }}>
                   {section.title}
                 </h3>
-                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {section.items.map((item) => {
                     const isActive = location.pathname === item.path;
                     const Icon = item.icon;
@@ -79,23 +136,24 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
                       <li key={item.path}>
                         <Link 
                           to={item.path} 
+                          onClick={() => onClose?.()}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
-                            padding: '12px 16px',
-                            borderRadius: 'var(--radius-sm)',
+                            gap: '10px',
+                            padding: '10px 16px',
+                            borderRadius: '9999px', /* Pill buttons shapes */
                             textDecoration: 'none',
-                            color: isActive ? '#ffffff' : 'var(--text-muted)',
-                            background: isActive ? 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(168,85,247,0.15))' : 'transparent',
-                            border: isActive ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent',
-                            fontWeight: isActive ? 600 : 500,
-                            fontSize: '0.9rem',
-                            transition: 'var(--transition-smooth)'
+                            color: isActive ? 'var(--color-primary)' : 'var(--text-muted)',
+                            background: isActive ? '#ffffff' : 'transparent',
+                            boxShadow: isActive ? '0 4px 12px rgba(44, 62, 50, 0.04)' : 'none',
+                            fontWeight: isActive ? 700 : 500,
+                            fontSize: '0.8rem',
+                            transition: 'var(--transition-smooth)',
+                            border: isActive ? '1px solid rgba(255,255,255,0.8)' : '1px solid transparent'
                           }}
-                          className={isActive ? '' : 'sidebar-link-hover'}
                         >
-                          <Icon style={{ width: '18px', height: '18px', color: isActive ? 'var(--color-primary)' : 'inherit' }} />
+                          <Icon style={{ width: '15px', height: '15px', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)' }} />
                           {item.name}
                         </Link>
                       </li>
@@ -108,23 +166,24 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         </nav>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', padding: '0 8px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#ffffff' }}>
-            {userRole.substring(0, 2).toUpperCase()}
+      {/* 🔒 Fixed Bottom Footer Container */}
+      <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '16px', paddingLeft: '4px', paddingRight: '4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#ffffff', fontSize: '0.8rem' }}>
+            {userRole.substring(0, 1).toUpperCase()}
           </div>
           <div>
-            <h4 style={{ fontSize: '0.85rem', fontWeight: 600 }}>Active User</h4>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Role: {userRole}</span>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: '1.2' }}>REDP Operator</h4>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{userRole}</span>
           </div>
         </div>
 
         <button 
           onClick={handleLogout}
           className="btn-secondary"
-          style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+          style={{ width: '100%', justifyContent: 'center', padding: '8px', fontSize: '0.75rem' }}
         >
-          <LogOut style={{ width: '16px', height: '16px' }} />
+          <LogOut style={{ width: '12px', height: '12px' }} />
           Sign Out
         </button>
       </div>

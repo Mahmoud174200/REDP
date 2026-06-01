@@ -1,72 +1,171 @@
-import React from 'react';
-import { Building2, Wrench, ShieldCheck, FileSearch, Terminal, Play } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, Users, QrCode, ShieldCheck, Car, Key, Sparkles, Plus, Calendar } from 'lucide-react';
 
 const Overview: React.FC = () => {
+  const [visitorName, setVisitorName] = useState('');
+  const [visitDate, setVisitDate] = useState('');
+  const [carPlate, setCarPlate] = useState('');
+  
+  const [generatedPass, setGeneratedPass] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [activePasses, setActivePasses] = useState([
+    { id: 'g1', name: 'Mustafa Kamel', date: '2026-06-02', plate: 'أ ج ب 1234', status: 'valid' },
+    { id: 'g2', name: 'Laila Hassan', date: '2026-06-02', plate: 'None', status: 'valid' }
+  ]);
+
+  const handleCreatePass = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!visitorName || !visitDate) return;
+    setLoading(true);
+
+    setTimeout(() => {
+      const mockPass = {
+        pass_id: 'g' + (activePasses.length + 1),
+        name: visitorName,
+        date: visitDate,
+        plate: carPlate || 'None',
+        qr_code_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' // Simple mock PNG
+      };
+
+      setGeneratedPass(mockPass);
+      setActivePasses([mockPass, ...activePasses]);
+      setVisitorName('');
+      setVisitDate('');
+      setCarPlate('');
+      setLoading(false);
+    }, 500);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🟢 Delivery & Compound Operations</h1>
-          <p>Compound portal, snagging inspection app, contractor SLA monitor, and smart DMS.</p>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Building2 style={{ color: 'var(--color-success)', width: '32px', height: '32px' }} />
+            🟢 Compound Operations & Delivery Hub
+          </h1>
+          <p>Compound access securities, contractor directory trackers, and owner overview grids.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.2 / H.8 / H.17 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.2 / H.8 (MAHMOUD)</span>
         </div>
       </div>
 
-      {/* Developer Instruction Alert */}
-      <div className="glass-panel" style={{ padding: '30px', borderLeft: '5px solid var(--color-success)', background: 'rgba(16,185,129,0.03)' }}>
-        <h3 style={{ fontSize: '1.2rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <Terminal style={{ width: '20px', height: '20px' }} />
-          مرحباً مهندس محمود! الهيكل الأساسي مهيأ وجاهز لتبدأ عملك
-        </h3>
-        <p style={{ color: 'var(--text-main)', marginBottom: '16px', lineHeight: '1.6' }}>
-          بناءً على طلبك، قمنا بإنشاء وتأمين **هيكل المشروع الأساسي بالكامل (Base Sandbox Skeleton)** دون كتابة أو تداخل مع أي منطق برمجي خاص بمهامك. جميع النماذج (Models)، جداول البيانات (Migrations) المتوافقة مع MySQL، المسارات (API Routes)، وبوابات العبور الأمنية (RBAC) تم إعدادها بالكامل في الخلفية. 
-        </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          شاشات الملاك وصيانة المقاولين، وتطبيق الفحص للاستلام (Snagging App)، والأرشفة الذكية (OCR DMS) متاحة لك هنا كـ Stubs نظيفة تماماً لتبدأ البناء عليها براحة كاملة.
-        </p>
-      </div>
-
-      {/* Grid of Mahmoud's Tasks/Placeholders */}
+      {/* Grid statistics */}
       <div className="grid-cards">
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Users style={{ color: 'var(--color-success)' }} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>OCCUPIED VILLAS</span>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '2px' }}>340 Families</h3>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Car style={{ color: 'var(--color-primary)' }} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>GUEST PASSES SCANNED (24H)</span>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '2px' }}>1,432 Entrances</h3>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', background: 'rgba(168,85,247,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShieldCheck style={{ color: 'var(--color-secondary)' }} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CONTRACTOR SLA COMPLIANCE</span>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: '2px' }}>96.4%</h3>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '30px', alignItems: 'start' }}>
         
-        {/* H.2 / H.8 compound stub */}
-        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Building2 style={{ color: 'var(--color-success)', width: '24px', height: '24px' }} />
-            <h3 style={{ fontSize: '1.1rem' }}>H.2 & H.8 Compound Portal</h3>
-          </div>
-          <p style={{ fontSize: '0.85rem' }}>Owner dashboards, gate QR codes, and facilities reservation screens go here.</p>
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', background: 'rgba(16,185,129,0.08)', padding: '8px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>
-            STATUS: Ready for Mahmoud
-          </div>
+        {/* Pass Creator */}
+        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <QrCode style={{ color: 'var(--color-success)' }} />
+            Request Guest Pass
+          </h2>
+
+          <form onSubmit={handleCreatePass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Visitor's Full Name</label>
+              <input type="text" className="form-control" value={visitorName} onChange={(e) => setVisitorName(e.target.value)} placeholder="e.g. Sherif Omar" required />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Visit Date</label>
+              <div style={{ position: 'relative' }}>
+                <Calendar style={{ position: 'absolute', right: '16px', top: '16px', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
+                <input type="date" className="form-control" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Vehicle Plate Number (Optional)</label>
+              <input type="text" className="form-control" value={carPlate} onChange={(e) => setCarPlate(e.target.value)} placeholder="e.g. س ص ع 9876" />
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} disabled={loading}>
+              <Plus style={{ width: '18px', height: '18px' }} />
+              {loading ? 'Generating Code...' : 'Generate Entry QR'}
+            </button>
+          </form>
+
+          {generatedPass && (
+            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
+              <h4 style={{ color: 'var(--color-success)', fontWeight: 700, fontSize: '0.9rem' }}>QR Code Generated!</h4>
+              {/* Simulated QR Code Frame */}
+              <div style={{ padding: '16px', background: '#ffffff', borderRadius: 'var(--radius-sm)', width: '150px', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
+                <QrCode style={{ color: '#0b0f19', width: '110px', height: '110px' }} />
+              </div>
+              <div style={{ textAlign: 'center', fontSize: '0.75rem' }}>
+                <h4 style={{ color: 'var(--text-main)', fontWeight: 600 }}>{generatedPass.name}</h4>
+                <p>{generatedPass.date} | Plate: {generatedPass.plate}</p>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ID: {generatedPass.pass_id}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* H.17 snagging app stub */}
-        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ShieldCheck style={{ color: 'var(--color-success)', width: '24px', height: '24px' }} />
-            <h3 style={{ fontSize: '1.1rem' }}>H.17 Snagging App</h3>
-          </div>
-          <p style={{ fontSize: '0.85rem' }}>Inspection checklist checklist items, defect logging camera feeds, and QC digital signs.</p>
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', background: 'rgba(16,185,129,0.08)', padding: '8px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>
-            STATUS: Ready for Mahmoud
-          </div>
-        </div>
+        {/* Visitor log */}
+        <div className="glass-panel" style={{ padding: '30px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Key style={{ color: 'var(--color-secondary)' }} />
+            Active Guest Passes Log
+          </h2>
 
-        {/* H.20 document vault stub */}
-        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <FileSearch style={{ color: 'var(--color-success)', width: '24px', height: '24px' }} />
-            <h3 style={{ fontSize: '1.1rem' }}>H.20 Smart OCR Vault</h3>
-          </div>
-          <p style={{ fontSize: '0.85rem' }}>Smart document vaults, full-text searchable scans, and ID renewal reminders.</p>
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', background: 'rgba(16,185,129,0.08)', padding: '8px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>
-            STATUS: Ready for Mahmoud
-          </div>
+          <table className="premium-table">
+            <thead>
+              <tr>
+                <th>Visitor</th>
+                <th>Visit Date</th>
+                <th>Plate No</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activePasses.map((pass) => (
+                <tr key={pass.id}>
+                  <td><strong>{pass.name}</strong></td>
+                  <td>{pass.date}</td>
+                  <td>{pass.plate}</td>
+                  <td>
+                    <span className="badge badge-success">Valid Pass</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
       </div>

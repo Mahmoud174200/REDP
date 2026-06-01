@@ -5,16 +5,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('units', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('project_id');
-            ->string('unit_number');
-            ->integer('floor');
-            ->string('type');
-            ->decimal('price', 15, 2);
-            ->string('status')->default('available');
-            ->timestamps();
-            ->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
+        Schema::create('units', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('project_id');
+            $table->string('unit_number');
+            $table->integer('floor');
+            $table->string('type');
+            $table->decimal('price', 15, 2);
+            $table->string('status')->default('available');
+            $table->timestamps();
+            $table->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
         });
     }
     public function down(): void {

@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('brokers', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('user_id');
-            ->string('agency_name');
-            ->decimal('commission_rate', 5, 2);
-            ->string('status')->default('pending');
-            ->timestamps();
-            ->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        Schema::create('brokers', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('user_id');
+            $table->string('agency_name');
+            $table->decimal('commission_rate', 5, 2);
+            $table->string('status')->default('pending');
+            $table->timestamps();
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
     public function down(): void {

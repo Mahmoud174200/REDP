@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Events\ReservationConfirmed;
+use App\Events\PaymentReceived;
+use App\Events\ContractSigned;
+use App\Listeners\DeliveryEventListener;
+use App\Listeners\Finance\HandleReservationConfirmed;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -13,13 +18,23 @@ class EventServiceProvider extends ServiceProvider
      * Each engineer's listeners react to events from other engineers
      * without direct code/model dependencies.
      *
-     * @var array<class-string, array<int, class-string>>
+     * @var array<class-string, array<int, class-string|array>>
      */
     protected $listen = [
-        // ─── Events consumed by Finance (Melwany) ───
         // From Acquisition (Ragab): auto-create contract + payment plan
-        \App\Events\ReservationConfirmed::class => [
-            \App\Listeners\Finance\HandleReservationConfirmed::class,
+        ReservationConfirmed::class => [
+            HandleReservationConfirmed::class,
+            [DeliveryEventListener::class, 'handleReservationConfirmed'],
+        ],
+
+        // From Finance (Melwany): payment receipt notification (Delivery)
+        PaymentReceived::class => [
+            [DeliveryEventListener::class, 'handlePaymentReceived'],
+        ],
+
+        // From Finance (Melwany): contract signed timeline generation (Delivery)
+        ContractSigned::class => [
+            [DeliveryEventListener::class, 'handleContractSigned'],
         ],
 
         // From Delivery (Mahmoud): final financial settlement

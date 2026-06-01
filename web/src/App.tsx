@@ -8,6 +8,12 @@ import Contracts from './pages/finance/Contracts';
 import Payments from './pages/finance/Payments';
 import Collections from './pages/finance/Collections';
 import Overview from './pages/delivery/Overview';
+import Maintenance from './pages/delivery/Maintenance';
+import Handover from './pages/delivery/Handover';
+import Documents from './pages/delivery/Documents';
+import Analytics from './pages/delivery/Analytics';
+import Workflows from './pages/delivery/Workflows';
+
 
 // 🔒 Auth Guard component enforcing active session keys
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -80,8 +86,12 @@ const App: React.FC = () => {
 
         {/* 🟢 Delivery routes (Mahmoud) */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
-        <Route path="/delivery/maintenance" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
-        <Route path="/delivery/handover" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
+        <Route path="/delivery/maintenance" element={<DashboardWrapper><Maintenance /></DashboardWrapper>} />
+        <Route path="/delivery/handover" element={<DashboardWrapper><Handover /></DashboardWrapper>} />
+        <Route path="/delivery/documents" element={<DashboardWrapper><Documents /></DashboardWrapper>} />
+        <Route path="/delivery/analytics" element={<DashboardWrapper><Analytics /></DashboardWrapper>} />
+        <Route path="/delivery/workflows" element={<DashboardWrapper><Workflows /></DashboardWrapper>} />
+
 
         {/* 🔄 Fallback Catch-All */}
         <Route path="*" element={<Navigate to="/" replace />} />

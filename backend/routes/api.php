@@ -10,6 +10,9 @@ use App\Http\Controllers\Finance\ContractController;
 use App\Http\Controllers\Finance\CollectionController;
 use App\Http\Controllers\Delivery\ClientPortalController;
 use App\Http\Controllers\Delivery\HandoverController;
+use App\Http\Controllers\Delivery\VendorController;
+use App\Http\Controllers\Delivery\DocumentController;
+use App\Http\Controllers\Delivery\AnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -93,14 +96,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('delivery')->group(function () {
         // Compound Client Portal (Clients and Admins)
         Route::get('/overview', [ClientPortalController::class, 'getOverview']);
+        
+        // BI Dashboards and predictive Cash Flows (Admins and Delivery Engineers)
+        Route::get('/analytics', [AnalyticsController::class, 'getAnalytics']);
+
+        // Document Management Vaults (All logged-in profiles)
+        Route::get('/documents', [DocumentController::class, 'getDocuments']);
+        Route::post('/documents/upload', [DocumentController::class, 'uploadDocument']);
+
+        // Homeowner compound requests (Clients and Admins)
         Route::middleware('role:client')->group(function () {
             Route::post('/gate-code', [ClientPortalController::class, 'requestGateCode']);
+            Route::post('/tickets', [VendorController::class, 'storeTicket']);
         });
 
         // Handover snags & Quality checks (Delivery Engineers and Admins)
         Route::middleware('role:delivery_engineer')->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
+            Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
+            
+            // Contractor & vendor lists management
+            Route::get('/vendors', [VendorController::class, 'getVendors']);
+            Route::get('/tickets', [VendorController::class, 'getTickets']);
+            Route::post('/tickets/{ticketId}/dispatch', [VendorController::class, 'dispatchTicket']);
         });
     });
 });

@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('payment_plans', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('contract_id');
-            ->integer('total_installments');
-            ->integer('unpaid_installments');
-            ->string('status')->default('active');
-            ->timestamps();
-            ->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
+        Schema::create('payment_plans', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('contract_id');
+            $table->integer('total_installments');
+            $table->integer('unpaid_installments');
+            $table->string('status')->default('active');
+            $table->timestamps();
+            $table->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');
         });
     }
     public function down(): void {

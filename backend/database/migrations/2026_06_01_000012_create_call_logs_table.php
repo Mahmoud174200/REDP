@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('call_logs', function (Blueprint ) {
-            ->uuid('id')->primary();
-            ->uuid('lead_id');
-            ->string('file_url')->nullable();
-            ->integer('duration');
-            ->timestamp('recorded_at')->nullable();
-            ->timestamps();
-            ->foreign('lead_id')->references('id')->on('leads')->onDelete('cascade');
+        Schema::create('call_logs', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('lead_id');
+            $table->string('file_url')->nullable();
+            $table->integer('duration');
+            $table->timestamp('recorded_at')->nullable();
+            $table->timestamps();
+            $table->foreign('lead_id')->references('id')->on('leads')->onDelete('cascade');
         });
     }
     public function down(): void {
