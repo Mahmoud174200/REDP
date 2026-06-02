@@ -3,41 +3,33 @@ import { Terminal, Play, ArrowRight, Sparkles, Plus, CheckCircle, Save, ToggleLe
 import api from '../../services/api';
 
 const Workflows: React.FC = () => {
-  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [workflows, setWorkflows] = useState([
+    { id: 'wf1', trigger: 'PaymentReceived', action: 'SendWhatsAppNotification', payload: 'Thank you! Q3 installment processed.', active: true },
+    { id: 'wf2', trigger: 'ReservationConfirmed', action: 'ScheduleQCInspection', payload: 'Handover unit check timeline.', active: true },
+    { id: 'wf3', trigger: 'ContractSigned', action: 'GenerateHandoverTimeline', payload: 'Timeline PDF generation.', active: false }
+  ]);
 
   const [selectedTrigger, setSelectedTrigger] = useState('PaymentReceived');
   const [selectedAction, setSelectedAction] = useState('SendWhatsAppNotification');
   const [payloadText, setPayloadText] = useState('');
   const [publishing, setPublishing] = useState(false);
 
-  // Fetch active workflow templates from Laravel backend on load
-  const fetchWorkflows = async () => {
-    try {
-      const response = await api.get('/delivery/workflows');
-      if (response.data && response.data.success) {
-        // Map database schema to frontend format
-        const mapped = response.data.data.map((w: any) => ({
-          id: w.id,
-          trigger: w.trigger_name,
-          action: w.action_name,
-          payload: w.rules_payload && w.rules_payload.message ? w.rules_payload.message : 'Default automated system operation payload.',
-          active: w.active
-        }));
-        setWorkflows(mapped);
-      }
-    } catch (err) {
-      console.warn("Workflows API fallback: Loading sandbox mock automation templates.");
-      setWorkflows([
-        { id: 'wf1', trigger: 'PaymentReceived', action: 'SendWhatsAppNotification', payload: 'Thank you! Q3 installment processed.', active: true },
-        { id: 'wf2', trigger: 'ReservationConfirmed', action: 'ScheduleQCInspection', payload: 'Handover unit check timeline.', active: true },
-        { id: 'wf3', trigger: 'ContractSigned', action: 'GenerateHandoverTimeline', payload: 'Timeline PDF generation.', active: false }
-      ]);
-    }
-  };
-
   useEffect(() => {
-    fetchWorkflows();
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +83,7 @@ const Workflows: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      
+
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -107,7 +99,7 @@ const Workflows: React.FC = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px', alignItems: 'start' }}>
-        
+
         {/* Visual Builder Workspace */}
         <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -119,12 +111,12 @@ const Workflows: React.FC = () => {
           <form onSubmit={handleCreateRule} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Visual Nodes Chain */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.2)', padding: '24px', borderRadius: 'var(--radius-md)', border: '1.5px dashed var(--border-glass)' }}>
-              
+
               {/* Trigger Node */}
               <div className="glass-panel" style={{ padding: '16px 24px', width: '100%', maxWidth: '340px', textAlign: 'center', background: '#ffffff', boxShadow: 'var(--shadow-premium)' }}>
                 <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--color-warning)', fontWeight: 800, letterSpacing: '0.05em' }}>Trigger Event Node</span>
-                <select 
-                  className="form-control" 
+                <select
+                  className="form-control"
                   style={{ border: 'none', background: 'transparent', textAlign: 'center', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', padding: '6px' }}
                   value={selectedTrigger}
                   onChange={(e) => setSelectedTrigger(e.target.value)}
@@ -144,8 +136,8 @@ const Workflows: React.FC = () => {
               {/* Action Node */}
               <div className="glass-panel" style={{ padding: '16px 24px', width: '100%', maxWidth: '340px', textAlign: 'center', background: '#ffffff', boxShadow: 'var(--shadow-premium)' }}>
                 <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 800, letterSpacing: '0.05em' }}>Action Listener Node</span>
-                <select 
-                  className="form-control" 
+                <select
+                  className="form-control"
                   style={{ border: 'none', background: 'transparent', textAlign: 'center', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', padding: '6px' }}
                   value={selectedAction}
                   onChange={(e) => setSelectedAction(e.target.value)}
@@ -162,7 +154,7 @@ const Workflows: React.FC = () => {
             {/* Template payload */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Message Template / Operation Payload</label>
-              <textarea 
+              <textarea
                 className="form-control"
                 style={{ height: '80px', resize: 'none' }}
                 value={payloadText}
@@ -182,7 +174,7 @@ const Workflows: React.FC = () => {
         {/* Rules Listings */}
         <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Active Rules Registry</h2>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {workflows.map((wf) => (
               <div key={wf.id} className="glass-panel" style={{ padding: '20px', borderLeft: wf.active ? '4px solid var(--color-success)' : '4px solid var(--text-muted)' }}>
@@ -193,7 +185,7 @@ const Workflows: React.FC = () => {
                     <span style={{ color: 'var(--color-secondary-hover)' }}>{wf.action}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button 
+                    <button
                       onClick={() => toggleRule(wf.id)}
                       style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
                     >
@@ -203,7 +195,7 @@ const Workflows: React.FC = () => {
                         <ToggleLeft style={{ width: '28px', height: '28px', color: 'var(--text-muted)' }} />
                       )}
                     </button>
-                    <button 
+                    <button
                       onClick={() => deleteRule(wf.id)}
                       style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--color-danger)' }}
                     >

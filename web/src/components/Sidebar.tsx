@@ -17,6 +17,33 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [systemName, setSystemName] = React.useState(localStorage.getItem('system_name') || 'Ether REDP');
+  const [systemLogoUrl, setSystemLogoUrl] = React.useState(localStorage.getItem('system_logo_url') || '');
+  const [systemIconName, setSystemIconName] = React.useState(localStorage.getItem('system_icon_name') || 'Building2');
+  const [systemIconUrl, setSystemIconUrl] = React.useState(localStorage.getItem('system_icon_url') || '');
+
+  React.useEffect(() => {
+    const fetchSystemInfo = async () => {
+      try {
+        const res = await api.get('/system-info');
+        if (res.data && res.data.success) {
+          const { system_name, system_logo_url, system_icon_name, system_icon_url } = res.data.data;
+          setSystemName(system_name || 'Ether REDP');
+          setSystemLogoUrl(system_logo_url || '');
+          setSystemIconName(system_icon_name || 'Building2');
+          setSystemIconUrl(system_icon_url || '');
+          localStorage.setItem('system_name', system_name || 'Ether REDP');
+          localStorage.setItem('system_logo_url', system_logo_url || '');
+          localStorage.setItem('system_icon_name', system_icon_name || 'Building2');
+          localStorage.setItem('system_icon_url', system_icon_url || '');
+        }
+      } catch (err) {
+        console.error('Failed to fetch system info:', err);
+      }
+    };
+    fetchSystemInfo();
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('redp_token');
     localStorage.removeItem('redp_user');
@@ -57,6 +84,13 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
         { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3 },
         { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal },
       ]
+    },
+    {
+      title: 'System Settings',
+      roles: ['admin'],
+      items: [
+        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings }
+      ]
     }
   ];
 
@@ -93,11 +127,34 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
         {/* Editorial Title Logo (Ether UI layout) */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', padding: '0 8px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-sm)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
-              <Building2 style={{ color: '#ffffff', width: '20px', height: '20px' }} />
-            </div>
+            {systemLogoUrl ? (
+              <img src={systemLogoUrl} alt="System Logo" style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} />
+            ) : systemIconUrl ? (
+              <img src={systemIconUrl} alt="System Icon" style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} />
+            ) : (
+              <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-sm)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
+                {(() => {
+                  const Icon = (() => {
+                    switch(systemIconName) {
+                      case 'Building2': return Building2;
+                      case 'Users': return Users;
+                      case 'Wallet': return Wallet;
+                      case 'Settings': return Settings;
+                      case 'ShieldCheck': return ShieldCheck;
+                      case 'Wrench': return Wrench;
+                      case 'ShieldAlert': return ShieldAlert;
+                      case 'Terminal': return Terminal;
+                      case 'AlertTriangle': return AlertTriangle;
+                      case 'CreditCard': return CreditCard;
+                      default: return Building2;
+                    }
+                  })();
+                  return <Icon style={{ color: '#ffffff', width: '20px', height: '20px' }} />;
+                })()}
+              </div>
+            )}
             <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1.2' }}>Ether REDP</h2>
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1.2' }}>{systemName}</h2>
               <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.1em' }}>EDITORIAL SOFT-FORM</span>
             </div>
           </div>

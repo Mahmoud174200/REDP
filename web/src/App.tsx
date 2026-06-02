@@ -24,6 +24,9 @@ import Documents from './pages/delivery/Documents';
 import Analytics from './pages/delivery/Analytics';
 import Workflows from './pages/delivery/Workflows';
 
+// 👑 Admin Pages
+import AdminPanel from './pages/admin/AdminPanel';
+
 
 // 📞 Global Components
 import VoipDialerWidget from './components/acquisition/VoipDialerWidget';
@@ -65,7 +68,7 @@ const HomeRedirect: React.FC = () => {
 
   // Route to the appropriate sandbox based on who logged in
   if (user.role === 'sales_agent' || user.role === 'broker') {
-    return <Navigate to="/acquisition/crm" replace />;
+    return <Navigate to="/acquisition/leads" replace />;
   }
   if (user.role === 'finance_officer') {
     return <Navigate to="/finance/inventory" replace />;
@@ -74,8 +77,8 @@ const HomeRedirect: React.FC = () => {
     return <Navigate to="/delivery/overview" replace />;
   }
 
-  // Admins land on CRM overview
-  return <Navigate to="/acquisition/crm" replace />;
+  // Admins land on Leads & KYC first
+  return <Navigate to="/acquisition/leads" replace />;
 };
 
 const App: React.FC = () => {
@@ -108,6 +111,9 @@ const App: React.FC = () => {
         <Route path="/delivery/documents" element={<DashboardWrapper><Documents /></DashboardWrapper>} />
         <Route path="/delivery/analytics" element={<DashboardWrapper><Analytics /></DashboardWrapper>} />
         <Route path="/delivery/workflows" element={<DashboardWrapper><Workflows /></DashboardWrapper>} />
+
+        {/* 👑 Admin routes */}
+        <Route path="/admin/panel" element={<DashboardWrapper><AdminPanel /></DashboardWrapper>} />
 
 
         {/* 🔄 Fallback Catch-All */}

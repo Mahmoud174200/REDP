@@ -62,6 +62,106 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        $clientUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Tarek Client',
+            'email' => 'client@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201004444444',
+            'role' => 'client',
+            'status' => 'active',
+        ]);
+
+        $brokerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Ahmed Broker',
+            'email' => 'broker@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555555',
+            'role' => 'broker',
+            'status' => 'active',
+        ]);
+
+        $brokerManagerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Broker Manager',
+            'email' => 'broker_manager@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201006666666',
+            'role' => 'broker_manager',
+            'status' => 'active',
+        ]);
+
+        $customerServiceUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sara CustomerService',
+            'email' => 'customer_service@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201007777777',
+            'role' => 'customer_service',
+            'status' => 'active',
+        ]);
+
+        $technicianUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Hassan Technician',
+            'email' => 'technician@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201008888888',
+            'role' => 'technician',
+            'status' => 'active',
+        ]);
+
+        $maintenanceManagerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Mostafa MaintenanceManager',
+            'email' => 'maintenance_manager@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999998',
+            'role' => 'maintenance_manager',
+            'status' => 'active',
+        ]);
+
+        $projectManagerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Ramy ProjectManager',
+            'email' => 'project_manager@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999997',
+            'role' => 'project_manager',
+            'status' => 'active',
+        ]);
+
+        $legalOfficerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sherif Legal',
+            'email' => 'legal_officer@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999996',
+            'role' => 'legal_officer',
+            'status' => 'active',
+        ]);
+
+        $executiveUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Executive Director',
+            'email' => 'executive@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999995',
+            'role' => 'executive',
+            'status' => 'active',
+        ]);
+
+        $complianceOfficerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Security Compliance',
+            'email' => 'compliance_officer@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999994',
+            'role' => 'compliance_officer',
+            'status' => 'active',
+        ]);
+
         // ── 2. Create Real Estate Projects ──
         $patio = Project::create([
             'id' => (string) Str::uuid(),
@@ -109,6 +209,30 @@ class DatabaseSeeder extends Seeder
             'price' => 6200000.00,
             'status' => 'available',
         ]);
+
+        // Additional units to enrich inventory
+        for ($i = 2; $i <= 8; $i++) {
+            Unit::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $patio->id,
+                'unit_number' => "{$i}02-A",
+                'floor' => $i,
+                'type' => $i % 2 === 0 ? 'Apartment' : 'Townhouse',
+                'price' => 3000000.00 + ($i * 500000),
+                'status' => 'available',
+            ]);
+        }
+        for ($i = 1; $i <= 5; $i++) {
+            Unit::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $uptown->id,
+                'unit_number' => "{$i}4-C",
+                'floor' => $i,
+                'type' => $i % 2 === 0 ? 'Villa' : 'Studio',
+                'price' => 5000000.00 + ($i * 750000),
+                'status' => 'available',
+            ]);
+        }
 
         // ── 4. Create Campaigns ──
         $campFB = Campaign::create([
@@ -213,6 +337,48 @@ class DatabaseSeeder extends Seeder
             'source' => 'facebook',
             'campaign_id' => $campFB->id,
         ]);
+
+        // Additional 20 Leads to populate the CRM pipeline
+        $names = [
+            ['Tarek', 'Mansour', 'tarek@gmail.com', 'new', 'facebook', 65, 'none'],
+            ['Salma', 'Ahmed', 'salma@yahoo.com', 'contacted', 'google', 72, 'pending'],
+            ['Omar', 'Hassan', 'omar@gmail.com', 'interested', 'direct', 88, 'verified'],
+            ['Rania', 'Kamal', 'rania@outlook.com', 'visit_scheduled', 'facebook', 90, 'verified'],
+            ['Mustafa', 'Kamel', 'mustafa@gmail.com', 'negotiation', 'google', 79, 'none'],
+            ['Noha', 'Fawzy', 'noha@gmail.com', 'reserved', 'direct', 95, 'verified'],
+            ['Aly', 'Nasser', 'aly@company.com', 'new', 'tiktok', 55, 'none'],
+            ['Khaled', 'Mostafa', 'khaled@gmail.com', 'contacted', 'facebook', 62, 'pending'],
+            ['Ghada', 'Adel', 'ghada@gmail.com', 'interested', 'google', 80, 'verified'],
+            ['Mona', 'Zaki', 'mona@gmail.com', 'visit_scheduled', 'direct', 85, 'verified'],
+            ['Sameh', 'Hussein', 'sameh@gmail.com', 'negotiation', 'facebook', 74, 'none'],
+            ['Radwa', 'Sherif', 'radwa@gmail.com', 'reserved', 'broker', 96, 'verified'],
+            ['Ziad', 'Nabil', 'ziad@gmail.com', 'new', 'tiktok', 40, 'none'],
+            ['Heba', 'Magdy', 'heba@gmail.com', 'contacted', 'google', 68, 'none'],
+            ['Dina', 'Samir', 'dina@gmail.com', 'interested', 'facebook', 83, 'verified'],
+            ['Hoda', 'Mostafa', 'hoda@gmail.com', 'visit_scheduled', 'direct', 87, 'verified'],
+            ['Ibrahim', 'Saad', 'ibrahim@gmail.com', 'negotiation', 'google', 77, 'none'],
+            ['Osama', 'Anwar', 'osama@gmail.com', 'new', 'facebook', 50, 'none'],
+            ['Farida', 'Saeed', 'farida@gmail.com', 'contacted', 'direct', 60, 'none'],
+            ['Hany', 'Fouad', 'hany@gmail.com', 'interested', 'tiktok', 70, 'pending']
+        ];
+
+        foreach ($names as $idx => $n) {
+            Lead::create([
+                'first_name' => $n[0],
+                'last_name' => $n[1],
+                'email' => $n[2],
+                'phone' => '+20100' . str_pad((string)($idx + 10), 7, '0', STR_PAD_LEFT),
+                'national_id' => '29' . rand(0, 9) . '0' . rand(1, 9) . rand(10, 28) . rand(1000000, 9999999),
+                'status' => $n[3],
+                'lead_score' => $n[4] === 'broker' ? 78 : $n[5],
+                'assigned_sales_agent_id' => $ragab->id,
+                'kyc_status' => $n[6],
+                'facial_match_score' => $n[6] === 'verified' ? rand(86, 99) . '.' . rand(10, 99) : null,
+                'source' => $n[4],
+                'campaign_id' => $n[4] === 'facebook' ? $campFB->id : ($n[4] === 'google' ? $campGG->id : null),
+                'broker_id' => $n[4] === 'broker' ? $brokerRemax->id : null,
+            ]);
+        }
 
         // ── 7. Create Interactions ──
         Interaction::create([

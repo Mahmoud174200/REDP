@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────
@@ -39,53 +39,13 @@ const STAGE_CONFIG: Record<string, { icon: string; gradient: string }> = {
 };
 
 const MOCK_PIPELINE: Record<string, PipelineStage> = {
-  new: {
-    stage: 'new', label: 'New Leads', color: '#3B82F6', count: 4,
-    leads: [
-      { id: 'l1', full_name: 'Ahmed Ali Hassan', email: 'ahmed@gmail.com', phone: '+20100998877', lead_score: 85, source: 'facebook', kyc_status: 'none', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: null, created_at: '2026-05-28T10:00:00Z' },
-      { id: 'l2', full_name: 'Sara El-Sayed', email: 'sara@company.com', phone: '+20111223344', lead_score: 72, source: 'google', kyc_status: 'none', assigned_agent: { id: 'a2', name: 'Omar Khaled' }, last_interaction: null, created_at: '2026-05-29T14:30:00Z' },
-      { id: 'l3', full_name: 'Mahmoud Fawzy', email: 'mfawzy@outlook.com', phone: '+20122345678', lead_score: 60, source: 'direct', kyc_status: 'none', assigned_agent: null, last_interaction: null, created_at: '2026-05-30T09:15:00Z' },
-      { id: 'l8', full_name: 'Layla Nour', email: 'layla@hotmail.com', phone: '+20155001122', lead_score: 45, source: 'tiktok', kyc_status: 'none', assigned_agent: null, last_interaction: null, created_at: '2026-05-31T16:00:00Z' },
-    ],
-  },
-  contacted: {
-    stage: 'contacted', label: 'Contacted', color: '#8B5CF6', count: 3,
-    leads: [
-      { id: 'l4', full_name: 'Nour El-Din Ibrahim', email: 'nour@gmail.com', phone: '+20133456789', lead_score: 78, source: 'referral', kyc_status: 'pending', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: { type: 'call', notes: 'Discussed villa options in Phase 3', created_at: '2026-05-30T11:00:00Z' }, created_at: '2026-05-27T08:00:00Z' },
-      { id: 'l9', full_name: 'Yasmin Adel', email: 'yasmin@mail.com', phone: '+20166778899', lead_score: 65, source: 'facebook', kyc_status: 'none', assigned_agent: { id: 'a2', name: 'Omar Khaled' }, last_interaction: { type: 'whatsapp', notes: 'Sent brochure PDF', created_at: '2026-05-31T09:00:00Z' }, created_at: '2026-05-29T12:00:00Z' },
-      { id: 'l10', full_name: 'Tarek Mansour', email: 'tarek@co.eg', phone: '+20177889900', lead_score: 55, source: 'google', kyc_status: 'none', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: { type: 'email', notes: 'Follow-up email sent', created_at: '2026-05-31T14:00:00Z' }, created_at: '2026-05-30T10:00:00Z' },
-    ],
-  },
-  interested: {
-    stage: 'interested', label: 'Interested', color: '#F59E0B', count: 2,
-    leads: [
-      { id: 'l5', full_name: 'Mariam Hassan Aly', email: 'mariam@company.com', phone: '+20155667788', lead_score: 91, source: 'broker', kyc_status: 'verified', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: { type: 'meeting', notes: 'On-site visit completed, very interested in Unit A-204', created_at: '2026-05-31T15:00:00Z' }, created_at: '2026-05-20T10:00:00Z' },
-      { id: 'l11', full_name: 'Khaled Mostafa', email: 'khaled.m@gmail.com', phone: '+20188990011', lead_score: 82, source: 'direct', kyc_status: 'pending', assigned_agent: { id: 'a2', name: 'Omar Khaled' }, last_interaction: { type: 'call', notes: 'Requesting payment plan details', created_at: '2026-05-31T11:30:00Z' }, created_at: '2026-05-25T08:00:00Z' },
-    ],
-  },
-  visit_scheduled: {
-    stage: 'visit_scheduled', label: 'Visit Scheduled', color: '#06B6D4', count: 2,
-    leads: [
-      { id: 'l6', full_name: 'Sherif Omar Said', email: 'sherif@hotmail.com', phone: '+20144556677', lead_score: 88, source: 'facebook', kyc_status: 'verified', assigned_agent: { id: 'a2', name: 'Omar Khaled' }, last_interaction: { type: 'call', notes: 'Visit confirmed for Sunday 2 PM', created_at: '2026-05-31T10:00:00Z' }, created_at: '2026-05-22T12:00:00Z' },
-      { id: 'l12', full_name: 'Dina Samir', email: 'dina.s@yahoo.com', phone: '+20199001122', lead_score: 75, source: 'google', kyc_status: 'none', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: { type: 'whatsapp', notes: 'Scheduled for Thursday 10 AM', created_at: '2026-05-31T16:00:00Z' }, created_at: '2026-05-28T14:00:00Z' },
-    ],
-  },
-  negotiation: {
-    stage: 'negotiation', label: 'Negotiation', color: '#F97316', count: 1,
-    leads: [
-      { id: 'l7', full_name: 'Hassan El-Maghraby', email: 'hassan@business.com', phone: '+20100112233', lead_score: 95, source: 'direct', kyc_status: 'verified', assigned_agent: { id: 'a1', name: 'Ragab Mohamed' }, last_interaction: { type: 'meeting', notes: 'Negotiating 5% discount on Unit B-301, counter-offer pending', created_at: '2026-05-31T17:00:00Z' }, created_at: '2026-05-15T10:00:00Z' },
-    ],
-  },
-  reserved: {
-    stage: 'reserved', label: 'Reserved', color: '#10B981', count: 1,
-    leads: [
-      { id: 'l13', full_name: 'Amira Gamal', email: 'amira.g@corp.com', phone: '+20100334455', lead_score: 98, source: 'broker', kyc_status: 'verified', assigned_agent: { id: 'a2', name: 'Omar Khaled' }, last_interaction: { type: 'meeting', notes: 'EOI payment completed, unit locked', created_at: '2026-05-30T12:00:00Z' }, created_at: '2026-05-10T10:00:00Z' },
-    ],
-  },
-  contracted: {
-    stage: 'contracted', label: 'Contracted', color: '#6366F1', count: 0,
-    leads: [],
-  },
+  new: { stage: 'new', label: 'New Leads', color: '#3B82F6', count: 0, leads: [] },
+  contacted: { stage: 'contacted', label: 'Contacted', color: '#8B5CF6', count: 0, leads: [] },
+  interested: { stage: 'interested', label: 'Interested', color: '#F59E0B', count: 0, leads: [] },
+  visit_scheduled: { stage: 'visit_scheduled', label: 'Visit Scheduled', color: '#06B6D4', count: 0, leads: [] },
+  negotiation: { stage: 'negotiation', label: 'Negotiation', color: '#F97316', count: 0, leads: [] },
+  reserved: { stage: 'reserved', label: 'Reserved', color: '#10B981', count: 0, leads: [] },
+  contracted: { stage: 'contracted', label: 'Contracted', color: '#6366F1', count: 0, leads: [] },
 };
 
 const CrmKanban: React.FC = () => {
@@ -95,10 +55,106 @@ const CrmKanban: React.FC = () => {
   const [filterScore, setFilterScore] = useState('all');
   const [draggedLead, setDraggedLead] = useState<{ lead: LeadCard; fromStage: string } | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const dragCounter = useRef(0);
 
+  // Unit Reservation States
+  const [showUnitModal, setShowUnitModal] = useState(false);
+  const [availableUnits, setAvailableUnits] = useState<any[]>([]);
+  const [pendingMove, setPendingMove] = useState<{ leadId: string; fromStage: string; toStage: string } | null>(null);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+
+  // Loading state for dragging leads
+  const [updatingLeadIds, setUpdatingLeadIds] = useState<string[]>([]);
+
   const stages = Object.keys(pipeline);
+
+  // Fetch Pipeline Data from Database on Load
+  useEffect(() => {
+    const fetchPipeline = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get('/v1/acquisition/crm/pipeline');
+        if (response.data && response.data.success) {
+          setPipeline(response.data.pipeline);
+        }
+      } catch (err) {
+        console.error('Failed to fetch CRM pipeline:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPipeline();
+  }, []);
+
+  const updateLocalPipeline = (leadId: string, fromStage: string, toStage: string) => {
+    setPipeline(prev => {
+      const updated = { ...prev };
+      const targetLead = updated[fromStage].leads.find(l => l.id === leadId);
+      if (!targetLead) return prev;
+      
+      updated[fromStage] = {
+        ...updated[fromStage],
+        leads: updated[fromStage].leads.filter(l => l.id !== leadId),
+        count: updated[fromStage].count - 1,
+      };
+      
+      updated[toStage] = {
+        ...updated[toStage],
+        leads: [...updated[toStage].leads, { ...targetLead, kyc_status: toStage === 'reserved' ? 'verified' : targetLead.kyc_status }],
+        count: updated[toStage].count + 1,
+      };
+      return updated;
+    });
+  };
+
+  const moveLeadOnBackend = async (leadId: string, fromStage: string, toStage: string, unitId?: string) => {
+    try {
+      const response = await api.put('/v1/acquisition/crm/move', {
+        lead_id: leadId,
+        status: toStage,
+        unit_id: unitId || undefined
+      });
+      if (response.data && response.data.success) {
+        const freshPipe = await api.get('/v1/acquisition/crm/pipeline');
+        if (freshPipe.data && freshPipe.data.success) {
+          setPipeline(freshPipe.data.pipeline);
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to move lead in database.');
+      const freshPipe = await api.get('/v1/acquisition/crm/pipeline');
+      if (freshPipe.data && freshPipe.data.success) {
+        setPipeline(freshPipe.data.pipeline);
+      }
+    } finally {
+      setUpdatingLeadIds(prev => prev.filter(id => id !== leadId));
+    }
+  };
+
+  const handleStageChange = async (leadId: string, fromStage: string, toStage: string) => {
+    if (updatingLeadIds.includes(leadId)) return;
+
+    if (toStage === 'reserved') {
+      setPendingMove({ leadId, fromStage, toStage });
+      setLoadingUnits(true);
+      setShowUnitModal(true);
+      try {
+        const res = await api.get('/v1/finance/units?status=available');
+        if (res.data && res.data.success) {
+          setAvailableUnits(res.data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching available units:', err);
+      } finally {
+        setLoadingUnits(false);
+      }
+    } else {
+      setUpdatingLeadIds(prev => [...prev, leadId]);
+      updateLocalPipeline(leadId, fromStage, toStage);
+      await moveLeadOnBackend(leadId, fromStage, toStage);
+    }
+  };
 
   // ── Drag & Drop Handlers ──
   const handleDragStart = (e: React.DragEvent, lead: LeadCard, fromStage: string) => {
@@ -142,25 +198,7 @@ const CrmKanban: React.FC = () => {
     if (!draggedLead || draggedLead.fromStage === toStage) return;
 
     const { lead, fromStage } = draggedLead;
-
-    setPipeline(prev => {
-      const updated = { ...prev };
-      // Remove from source
-      updated[fromStage] = {
-        ...updated[fromStage],
-        leads: updated[fromStage].leads.filter(l => l.id !== lead.id),
-        count: updated[fromStage].count - 1,
-      };
-      // Add to destination
-      updated[toStage] = {
-        ...updated[toStage],
-        leads: [...updated[toStage].leads, lead],
-        count: updated[toStage].count + 1,
-      };
-      return updated;
-    });
-
-    setDraggedLead(null);
+    handleStageChange(lead.id, fromStage, toStage);
   }, [draggedLead]);
 
   // ── Move lead forward (arrow button) ──
@@ -168,22 +206,9 @@ const CrmKanban: React.FC = () => {
     const currentIdx = stages.indexOf(currentStage);
     if (currentIdx >= stages.length - 1) return;
     const nextStage = stages[currentIdx + 1];
-
-    setPipeline(prev => {
-      const updated = { ...prev };
-      updated[currentStage] = {
-        ...updated[currentStage],
-        leads: updated[currentStage].leads.filter(l => l.id !== lead.id),
-        count: updated[currentStage].count - 1,
-      };
-      updated[nextStage] = {
-        ...updated[nextStage],
-        leads: [...updated[nextStage].leads, lead],
-        count: updated[nextStage].count + 1,
-      };
-      return updated;
-    });
+    handleStageChange(lead.id, currentStage, nextStage);
   };
+
 
   // ── Score Badge Color ──
   const getScoreColor = (score: number) => {
@@ -202,6 +227,15 @@ const CrmKanban: React.FC = () => {
   };
 
   const totalLeads = Object.values(pipeline).reduce((acc, s) => acc + s.count, 0);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -357,34 +391,56 @@ const CrmKanban: React.FC = () => {
                 overflowY: 'auto',
                 paddingRight: '4px'
               }} className="sidebar-scroll-container">
-                {filteredLeads.map(lead => (
-                  <div
-                    key={lead.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, lead, stageKey)}
-                    onDragEnd={handleDragEnd}
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-glass)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '14px',
-                      cursor: 'grab',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      borderLeft: `3px solid ${stage.color}`,
-                    }}
-                    onMouseOver={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 12px ${stage.color}22`;
-                    }}
-                    onMouseOut={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = 'none';
-                      (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-                    }}
-                  >
-                    {/* Card Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                {filteredLeads.map(lead => {
+                  const isUpdating = updatingLeadIds.includes(lead.id);
+                  return (
+                    <div
+                      key={lead.id}
+                      draggable={!isUpdating}
+                      onDragStart={(e) => handleDragStart(e, lead, stageKey)}
+                      onDragEnd={handleDragEnd}
+                      style={{
+                        position: 'relative',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-glass)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '14px',
+                        cursor: isUpdating ? 'not-allowed' : 'grab',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        borderLeft: `3px solid ${stage.color}`,
+                        opacity: isUpdating ? 0.6 : 1,
+                        pointerEvents: isUpdating ? 'none' : 'auto'
+                      }}
+                      onMouseOver={(e) => {
+                        if (isUpdating) return;
+                        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                        (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 12px ${stage.color}22`;
+                      }}
+                      onMouseOut={(e) => {
+                        if (isUpdating) return;
+                        (e.currentTarget as HTMLElement).style.transform = 'none';
+                        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                      }}
+                    >
+                      {isUpdating && (
+                        <div style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          background: 'rgba(255, 255, 255, 0.6)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 'var(--radius-sm)', zIndex: 10
+                        }}>
+                          <div className="animate-spin" style={{
+                            width: '18px', height: '18px',
+                            border: '2px solid var(--color-primary)',
+                            borderTopColor: 'transparent',
+                            borderRadius: '50%'
+                          }} />
+                        </div>
+                      )}
+                      {/* Card Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{
                           width: '32px', height: '32px', borderRadius: '50%',
@@ -461,7 +517,8 @@ const CrmKanban: React.FC = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                );
+              })}
 
                 {/* Empty State */}
                 {filteredLeads.length === 0 && (
@@ -479,6 +536,62 @@ const CrmKanban: React.FC = () => {
           );
         })}
       </div>
+
+      {showUnitModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>Select Unit to Reserve</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>A unit must be selected to lock reservation details for the lead.</p>
+            
+            {loadingUnits ? (
+              <div style={{ textAlign: 'center', padding: '20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading available inventory...</div>
+            ) : availableUnits.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', fontSize: '0.85rem', color: 'var(--color-danger)' }}>No available units in inventory.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto' }} className="sidebar-scroll-container">
+                {availableUnits.map(unit => (
+                  <button
+                    key={unit.id}
+                    onClick={async () => {
+                      if (pendingMove) {
+                        setUpdatingLeadIds(prev => [...prev, pendingMove.leadId]);
+                        updateLocalPipeline(pendingMove.leadId, pendingMove.fromStage, pendingMove.toStage);
+                        await moveLeadOnBackend(pendingMove.leadId, pendingMove.fromStage, pendingMove.toStage, unit.id);
+                      }
+                      setShowUnitModal(false);
+                      setPendingMove(null);
+                    }}
+                    className="btn-secondary"
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', padding: '12px 16px',
+                      textAlign: 'left', borderRadius: 'var(--radius-sm)', width: '100%', alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '0.85rem' }}>Unit {unit.unit_number}</strong>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>{unit.type} | {unit.project?.name || 'Compound'}</span>
+                    </div>
+                    <strong style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}>EGP {unit.price.toLocaleString()}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <button 
+              onClick={() => { setShowUnitModal(false); setPendingMove(null); }} 
+              className="btn-primary" 
+              style={{ background: 'var(--color-danger)', border: 'none', color: '#fff', justifyContent: 'center', padding: '12px' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -41,6 +41,10 @@ use App\Http\Controllers\Delivery\AnalyticsController;
 // Authentication Portal
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/v1/auth/register', [AuthController::class, 'register']);
+Route::post('/v1/auth/login', [AuthController::class, 'login']);
+Route::get('/system-info', [\App\Http\Controllers\Admin\AdminController::class, 'getPublicSystemInfo']);
+Route::get('/v1/system-info', [\App\Http\Controllers\Admin\AdminController::class, 'getPublicSystemInfo']);
 
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
@@ -64,11 +68,13 @@ Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead
 // ║ 🔒 PROTECTED ROUTES — Laravel Sanctum Authentication           ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
     // 👥 Shared User Profile & Sign Out
     Route::get('/auth/profile', [AuthController::class, 'profile']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/v1/auth/profile', [AuthController::class, 'profile']);
+    Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
 
     // ══════════════════════════════════════════════════════════
     // 🟠 ACQUISITION MODULE (Owner: Ragab)
@@ -101,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/eoi/{id}/cancel', [EOIQueueController::class, 'cancel']);
 
         // ── Broker Portal ──
+        Route::get('/brokers', [BrokerController::class, 'index']);
         Route::post('/brokers/register', [BrokerController::class, 'register']);
         Route::get('/brokers/{brokerId}/commissions', [BrokerController::class, 'getCommissions']);
         Route::get('/brokers/{brokerId}/leads', [BrokerController::class, 'getLeads']);
@@ -135,14 +142,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/units/{id}/release', [InventoryController::class, 'releaseUnit']);
             Route::patch('/units/{id}/pricing', [InventoryController::class, 'updatePricing']);
 
-            // Contract management
-            Route::get('/contracts', [ContractController::class, 'index']);
-            Route::get('/contracts/{id}', [ContractController::class, 'show']);
-            Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
-            Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
-            Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
-            Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
-
             // Payment management
             Route::get('/payments/{contractId}', [PaymentController::class, 'getInstallments']);
             Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
@@ -155,6 +154,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/reschedule/{id}/approve', [CollectionController::class, 'approveReschedule']);
             Route::post('/cancel/{contractId}', [CollectionController::class, 'processCancellation']);
             Route::get('/aging-report', [CollectionController::class, 'getAgingReport']);
+        });
+
+        // ── Legal and Contract operations (Legal Team and Finance Officer) ──
+        Route::middleware('role:finance_officer,legal_officer')->group(function () {
+            // Contract management
+            Route::get('/contracts', [ContractController::class, 'index']);
+            Route::get('/contracts/{id}', [ContractController::class, 'show']);
+            Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
+            Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
+            Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
+            Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
         });
     });
 
@@ -181,16 +191,71 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/tickets', [VendorController::class, 'storeTicket']);
         });
 
-        // Handover snags & Quality checks (Delivery Engineers and Admins)
-        Route::middleware('role:delivery_engineer')->group(function () {
+        // Handover checklist/snags/sign-off (Delivery Engineers, Project Managers, and Technicians)
+        Route::middleware('role:delivery_engineer,project_manager,technician')->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
-            
-            // Contractor & vendor lists management
+        });
+
+        // Maintenance ticket dispatch & contractor lists (Delivery Engineers, Maintenance Managers, and Technicians)
+        Route::middleware('role:delivery_engineer,maintenance_manager,technician')->group(function () {
             Route::get('/vendors', [VendorController::class, 'getVendors']);
             Route::get('/tickets', [VendorController::class, 'getTickets']);
             Route::post('/tickets/{ticketId}/dispatch', [VendorController::class, 'dispatchTicket']);
         });
+    });
+
+    // ══════════════════════════════════════════════════════════
+    // 👑 SYSTEM ADMINISTRATION MODULE (Admin Only)
+    // ══════════════════════════════════════════════════════════
+    Route::prefix('v1/admin')->middleware('role:admin')->group(function () {
+        // Users
+        Route::get('/users', [\App\Http\Controllers\Admin\AdminController::class, 'getUsers']);
+        Route::post('/users', [\App\Http\Controllers\Admin\AdminController::class, 'createUser']);
+        Route::put('/users/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateUser']);
+        Route::delete('/users/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteUser']);
+        
+        // Configs
+        Route::get('/configs', [\App\Http\Controllers\Admin\AdminController::class, 'getConfigs']);
+        Route::post('/configs', [\App\Http\Controllers\Admin\AdminController::class, 'updateConfigs']);
+
+        // Projects
+        Route::get('/projects', [\App\Http\Controllers\Admin\AdminController::class, 'getProjects']);
+        Route::post('/projects', [\App\Http\Controllers\Admin\AdminController::class, 'createProject']);
+        Route::put('/projects/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateProject']);
+        Route::delete('/projects/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteProject']);
+
+        // Units
+        Route::get('/units', [\App\Http\Controllers\Admin\AdminController::class, 'getUnits']);
+        Route::post('/units', [\App\Http\Controllers\Admin\AdminController::class, 'createUnit']);
+        Route::put('/units/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateUnit']);
+        Route::delete('/units/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteUnit']);
+
+        // Leads
+        Route::get('/leads', [\App\Http\Controllers\Admin\AdminController::class, 'getLeads']);
+        Route::post('/leads', [\App\Http\Controllers\Admin\AdminController::class, 'createLead']);
+        Route::put('/leads/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateLead']);
+        Route::delete('/leads/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteLead']);
+
+        // Tickets
+        Route::get('/tickets', [\App\Http\Controllers\Admin\AdminController::class, 'getTickets']);
+        Route::post('/tickets', [\App\Http\Controllers\Admin\AdminController::class, 'createTicket']);
+        Route::put('/tickets/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateTicket']);
+        Route::delete('/tickets/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteTicket']);
+
+        // Audit Logs
+        Route::get('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'getAuditLogs']);
+        Route::delete('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'clearAuditLogs']);
+
+        // Upload Branding Logo/Icon
+        Route::post('/upload-branding', [\App\Http\Controllers\Admin\AdminController::class, 'uploadBranding']);
+
+        // System Health
+        Route::get('/system-health', [\App\Http\Controllers\Admin\AdminController::class, 'getSystemHealth']);
+
+        // Active Sessions
+        Route::get('/active-sessions', [\App\Http\Controllers\Admin\AdminController::class, 'getActiveSessions']);
+        Route::delete('/active-sessions/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'revokeSession']);
     });
 });

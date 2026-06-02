@@ -10,6 +10,7 @@ const Overview: React.FC = () => {
   const [generatedPass, setGeneratedPass] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   const [activePasses, setActivePasses] = useState([
     { id: 'g1', name: 'Mustafa Kamel', date: '2026-06-02', plate: 'أ ج ب 1234', status: 'valid' },
@@ -26,17 +27,29 @@ const Overview: React.FC = () => {
   // Fetch real metrics from Laravel backend database on load
   useEffect(() => {
     const fetchOverview = async () => {
+      setIsLoading(true);
       try {
-        const response = await api.get('/delivery/overview');
+        const response = await api.get('/v1/delivery/overview');
         if (response.data && response.data.success) {
           setMetrics(response.data.metrics);
         }
       } catch (err) {
         console.warn("API fallbacks activated: Running in client-side preview sandbox.");
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchOverview();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleCreatePass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +59,7 @@ const Overview: React.FC = () => {
 
     try {
       // 🚀 Real HTTP Post to Laravel Backend Database
-      const response = await api.post('/delivery/gate-code', {
+      const response = await api.post('/v1/delivery/gate-code', {
         visitor_name: visitorName,
         visit_date: visitDate,
         car_plate: carPlate

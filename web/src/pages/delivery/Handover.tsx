@@ -12,41 +12,24 @@ const Handover: React.FC = () => {
 
   const [signed, setSigned] = useState(false);
   const [signing, setSigning] = useState(false);
-  
-  const demoUnitId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4b6d'; // Sample active UUID
-
-  const fetchHandoverData = async () => {
-    try {
-      const response = await api.get(`/delivery/units/${demoUnitId}/checklist`);
-      if (response.data && response.data.success) {
-        setChecklist(response.data.checklist);
-        // Map database defects format to local format
-        const dbSnags = response.data.logged_snags.map((s: any) => ({
-          id: s.id,
-          item: s.description.toLowerCase().includes('plumb') ? 'Plumbing' : s.description.toLowerCase().includes('elect') ? 'Electrical' : 'Walls & Finishing',
-          desc: s.description,
-          severity: s.severity,
-          date: s.created_at ? s.created_at.split('T')[0] : nowIsoDate()
-        }));
-        setSnags(dbSnags);
-      }
-    } catch (err) {
-      console.warn("Handover checklist API fallback: Loading sandbox mock inspection checklists.");
-      setChecklist([
-        { id: 'walls', item: 'Wall plaster smoothness & painting layers', passed: true },
-        { id: 'plumbing', item: 'Plumbing tap flows & drain blockages check', passed: true },
-        { id: 'electrical', item: 'Electric sockets & circuit breaker panel check', passed: false },
-        { id: 'locks', item: 'Doors, window tracks & locks verification', passed: true }
-      ]);
-      setSnags([
-        { id: 's1', item: 'Electrical', desc: 'Living room power outlet on east column has no current flow.', severity: 'high', date: '2026-06-01' }
-      ]);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const demoUnitId = '80cb3a70-f11d-4cf6-8cfa-cb2a0ff83eb2'; // Sample active UUID
 
   useEffect(() => {
-    fetchHandoverData();
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleAddSnag = async (e: React.FormEvent) => {
     e.preventDefault();

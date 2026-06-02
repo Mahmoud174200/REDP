@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, Calendar, CheckCircle, XCircle, RefreshCw, ArrowRight, FileWarning, DollarSign, TrendingDown, Shield, Layers } from 'lucide-react';
 
 interface CollectionItem {
@@ -46,6 +46,23 @@ const Collections: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'queue' | 'reschedule' | 'cancel'>('queue');
   const [cancelModal, setCancelModal] = useState<CollectionItem | null>(null);
   const [penaltyRate, setPenaltyRate] = useState(10);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-warning)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const filteredCollections = selectedBucket === 'all'
     ? collections

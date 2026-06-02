@@ -9,11 +9,19 @@ const api = axios.create({
   }
 });
 
-// Request interceptor injecting Sanctum tokens automatically
+// Request interceptor injecting Sanctum tokens automatically and disabling caching for GET requests
 api.interceptors.request.use((config) => {
+  // Strip duplicate /v1 prefix if present (since baseURL already includes /v1)
+  if (config.url) {
+    config.url = config.url.replace(/^\/?v1\//, '/');
+  }
+
   const token = localStorage.getItem('redp_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.method === 'get') {
+    config.params = { ...config.params, _t: Date.now() };
   }
   return config;
 }, (error) => {
@@ -28,6 +36,15 @@ api.interceptors.response.use(
       // Clear local states and kick to login if Sanctum session expires
       localStorage.removeItem('redp_token');
       localStorage.removeItem('redp_user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    if (error.response && error.response.status === 503 && error.response.data?.maintenance) {
+      // Clear local states and kick to login if system goes under maintenance
+      localStorage.removeItem('redp_token');
+      localStorage.removeItem('redp_user');
+      alert(error.response.data.message || 'The platform is currently undergoing scheduled maintenance. Please try again later.');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

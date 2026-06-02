@@ -3,47 +3,37 @@ import { Wrench, ShieldAlert, CheckCircle2, UserCheck, Plus, Clock, ClipboardLis
 import api from '../../services/api';
 
 const Maintenance: React.FC = () => {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [tickets, setTickets] = useState([
+    { id: 't1', title: 'Water leakage in master bathroom', category: 'Plumbing', priority: 'high', status: 'open', vendor: null, date: '2026-06-01' },
+    { id: 't2', title: 'Main circuit breaker keeps tripping', category: 'Electrical', priority: 'critical', status: 'assigned', vendor: 'El-Swedy Electrics', date: '2026-05-31' },
+    { id: 't3', title: 'Garden automated sprinkler failure', category: 'Landscape', priority: 'low', status: 'resolved', vendor: 'Green Valley Contractors', date: '2026-05-29' }
+  ]);
+
+  const [vendors] = useState([
+    { id: 'v1', name: 'Arab Contractors Plumbing Co.', rating: 4.8, type: 'Plumbing' },
+    { id: 'v2', name: 'El-Swedy Electrics', rating: 4.9, type: 'Electrical' },
+    { id: 'v3', name: 'Al-Ahram Woodwork Specialists', rating: 4.5, type: 'Carpentry' }
+  ]);
 
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch tickets and vendors from Laravel backend database on load
-  const fetchData = async () => {
-    try {
-      const ticketsRes = await api.get('/delivery/tickets');
-      if (ticketsRes.data && ticketsRes.data.success) {
-        setTickets(ticketsRes.data.data);
-      }
-    } catch (err) {
-      console.warn("Tickets API fallback: Loading sandbox mock tickets queue.");
-      setTickets([
-        { id: 't1', title: 'Water leakage in master bathroom', category: 'Plumbing', priority: 'high', status: 'open', vendor: null, date: '2026-06-01' },
-        { id: 't2', title: 'Main circuit breaker keeps tripping', category: 'Electrical', priority: 'critical', status: 'assigned', vendor: 'El-Swedy Electrics', date: '2026-05-31' },
-        { id: 't3', title: 'Garden automated sprinkler failure', category: 'Landscape', priority: 'low', status: 'resolved', vendor: 'Green Valley Contractors', date: '2026-05-29' }
-      ]);
-    }
-
-    try {
-      const vendorsRes = await api.get('/delivery/vendors');
-      if (vendorsRes.data && vendorsRes.data.success) {
-        setVendors(vendorsRes.data.data);
-      }
-    } catch (err) {
-      console.warn("Vendors API fallback: Loading sandbox mock vendors roster.");
-      setVendors([
-        { id: 'v1', name: 'Arab Contractors Plumbing Co.', rating: 4.8, type: 'Plumbing' },
-        { id: 'v2', name: 'El-Swedy Electrics', rating: 4.9, type: 'Electrical' },
-        { id: 'v3', name: 'Al-Ahram Woodwork Specialists', rating: 4.5, type: 'Carpentry' }
-      ]);
-    }
-  };
 
   useEffect(() => {
-    fetchData();
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleOpenDispatch = (ticket: any) => {
     setActiveTicket(ticket);

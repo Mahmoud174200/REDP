@@ -37,6 +37,19 @@ class BrokerController extends Controller
     }
 
     /**
+     * GET /api/v1/acquisition/brokers
+     * List all brokers.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $brokers = Broker::orderBy('agency_name', 'asc')->get();
+        return response()->json([
+            'success' => true,
+            'data'    => $brokers,
+        ]);
+    }
+
+    /**
      * POST /api/v1/brokers/register
      * Register a new broker and generate unique referral code.
      */

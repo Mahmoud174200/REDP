@@ -1,55 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, ShieldAlert, Award, Activity, PiggyBank } from 'lucide-react';
+import { BarChart3, TrendingUp, Award, Activity, PiggyBank } from 'lucide-react';
 import api from '../../services/api';
 
 const Analytics: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [cashData, setCashData] = useState<any[]>([]);
   const [kpiMetrics, setKpiMetrics] = useState({
-    avg_resolution_hours: '18.2 Hours Avg',
-    sla_compliance_rate: '96.4%',
     predicted_inflow_q3: '17.6M EGP'
   });
-  
+  const [stats, setStats] = useState<any>({
+    occupancy_stats: { active_families: 340, occupancy_rate: 78.4, secured_entrances_24h: 1432 },
+    contractor_performance: { total_contractors: 4, unresolved_tickets: 0, avg_resolution_hours: 18.2, sla_compliance_rate: 96.4 }
+  });
+
   const fetchAnalytics = async () => {
+    setIsLoading(true);
     try {
-      const response = await api.get('/delivery/analytics');
+      const response = await api.get('/v1/delivery/analytics');
       if (response.data && response.data.success) {
-        // Map 12-month projections to chart scale (val / 100,000 for perfect SVG height fits)
-        const dbProjections = response.data.predictive_cash_flow.map((p: any) => ({
-          month: p.month,
-          val: p.predicted_liquidity / 100000 // e.g. 4,200,000 -> 42
-        }));
-        setCashData(dbProjections);
-        
-        const perf = response.data.contractor_performance;
-        setKpiMetrics({
-          avg_resolution_hours: `${perf.avg_resolution_hours} Hours Avg`,
-          sla_compliance_rate: `${perf.sla_compliance_rate}%`,
-          predicted_inflow_q3: '17.6M EGP' // Projected summing
-        });
+        setStats(response.data);
+        if (response.data.predictive_cash_flow) {
+          // map predicted_liquidity to height values (in millions, roughly)
+          const mapped = response.data.predictive_cash_flow.map((item: any) => ({
+            month: item.month,
+            val: (item.predicted_liquidity / 100000) // scale to a nice height number
+          }));
+          setCashData(mapped);
+
+          // Calculate Q3 inflow (July, August, September)
+          const q3Months = ['Jul', 'Aug', 'Sep'];
+          const q3Sum = response.data.predictive_cash_flow
+            .filter((item: any) => q3Months.includes(item.month))
+            .reduce((sum: number, item: any) => sum + item.predicted_liquidity, 0);
+          
+          if (q3Sum > 0) {
+            const formatted = (q3Sum / 1000000).toFixed(1) + 'M EGP';
+            setKpiMetrics({ predicted_inflow_q3: formatted });
+          }
+        }
       }
     } catch (err) {
-      console.warn("Analytics API fallback: Loading sandbox mock portfolio projection charts.");
-      setCashData([
-        { month: 'Jan', val: 43 },
-        { month: 'Feb', val: 49 },
-        { month: 'Mar', val: 58 },
-        { month: 'Apr', val: 37 },
-        { month: 'May', val: 40 },
-        { month: 'Jun', val: 51 },
-        { month: 'Jul', val: 54 },
-        { month: 'Aug', val: 59 },
-        { month: 'Sep', val: 66 },
-        { month: 'Oct', val: 61 },
-        { month: 'Nov', val: 45 },
-        { month: 'Dec', val: 49 }
-      ]);
+      console.error('Failed to fetch analytics:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchAnalytics();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -84,7 +92,7 @@ const Analytics: React.FC = () => {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CONTRACTOR DISPATCH SLA</span>
             <Activity style={{ color: 'var(--color-primary)', width: '18px', height: '18px' }} />
           </div>
-          <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{kpiMetrics.avg_resolution_hours}</h3>
+          <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{stats.contractor_performance?.avg_resolution_hours || 18.2} Hours Avg</h3>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Contractor response SLA avg resolution timeline. Compliance target (24h) met.</p>
         </div>
 

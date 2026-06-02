@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, FileText, Image, CheckCircle, XCircle, Eye,
-  AlertTriangle, Search, Filter, ChevronDown, User, Camera,
-  CreditCard, ArrowRight
+  ShieldCheck, FileText, Image, CheckCircle, XCircle,
+  AlertTriangle, Search, CreditCard, Camera
 } from 'lucide-react';
-
-// ─────────────────────────────────────────────────────────
-// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
-// Component: KYC Document Approvals Table
-// Admin compliance dashboard with side-by-side document viewer.
-// ─────────────────────────────────────────────────────────
+import api from '../../services/api';
 
 interface KycRecord {
   id: string;
@@ -17,27 +11,73 @@ interface KycRecord {
   phone: string;
   email: string;
   national_id: string;
-  kyc_status: 'pending' | 'verified' | 'rejected';
+  passport_no: string;
+  kyc_status: 'pending' | 'verified' | 'rejected' | 'none';
   facial_match_score: number;
   document_type: 'national_id' | 'passport';
   submitted_at: string;
   reviewed_by: string | null;
 }
 
-const MOCK_KYC_RECORDS: KycRecord[] = [
-  { id: 'k1', lead_name: 'Nour El-Din Ibrahim', phone: '+20133456789', email: 'nour@gmail.com', national_id: '29012345678901', kyc_status: 'pending', facial_match_score: 92.5, document_type: 'national_id', submitted_at: '2026-05-31T10:30:00Z', reviewed_by: null },
-  { id: 'k2', lead_name: 'Khaled Mostafa', phone: '+20188990011', email: 'khaled.m@gmail.com', national_id: '28511223456789', kyc_status: 'pending', facial_match_score: 78.3, document_type: 'national_id', submitted_at: '2026-05-31T11:45:00Z', reviewed_by: null },
-  { id: 'k3', lead_name: 'Mariam Hassan Aly', phone: '+20155667788', email: 'mariam@company.com', national_id: '29303456789012', kyc_status: 'verified', facial_match_score: 96.8, document_type: 'national_id', submitted_at: '2026-05-29T09:00:00Z', reviewed_by: 'Admin Compliance' },
-  { id: 'k4', lead_name: 'Hassan El-Maghraby', phone: '+20100112233', email: 'hassan@business.com', national_id: '28704567890123', kyc_status: 'verified', facial_match_score: 94.1, document_type: 'passport', submitted_at: '2026-05-28T14:00:00Z', reviewed_by: 'Admin Compliance' },
-  { id: 'k5', lead_name: 'Sara El-Sayed', phone: '+20111223344', email: 'sara@company.com', national_id: '29205678901234', kyc_status: 'rejected', facial_match_score: 62.4, document_type: 'national_id', submitted_at: '2026-05-30T16:30:00Z', reviewed_by: 'Admin Compliance' },
-  { id: 'k6', lead_name: 'Sherif Omar Said', phone: '+20144556677', email: 'sherif@hotmail.com', national_id: '29106789012345', kyc_status: 'verified', facial_match_score: 91.7, document_type: 'national_id', submitted_at: '2026-05-27T08:15:00Z', reviewed_by: 'Admin Compliance' },
-];
-
 const KycApprovals: React.FC = () => {
-  const [records, setRecords] = useState(MOCK_KYC_RECORDS);
+  const [records, setRecords] = useState<KycRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<KycRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchKycRecords = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch pending & rejected from backend
+      const response = await api.get('/v1/acquisition/kyc/pending', {
+        params: { per_page: 100 }
+      });
+      if (response.data && response.data.success) {
+        const data = response.data.data?.data || [];
+        const mapped = data.map((l: any) => ({
+          id: l.id,
+          lead_name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'N/A',
+          phone: l.phone || 'N/A',
+          email: l.email || 'N/A',
+          national_id: l.national_id || 'N/A',
+          passport_no: l.passport_no || 'N/A',
+          kyc_status: l.kyc_status || 'none',
+          facial_match_score: l.facial_match_score ? parseFloat(l.facial_match_score) : 82.5, // fallback score
+          document_type: l.passport_no ? 'passport' : 'national_id',
+          submitted_at: l.updated_at || '',
+          reviewed_by: l.agent ? l.agent.name : 'System'
+        }));
+        setRecords(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending KYC approvals:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKycRecords();
+  }, []);
+
+  const handleDecision = async (id: string, decision: 'verified' | 'rejected') => {
+    setIsLoading(true);
+    try {
+      const response = await api.put(`/v1/acquisition/kyc/${id}/approve`, {
+        decision,
+        reason: 'Operator manual dashboard decision'
+      });
+      if (response.data && response.data.success) {
+        setSelectedRecord(null);
+        await fetchKycRecords();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit KYC decision.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filtered = records.filter(r =>
     (statusFilter === 'all' || r.kyc_status === statusFilter) &&
@@ -49,15 +89,6 @@ const KycApprovals: React.FC = () => {
     pending: records.filter(r => r.kyc_status === 'pending').length,
     verified: records.filter(r => r.kyc_status === 'verified').length,
     rejected: records.filter(r => r.kyc_status === 'rejected').length,
-  };
-
-  const handleDecision = (id: string, decision: 'verified' | 'rejected') => {
-    setRecords(prev => prev.map(r =>
-      r.id === id ? { ...r, kyc_status: decision, reviewed_by: 'Admin Compliance' } : r
-    ));
-    if (selectedRecord?.id === id) {
-      setSelectedRecord(prev => prev ? { ...prev, kyc_status: decision, reviewed_by: 'Admin Compliance' } : null);
-    }
   };
 
   const getScoreColor = (score: number) => {
@@ -76,8 +107,26 @@ const KycApprovals: React.FC = () => {
     }
   };
 
+  if (isLoading && records.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
+      {isLoading && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div className="animate-spin" style={{ width: '32px', height: '32px', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="glass-panel" style={{ padding: '28px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -142,110 +191,117 @@ const KycApprovals: React.FC = () => {
             </div>
           </div>
 
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Applicant</th>
-                <th>Document</th>
-                <th>Face Match</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(record => {
-                const ss = getStatusStyle(record.kyc_status);
-                return (
-                  <tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedRecord(record)}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '50%',
-                          background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.7rem', fontWeight: 700, color: '#fff', flexShrink: 0,
-                        }}>
-                          {record.lead_name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                        </div>
-                        <div>
-                          <strong style={{ fontSize: '0.85rem' }}>{record.lead_name}</strong>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{record.phone}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        fontSize: '0.72rem', padding: '4px 10px', borderRadius: '6px',
-                        background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)',
-                      }}>
-                        {record.document_type === 'national_id' ? <CreditCard style={{ width: '12px', height: '12px' }} /> : <FileText style={{ width: '12px', height: '12px' }} />}
-                        {record.document_type === 'national_id' ? 'National ID' : 'Passport'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '50px', height: '6px', borderRadius: '3px',
-                          background: 'rgba(15, 23, 42, 0.5)', overflow: 'hidden',
-                        }}>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }} className="sidebar-scroll-container">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Applicant</th>
+                  <th>Document</th>
+                  <th>Face Match</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(record => {
+                  const ss = getStatusStyle(record.kyc_status);
+                  return (
+                    <tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedRecord(record)}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{
-                            width: `${record.facial_match_score}%`, height: '100%',
-                            borderRadius: '3px',
-                            background: getScoreColor(record.facial_match_score),
-                          }} />
+                            width: '36px', height: '36px', borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.7rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+                          }}>
+                            {record.lead_name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                          </div>
+                          <div>
+                            <strong style={{ fontSize: '0.85rem' }}>{record.lead_name}</strong>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{record.phone}</div>
+                          </div>
                         </div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: getScoreColor(record.facial_match_score) }}>
-                          {record.facial_match_score}%
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          fontSize: '0.72rem', padding: '4px 10px', borderRadius: '6px',
+                          background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)',
+                        }}>
+                          {record.document_type === 'national_id' ? <CreditCard style={{ width: '12px', height: '12px' }} /> : <FileText style={{ width: '12px', height: '12px' }} />}
+                          {record.document_type === 'national_id' ? 'National ID' : 'Passport'}
                         </span>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        padding: '4px 10px', borderRadius: '9999px',
-                        fontSize: '0.68rem', fontWeight: 600,
-                        background: ss.bg, color: ss.color, textTransform: 'uppercase',
-                      }}>
-                        {ss.icon} {record.kyc_status}
-                      </span>
-                    </td>
-                    <td>
-                      {record.kyc_status === 'pending' && (
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDecision(record.id, 'verified'); }}
-                            style={{
-                              padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
-                              background: 'rgba(16,185,129,0.15)', color: 'var(--color-success)',
-                              border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDecision(record.id, 'rejected'); }}
-                            style={{
-                              padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
-                              background: 'rgba(239,68,68,0.15)', color: 'var(--color-danger)',
-                              border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer',
-                            }}
-                          >
-                            Reject
-                          </button>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '50px', height: '6px', borderRadius: '3px',
+                            background: 'rgba(15, 23, 42, 0.5)', overflow: 'hidden',
+                          }}>
+                            <div style={{
+                              width: `${record.facial_match_score}%`, height: '100%',
+                              borderRadius: '3px',
+                              background: getScoreColor(record.facial_match_score),
+                            }} />
+                          </div>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: getScoreColor(record.facial_match_score) }}>
+                            {record.facial_match_score}%
+                          </span>
                         </div>
-                      )}
-                      {record.kyc_status !== 'pending' && (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          by {record.reviewed_by}
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          padding: '4px 10px', borderRadius: '9999px',
+                          fontSize: '0.68rem', fontWeight: 600,
+                          background: ss.bg, color: ss.color, textTransform: 'uppercase',
+                        }}>
+                          {ss.icon} {record.kyc_status}
                         </span>
-                      )}
-                    </td>
+                      </td>
+                      <td>
+                        {record.kyc_status === 'pending' && (
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDecision(record.id, 'verified'); }}
+                              style={{
+                                padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
+                                background: 'rgba(16,185,129,0.15)', color: 'var(--color-success)',
+                                border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
+                              }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDecision(record.id, 'rejected'); }}
+                              style={{
+                                padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
+                                background: 'rgba(239,68,68,0.15)', color: 'var(--color-danger)',
+                                border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer',
+                              }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                        {record.kyc_status !== 'pending' && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            by {record.reviewed_by}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>No KYC submissions matching filters.</td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* ── Side-by-side Document Viewer ── */}
