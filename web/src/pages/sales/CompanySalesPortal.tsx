@@ -91,18 +91,69 @@ const CompanySalesPortal: React.FC = () => {
   const [journeyPresentations, setJourneyPresentations] = useState<any[]>([]);
   const [showJourneyModal, setShowJourneyModal] = useState(false);
 
-  // Booking Modal States
+  // Booking Modal States & Calculation parameters
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedLeadForBooking, setSelectedLeadForBooking] = useState<any | null>(null);
   const [bookingUnitId, setBookingUnitId] = useState('');
   const [bookingEoi, setBookingEoi] = useState('50000');
   const [bookingNotes, setBookingNotes] = useState('');
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState<'cash' | 'installment'>('installment');
+  const [installmentType, setInstallmentType] = useState<'direct' | 'bank'>('direct');
+  const [installmentTerm, setInstallmentTerm] = useState(5); // in years
+  const [installmentInterest, setInstallmentInterest] = useState(0); // in percent p.a.
+  const [downPayment, setDownPayment] = useState('');
 
   // Unit Status Modal
   const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
   const [unitStatusInput, setUnitStatusInput] = useState('available');
   const [unitStatusReason, setUnitStatusReason] = useState('');
   const [showUnitModal, setShowUnitModal] = useState(false);
+
+  // Default down payment on unit select
+  useEffect(() => {
+    if (bookingUnitId) {
+      const selectedUnitForBookingObj = units.find(u => u.id === bookingUnitId);
+      if (selectedUnitForBookingObj) {
+        const price = parseFloat(selectedUnitForBookingObj.price);
+        setDownPayment((price * 0.1).toString()); // 10% default
+      }
+    } else {
+      setDownPayment('');
+    }
+  }, [bookingUnitId, units]);
+
+  // Default interest rate on installment type select
+  useEffect(() => {
+    if (installmentType === 'direct') {
+      setInstallmentInterest(0);
+    } else {
+      setInstallmentInterest(10); // default bank finance rate
+    }
+  }, [installmentType]);
+
+  const selectedUnitForBookingObj = units.find(u => u.id === bookingUnitId);
+  const unitPrice = selectedUnitForBookingObj ? parseFloat(selectedUnitForBookingObj.price) : 0;
+
+  const calculatePlan = () => {
+    const price = unitPrice;
+    const dp = parseFloat(downPayment) || 0;
+    const term = installmentTerm || 1;
+    const rate = installmentInterest || 0;
+
+    const totalInterest = price * (rate / 100) * term;
+    const totalPrice = price + totalInterest;
+    const remaining = totalPrice - dp;
+    const monthlyPayment = remaining > 0 ? remaining / (term * 12) : 0;
+
+    return {
+      price,
+      totalInterest,
+      totalPrice,
+      remaining,
+      monthlyPayment
+    };
+  };
+
 
   const fetchPortalData = async () => {
     setIsLoading(true);
@@ -177,17 +228,27 @@ const CompanySalesPortal: React.FC = () => {
     e.preventDefault();
     if (!selectedLeadForBooking || !bookingUnitId) return;
 
+    const plan = calculatePlan();
+    const planSummary = finalPaymentMethod === 'cash' 
+      ? `Finalized Plan: CASH | Total Price Paid: ${plan.price.toLocaleString()} EGP`
+      : `Finalized Plan: Installment (${installmentType === 'direct' ? 'Direct' : 'Bank Finance'}) | Term: ${installmentTerm} Years | Interest Rate: ${installmentInterest}% | Base: ${plan.price.toLocaleString()} EGP | Interest: ${plan.totalInterest.toLocaleString()} EGP | Total: ${plan.totalPrice.toLocaleString()} EGP | Down Payment Paid: ${parseFloat(downPayment).toLocaleString()} EGP | Remaining Balance: ${plan.remaining.toLocaleString()} EGP | Monthly Installment: ${Math.round(plan.monthlyPayment).toLocaleString()} EGP/month. Notes: ${bookingNotes}`;
+
     try {
       setIsLoading(true);
       const res = await api.post('/v1/sales/company/bookings', {
         lead_id: selectedLeadForBooking.id,
         unit_id: bookingUnitId,
         eoi_amount: parseFloat(bookingEoi),
-        notes: bookingNotes
+        notes: planSummary
       });
       if (res.data && res.data.success) {
         setBookingUnitId('');
         setBookingNotes('');
+        setFinalPaymentMethod('installment');
+        setInstallmentType('direct');
+        setInstallmentTerm(5);
+        setInstallmentInterest(0);
+        setDownPayment('');
         setShowBookingModal(false);
         setSelectedLeadForBooking(null);
         await fetchPortalData();
@@ -199,6 +260,7 @@ const CompanySalesPortal: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
   const handleUpdateUnitStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,8 +286,17 @@ const CompanySalesPortal: React.FC = () => {
     }
   };
 
+  if (isLoading && leads.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '20px' }}>
+        <div className="animate-spin" style={{ width: '50px', height: '50px', border: '5px solid var(--color-secondary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
+        <p style={{ color: 'var(--text-muted)', fontWeight: 650, fontFamily: 'var(--font-title)' }}>Loading secure data environment...</p>
+      </div>
+    );
+  }
 
   return (
+
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
       
       {/* Header Panel */}
@@ -535,13 +606,28 @@ const CompanySalesPortal: React.FC = () => {
       {/* EXECUTE BOOKING MODAL */}
       {showBookingModal && selectedLeadForBooking && (
         <div className="modal-backdrop">
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '480px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '520px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Execute Booking & Reservation</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Reserve an inventory unit for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
             </p>
-            <form onSubmit={handleCreateBooking} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="form-group">
+            <form onSubmit={handleCreateBooking} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }} className="sidebar-scroll-container">
+              {selectedLeadForBooking && (
+                <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Client Preferred Method:</span>
+                    <strong style={{ textTransform: 'capitalize' }}>{selectedLeadForBooking.payment_method || 'Installment'}</strong>
+                  </div>
+                  {selectedLeadForBooking.budget && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Client Budget:</span>
+                      <strong>{parseFloat(selectedLeadForBooking.budget).toLocaleString()} EGP</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label">Select Available Unit</label>
                 <select className="form-control" value={bookingUnitId} onChange={e => setBookingUnitId(e.target.value)} required>
                   <option value="">-- Choose Unit --</option>
@@ -553,17 +639,91 @@ const CompanySalesPortal: React.FC = () => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">EOI Booking Payment (EGP)</label>
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label">Finalized Payment Method</label>
+                <select className="form-control" value={finalPaymentMethod} onChange={e => setFinalPaymentMethod(e.target.value as 'cash' | 'installment')}>
+                  <option value="installment">Installment Plan (تقسيط)</option>
+                  <option value="cash">Full Cash Payment (كاش)</option>
+                </select>
+              </div>
+
+              {finalPaymentMethod === 'installment' && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
+                      <label className="form-label">Installment Type</label>
+                      <select className="form-control" value={installmentType} onChange={e => setInstallmentType(e.target.value as 'direct' | 'bank')}>
+                        <option value="direct">Direct Installment (مباشر)</option>
+                        <option value="bank">Bank Finance (تمويل بنكي)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
+                      <label className="form-label">Term (Years)</label>
+                      <select className="form-control" value={installmentTerm} onChange={e => setInstallmentTerm(parseInt(e.target.value))}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(yr => (
+                          <option key={yr} value={yr}>{yr} {yr === 1 ? 'Year' : 'Years'}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
+                      <label className="form-label">Interest Rate (% p.a.)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        value={installmentInterest} 
+                        onChange={e => setInstallmentInterest(parseFloat(e.target.value) || 0)} 
+                        min="0"
+                        max="100"
+                        step="0.1"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
+                      <label className="form-label">Down Payment (EGP)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        value={downPayment} 
+                        onChange={e => setDownPayment(e.target.value)} 
+                        placeholder="e.g. 500000"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {bookingUnitId && (
+                    <div style={{ padding: '12px 16px', background: 'rgba(50, 71, 58, 0.04)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Payment Plan Calculation</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                        <div>Base Price: <strong>{calculatePlan().price.toLocaleString()} EGP</strong></div>
+                        <div>Interest: <strong>{calculatePlan().totalInterest.toLocaleString()} EGP</strong></div>
+                        <div>Total Cost: <strong>{calculatePlan().totalPrice.toLocaleString()} EGP</strong></div>
+                        <div>Down Payment: <strong>{(parseFloat(downPayment) || 0).toLocaleString()} EGP</strong></div>
+                        <div style={{ gridColumn: 'span 2' }}>Remaining to Pay: <strong>{calculatePlan().remaining.toLocaleString()} EGP</strong></div>
+                      </div>
+                      <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 700 }}>
+                        Estimated Payment: {Math.round(calculatePlan().monthlyPayment).toLocaleString()} EGP / month ({installmentTerm * 12} months)
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label">EOI Booking Deposit (EGP)</label>
                 <input type="number" className="form-control" value={bookingEoi} onChange={e => setBookingEoi(e.target.value)} required />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Booking Transaction Notes</label>
-                <textarea className="form-control" value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} placeholder="Installment payment timeline agreed details..." style={{ height: '70px' }} />
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label">Additional Deal Notes</label>
+                <textarea className="form-control" value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} placeholder="Agreed installment dates, grace periods, etc..." style={{ height: '60px' }} />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button type="button" className="btn-secondary" onClick={() => { setShowBookingModal(false); setSelectedLeadForBooking(null); }}>Cancel</button>
                 <button type="submit" className="btn-primary" style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }}>Confirm & Lock Booking</button>
               </div>
@@ -571,6 +731,7 @@ const CompanySalesPortal: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* UPDATE UNIT STATUS MODAL */}
       {showUnitModal && selectedUnit && (

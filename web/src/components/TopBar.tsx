@@ -239,50 +239,55 @@ const TopBar: React.FC<TopBarProps> = ({ userRole, onMenuToggle }) => {
       </div>
 
       {/* Horizontal Middle: Soft text toggles */}
-      <div className="topbar-links" style={{ display: 'flex', gap: '30px', fontSize: '0.8rem', fontWeight: 800 }}>
-        <Link 
-          to={tabs.overview}
-          style={{ 
-            cursor: 'pointer', 
-            textDecoration: 'none',
-            color: isTabActive(tabs.overview) ? 'var(--text-main)' : 'var(--text-muted)', 
-            borderBottom: isTabActive(tabs.overview) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
-            paddingBottom: '4px', 
-            letterSpacing: '0.05em',
-            transition: 'all 0.2s ease-in-out'
-          }}
-        >
-          OVERVIEW
-        </Link>
-        <Link 
-          to={tabs.analytics}
-          style={{ 
-            cursor: 'pointer', 
-            textDecoration: 'none',
-            color: isTabActive(tabs.analytics) ? 'var(--text-main)' : 'var(--text-muted)', 
-            borderBottom: isTabActive(tabs.analytics) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
-            paddingBottom: '4px', 
-            letterSpacing: '0.05em',
-            transition: 'all 0.2s ease-in-out'
-          }}
-        >
-          ANALYTICS
-        </Link>
-        <Link 
-          to={tabs.reports}
-          style={{ 
-            cursor: 'pointer', 
-            textDecoration: 'none',
-            color: isTabActive(tabs.reports) ? 'var(--text-main)' : 'var(--text-muted)', 
-            borderBottom: isTabActive(tabs.reports) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
-            paddingBottom: '4px', 
-            letterSpacing: '0.05em',
-            transition: 'all 0.2s ease-in-out'
-          }}
-        >
-          REPORTS
-        </Link>
-      </div>
+      {!['tele_sales', 'broker', 'company_sales'].includes(user.role) ? (
+        <div className="topbar-links" style={{ display: 'flex', gap: '30px', fontSize: '0.8rem', fontWeight: 800 }}>
+          <Link 
+            to={tabs.overview}
+            style={{ 
+              cursor: 'pointer', 
+              textDecoration: 'none',
+              color: isTabActive(tabs.overview) ? 'var(--text-main)' : 'var(--text-muted)', 
+              borderBottom: isTabActive(tabs.overview) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
+              paddingBottom: '4px', 
+              letterSpacing: '0.05em',
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            OVERVIEW
+          </Link>
+          <Link 
+            to={tabs.analytics}
+            style={{ 
+              cursor: 'pointer', 
+              textDecoration: 'none',
+              color: isTabActive(tabs.analytics) ? 'var(--text-main)' : 'var(--text-muted)', 
+              borderBottom: isTabActive(tabs.analytics) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
+              paddingBottom: '4px', 
+              letterSpacing: '0.05em',
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            ANALYTICS
+          </Link>
+          <Link 
+            to={tabs.reports}
+            style={{ 
+              cursor: 'pointer', 
+              textDecoration: 'none',
+              color: isTabActive(tabs.reports) ? 'var(--text-main)' : 'var(--text-muted)', 
+              borderBottom: isTabActive(tabs.reports) ? '2.5px solid var(--color-primary)' : '2.5px solid transparent', 
+              paddingBottom: '4px', 
+              letterSpacing: '0.05em',
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            REPORTS
+          </Link>
+        </div>
+      ) : (
+        <div className="topbar-links" />
+      )}
+
 
       {/* Horizontal Right: Control Icons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
