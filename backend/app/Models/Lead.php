@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -54,6 +55,9 @@ class Lead extends Model
         'status',
         'lead_score',
         'assigned_sales_agent_id',
+        'tele_sales_agent_id',
+        'company_sales_agent_id',
+        'current_tier',
         'kyc_status',
         'national_id_front_path',
         'national_id_back_path',
@@ -88,6 +92,16 @@ class Lead extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_sales_agent_id');
+    }
+
+    public function teleSalesAgent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tele_sales_agent_id');
+    }
+
+    public function companySalesAgent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'company_sales_agent_id');
     }
 
     public function campaign(): BelongsTo
@@ -125,6 +139,16 @@ class Lead extends Model
         return $this->hasMany(LeadLock::class);
     }
 
+    public function presentations(): HasMany
+    {
+        return $this->hasMany(ClientPresentation::class);
+    }
+
+    public function journeyLogs(): HasMany
+    {
+        return $this->hasMany(ClientJourneyLog::class);
+    }
+
     // ── Scopes ──
 
     public function scopeByStatus($query, string $status)
@@ -145,5 +169,23 @@ class Lead extends Model
     public function scopeKycVerified($query)
     {
         return $query->where('kyc_status', 'verified');
+    }
+
+    /**
+     * Scope: Auto-filter leads based on the user's role/tier.
+     * - tele_sales: Only leads assigned to this agent
+     * - broker: Only leads linked to this broker
+     * - company_sales: All leads (no filter)
+     * - admin: All leads (no filter)
+     */
+    public function scopeForTier(Builder $query, User $user): Builder
+    {
+        return match ($user->role) {
+            'tele_sales'    => $query->where('tele_sales_agent_id', $user->id),
+            'broker'        => $query->where('broker_id', $user->broker?->id),
+            'company_sales' => $query, // Full access
+            'admin'         => $query, // Full access
+            default         => $query->whereRaw('1 = 0'), // Deny by default
+        };
     }
 }

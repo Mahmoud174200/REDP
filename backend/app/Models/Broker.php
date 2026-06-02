@@ -27,6 +27,7 @@ class Broker extends Model
 
     protected $fillable = [
         'id',
+        'user_id',
         'agency_name',
         'agent_name',
         'email',
@@ -43,6 +44,14 @@ class Broker extends Model
     ];
 
     // ── Relationships ──
+
+    /**
+     * The user account linked to this broker (Tier 2 access).
+     */
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function commissions(): HasMany
     {

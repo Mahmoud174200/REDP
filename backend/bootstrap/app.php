@@ -15,7 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // $middleware->statefulApi(); // Enable stateful Sanctum auth for SPA
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'tier' => \App\Http\Middleware\EnsureTierAccess::class,
             'maintenance' => \App\Http\Middleware\EnsureSystemNotUnderMaintenance::class,
+            'audit.access' => \App\Http\Middleware\AuditDataAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

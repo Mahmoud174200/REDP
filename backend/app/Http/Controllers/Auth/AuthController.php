@@ -21,7 +21,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
             'phone' => 'nullable|string',
-            'role' => 'nullable|string|in:admin,sales_agent,finance_officer,delivery_engineer,client,broker,broker_manager,customer_service,technician,maintenance_manager,project_manager,legal_officer,executive,compliance_officer',
+            'role' => 'nullable|string|in:admin,sales_agent,tele_sales,finance_officer,delivery_engineer,client,broker,company_sales,broker_manager,customer_service,technician,maintenance_manager,project_manager,legal_officer,executive,compliance_officer',
         ]);
 
         $user = User::create([
@@ -44,6 +44,8 @@ class AuthController extends Controller
             'message' => 'User registered successfully.',
             'user' => $user,
             'token' => $token,
+            'tier_level' => $user->getTierLevel(),
+            'allowed_endpoints' => $user->getAllowedEndpoints(),
         ], 210);
     }
 
@@ -78,6 +80,8 @@ class AuthController extends Controller
             'message' => 'Welcome back, ' . $user->name,
             'user' => $user,
             'token' => $token,
+            'tier_level' => $user->getTierLevel(),
+            'allowed_endpoints' => $user->getAllowedEndpoints(),
         ], 200);
     }
 
@@ -86,9 +90,12 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
+        $user = $request->user();
         return response()->json([
             'success' => true,
-            'user' => $request->user(),
+            'user' => $user,
+            'tier_level' => $user->getTierLevel(),
+            'allowed_endpoints' => $user->getAllowedEndpoints(),
         ], 200);
     }
 

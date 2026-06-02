@@ -12,6 +12,11 @@ use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
 
+// ── 🔶 Tiered Sales Controllers ──
+use App\Http\Controllers\Acquisition\TeleSalesController;
+use App\Http\Controllers\Acquisition\BrokerSalesController;
+use App\Http\Controllers\Acquisition\CompanySalesController;
+
 // ── 🔵 Finance Controllers ──
 use App\Http\Controllers\Finance\InventoryController;
 use App\Http\Controllers\Finance\PaymentController;
@@ -76,6 +81,87 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/v1/auth/profile', [AuthController::class, 'profile']);
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
+
+    // ══════════════════════════════════════════════════════════
+    // 🔶 TIERED SALES RBAC MODULE
+    // ══════════════════════════════════════════════════════════
+
+    // ── TIER 1: Tele-Sales Agent ──
+    // Can: create/manage leads, schedule meetings, view basic project info
+    // Cannot: see pricing, units, payment plans, or execute transactions
+    Route::prefix('v1/sales/tele')
+        ->middleware(['role:tele_sales', 'tier:1', 'audit.access'])
+        ->group(function () {
+            // Leads (own only)
+            Route::get('/leads', [TeleSalesController::class, 'index']);
+            Route::post('/leads', [TeleSalesController::class, 'store']);
+            Route::get('/leads/{id}', [TeleSalesController::class, 'show']);
+            Route::put('/leads/{id}/contact', [TeleSalesController::class, 'logContact']);
+            Route::put('/leads/{id}/schedule-meeting', [TeleSalesController::class, 'scheduleMeeting']);
+            Route::put('/leads/{id}/transfer', [TeleSalesController::class, 'transfer']);
+
+            // Projects (basic info only — no pricing)
+            Route::get('/projects', [TeleSalesController::class, 'listProjects']);
+
+            // Dashboard
+            Route::get('/dashboard', [TeleSalesController::class, 'dashboard']);
+        });
+
+    // ── TIER 2: Real Estate Broker ──
+    // Can: view all projects/units/pricing, log presentations, escalate to sales
+    // Cannot: execute transactions, see other brokers' data
+    Route::prefix('v1/sales/broker')
+        ->middleware(['role:broker', 'tier:2', 'audit.access'])
+        ->group(function () {
+            // Projects & Units (full read access with pricing)
+            Route::get('/projects', [BrokerSalesController::class, 'listProjects']);
+            Route::get('/projects/{projectId}/units', [BrokerSalesController::class, 'listProjectUnits']);
+            Route::get('/units/{id}', [BrokerSalesController::class, 'showUnit']);
+            Route::get('/payment-plans/{projectId}', [BrokerSalesController::class, 'listPaymentPlans']);
+
+            // Leads (own broker leads only)
+            Route::get('/leads', [BrokerSalesController::class, 'listLeads']);
+            Route::get('/leads/{id}', [BrokerSalesController::class, 'showLead']);
+
+            // Presentations (own only — strict isolation)
+            Route::get('/presentations', [BrokerSalesController::class, 'listPresentations']);
+            Route::post('/presentations', [BrokerSalesController::class, 'createPresentation']);
+            Route::get('/presentations/{id}', [BrokerSalesController::class, 'showPresentation']);
+            Route::put('/presentations/{id}/outcome', [BrokerSalesController::class, 'updateOutcome']);
+            Route::put('/presentations/{id}/escalate', [BrokerSalesController::class, 'escalate']);
+
+            // Dashboard
+            Route::get('/dashboard', [BrokerSalesController::class, 'dashboard']);
+        });
+
+    // ── TIER 3: Company Sales Representative ──
+    // Can: everything — full data access, execute transactions, modify units
+    Route::prefix('v1/sales/company')
+        ->middleware(['role:company_sales', 'tier:3', 'audit.access'])
+        ->group(function () {
+            // Leads (full access)
+            Route::get('/leads', [CompanySalesController::class, 'listLeads']);
+            Route::get('/leads/{id}', [CompanySalesController::class, 'showLead']);
+            Route::get('/leads/{id}/journey', [CompanySalesController::class, 'getJourney']);
+            Route::put('/leads/{id}/assign', [CompanySalesController::class, 'assignToSelf']);
+
+            // Bookings (transaction execution)
+            Route::post('/bookings', [CompanySalesController::class, 'createBooking']);
+
+            // Units (full access + status management)
+            Route::get('/units', [CompanySalesController::class, 'listUnits']);
+            Route::put('/units/{id}/status', [CompanySalesController::class, 'updateUnitStatus']);
+
+            // Transactions
+            Route::get('/transactions', [CompanySalesController::class, 'listTransactions']);
+            Route::get('/transactions/{id}', [CompanySalesController::class, 'showTransaction']);
+
+            // Projects
+            Route::get('/projects', [CompanySalesController::class, 'listProjects']);
+
+            // Dashboard
+            Route::get('/dashboard', [CompanySalesController::class, 'dashboard']);
+        });
 
     // ══════════════════════════════════════════════════════════
     // 🟠 ACQUISITION MODULE
