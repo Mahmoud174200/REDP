@@ -103,6 +103,13 @@ const CompanySalesPortal: React.FC = () => {
   const [installmentInterest, setInstallmentInterest] = useState(0); // in percent p.a.
   const [downPayment, setDownPayment] = useState('');
   const [interestType, setInterestType] = useState<'flat' | 'reducing'>('reducing');
+  const [cashGracePeriod, setCashGracePeriod] = useState(14); // in days
+
+  const getCashDueDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + cashGracePeriod);
+    return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+  };
 
 
   // Unit Status Modal
@@ -110,6 +117,7 @@ const CompanySalesPortal: React.FC = () => {
   const [unitStatusInput, setUnitStatusInput] = useState('available');
   const [unitStatusReason, setUnitStatusReason] = useState('');
   const [showUnitModal, setShowUnitModal] = useState(false);
+
 
   // Default down payment on unit select
   useEffect(() => {
@@ -272,8 +280,14 @@ const CompanySalesPortal: React.FC = () => {
     if (!selectedLeadForBooking || !bookingUnitId) return;
 
     const plan = calculatePlan();
+    const eoi = parseFloat(bookingEoi) || 0;
+    
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + cashGracePeriod);
+    const dueDateString = dueDate.toLocaleDateString(undefined, { dateStyle: 'medium' });
+
     const planSummary = finalPaymentMethod === 'cash' 
-      ? `Finalized Plan: CASH | Total Price Paid: ${plan.price.toLocaleString()} EGP`
+      ? `Finalized Plan: CASH | Total Price: ${plan.price.toLocaleString()} EGP | EOI Paid: ${eoi.toLocaleString()} EGP | Remaining Cash Due: ${(plan.price - eoi).toLocaleString()} EGP | Grace Period: ${cashGracePeriod} Days (Due by: ${dueDateString}) | Notes: ${bookingNotes}`
       : `Finalized Plan: Installment (${installmentType === 'direct' ? 'Direct' : 'Bank Finance'}) | Term: ${installmentTerm} Years | Interest Rate: ${installmentInterest}% (${interestType === 'reducing' ? 'Reducing Balance / متناقصة' : 'Flat Balance / ثابتة'}) | Base: ${plan.price.toLocaleString()} EGP | Interest: ${plan.totalInterest.toLocaleString()} EGP | Total: ${plan.totalPrice.toLocaleString()} EGP | Down Payment Paid: ${parseFloat(downPayment).toLocaleString()} EGP | Remaining Balance: ${plan.remaining.toLocaleString()} EGP | Monthly Installment: ${Math.round(plan.monthlyPayment).toLocaleString()} EGP/month. Notes: ${bookingNotes}`;
 
     try {
@@ -293,6 +307,7 @@ const CompanySalesPortal: React.FC = () => {
         setInstallmentInterest(0);
         setDownPayment('');
         setInterestType('reducing');
+        setCashGracePeriod(14);
         setShowBookingModal(false);
         setSelectedLeadForBooking(null);
         await fetchPortalData();
@@ -304,6 +319,7 @@ const CompanySalesPortal: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
 
 
@@ -697,7 +713,40 @@ const CompanySalesPortal: React.FC = () => {
                 </select>
               </div>
 
+              {finalPaymentMethod === 'cash' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '10px' }}>
+                    <label className="form-label">Cash Grace Period (Days) / مهلة سداد الكاش</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      value={cashGracePeriod} 
+                      onChange={e => setCashGracePeriod(parseInt(e.target.value) || 0)} 
+                      min="1" 
+                      max="365"
+                    />
+                  </div>
+
+                  {bookingUnitId && (
+                    <div style={{ padding: '12px 16px', background: 'rgba(50, 71, 58, 0.04)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                      <div style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cash Payment Summary</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                        <div>Base Price: <strong>{unitPrice.toLocaleString()} EGP</strong></div>
+                        <div>EOI Deposit Paid: <strong>{(parseFloat(bookingEoi) || 0).toLocaleString()} EGP</strong></div>
+                        <div style={{ gridColumn: 'span 2', marginTop: '4px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '6px' }}>
+                          Remaining Cash Due: <strong style={{ color: 'var(--color-primary)' }}>{(unitPrice - (parseFloat(bookingEoi) || 0)).toLocaleString()} EGP</strong>
+                        </div>
+                        <div style={{ gridColumn: 'span 2', color: 'var(--color-warning)', fontWeight: 600 }}>
+                          📅 Payment Grace Period: {cashGracePeriod} Days (Due by: {getCashDueDate()})
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {finalPaymentMethod === 'installment' && (
+
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div className="form-group" style={{ marginBottom: '10px' }}>
