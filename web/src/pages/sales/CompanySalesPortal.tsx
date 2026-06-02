@@ -102,6 +102,8 @@ const CompanySalesPortal: React.FC = () => {
   const [installmentTerm, setInstallmentTerm] = useState(5); // in years
   const [installmentInterest, setInstallmentInterest] = useState(0); // in percent p.a.
   const [downPayment, setDownPayment] = useState('');
+  const [interestType, setInterestType] = useState<'flat' | 'reducing'>('reducing');
+
 
   // Unit Status Modal
   const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
@@ -137,22 +139,63 @@ const CompanySalesPortal: React.FC = () => {
   const calculatePlan = () => {
     const price = unitPrice;
     const dp = parseFloat(downPayment) || 0;
+    const eoi = parseFloat(bookingEoi) || 0;
     const term = installmentTerm || 1;
     const rate = installmentInterest || 0;
+    const n = term * 12; // Total months
+    const principal = price - dp - eoi;
 
-    const totalInterest = price * (rate / 100) * term;
-    const totalPrice = price + totalInterest;
-    const remaining = totalPrice - dp;
-    const monthlyPayment = remaining > 0 ? remaining / (term * 12) : 0;
+    if (principal <= 0) {
+      return {
+        price,
+        totalInterest: 0,
+        totalPrice: price,
+        remaining: 0,
+        monthlyPayment: 0
+      };
+    }
 
-    return {
-      price,
-      totalInterest,
-      totalPrice,
-      remaining,
-      monthlyPayment
-    };
+    if (interestType === 'reducing') {
+      const monthlyRate = (rate / 100) / 12;
+      if (monthlyRate > 0) {
+        const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
+        const totalPrice = (monthlyPayment * n) + dp + eoi;
+        const totalInterest = totalPrice - price;
+        const remaining = totalPrice - dp - eoi;
+        return {
+          price,
+          totalInterest,
+          totalPrice,
+          remaining,
+          monthlyPayment
+        };
+      } else {
+        const monthlyPayment = principal / n;
+        return {
+          price,
+          totalInterest: 0,
+          totalPrice: price,
+          remaining: principal,
+          monthlyPayment
+        };
+      }
+    } else {
+      // Flat interest: Interest = Principal * Rate * Years
+      const totalInterest = principal * (rate / 100) * term;
+      const totalPrice = price + totalInterest;
+      const remaining = totalPrice - dp - eoi;
+      const monthlyPayment = remaining / n;
+      return {
+        price,
+        totalInterest,
+        totalPrice,
+        remaining,
+        monthlyPayment
+      };
+    }
   };
+
+
 
 
   const fetchPortalData = async () => {
@@ -231,7 +274,7 @@ const CompanySalesPortal: React.FC = () => {
     const plan = calculatePlan();
     const planSummary = finalPaymentMethod === 'cash' 
       ? `Finalized Plan: CASH | Total Price Paid: ${plan.price.toLocaleString()} EGP`
-      : `Finalized Plan: Installment (${installmentType === 'direct' ? 'Direct' : 'Bank Finance'}) | Term: ${installmentTerm} Years | Interest Rate: ${installmentInterest}% | Base: ${plan.price.toLocaleString()} EGP | Interest: ${plan.totalInterest.toLocaleString()} EGP | Total: ${plan.totalPrice.toLocaleString()} EGP | Down Payment Paid: ${parseFloat(downPayment).toLocaleString()} EGP | Remaining Balance: ${plan.remaining.toLocaleString()} EGP | Monthly Installment: ${Math.round(plan.monthlyPayment).toLocaleString()} EGP/month. Notes: ${bookingNotes}`;
+      : `Finalized Plan: Installment (${installmentType === 'direct' ? 'Direct' : 'Bank Finance'}) | Term: ${installmentTerm} Years | Interest Rate: ${installmentInterest}% (${interestType === 'reducing' ? 'Reducing Balance / متناقصة' : 'Flat Balance / ثابتة'}) | Base: ${plan.price.toLocaleString()} EGP | Interest: ${plan.totalInterest.toLocaleString()} EGP | Total: ${plan.totalPrice.toLocaleString()} EGP | Down Payment Paid: ${parseFloat(downPayment).toLocaleString()} EGP | Remaining Balance: ${plan.remaining.toLocaleString()} EGP | Monthly Installment: ${Math.round(plan.monthlyPayment).toLocaleString()} EGP/month. Notes: ${bookingNotes}`;
 
     try {
       setIsLoading(true);
@@ -249,6 +292,7 @@ const CompanySalesPortal: React.FC = () => {
         setInstallmentTerm(5);
         setInstallmentInterest(0);
         setDownPayment('');
+        setInterestType('reducing');
         setShowBookingModal(false);
         setSelectedLeadForBooking(null);
         await fetchPortalData();
@@ -260,6 +304,7 @@ const CompanySalesPortal: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
 
   const handleUpdateUnitStatus = async (e: React.FormEvent) => {
@@ -640,6 +685,11 @@ const CompanySalesPortal: React.FC = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label">EOI Booking Deposit (EGP)</label>
+                <input type="number" className="form-control" value={bookingEoi} onChange={e => setBookingEoi(e.target.value)} required />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label">Finalized Payment Method</label>
                 <select className="form-control" value={finalPaymentMethod} onChange={e => setFinalPaymentMethod(e.target.value as 'cash' | 'installment')}>
                   <option value="installment">Installment Plan (تقسيط)</option>
@@ -659,16 +709,24 @@ const CompanySalesPortal: React.FC = () => {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '10px' }}>
-                      <label className="form-label">Term (Years)</label>
-                      <select className="form-control" value={installmentTerm} onChange={e => setInstallmentTerm(parseInt(e.target.value))}>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(yr => (
-                          <option key={yr} value={yr}>{yr} {yr === 1 ? 'Year' : 'Years'}</option>
-                        ))}
+                      <label className="form-label">Interest Type</label>
+                      <select className="form-control" value={interestType} onChange={e => setInterestType(e.target.value as 'flat' | 'reducing')}>
+                        <option value="reducing">Reducing Balance (متناقصة)</option>
+                        <option value="flat">Flat Balance (ثابتة)</option>
                       </select>
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
+                      <label className="form-label">Term (Years)</label>
+                      <select className="form-control" value={installmentTerm} onChange={e => setInstallmentTerm(parseInt(e.target.value))}>
+                        {Array.from({ length: 25 }, (_, i) => i + 1).map(yr => (
+                          <option key={yr} value={yr}>{yr} {yr === 1 ? 'Year' : 'Years'}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="form-group" style={{ marginBottom: '10px' }}>
                       <label className="form-label">Interest Rate (% p.a.)</label>
                       <input 
@@ -681,18 +739,18 @@ const CompanySalesPortal: React.FC = () => {
                         step="0.1"
                       />
                     </div>
+                  </div>
 
-                    <div className="form-group" style={{ marginBottom: '10px' }}>
-                      <label className="form-label">Down Payment (EGP)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        value={downPayment} 
-                        onChange={e => setDownPayment(e.target.value)} 
-                        placeholder="e.g. 500000"
-                        required
-                      />
-                    </div>
+                  <div className="form-group" style={{ marginBottom: '10px' }}>
+                    <label className="form-label">Down Payment (EGP)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      value={downPayment} 
+                      onChange={e => setDownPayment(e.target.value)} 
+                      placeholder="e.g. 500000"
+                      required
+                    />
                   </div>
 
                   {bookingUnitId && (
@@ -703,7 +761,8 @@ const CompanySalesPortal: React.FC = () => {
                         <div>Interest: <strong>{calculatePlan().totalInterest.toLocaleString()} EGP</strong></div>
                         <div>Total Cost: <strong>{calculatePlan().totalPrice.toLocaleString()} EGP</strong></div>
                         <div>Down Payment: <strong>{(parseFloat(downPayment) || 0).toLocaleString()} EGP</strong></div>
-                        <div style={{ gridColumn: 'span 2' }}>Remaining to Pay: <strong>{calculatePlan().remaining.toLocaleString()} EGP</strong></div>
+                        <div>EOI Deposit: <strong>{(parseFloat(bookingEoi) || 0).toLocaleString()} EGP</strong></div>
+                        <div style={{ gridColumn: 'span 2' }}>Remaining to Pay (Installments): <strong>{calculatePlan().remaining.toLocaleString()} EGP</strong></div>
                       </div>
                       <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 700 }}>
                         Estimated Payment: {Math.round(calculatePlan().monthlyPayment).toLocaleString()} EGP / month ({installmentTerm * 12} months)
@@ -712,11 +771,6 @@ const CompanySalesPortal: React.FC = () => {
                   )}
                 </>
               )}
-
-              <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label">EOI Booking Deposit (EGP)</label>
-                <input type="number" className="form-control" value={bookingEoi} onChange={e => setBookingEoi(e.target.value)} required />
-              </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label">Additional Deal Notes</label>
