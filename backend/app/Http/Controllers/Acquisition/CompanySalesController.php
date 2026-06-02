@@ -321,18 +321,32 @@ class CompanySalesController extends Controller
         }
 
         if ($reservation->contract()->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot cancel a reservation that already has a contract.',
-            ], 400);
+            $contract = $reservation->contract;
+            if ($contract && $contract->status !== 'draft') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot cancel a reservation that already has an active contract.',
+                ], 400);
+            }
         }
 
         try {
             DB::transaction(function () use ($reservation, $user) {
-                // 1. Mark reservation as cancelled
+                // 1. Delete associated draft contract, payment plan, and payments
+                $contract = $reservation->contract;
+                if ($contract && $contract->status === 'draft') {
+                    if ($contract->paymentPlan) {
+                        \App\Models\Payment::where('payment_plan_id', $contract->paymentPlan->id)->delete();
+                        $contract->paymentPlan->delete();
+                    }
+                    \App\Models\Payment::where('contract_id', $contract->id)->delete();
+                    $contract->delete();
+                }
+
+                // 2. Mark reservation as cancelled
                 $reservation->update(['status' => 'cancelled']);
 
-                // 2. Set unit back to available
+                // 3. Set unit back to available
                 $unit = $reservation->unit;
                 if ($unit && $unit->status === 'reserved') {
                     $unit->update(['status' => 'available']);
