@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: BrokerController
  * Blueprint Section: H.6 — Broker Portal & Commission Tracking
  *

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Listener: HandleContractSigned
  *
  * Consumes Finance domain's ContractSigned event.

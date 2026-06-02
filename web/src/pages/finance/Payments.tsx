@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, TrendingDown, CreditCard, Clock, CheckCircle, AlertCircle, ArrowUpRight, ArrowDownRight, DollarSign, Calendar, BarChart3 } from 'lucide-react';
+import api from '../../services/api';
 
 interface PaymentEntry {
   id: string;
@@ -15,28 +16,53 @@ interface PaymentEntry {
   transaction_ref: string | null;
 }
 
-const mockPayments: PaymentEntry[] = [
-  { id: 'p1', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', unit_number: 'A-101', installment_number: 0, amount: 50000, due_date: '2026-03-15', paid_at: '2026-03-15', status: 'paid', gateway: 'eoi_deposit', transaction_ref: 'EOI-RES001' },
-  { id: 'p2', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', unit_number: 'A-101', installment_number: 1, amount: 212500, due_date: '2026-06-15', paid_at: '2026-06-10', status: 'paid', gateway: 'stripe', transaction_ref: 'STR-8F2A3C' },
-  { id: 'p3', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', unit_number: 'A-101', installment_number: 2, amount: 212500, due_date: '2026-09-15', paid_at: null, status: 'pending', gateway: null, transaction_ref: null },
-  { id: 'p4', contract_number: 'REDP-CTR-2026-0002', client_name: 'Sara Mohamed', unit_number: 'V-501', installment_number: 1, amount: 387500, due_date: '2026-04-01', paid_at: '2026-04-01', status: 'paid', gateway: 'fawry', transaction_ref: 'FWR-93D1E8' },
-  { id: 'p5', contract_number: 'REDP-CTR-2026-0002', client_name: 'Sara Mohamed', unit_number: 'V-501', installment_number: 2, amount: 387500, due_date: '2026-07-01', paid_at: null, status: 'pending', gateway: null, transaction_ref: null },
-  { id: 'p6', contract_number: 'REDP-CTR-2026-0005', client_name: 'Omar Youssef', unit_number: 'A-205', installment_number: 1, amount: 279375, due_date: '2026-04-20', paid_at: null, status: 'pending', gateway: null, transaction_ref: null },
-  { id: 'p7', contract_number: 'REDP-CTR-2026-0003', client_name: 'Karim Ali', unit_number: 'O-204', installment_number: 0, amount: 6800000, due_date: '2026-02-20', paid_at: '2026-02-20', status: 'paid', gateway: 'bank_transfer', transaction_ref: 'BNK-A91C2F' },
-  { id: 'p8', contract_number: 'REDP-CTR-2026-0004', client_name: 'Fatma Ibrahim', unit_number: 'D-301', installment_number: 1, amount: 553125, due_date: '2026-05-01', paid_at: null, status: 'pending', gateway: null, transaction_ref: null },
-];
-
 const Payments: React.FC = () => {
-  const [payments] = useState<PaymentEntry[]>(mockPayments);
+  const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [selectedGateway, setSelectedGateway] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({
+    total_revenue: 0,
+    pending_amount: 0,
+    overdue_amount: 0,
+    overdue_count: 0
+  });
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const payRes = await api.get('/v1/finance/payments');
+      const dashRes = await api.get('/v1/finance/dashboard');
+
+      if (payRes.data?.success) {
+        const mapped = payRes.data.data.map((p: any) => ({
+          id: p.id,
+          contract_number: p.contract?.contract_number || 'N/A',
+          client_name: p.contract?.client?.name || 'N/A',
+          unit_number: p.contract?.unit?.unit_number || 'N/A',
+          installment_number: p.installment_number,
+          amount: parseFloat(p.amount) || 0,
+          due_date: p.due_date,
+          paid_at: p.paid_at,
+          status: p.status,
+          gateway: p.gateway,
+          transaction_ref: p.transaction_reference
+        }));
+        setPayments(mapped);
+      }
+
+      if (dashRes.data?.success) {
+        setDashboardStats(dashRes.data.dashboard);
+      }
+    } catch (err) {
+      console.error('Failed to fetch payments data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -55,11 +81,11 @@ const Payments: React.FC = () => {
   });
 
   // KPI calculations
-  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((a, p) => a + p.amount, 0);
-  const pendingAmount = payments.filter(p => p.status === 'pending').reduce((a, p) => a + p.amount, 0);
-  const overduePayments = payments.filter(p => p.status === 'pending' && new Date(p.due_date) < new Date());
-  const overdueAmount = overduePayments.reduce((a, p) => a + p.amount, 0);
+  const totalRevenue = dashboardStats.total_revenue;
+  const pendingAmount = dashboardStats.pending_amount;
+  const overdueAmount = dashboardStats.overdue_amount;
   const paidCount = payments.filter(p => p.status === 'paid').length;
+  const overdueCount = payments.filter(p => p.status === 'pending' && new Date(p.due_date) < new Date()).length;
 
   // Monthly revenue data for chart
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
@@ -79,7 +105,7 @@ const Payments: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Financial KPIs, installment tracking, gateway management & billing reports</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.3 — MELWANY</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.3</span>
         </div>
       </div>
 
@@ -88,7 +114,7 @@ const Payments: React.FC = () => {
         {[
           { label: 'Total Revenue', value: `${(totalRevenue / 1000000).toFixed(1)}M`, sub: `${paidCount} payments processed`, icon: <DollarSign size={20} />, color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)', trend: '+12.5%', trendUp: true },
           { label: 'Pending Amount', value: `${(pendingAmount / 1000000).toFixed(1)}M`, sub: `${payments.filter(p => p.status === 'pending').length} installments due`, icon: <Clock size={20} />, color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.08)', trend: '', trendUp: false },
-          { label: 'Overdue Amount', value: `${(overdueAmount / 1000000).toFixed(1)}M`, sub: `${overduePayments.length} overdue payments`, icon: <AlertCircle size={20} />, color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.08)', trend: '', trendUp: false },
+          { label: 'Overdue Amount', value: `${(overdueAmount / 1000000).toFixed(1)}M`, sub: `${overdueCount} overdue payments`, icon: <AlertCircle size={20} />, color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.08)', trend: '', trendUp: false },
           { label: 'Collection Rate', value: `${totalRevenue > 0 ? Math.round((totalRevenue / (totalRevenue + pendingAmount)) * 100) : 0}%`, sub: 'of total billed amount', icon: <TrendingUp size={20} />, color: 'var(--color-primary)', bg: 'rgba(59,130,246,0.08)', trend: '+3.2%', trendUp: true },
         ].map((card, i) => (
           <div key={i} className="glass-panel" style={{ padding: '20px 24px' }}>

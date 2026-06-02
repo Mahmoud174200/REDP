@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, Calendar, CheckCircle, XCircle, RefreshCw, ArrowRight, FileWarning, DollarSign, TrendingDown, Shield, Layers } from 'lucide-react';
+import api from '../../services/api';
 
 interface CollectionItem {
   id: string;
+  contract_id?: string;
   contract_number: string;
   client_name: string;
   unit_number: string;
@@ -26,34 +28,122 @@ interface RescheduleRequest {
   created_at: string;
 }
 
-const mockCollections: CollectionItem[] = [
-  { id: 'col1', contract_number: 'REDP-CTR-2026-0005', client_name: 'Omar Youssef', unit_number: 'A-205', aging_bucket: '30_days', outstanding_amount: 279375, promise_to_pay_date: '2026-06-15', status: 'promised', days_overdue: 22, notes: 'Client requested 2-week extension' },
-  { id: 'col2', contract_number: 'REDP-CTR-2026-0004', client_name: 'Fatma Ibrahim', unit_number: 'D-301', aging_bucket: '30_days', outstanding_amount: 553125, promise_to_pay_date: null, status: 'active', days_overdue: 15, notes: 'First missed payment - initial outreach pending' },
-  { id: 'col3', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', unit_number: 'A-101', aging_bucket: '60_days', outstanding_amount: 425000, promise_to_pay_date: '2026-05-30', status: 'promised', days_overdue: 48, notes: 'Promise-to-pay set, follow-up required' },
-  { id: 'col4', contract_number: 'REDP-CTR-2026-0002', client_name: 'Sara Mohamed', unit_number: 'V-501', aging_bucket: '90_days_plus', outstanding_amount: 1162500, promise_to_pay_date: null, status: 'escalated', days_overdue: 105, notes: 'Escalated to legal department' },
-];
-
-const mockReschedules: RescheduleRequest[] = [
-  { id: 'rs1', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', reason: 'Financial hardship due to job change. Requesting extended payment period.', current_installments: 12, proposed_installments: 20, proposed_monthly: 127500, status: 'pending', created_at: '2026-05-28' },
-  { id: 'rs2', contract_number: 'REDP-CTR-2026-0004', client_name: 'Fatma Ibrahim', reason: 'Seasonal business fluctuation. Need quarterly payments restructured.', current_installments: 16, proposed_installments: 24, proposed_monthly: 368750, status: 'pending', created_at: '2026-05-25' },
-  { id: 'rs3', contract_number: 'REDP-CTR-2026-0002', client_name: 'Sara Mohamed', reason: 'Medical expenses impacted cash flow temporarily.', current_installments: 24, proposed_installments: 36, proposed_monthly: 258333, status: 'approved', created_at: '2026-05-10' },
-];
-
 const Collections: React.FC = () => {
-  const [collections] = useState<CollectionItem[]>(mockCollections);
-  const [reschedules] = useState<RescheduleRequest[]>(mockReschedules);
+  const [collections, setCollections] = useState<CollectionItem[]>([]);
+  const [reschedules, setReschedules] = useState<RescheduleRequest[]>([]);
   const [selectedBucket, setSelectedBucket] = useState('all');
   const [activeTab, setActiveTab] = useState<'queue' | 'reschedule' | 'cancel'>('queue');
   const [cancelModal, setCancelModal] = useState<CollectionItem | null>(null);
   const [penaltyRate, setPenaltyRate] = useState(10);
+  const [cancelReason, setCancelReason] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchCollections = async () => {
+    try {
+      const response = await api.get('/v1/finance/collections');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((c: any) => ({
+          id: c.id,
+          contract_id: c.contract_id,
+          contract_number: c.contract?.contract_number || 'N/A',
+          client_name: c.contract?.client?.name || 'N/A',
+          unit_number: c.contract?.unit?.unit_number || 'N/A',
+          aging_bucket: c.aging_bucket,
+          outstanding_amount: parseFloat(c.outstanding_amount) || 0,
+          promise_to_pay_date: c.promise_to_pay_date,
+          status: c.status,
+          days_overdue: c.aging_bucket === '30_days' ? 15 : c.aging_bucket === '60_days' ? 45 : 95,
+          notes: c.notes || '',
+        }));
+        setCollections(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch collections:', err);
+    }
+  };
+
+  const fetchReschedules = async () => {
+    try {
+      const response = await api.get('/v1/finance/collections/reschedules');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((r: any) => ({
+          id: r.id,
+          contract_number: r.contract?.contract_number || 'N/A',
+          client_name: r.contract?.client?.name || 'N/A',
+          reason: r.reason,
+          current_installments: r.current_installments,
+          proposed_installments: r.proposed_installments_count,
+          proposed_monthly: parseFloat(r.proposed_monthly_amount) || 0,
+          status: r.status,
+          created_at: r.created_at ? r.created_at.substring(0, 10) : 'N/A',
+        }));
+        setReschedules(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch reschedules:', err);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const initData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchCollections(), fetchReschedules()]);
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    initData();
   }, []);
+
+  const handleSetPromise = async (id: string) => {
+    const promiseDate = prompt('Enter promise-to-pay date (YYYY-MM-DD):', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    if (!promiseDate) return;
+    const notes = prompt('Enter notes (optional):') || '';
+    try {
+      const response = await api.post(`/v1/finance/collections/${id}/promise`, {
+        promise_date: promiseDate,
+        notes: notes
+      });
+      if (response.data && response.data.success) {
+        alert('Promise-to-pay date recorded successfully.');
+        fetchCollections();
+      }
+    } catch (err: any) {
+      console.error('Failed to record promise-to-pay:', err);
+      alert(err.response?.data?.message || 'Error recording promise-to-pay.');
+    }
+  };
+
+  const handleApproveReschedule = async (id: string) => {
+    if (!confirm('Are you sure you want to approve this rescheduling request?')) return;
+    try {
+      const response = await api.post(`/v1/finance/reschedule/${id}/approve`);
+      if (response.data && response.data.success) {
+        alert('Rescheduling request approved and new payment plan generated.');
+        fetchReschedules();
+        fetchCollections();
+      }
+    } catch (err: any) {
+      console.error('Failed to approve reschedule:', err);
+      alert(err.response?.data?.message || 'Error approving rescheduling request.');
+    }
+  };
+
+  const handleCancelContract = async (contractId: string, reason: string, penaltyPercentage: number) => {
+    try {
+      const response = await api.post(`/v1/finance/cancel/${contractId}`, {
+        reason: reason,
+        penalty_percentage: penaltyPercentage,
+      });
+      if (response.data && response.data.success) {
+        alert('Contract cancelled successfully.');
+        setCancelModal(null);
+        setCancelReason('');
+        fetchCollections();
+      }
+    } catch (err: any) {
+      console.error('Failed to cancel contract:', err);
+      alert(err.response?.data?.message || 'Error cancelling contract.');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -111,7 +201,7 @@ const Collections: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Aging debt tracker, promise-to-pay management, rescheduling & cancellation processor</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', letterSpacing: '0.05em' }}>MODULE: H.13/14/15 — MELWANY</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', letterSpacing: '0.05em' }}>MODULE: H.13/14/15</span>
         </div>
       </div>
 
@@ -232,7 +322,7 @@ const Collections: React.FC = () => {
                   <td>{getStatusBadge(item.status)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }}>
+                      <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => handleSetPromise(item.id)}>
                         <Calendar size={12} /> Set Promise
                       </button>
                       <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', borderColor: 'rgba(239,68,68,0.3)', color: 'var(--color-danger)' }} onClick={() => setCancelModal(item)}>
@@ -284,10 +374,10 @@ const Collections: React.FC = () => {
 
                 {req.status === 'pending' && (
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                    <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.75rem' }}>
+                    <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.75rem' }} onClick={() => handleApproveReschedule(req.id)}>
                       <CheckCircle size={12} /> Approve
                     </button>
-                    <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.75rem', borderColor: 'rgba(239,68,68,0.3)', color: 'var(--color-danger)' }}>
+                    <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.75rem', borderColor: 'rgba(239,68,68,0.3)', color: 'var(--color-danger)' }} onClick={() => alert('Please ask the client to submit a revised request or handle manually.')}>
                       <XCircle size={12} /> Reject
                     </button>
                   </div>
@@ -339,6 +429,18 @@ const Collections: React.FC = () => {
               </div>
             </div>
 
+            <div style={{ marginBottom: '20px' }}>
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>Cancellation Reason</label>
+              <textarea
+                className="form-control"
+                placeholder="Enter cancellation reason (min 10 characters)..."
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                style={{ width: '100%', minHeight: '60px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', padding: '8px' }}
+                required
+              />
+            </div>
+
             <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', marginBottom: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
@@ -357,10 +459,24 @@ const Collections: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setCancelModal(null)}>
+              <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setCancelModal(null); setCancelReason(''); }}>
                 Cancel
               </button>
-              <button className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg, var(--color-danger), #dc2626)' }}>
+              <button
+                className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg, var(--color-danger), #dc2626)' }}
+                onClick={() => {
+                  if (cancelReason.trim().length < 10) {
+                    alert('Please enter a cancellation reason (minimum 10 characters).');
+                    return;
+                  }
+                  if (cancelModal.contract_id) {
+                    handleCancelContract(cancelModal.contract_id, cancelReason, penaltyRate);
+                  } else {
+                    alert('Contract reference missing for cancellation.');
+                  }
+                }}
+              >
                 <XCircle size={14} /> Confirm Cancellation
               </button>
             </div>

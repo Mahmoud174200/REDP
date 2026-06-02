@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────
-// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+// REDP — Acquisition & Sales Engine
 // Component: CRM Kanban Board
 // Premium interactive drag-and-drop pipeline with live data.
 // ─────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ const CrmKanban: React.FC = () => {
             />
           </div>
           <div style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>🟠 RAGAB — H.9 CRM</span>
+             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>CRM</span>
           </div>
         </div>
       </div>

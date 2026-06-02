@@ -159,7 +159,7 @@ const Leads: React.FC = () => {
           <p>Lead registration, biometric KYC face match, and 7-stage Kanban pipeline.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.1 / H.9 (RAGAB)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.1 / H.9</span>
         </div>
       </div>
 
@@ -174,7 +174,7 @@ const Leads: React.FC = () => {
           <form onSubmit={handleAddLead} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Full Name</label>
-              <input type="text" className="form-control" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mahmoud Ahmed" required />
+              <input type="text" className="form-control" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. John Doe" required />
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>

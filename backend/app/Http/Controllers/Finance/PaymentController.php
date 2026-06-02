@@ -25,7 +25,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'contract' => $contract,
             'installments' => $contract->payments,
             'payment_plan' => $contract->paymentPlan,
@@ -177,7 +177,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'dashboard' => [
                 'total_revenue' => (float) $totalRevenue,
                 'pending_amount' => (float) $pendingAmount,
@@ -218,5 +218,29 @@ class PaymentController extends Controller
             default:
                 return response()->json(['success' => false, 'message' => 'Unknown gateway'], 400);
         }
+    }
+
+    /**
+     * Get all payment installments with filters.
+     */
+    public function index(Request $request)
+    {
+        $query = Payment::with(['contract.client', 'contract.unit']);
+
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('gateway') && $request->gateway !== 'all') {
+            $query->where('gateway', $request->gateway);
+        }
+
+        $payments = $query->latest('due_date')->get();
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🔵 Finance Team (Finance)',
+            'data' => $payments
+        ], 200);
     }
 }

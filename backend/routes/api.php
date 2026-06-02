@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 
-// ── 🟠 Acquisition Controllers (Ragab) ──
+// ── 🟠 Acquisition Controllers ──
 use App\Http\Controllers\Acquisition\LeadController;
 use App\Http\Controllers\Acquisition\BrokerController;
 use App\Http\Controllers\Acquisition\RegistrationController;
@@ -12,11 +12,11 @@ use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
 
-// ── 🔵 Finance Controllers (Melwany) ──
+// ── 🔵 Finance Controllers ──
 use App\Http\Controllers\Finance\InventoryController;
 use App\Http\Controllers\Finance\PaymentController;
 
-// ── 🟢 Delivery Controllers (Mahmoud) ──
+// ── 🟢 Delivery Controllers ──
 use App\Http\Controllers\Finance\ContractController;
 use App\Http\Controllers\Finance\CollectionController;
 use App\Http\Controllers\Delivery\ClientPortalController;
@@ -24,6 +24,7 @@ use App\Http\Controllers\Delivery\HandoverController;
 use App\Http\Controllers\Delivery\VendorController;
 use App\Http\Controllers\Delivery\DocumentController;
 use App\Http\Controllers\Delivery\AnalyticsController;
+use App\Http\Controllers\Delivery\WorkflowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,7 +50,7 @@ Route::get('/v1/system-info', [\App\Http\Controllers\Admin\AdminController::clas
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
 
-// ── 🟠 Public Webhooks (Acquisition - Ragab) ──
+// ── 🟠 Public Webhooks (Acquisition) ──
 Route::prefix('v1/webhooks')->group(function () {
     // VoIP Provider Webhooks (Twilio)
     Route::post('/voip/call-status', [VoipCallController::class, 'handleCallStatus']);
@@ -77,7 +78,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
 
     // ══════════════════════════════════════════════════════════
-    // 🟠 ACQUISITION MODULE (Owner: Ragab)
+    // 🟠 ACQUISITION MODULE
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/acquisition')->group(function () {
 
@@ -122,7 +123,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     });
 
     // ══════════════════════════════════════════════════════════
-    // 🔵 FINANCIAL ENGINE (Owner: Melwany)
+    // 🔵 FINANCIAL ENGINE
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/finance')->group(function () {
         // ── Unit Inventory (open to all logged-in users) ──
@@ -143,12 +144,14 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::patch('/units/{id}/pricing', [InventoryController::class, 'updatePricing']);
 
             // Payment management
+            Route::get('/payments', [PaymentController::class, 'index']);
             Route::get('/payments/{contractId}', [PaymentController::class, 'getInstallments']);
             Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
+            Route::get('/collections/reschedules', [CollectionController::class, 'getRescheduleRequests']);
             Route::post('/collections/{id}/promise', [CollectionController::class, 'recordPromiseToPay']);
             Route::post('/reschedule/{contractId}', [CollectionController::class, 'reschedule']);
             Route::post('/reschedule/{id}/approve', [CollectionController::class, 'approveReschedule']);
@@ -169,7 +172,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     });
 
     // ══════════════════════════════════════════════════════════
-    // 🟢 DELIVERY & OPERATIONS (Owner: Mahmoud)
+    // 🟢 DELIVERY & OPERATIONS
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/delivery')->group(function () {
         Route::get('/overview', [ClientPortalController::class, 'getOverview']);
@@ -203,6 +206,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/vendors', [VendorController::class, 'getVendors']);
             Route::get('/tickets', [VendorController::class, 'getTickets']);
             Route::post('/tickets/{ticketId}/dispatch', [VendorController::class, 'dispatchTicket']);
+
+            // Workflow templates manager
+            Route::get('/workflows', [WorkflowController::class, 'index']);
+            Route::post('/workflows', [WorkflowController::class, 'store']);
+            Route::put('/workflows/{id}/toggle', [WorkflowController::class, 'toggle']);
+            Route::delete('/workflows/{id}', [WorkflowController::class, 'destroy']);
         });
     });
 

@@ -33,7 +33,7 @@ class ClientPortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'metrics' => [
                 'total_tickets' => $ticketsCount,
                 'open_tickets' => $pendingTickets,
@@ -79,7 +79,7 @@ class ClientPortalController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'Visitor gate entry code generated successfully.',
             'visitor_details' => [
                 'pass_id' => $guestId,

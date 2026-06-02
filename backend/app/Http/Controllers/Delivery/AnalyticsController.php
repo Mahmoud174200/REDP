@@ -42,7 +42,7 @@ class AnalyticsController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'occupancy_stats' => [
                 'active_families' => 340,
                 'occupancy_rate' => $occupancyRate,

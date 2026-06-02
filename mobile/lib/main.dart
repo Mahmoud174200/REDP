@@ -45,10 +45,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> roles = [
     {'key': 'admin', 'name': '👑 Platform Administrator'},
-    {'key': 'sales_agent', 'name': '🟠 Ragab (Sales Agent)'},
-    {'key': 'finance_officer', 'name': '🔵 Melwany (Finance)'},
+    {'key': 'sales_agent', 'name': '🟠 Sales Agent'},
+    {'key': 'finance_officer', 'name': '🔵 Finance Officer'},
     {'key': 'client', 'name': '🐳 Compound Client'},
-    {'key': 'delivery_engineer', 'name': '🟢 Mahmoud (Delivery)'},
+    {'key': 'delivery_engineer', 'name': '🟢 Delivery Specialist'},
   ];
 
   @override
@@ -242,7 +242,7 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// 🟠 Acquisition Tab (Developer 1: Ragab — Acquisition & Sales Engine)
+// 🟠 Acquisition Tab (Acquisition & Sales Engine)
 class AcquisitionTab extends StatelessWidget {
   final String role;
   const AcquisitionTab({super.key, required this.role});
@@ -455,7 +455,7 @@ class AcquisitionTab extends StatelessWidget {
 }
 
 
-// 🔵 Finance Tab UI Stub (Melwany)
+// 🔵 Finance Tab UI Stub 
 class FinanceTab extends StatelessWidget {
   final String role;
   const FinanceTab({super.key, required this.role});
@@ -505,7 +505,7 @@ class FinanceTab extends StatelessWidget {
   }
 }
 
-// 🟢 Delivery Tab UI Stub (Mahmoud)
+// 🟢 Delivery Tab UI Stub
 class DeliveryTab extends StatefulWidget {
   final String role;
   const DeliveryTab({super.key, required this.role});

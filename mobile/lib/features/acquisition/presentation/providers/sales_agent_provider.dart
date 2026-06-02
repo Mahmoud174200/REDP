@@ -5,7 +5,7 @@ import '../../data/datasources/acquisition_remote_datasource.dart';
 import '../../data/repositories/acquisition_repository_impl.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Provider: SalesAgentProvider
 /// State management for the Sales Agent screen.
 /// ─────────────────────────────────────────────────────────

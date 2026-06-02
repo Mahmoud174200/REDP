@@ -29,7 +29,7 @@ class DocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'search_term' => $request->search ?? null,
             'data' => $query->latest()->get()
         ], 200);
@@ -81,7 +81,7 @@ class DocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'Document uploaded, OCR text indexed, and added to the searchable vault.',
             'data' => $doc
         ], 201);

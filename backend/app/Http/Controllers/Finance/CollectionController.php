@@ -53,7 +53,7 @@ class CollectionController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'data' => $items,
             'buckets' => $bucketSummary,
             'total_outstanding' => $totalOutstanding,
@@ -317,10 +317,26 @@ class CollectionController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'total_overdue' => (float) $overduePayments->sum('amount'),
             'total_overdue_count' => $overduePayments->count(),
             'aging_buckets' => $buckets,
         ]);
+    }
+
+    /**
+     * Get all rescheduling requests.
+     */
+    public function getRescheduleRequests(Request $request)
+    {
+        $requests = ReschedulingRequest::with(['contract.client', 'contract.unit'])
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🔵 Finance Team (Finance)',
+            'data' => $requests
+        ], 200);
     }
 }

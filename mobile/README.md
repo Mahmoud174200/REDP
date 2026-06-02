@@ -6,9 +6,9 @@ This is the mobile app scaffolding for the **Real Estate Digital Platform (REDP)
 
 ## 🏗️ Directory Boundaries (Section DD)
 Each engineer has a designated screen directory structure within the app:
-- 🟠 **Acquisition (Ragab):** Screens inside `lib/features/acquisition/` (Simulated in Tab 1)
-- 🔵 **Finance (Melwany):** Screens inside `lib/features/finance/` (Simulated in Tab 2)
-- 🟢 **Delivery & Operations (Mahmoud):** Screens inside `lib/features/delivery/` (Simulated in Tab 3 - Maintained as clean canvas skeleton)
+- 🟠 **Acquisition :** Screens inside `lib/features/acquisition/` (Simulated in Tab 1)
+- 🔵 **Finance :** Screens inside `lib/features/finance/` (Simulated in Tab 2)
+- 🟢 **Delivery & Operations :** Screens inside `lib/features/delivery/` (Simulated in Tab 3 - Maintained as clean canvas skeleton)
 
 ---
 

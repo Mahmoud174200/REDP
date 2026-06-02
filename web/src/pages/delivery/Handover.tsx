@@ -2,9 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, AlertTriangle, PenTool, CheckCircle, FileSignature } from 'lucide-react';
 import api from '../../services/api';
 
+interface UnitData {
+  id: string;
+  unit_number: string;
+  type: string;
+  status: string;
+}
+
+interface ChecklistItem {
+  id: string;
+  item: string;
+  passed: boolean;
+}
+
+interface SnagItem {
+  id: string;
+  item: string;
+  desc: string;
+  severity: string;
+  date: string;
+}
+
 const Handover: React.FC = () => {
-  const [checklist, setChecklist] = useState<any[]>([]);
-  const [snags, setSnags] = useState<any[]>([]);
+  const [units, setUnits] = useState<UnitData[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [snags, setSnags] = useState<SnagItem[]>([]);
 
   const [newSnagDesc, setNewSnagDesc] = useState('');
   const [newSnagSeverity, setNewSnagSeverity] = useState('medium');
@@ -13,14 +36,61 @@ const Handover: React.FC = () => {
   const [signed, setSigned] = useState(false);
   const [signing, setSigning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const demoUnitId = '80cb3a70-f11d-4cf6-8cfa-cb2a0ff83eb2'; // Sample active UUID
+
+  const fetchUnits = async () => {
+    try {
+      const res = await api.get('/v1/finance/units');
+      if (res.data && res.data.success) {
+        setUnits(res.data.data);
+        if (res.data.data.length > 0) {
+          setSelectedUnitId(res.data.data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch units:', err);
+    }
+  };
+
+  const fetchChecklist = async (unitId: string) => {
+    try {
+      const res = await api.get(`/v1/delivery/units/${unitId}/checklist`);
+      if (res.data && res.data.success) {
+        const list = res.data.checklist.map((item: any) => ({
+          id: item.id.replace('chk_', ''),
+          item: item.item,
+          passed: item.passed,
+        }));
+        setChecklist(list);
+
+        const snagList = res.data.logged_snags.map((snag: any) => ({
+          id: snag.id,
+          item: snag.description.toLowerCase().includes('wall') ? 'Painting' : snag.description.toLowerCase().includes('plumb') ? 'Plumbing' : snag.description.toLowerCase().includes('elect') ? 'Electrical' : 'Doors & Windows',
+          desc: snag.description,
+          severity: snag.severity,
+          date: snag.created_at ? snag.created_at.substring(0, 10) : 'N/A',
+        }));
+        setSnags(snagList);
+      }
+    } catch (err) {
+      console.error('Failed to fetch checklist:', err);
+    }
+  };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const init = async () => {
+      setIsLoading(true);
+      await fetchUnits();
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    init();
   }, []);
+
+  useEffect(() => {
+    if (selectedUnitId) {
+      fetchChecklist(selectedUnitId);
+      setSigned(false);
+    }
+  }, [selectedUnitId]);
 
   if (isLoading) {
     return (
@@ -33,65 +103,52 @@ const Handover: React.FC = () => {
 
   const handleAddSnag = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSnagDesc) return;
+    if (!newSnagDesc || !selectedUnitId) {
+      alert('Please select a unit.');
+      return;
+    }
+
+    let categoryKeyword = '';
+    if (newSnagItem === 'walls') categoryKeyword = 'wall/paint';
+    else if (newSnagItem === 'plumbing') categoryKeyword = 'plumbing';
+    else if (newSnagItem === 'electrical') categoryKeyword = 'electrical';
+    else if (newSnagItem === 'locks') categoryKeyword = 'door/lock';
+
+    const fullDescription = `[${categoryKeyword}] ${newSnagDesc}`;
 
     try {
-      // 🚀 Real HTTP Post to Laravel Backend to log quality snag defect
-      const response = await api.post('/delivery/snag', {
-        unit_id: demoUnitId,
-        description: `[${newSnagItem.toUpperCase()}] ${newSnagDesc}`,
-        severity: newSnagSeverity
-      });
-
-      if (response.data && response.data.success) {
-        const s = response.data.snag;
-        const newSnag = {
-          id: s.id,
-          item: newSnagItem === 'walls' ? 'Painting' : newSnagItem === 'plumbing' ? 'Plumbing' : newSnagItem === 'electrical' ? 'Electrical' : 'Doors & Windows',
-          desc: s.description,
-          severity: s.severity,
-          date: nowIsoDate()
-        };
-        setSnags([newSnag, ...snags]);
-        setChecklist(prev => prev.map(c => c.id === newSnagItem ? { ...c, passed: false } : c));
-        setNewSnagDesc('');
-      }
-    } catch (err) {
-      console.warn("Backend snag logging failed. Falling back to sandbox simulation.", err);
-      // Fallback for sandbox developers previewing the screen
-      const snag = {
-        id: 's' + (snags.length + 1),
-        item: newSnagItem === 'walls' ? 'Painting' : newSnagItem === 'plumbing' ? 'Plumbing' : newSnagItem === 'electrical' ? 'Electrical' : 'Doors & Windows',
-        desc: newSnagDesc,
+      const res = await api.post('/v1/delivery/snag', {
+        unit_id: selectedUnitId,
+        description: fullDescription,
         severity: newSnagSeverity,
-        date: nowIsoDate()
-      };
-      setSnags([snag, ...snags]);
-      setChecklist(prev => prev.map(c => c.id === newSnagItem ? { ...c, passed: false } : c));
-      setNewSnagDesc('');
+      });
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        setNewSnagDesc('');
+        fetchChecklist(selectedUnitId);
+      }
+    } catch (err: any) {
+      console.error('Failed to log snag:', err);
+      alert(err.response?.data?.message || 'Error logging snag.');
     }
   };
 
-  const nowIsoDate = () => {
-    return new Date().toISOString().split('T')[0];
-  };
-
   const simulateSignature = async () => {
+    if (!selectedUnitId) {
+      alert('Please select a unit.');
+      return;
+    }
     setSigning(true);
-
     try {
-      // 🚀 Real HTTP Post to Laravel Backend to signoff handover digital certificate
-      const response = await api.post(`/delivery/units/${demoUnitId}/signoff`, {
-        signature_data: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cGF0aCBkPSJNMTAgMTBMMjAgMjBMMzAgMzBMMTQgNDBMMTUgNTBMNjAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+"
+      const res = await api.post(`/v1/delivery/units/${selectedUnitId}/signoff`, {
+        signature_data: 'Base64SignaturePathSampleData==',
       });
-
-      if (response.data && response.data.success) {
+      if (res.data && res.data.success) {
         setSigned(true);
       }
-    } catch (err) {
-      console.warn("Backend signoff failed. Falling back to sandbox simulation.", err);
-      // Fallback for sandbox developers previewing the screen
-      setSigned(true);
+    } catch (err: any) {
+      console.error('Failed to sign off handover:', err);
+      alert(err.response?.data?.message || 'Error processing sign-off.');
     } finally {
       setSigning(false);
     }
@@ -111,8 +168,26 @@ const Handover: React.FC = () => {
           <p>Handover checklists, biometric defect records, and client digital signature confirmations.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.17 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.17</span>
         </div>
+      </div>
+
+      {/* Unit Selector */}
+      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <label className="form-label" style={{ marginBottom: 0, whiteSpace: 'nowrap', fontWeight: 700 }}>Select Compound Unit for Inspection:</label>
+        <select
+          className="form-control"
+          value={selectedUnitId}
+          onChange={(e) => setSelectedUnitId(e.target.value)}
+          style={{ maxWidth: '400px', fontSize: '0.85rem' }}
+        >
+          <option value="">-- Choose a Unit --</option>
+          {units.map((unit) => (
+            <option key={unit.id} value={unit.id}>
+              {unit.unit_number} ({unit.type})
+            </option>
+          ))}
+        </select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px', alignItems: 'start' }}>

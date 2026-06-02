@@ -47,7 +47,7 @@ class InventoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'data' => $units,
         ]);
     }
@@ -210,7 +210,7 @@ class InventoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'stats' => [
                 'total_units' => $totalUnits,
                 'available' => $available,

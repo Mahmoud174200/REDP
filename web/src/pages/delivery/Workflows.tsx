@@ -2,24 +2,48 @@ import React, { useState, useEffect } from 'react';
 import { Terminal, Play, ArrowRight, Sparkles, Plus, CheckCircle, Save, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
+interface WorkflowData {
+  id: string;
+  trigger: string;
+  action: string;
+  payload: string;
+  active: boolean;
+}
+
 const Workflows: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [workflows, setWorkflows] = useState([
-    { id: 'wf1', trigger: 'PaymentReceived', action: 'SendWhatsAppNotification', payload: 'Thank you! Q3 installment processed.', active: true },
-    { id: 'wf2', trigger: 'ReservationConfirmed', action: 'ScheduleQCInspection', payload: 'Handover unit check timeline.', active: true },
-    { id: 'wf3', trigger: 'ContractSigned', action: 'GenerateHandoverTimeline', payload: 'Timeline PDF generation.', active: false }
-  ]);
+  const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
 
   const [selectedTrigger, setSelectedTrigger] = useState('PaymentReceived');
   const [selectedAction, setSelectedAction] = useState('SendWhatsAppNotification');
   const [payloadText, setPayloadText] = useState('');
   const [publishing, setPublishing] = useState(false);
 
+  const fetchWorkflows = async () => {
+    try {
+      const response = await api.get('/v1/delivery/workflows');
+      if (response.data && response.data.success) {
+        const list = response.data.data.map((wf: any) => ({
+          id: wf.id,
+          trigger: wf.trigger_name,
+          action: wf.action_name,
+          payload: wf.rules_payload?.payload || '',
+          active: wf.active,
+        }));
+        setWorkflows(list);
+      }
+    } catch (err) {
+      console.error('Failed to fetch workflows:', err);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const init = async () => {
+      setIsLoading(true);
+      await fetchWorkflows();
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    init();
   }, []);
 
   if (isLoading) {
@@ -34,51 +58,49 @@ const Workflows: React.FC = () => {
   const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     setPublishing(true);
-
     try {
-      // 🚀 Real HTTP Post to Laravel Backend database
-      const response = await api.post('/delivery/workflows', {
+      const res = await api.post('/v1/delivery/workflows', {
         trigger_name: selectedTrigger,
         action_name: selectedAction,
-        rules_payload: { message: payloadText || 'Default automated system operation payload.' }
-      });
-
-      if (response.data && response.data.success) {
-        const w = response.data.data;
-        const newRule = {
-          id: w.id,
-          trigger: w.trigger_name,
-          action: w.action_name,
-          payload: w.rules_payload.message,
-          active: w.active
-        };
-        setWorkflows([...workflows, newRule]);
-        setPayloadText('');
-      }
-    } catch (err) {
-      console.warn("Backend workflow saving failed. Falling back to sandbox simulation.", err);
-      // Fallback for sandbox developers previewing the screen
-      const newRule = {
-        id: 'wf' + (workflows.length + 1),
-        trigger: selectedTrigger,
-        action: selectedAction,
         payload: payloadText || 'Default automated system operation payload.',
-        active: true
-      };
-      setWorkflows([...workflows, newRule]);
-      setPayloadText('');
+      });
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        setPayloadText('');
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to create workflow:', err);
+      alert(err.response?.data?.message || 'Error creating workflow.');
     } finally {
       setPublishing(false);
     }
   };
 
-
-  const toggleRule = (id: string) => {
-    setWorkflows(prev => prev.map(w => w.id === id ? { ...w, active: !w.active } : w));
+  const toggleRule = async (id: string) => {
+    try {
+      const res = await api.put(`/v1/delivery/workflows/${id}/toggle`);
+      if (res.data && res.data.success) {
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle workflow:', err);
+      alert('Error toggling workflow rule status.');
+    }
   };
 
-  const deleteRule = (id: string) => {
-    setWorkflows(prev => prev.filter(w => w.id !== id));
+  const deleteRule = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this workflow rule?')) return;
+    try {
+      const res = await api.delete(`/v1/delivery/workflows/${id}`);
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to delete workflow:', err);
+      alert('Error deleting workflow rule.');
+    }
   };
 
   return (
@@ -94,7 +116,7 @@ const Workflows: React.FC = () => {
           <p>Drag-and-drop automation triggers, active listeners rules, and notifications templates compilation.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(50,71,58,0.06)', border: '1px solid rgba(50,71,58,0.15)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>MODULE: H.19 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>MODULE: H.19</span>
         </div>
       </div>
 

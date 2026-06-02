@@ -8,7 +8,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Event: LeadCreated
  *
  * Fired when a new lead is captured from any source

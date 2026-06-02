@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────
-// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+// REDP — Acquisition & Sales Engine
 // Component: VoIP Call Center Dialer Widget
 // Sticky bottom-right softphone with caller info screen pop.
 // ─────────────────────────────────────────────────────────

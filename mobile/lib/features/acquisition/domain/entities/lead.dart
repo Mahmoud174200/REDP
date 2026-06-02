@@ -1,5 +1,5 @@
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Domain Entity: Lead
 /// Clean Architecture — Domain Layer (Pure Dart)
 /// ─────────────────────────────────────────────────────────

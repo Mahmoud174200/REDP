@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * HandleHandoverCompleted
  * 
- * Listens to: handover_completed event (from Mahmoud — Delivery)
+ * Listens to: handover_completed event (from Delivery)
  * 
  * When a unit handover quality check passes, this listener runs a final
  * financial settlement check: verifies all payments are complete, flags

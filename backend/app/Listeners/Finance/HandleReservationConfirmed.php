@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * HandleReservationConfirmed
  * 
- * Listens to: App\Events\ReservationConfirmed (from Ragab — Acquisition)
+ * Listens to: App\Events\ReservationConfirmed (from Acquisition)
  * 
  * When a reservation is confirmed by the acquisition engine, this listener
  * auto-generates a draft contract, payment plan, and individual installment

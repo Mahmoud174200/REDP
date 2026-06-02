@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: EOIQueueController
  * 
  * Project Launching & Reservation Priority Queue.

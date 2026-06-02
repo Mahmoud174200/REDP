@@ -3,20 +3,20 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/auth/Login';
 import DashboardLayout from './components/DashboardLayout';
 
-// 🟠 Acquisition Pages (Ragab)
+// 🟠 Acquisition Pages
 import Leads from './pages/acquisition/Leads';
 import CrmKanban from './pages/acquisition/CrmKanban';
 import Brokers from './pages/acquisition/Brokers';
 import KycApprovals from './pages/acquisition/KycApprovals';
 import Campaigns from './pages/acquisition/Campaigns';
 
-// 🔵 Finance Pages (Melwany)
+// 🔵 Finance Pages
 import Inventory from './pages/finance/Inventory';
 import Contracts from './pages/finance/Contracts';
 import Payments from './pages/finance/Payments';
 import Collections from './pages/finance/Collections';
 
-// 🟢 Delivery Pages (Mahmoud)
+// 🟢 Delivery Pages
 import Overview from './pages/delivery/Overview';
 import Maintenance from './pages/delivery/Maintenance';
 import Handover from './pages/delivery/Handover';
@@ -91,20 +91,20 @@ const App: React.FC = () => {
         {/* 🏠 Root landing routing logic */}
         <Route path="/" element={<HomeRedirect />} />
 
-        {/* 🟠 Acquisition routes (Ragab) */}
+        {/* 🟠 Acquisition routes */}
         <Route path="/acquisition/leads" element={<DashboardWrapper><Leads /></DashboardWrapper>} />
         <Route path="/acquisition/crm" element={<DashboardWrapper><CrmKanban /></DashboardWrapper>} />
         <Route path="/acquisition/brokers" element={<DashboardWrapper><Brokers /></DashboardWrapper>} />
         <Route path="/acquisition/kyc" element={<DashboardWrapper><KycApprovals /></DashboardWrapper>} />
         <Route path="/acquisition/campaigns" element={<DashboardWrapper><Campaigns /></DashboardWrapper>} />
 
-        {/* 🔵 Financial routes (Melwany) — Each route has its own dedicated component */}
+        {/* 🔵 Financial routes */}
         <Route path="/finance/inventory" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
         <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
         <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
         <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
 
-        {/* 🟢 Delivery routes (Mahmoud) */}
+        {/* 🟢 Delivery routes */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
         <Route path="/delivery/maintenance" element={<DashboardWrapper><Maintenance /></DashboardWrapper>} />
         <Route path="/delivery/handover" element={<DashboardWrapper><Handover /></DashboardWrapper>} />

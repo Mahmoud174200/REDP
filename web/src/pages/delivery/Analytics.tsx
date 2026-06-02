@@ -72,7 +72,7 @@ const Analytics: React.FC = () => {
           <p>Compound occupancies statistics, predictive cash flows algorithms, and contractor SLA ratings.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(50,71,58,0.06)', border: '1px solid rgba(50,71,58,0.15)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>MODULE: H.21 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>MODULE: H.21</span>
         </div>
       </div>
 

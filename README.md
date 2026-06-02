@@ -51,7 +51,7 @@ REDP is a comprehensive real estate digital platform designed for Egyptian real 
     ┌────▼───┐ ┌────▼────┐  ┌─────▼──────┐
     │ Acqui- │ │ Finance │  │ Delivery & │
     │ sition │ │ Engine  │  │ Infra      │
-    │(Ragab) │ │(Melwany)│  │ (Mahmoud)  │
+    │ │ ││  │   │
     └────┬───┘ └────┬────┘  └─────┬──────┘
          │          │              │
          ▼          ▼              ▼
@@ -74,9 +74,9 @@ Engineers communicate via **events**, not direct code/model dependencies:
 
 | Engineer | Domain | Modules |
 |----------|--------|---------|
-| 🟠 **Ragab** | Acquisition & Sales | KYC, Reservations, Brokers, CRM, VoIP, Marketing, Sales Dashboard |
-| 🔵 **Melwany** | Contracts & Finance | Payments, Inventory, Dynamic Pricing, Installments, Collections, Cancellations |
-| 🟢 **Mahmoud** | Delivery & Infrastructure | Client Portal, Maintenance, Vendors, Handover, Warranty, Workflows, DMS, BI, Notifications |
+| 🟠 **Sales Team** | Acquisition & Sales | KYC, Reservations, Brokers, CRM, VoIP, Marketing, Sales Dashboard |
+| 🔵 **Finance Team** | Contracts & Finance | Payments, Inventory, Dynamic Pricing, Installments, Collections, Cancellations |
+| 🟢 **Delivery Team** | Delivery & Infrastructure | Client Portal, Maintenance, Vendors, Handover, Warranty, Workflows, DMS, BI, Notifications |
 
 > See [ENGINEER_TASKS.md](./ENGINEER_TASKS.md) for detailed per-engineer breakdown.
 

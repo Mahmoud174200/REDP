@@ -19,7 +19,7 @@ class VendorController extends Controller
     {
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'data' => Vendor::latest()->get()
         ], 200);
     }
@@ -31,7 +31,7 @@ class VendorController extends Controller
     {
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'data' => MaintenanceTicket::with(['client', 'unit'])->latest()->get()
         ], 200);
     }
@@ -72,7 +72,7 @@ class VendorController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'Maintenance ticket submitted successfully. Dispatching alert to contractors.',
             'ticket' => $ticket
         ], 201);
@@ -104,7 +104,7 @@ class VendorController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'Maintenance ticket successfully assigned and dispatched to ' . $vendor->name . '.',
             'ticket' => $ticket,
             'sla_details' => [

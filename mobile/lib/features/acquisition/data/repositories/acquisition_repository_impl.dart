@@ -4,7 +4,7 @@ import '../../domain/repositories/acquisition_repository.dart';
 import '../datasources/acquisition_remote_datasource.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Repository Implementation
 /// Clean Architecture — Data Layer
 /// ─────────────────────────────────────────────────────────

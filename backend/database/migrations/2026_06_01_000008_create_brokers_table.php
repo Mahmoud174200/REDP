@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     /**
      * ─────────────────────────────────────────────────────────
-     * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+     * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
      * Table: brokers
      * ─────────────────────────────────────────────────────────
      */

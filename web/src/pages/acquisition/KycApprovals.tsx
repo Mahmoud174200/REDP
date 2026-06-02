@@ -138,7 +138,7 @@ const KycApprovals: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Review uploaded IDs and facial match verification scores</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>🟠 RAGAB — H.1 KYC</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>H.1 KYC</span>
         </div>
       </div>
 

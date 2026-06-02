@@ -12,6 +12,15 @@ use App\Models\Lead;
 use App\Models\Interaction;
 use App\Models\CallLog;
 use App\Models\Commission;
+use App\Models\Contract;
+use App\Models\PaymentPlan;
+use App\Models\Payment;
+use App\Models\CollectionsQueue;
+use App\Models\ReschedulingRequest;
+use App\Models\Vendor;
+use App\Models\MaintenanceTicket;
+use App\Models\DefectsSnag;
+use App\Models\WorkflowTemplate;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
@@ -32,9 +41,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $ragab = User::create([
+        $salesAgent = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ragab Sales',
+            'name' => 'Sales Agent',
             'email' => 'sales_agent@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201001111111',
@@ -42,9 +51,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $melwany = User::create([
+        $financeOfficer = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Melwany Finance',
+            'name' => 'Finance Officer',
             'email' => 'finance_officer@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201002222222',
@@ -52,9 +61,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $mahmoud = User::create([
+        $deliverySpecialist = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Mahmoud Delivery',
+            'name' => 'Delivery Specialist',
             'email' => 'delivery_engineer@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201003333333',
@@ -64,14 +73,22 @@ class DatabaseSeeder extends Seeder
 
         $clientUser = User::create([
             'id' => (string) Str::uuid(),
+<<<<<<< HEAD
             'name' => 'Tarek Client',
             'email' => 'client@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201004444444',
+=======
+            'name' => 'Mohamed Nabil',
+            'email' => 'client@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201201112223',
+>>>>>>> 2fc4f52a97199d2cc489072c73556d381c5ddfad
             'role' => 'client',
             'status' => 'active',
         ]);
 
+<<<<<<< HEAD
         $brokerUser = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Ahmed Broker',
@@ -159,6 +176,15 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'phone' => '+201009999994',
             'role' => 'compliance_officer',
+=======
+        $clientUser2 = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sherif Kamal',
+            'email' => 'client2@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201509998887',
+            'role' => 'client',
+>>>>>>> 2fc4f52a97199d2cc489072c73556d381c5ddfad
             'status' => 'active',
         ]);
 
@@ -287,7 +313,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29501011234567',
             'status' => 'new',
             'lead_score' => 85,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'verified',
             'facial_match_score' => 96.50,
             'source' => 'facebook',
@@ -302,7 +328,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29202021234567',
             'status' => 'interested',
             'lead_score' => 92,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'pending',
             'facial_match_score' => 84.20,
             'source' => 'google',
@@ -317,7 +343,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29803031234567',
             'status' => 'negotiation',
             'lead_score' => 78,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'none',
             'source' => 'broker',
             'broker_id' => $brokerRemax->id,
@@ -331,7 +357,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29004041234567',
             'status' => 'reserved',
             'lead_score' => 98,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'verified',
             'facial_match_score' => 98.90,
             'source' => 'facebook',
@@ -371,7 +397,7 @@ class DatabaseSeeder extends Seeder
                 'national_id' => '29' . rand(0, 9) . '0' . rand(1, 9) . rand(10, 28) . rand(1000000, 9999999),
                 'status' => $n[3],
                 'lead_score' => $n[4] === 'broker' ? 78 : $n[5],
-                'assigned_sales_agent_id' => $ragab->id,
+                'assigned_sales_agent_id' => $salesAgent->id,
                 'kyc_status' => $n[6],
                 'facial_match_score' => $n[6] === 'verified' ? rand(86, 99) . '.' . rand(10, 99) : null,
                 'source' => $n[4],
@@ -387,7 +413,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'call',
             'notes' => 'Customer inquired about commercial pricing structure in the Administrative Capital. Warm lead.',
             'follow_up_date' => now()->addDays(2),
-            'logged_by' => $ragab->id,
+            'logged_by' => $salesAgent->id,
         ]);
 
         Interaction::create([
@@ -396,7 +422,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'meeting',
             'notes' => 'Face-to-face walkthrough. Client expressed strong interest in Patio Luxury Compound.',
             'follow_up_date' => now()->addDays(5),
-            'logged_by' => $ragab->id,
+            'logged_by' => $salesAgent->id,
         ]);
 
         // ── 8. Create VoIP Call Logs ──
@@ -427,6 +453,265 @@ class DatabaseSeeder extends Seeder
             'rate_percent' => 3.00,
             'gross_amount' => 135000.00,
             'status' => 'approved',
+        ]);
+
+        // ── 10. Create Contracts, Payment Plans & Installment Payments ──
+        $contract1 = Contract::create([
+            'id' => (string) Str::uuid(),
+            'contract_number' => 'REDP-CTR-2026-0001',
+            'unit_id' => $unitA->id,
+            'client_id' => $clientUser->id,
+            'total_amount' => 4500000.00,
+            'paid_amount' => 1500000.00,
+            'type' => 'installment',
+            'status' => 'active',
+            'signed_at' => now()->subMonths(3),
+            'notes' => 'Primary residence installment contract.',
+        ]);
+
+        $plan1 = PaymentPlan::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract1->id,
+            'total_installments' => 12,
+            'unpaid_installments' => 8,
+            'monthly_amount' => 250000.00,
+            'status' => 'active',
+            'start_date' => now()->subMonths(3),
+        ]);
+
+        for ($i = 1; $i <= 12; $i++) {
+            $isPaid = $i <= 4;
+            Payment::create([
+                'id' => (string) Str::uuid(),
+                'contract_id' => $contract1->id,
+                'payment_plan_id' => $plan1->id,
+                'amount' => 250000.00,
+                'status' => $isPaid ? 'paid' : 'pending',
+                'due_date' => now()->subMonths(5 - $i),
+                'paid_at' => $isPaid ? now()->subMonths(5 - $i)->addDays(2) : null,
+                'installment_number' => $i,
+                'gateway' => $isPaid ? 'stripe' : null,
+                'transaction_reference' => $isPaid ? 'TXN-' . Str::random(8) : null,
+            ]);
+        }
+
+        $contract2 = Contract::create([
+            'id' => (string) Str::uuid(),
+            'contract_number' => 'REDP-CTR-2026-0002',
+            'unit_id' => $unitB->id,
+            'client_id' => $clientUser2->id,
+            'total_amount' => 8900000.00,
+            'paid_amount' => 387500.00,
+            'type' => 'installment',
+            'status' => 'active',
+            'signed_at' => now()->subMonths(2),
+            'notes' => 'Restructured property contract.',
+        ]);
+
+        $plan2 = PaymentPlan::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract2->id,
+            'total_installments' => 24,
+            'unpaid_installments' => 23,
+            'monthly_amount' => 354687.50,
+            'status' => 'active',
+            'start_date' => now()->subMonths(2),
+        ]);
+
+        for ($i = 1; $i <= 24; $i++) {
+            $isPaid = $i == 1;
+            Payment::create([
+                'id' => (string) Str::uuid(),
+                'contract_id' => $contract2->id,
+                'payment_plan_id' => $plan2->id,
+                'amount' => 354687.50,
+                'status' => $isPaid ? 'paid' : 'pending',
+                'due_date' => now()->subMonths(3 - $i),
+                'paid_at' => $isPaid ? now()->subMonths(3 - $i)->addDays(5) : null,
+                'installment_number' => $i,
+                'gateway' => $isPaid ? 'fawry' : null,
+                'transaction_reference' => $isPaid ? 'TXN-' . Str::random(8) : null,
+            ]);
+        }
+
+        $contract3 = Contract::create([
+            'id' => (string) Str::uuid(),
+            'contract_number' => 'REDP-CTR-2026-0003',
+            'unit_id' => $unitC->id,
+            'client_id' => $clientUser->id,
+            'total_amount' => 6800000.00,
+            'paid_amount' => 6800000.00,
+            'type' => 'sale',
+            'status' => 'completed',
+            'signed_at' => now()->subMonths(6),
+            'notes' => 'Cash sale contract - fully completed.',
+        ]);
+
+        $plan3 = PaymentPlan::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract3->id,
+            'total_installments' => 1,
+            'unpaid_installments' => 0,
+            'monthly_amount' => 6800000.00,
+            'status' => 'completed',
+            'start_date' => now()->subMonths(6),
+        ]);
+
+        Payment::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract3->id,
+            'payment_plan_id' => $plan3->id,
+            'amount' => 6800000.00,
+            'status' => 'paid',
+            'due_date' => now()->subMonths(6),
+            'paid_at' => now()->subMonths(6),
+            'installment_number' => 0,
+            'gateway' => 'bank_transfer',
+            'transaction_reference' => 'TXN-' . Str::random(8),
+        ]);
+
+        Contract::create([
+            'id' => (string) Str::uuid(),
+            'contract_number' => 'REDP-CTR-2026-0004',
+            'unit_id' => $unitA->id,
+            'client_id' => $clientUser2->id,
+            'total_amount' => 2980000.00,
+            'paid_amount' => 50000.00,
+            'type' => 'installment',
+            'status' => 'pending_signature',
+            'signed_at' => null,
+            'notes' => 'Awaiting client digital signature.',
+        ]);
+
+        // ── 11. Create Collections Queue & Rescheduling Requests ──
+        CollectionsQueue::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract1->id,
+            'client_id' => $clientUser->id,
+            'aging_bucket' => '30_days',
+            'outstanding_amount' => 250000.00,
+            'promise_to_pay_date' => now()->addDays(10),
+            'status' => 'promised',
+            'notes' => 'Customer requested a short extension due to transaction delays.',
+        ]);
+
+        CollectionsQueue::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract2->id,
+            'client_id' => $clientUser2->id,
+            'aging_bucket' => '60_days',
+            'outstanding_amount' => 354687.50,
+            'promise_to_pay_date' => null,
+            'status' => 'active',
+            'notes' => 'Payment overdue. Automated SMS notification and phone outreach launched.',
+        ]);
+
+        ReschedulingRequest::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract1->id,
+            'reason' => 'Restructuring to 20 installments due to commercial investment changes.',
+            'current_installments' => 12,
+            'proposed_installments_count' => 20,
+            'proposed_monthly_amount' => 150000.00,
+            'status' => 'pending',
+        ]);
+
+        ReschedulingRequest::create([
+            'id' => (string) Str::uuid(),
+            'contract_id' => $contract2->id,
+            'reason' => 'Medical emergency impacted temporary cash flow. Restructure request.',
+            'current_installments' => 24,
+            'proposed_installments_count' => 36,
+            'proposed_monthly_amount' => 258333.33,
+            'status' => 'approved',
+        ]);
+
+        // ── 12. Create Vendors, Maintenance Tickets & QC Snags ──
+        $vendor1 = Vendor::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Arab Contractors Plumbing Co.',
+            'service_type' => 'Plumbing',
+            'rating' => 4.8,
+            'contact_number' => '+201004445556',
+        ]);
+
+        $vendor2 = Vendor::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'El-Swedy Electrics',
+            'service_type' => 'Electrical',
+            'rating' => 4.9,
+            'contact_number' => '+201007778889',
+        ]);
+
+        $vendor3 = Vendor::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Al-Ahram Woodwork Specialists',
+            'service_type' => 'Carpentry',
+            'rating' => 4.5,
+            'contact_number' => '+201001112223',
+        ]);
+
+        MaintenanceTicket::create([
+            'id' => (string) Str::uuid(),
+            'client_id' => $clientUser->id,
+            'unit_id' => $unitA->id,
+            'category' => 'Plumbing',
+            'title' => 'Water leakage in master bathroom',
+            'description' => 'Master bathroom floor tiles show moisture and wall dampness.',
+            'status' => 'open',
+            'priority' => 'high',
+        ]);
+
+        MaintenanceTicket::create([
+            'id' => (string) Str::uuid(),
+            'client_id' => $clientUser2->id,
+            'unit_id' => $unitB->id,
+            'category' => 'Electrical',
+            'title' => 'Main circuit breaker keeps tripping',
+            'description' => 'AC unit start-up causes circuit break in main electrical board.',
+            'status' => 'assigned',
+            'priority' => 'critical',
+        ]);
+
+        DefectsSnag::create([
+            'id' => (string) Str::uuid(),
+            'unit_id' => $unitA->id,
+            'description' => 'Living room power outlet on east column has no current flow.',
+            'severity' => 'high',
+            'status' => 'pending',
+        ]);
+
+        DefectsSnag::create([
+            'id' => (string) Str::uuid(),
+            'unit_id' => $unitB->id,
+            'description' => 'Wall plaster painting scratch in second bedroom.',
+            'severity' => 'low',
+            'status' => 'resolved',
+        ]);
+
+        // ── 13. Create Visual Workflows ──
+        WorkflowTemplate::create([
+            'id' => (string) Str::uuid(),
+            'trigger_name' => 'PaymentReceived',
+            'action_name' => 'SendWhatsAppNotification',
+            'rules_payload' => ['payload' => 'Thank you! Q3 installment processed.'],
+            'active' => true,
+        ]);
+
+        WorkflowTemplate::create([
+            'id' => (string) Str::uuid(),
+            'trigger_name' => 'ReservationConfirmed',
+            'action_name' => 'ScheduleQCInspection',
+            'rules_payload' => ['payload' => 'Handover unit check timeline.'],
+            'active' => true,
+        ]);
+
+        WorkflowTemplate::create([
+            'id' => (string) Str::uuid(),
+            'trigger_name' => 'ContractSigned',
+            'action_name' => 'GenerateHandoverTimeline',
+            'rules_payload' => ['payload' => 'Timeline PDF generation.'],
+            'active' => false,
         ]);
     }
 }
