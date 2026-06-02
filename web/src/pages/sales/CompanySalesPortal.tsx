@@ -91,6 +91,19 @@ const CompanySalesPortal: React.FC = () => {
   const [journeyPresentations, setJourneyPresentations] = useState<any[]>([]);
   const [showJourneyModal, setShowJourneyModal] = useState(false);
 
+  // Custom Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
   // Booking Modal States & Calculation parameters
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedLeadForBooking, setSelectedLeadForBooking] = useState<any | null>(null);
@@ -903,22 +916,27 @@ const CompanySalesPortal: React.FC = () => {
     }
   };
 
-  const handleCancelBooking = async (reservationId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this booking hold and release the unit? / هل أنت متأكد من إلغاء الحجز وإتاحة الوحدة مرة أخرى؟')) {
-      return;
-    }
-    try {
-      setIsLoading(true);
-      const res = await api.post(`/v1/sales/company/bookings/${reservationId}/cancel`);
-      if (res.data && res.data.success) {
-        await fetchPortalData();
-        showToast('Reservation hold cancelled successfully. Unit is now available.', 'success');
+  const handleCancelBooking = (reservationId: string) => {
+    setConfirmDialog({
+      show: true,
+      title: 'إلغاء حجز الوحدة / Cancel Booking Hold',
+      message: 'هل أنت متأكد من إلغاء هذا الحجز المؤقت وإتاحة الوحدة للبيع مرة أخرى؟ سيتم ترحيل العميل إلى مرحلة التفاوض وسجل رد مبلغ جدية الحجز.\n\nAre you sure you want to cancel this booking hold and release the unit back to inventory?',
+      onConfirm: async () => {
+        try {
+          setIsLoading(true);
+          const res = await api.post(`/v1/sales/company/bookings/${reservationId}/cancel`);
+          if (res.data && res.data.success) {
+            await fetchPortalData();
+            showToast('Reservation hold cancelled successfully. Unit is now available.', 'success');
+          }
+        } catch (err: any) {
+          showToast(err.response?.data?.message || 'Failed to cancel reservation.', 'error');
+        } finally {
+          setIsLoading(false);
+          setConfirmDialog(prev => ({ ...prev, show: false }));
+        }
       }
-    } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to cancel reservation.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
 
@@ -1977,6 +1995,39 @@ const CompanySalesPortal: React.FC = () => {
                 <button type="submit" className="btn-primary">Update Status</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ CUSTOM CONFIRMATION MODAL */}
+      {confirmDialog.show && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid rgba(239, 68, 68, 0.2)', boxShadow: '0 8px 32px rgba(239, 68, 68, 0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-danger)' }}>
+              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <h3 style={{ fontWeight: 800, margin: 0, fontSize: '1.15rem' }}>{confirmDialog.title}</h3>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, show: false }))}
+                style={{ minWidth: '80px' }}
+              >
+                Cancel / تراجع
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={confirmDialog.onConfirm}
+                style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff', minWidth: '100px' }}
+              >
+                Confirm / تأكيد إلغاء الحجز
+              </button>
+            </div>
           </div>
         </div>
       )}
