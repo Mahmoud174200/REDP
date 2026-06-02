@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X } from 'lucide-react';
+import api from '../../services/api';
 
 interface UnitData {
   id: string;
@@ -16,38 +17,60 @@ interface UnitData {
   project?: { name: string; location: string };
 }
 
-const mockUnits: UnitData[] = [
-  { id: 'u1', unit_number: 'A-101', type: 'apartment', floor: 1, area: 120, bedrooms: 2, bathrooms: 1, view_type: 'garden', building: 'Block A', price: 3400000, status: 'available', project: { name: 'Palm Hills October', location: '6th of October City' } },
-  { id: 'u2', unit_number: 'A-102', type: 'apartment', floor: 1, area: 145, bedrooms: 3, bathrooms: 2, view_type: 'pool', building: 'Block A', price: 3550000, status: 'available', project: { name: 'Palm Hills October', location: '6th of October City' } },
-  { id: 'u3', unit_number: 'V-501', type: 'villa', floor: 0, area: 350, bedrooms: 5, bathrooms: 4, view_type: 'landmark', building: 'Villas Zone', price: 12400000, status: 'reserved', project: { name: 'Palm Hills October', location: '6th of October City' } },
-  { id: 'u4', unit_number: 'O-204', type: 'office', floor: 2, area: 85, bedrooms: 0, bathrooms: 1, view_type: 'street', building: 'Commercial Hub', price: 6800000, status: 'available', project: { name: 'SODIC East', location: 'New Heliopolis' } },
-  { id: 'u5', unit_number: 'D-301', type: 'duplex', floor: 3, area: 220, bedrooms: 4, bathrooms: 3, view_type: 'sea', building: 'Block D', price: 8900000, status: 'sold', project: { name: 'Marassi', location: 'North Coast' } },
-  { id: 'u6', unit_number: 'P-801', type: 'penthouse', floor: 8, area: 280, bedrooms: 4, bathrooms: 3, view_type: 'sea', building: 'Tower 1', price: 15600000, status: 'available', project: { name: 'Marassi', location: 'North Coast' } },
-  { id: 'u7', unit_number: 'A-205', type: 'apartment', floor: 2, area: 110, bedrooms: 2, bathrooms: 1, view_type: 'garden', building: 'Block B', price: 2980000, status: 'reserved', project: { name: 'Mountain View iCity', location: 'New Cairo' } },
-  { id: 'u8', unit_number: 'A-306', type: 'apartment', floor: 3, area: 155, bedrooms: 3, bathrooms: 2, view_type: 'pool', building: 'Block C', price: 4200000, status: 'available', project: { name: 'Mountain View iCity', location: 'New Cairo' } },
-];
-
 const Inventory: React.FC = () => {
-  const [units, setUnits] = useState<UnitData[]>(mockUnits);
-  const [filteredUnits, setFilteredUnits] = useState<UnitData[]>(mockUnits);
+  const [units, setUnits] = useState<UnitData[]>([]);
+  const [filteredUnits, setFilteredUnits] = useState<UnitData[]>([]);
   const [lockSimulation, setLockSimulation] = useState<string | null>(null);
   const [lockProgress, setLockProgress] = useState(0);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Stats calculations
-  const stats = {
-    total: units.length,
-    available: units.filter(u => u.status === 'available').length,
-    reserved: units.filter(u => u.status === 'reserved').length,
-    sold: units.filter(u => u.status === 'sold').length,
-    totalValue: units.reduce((acc, u) => acc + u.price, 0),
-    soldValue: units.filter(u => u.status === 'sold').reduce((acc, u) => acc + u.price, 0),
-    occupancy: Math.round(((units.filter(u => u.status === 'sold' || u.status === 'reserved').length) / units.length) * 100),
+  // Live Stats State
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    reserved: 0,
+    sold: 0,
+    totalValue: 0,
+    soldValue: 0,
+    occupancy: 0
+  });
+
+  const fetchInventory = async () => {
+    setIsLoading(true);
+    try {
+      const unitsRes = await api.get('/v1/finance/units');
+      const statsRes = await api.get('/v1/finance/stats');
+      
+      if (unitsRes.data?.success) {
+        setUnits(unitsRes.data.data);
+      }
+      
+      if (statsRes.data?.success) {
+        const s = statsRes.data.stats;
+        setStats({
+          total: s.total_units || 0,
+          available: s.available || 0,
+          reserved: s.reserved || 0,
+          sold: s.sold || 0,
+          totalValue: s.total_portfolio_value || 0,
+          soldValue: s.sold_value || 0,
+          occupancy: Math.round(s.occupancy_rate || 0)
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch inventory:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   useEffect(() => {
     let result = units;
@@ -66,7 +89,7 @@ const Inventory: React.FC = () => {
     setFilteredUnits(result);
   }, [searchTerm, filterStatus, filterType, units]);
 
-  const simulateRowLock = (unitId: string) => {
+  const simulateRowLock = async (unitId: string) => {
     setLockProgress(0);
     setLockSimulation(`⏳ ACQUIRING ROW LOCK: SELECT * FROM units WHERE id = '${unitId}' FOR UPDATE...`);
 
@@ -78,15 +101,23 @@ const Inventory: React.FC = () => {
         setLockProgress(66);
         setLockSimulation(`💳 Processing payment gateway token... Initiating Stripe/Fawry charge...`);
 
-        setTimeout(() => {
-          setLockProgress(100);
-          setUnits(prev => prev.map(u => u.id === unitId ? { ...u, status: 'reserved' } : u));
-          setLockSimulation(`✅ TRANSACTION COMMITTED! Unit status → 'reserved'. Row lock released. Events emitted: ReservationConfirmed → [Finance: Contract+PaymentPlan auto-generated] [Delivery: Inspection scheduled]`);
-
-          setTimeout(() => {
-            setLockSimulation(null);
+        setTimeout(async () => {
+          try {
+            const res = await api.post(`/v1/finance/units/${unitId}/reserve`);
+            if (res.data?.success) {
+              setLockProgress(100);
+              setLockSimulation(`✅ TRANSACTION COMMITTED! Unit status → 'reserved'. Row lock released. Events emitted: ReservationConfirmed.`);
+              await fetchInventory();
+            }
+          } catch (err: any) {
+            setLockSimulation(`❌ TRANSACTION ABORTED: ${err.response?.data?.message || 'Failed to reserve unit'}`);
             setLockProgress(0);
-          }, 5000);
+          } finally {
+            setTimeout(() => {
+              setLockSimulation(null);
+              setLockProgress(0);
+            }, 5000);
+          }
         }, 1200);
       }, 1000);
     }, 800);
@@ -107,8 +138,17 @@ const Inventory: React.FC = () => {
     const icons: Record<string, string> = {
       apartment: '🏢', villa: '🏡', office: '🏛️', duplex: '🏘️', penthouse: '✨', commercial: '🏪',
     };
-    return icons[type] || '🏠';
+    return icons[type.toLowerCase()] || '🏠';
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

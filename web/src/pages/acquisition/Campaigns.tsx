@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp, Users, DollarSign, Percent, BarChart3, Filter,
   Share2, Award, Calendar, ChevronDown, RefreshCw, Sparkles,
   ArrowUpRight, ArrowDownRight, Compass
 } from 'lucide-react';
+import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────
 // REDP — Acquisition & Sales Engine (Developer 1: Ragab)
@@ -25,91 +26,61 @@ interface Campaign {
   status: 'active' | 'paused' | 'completed';
 }
 
-const MOCK_CAMPAIGNS: Campaign[] = [
-  {
-    id: 'c1',
-    name: 'Q2 Luxury Penthouses FB Ads',
-    source: 'facebook',
-    utm_source: 'facebook_ads',
-    utm_medium: 'cpc',
-    utm_campaign: 'luxury_penthouses_2026',
-    budget: 45000,
-    leads_count: 320,
-    conversion_rate: 4.8,
-    cac: 140,
-    roi: 320,
-    status: 'active'
-  },
-  {
-    id: 'c2',
-    name: 'New Administrative Capital Search',
-    source: 'google',
-    utm_source: 'google_search',
-    utm_medium: 'cpc',
-    utm_campaign: 'admin_capital_commercial',
-    budget: 75000,
-    leads_count: 540,
-    conversion_rate: 6.2,
-    cac: 138,
-    roi: 480,
-    status: 'active'
-  },
-  {
-    id: 'c3',
-    name: 'TikTok Video Property Walkthroughs',
-    source: 'tiktok',
-    utm_source: 'tiktok_influencer',
-    utm_medium: 'social_video',
-    utm_campaign: 'video_walkthrough_october',
-    budget: 30000,
-    leads_count: 180,
-    conversion_rate: 3.1,
-    cac: 166,
-    roi: 180,
-    status: 'active'
-  },
-  {
-    id: 'c4',
-    name: 'B2B Commercial Units Campaign',
-    source: 'linkedin',
-    utm_source: 'linkedin_sponsored',
-    utm_medium: 'sponsored_content',
-    utm_campaign: 'b2b_office_spaces',
-    budget: 60000,
-    leads_count: 140,
-    conversion_rate: 8.5,
-    cac: 428,
-    roi: 650,
-    status: 'paused'
-  },
-  {
-    id: 'c5',
-    name: 'Direct Organic Referrals',
-    source: 'direct',
-    utm_source: 'organic',
-    utm_medium: 'referral',
-    utm_campaign: 'organic_direct',
-    budget: 0,
-    leads_count: 210,
-    conversion_rate: 12.4,
-    cac: 0,
-    roi: 1250,
-    status: 'active'
-  }
-];
-
 const Campaigns: React.FC = () => {
-  const [campaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [filterSource, setFilterSource] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchCampaigns = async () => {
+    setIsRefreshing(true);
+    if (campaigns.length === 0) {
+      setIsLoading(true);
+    }
+    try {
+      const response = await api.get('/v1/acquisition/campaigns');
+      if (response.data && response.data.success) {
+        const mapped = (response.data.data.data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          source: c.source || 'direct',
+          utm_source: c.utm_source || '',
+          utm_medium: c.utm_medium || '',
+          utm_campaign: c.utm_campaign || '',
+          budget: Number(c.budget || 0),
+          leads_count: Number(c.leads_count ?? 0),
+          conversion_rate: 4.8, // static calculation placeholder
+          cac: Number(c.cac || 0),
+          roi: Number(c.roi_percentage || 0),
+          status: c.status || 'active'
+        }));
+        setCampaigns(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching campaigns from DB:', err);
+    } finally {
+      setIsRefreshing(false);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 800);
+    fetchCampaigns();
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const filteredCampaigns = campaigns.filter(c => {
     const matchesSource = filterSource === 'all' || c.source === filterSource;

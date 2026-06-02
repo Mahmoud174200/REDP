@@ -9,11 +9,14 @@ const api = axios.create({
   }
 });
 
-// Request interceptor injecting Sanctum tokens automatically
+// Request interceptor injecting Sanctum tokens automatically and disabling caching for GET requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('redp_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.method === 'get') {
+    config.params = { ...config.params, _t: Date.now() };
   }
   return config;
 }, (error) => {

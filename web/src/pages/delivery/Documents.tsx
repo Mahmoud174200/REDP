@@ -1,61 +1,76 @@
-import React, { useState } from 'react';
-import { FileSearch, Search, FileText, UploadCloud, Folder, Key, ShieldCheck, Tag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileSearch, Search, FileText, UploadCloud, Folder, ShieldCheck, Tag } from 'lucide-react';
+import api from '../../services/api';
+
+interface DocumentData {
+  id: string;
+  title: string;
+  file_path: string;
+  ocr_content: string;
+  status: string;
+  created_at: string;
+}
 
 const Documents: React.FC = () => {
-  const [documents, setDocuments] = useState([
-    { id: 'd1', title: 'Mahmoud_National_ID.pdf', size: '1.2 MB', status: 'indexed', date: '2026-06-01', ocr: 'REDP Platform Smart OCR Scanned Document. Valid national ID number: 29509081234567. Expiry date: 2030-05-12. Gender: Male. Address: New Cairo, Egypt. Status: Active.' },
-    { id: 'd2', title: 'Reservation_Agreement_Unit_A101.pdf', size: '2.4 MB', status: 'indexed', date: '2026-06-01', ocr: 'REDP Platform Smart OCR Scanned Document. This legal document contains sales agreements, installment terms, delay penalties, unit dimensions, and digital signature logs.' },
-    { id: 'd3', title: 'Floor_Overlay_Layout_V501.pdf', size: '4.8 MB', status: 'indexed', date: '2026-05-28', ocr: 'Standard property record sheet. Contains floor overlay metadata, inspection checklists, and snagging items indexes.' }
-  ]);
-
+  const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newTitle, setNewTitle] = useState('');
-  const [newFile, setNewFile] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUpload = (e: React.FormEvent) => {
+  const fetchDocuments = async (search = '') => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/v1/delivery/documents', {
+        params: { search }
+      });
+      if (response.data && response.data.success) {
+        setDocuments(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch documents from DB:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments(searchQuery);
+  }, [searchQuery]);
+
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle) return;
+    if (!newTitle || !selectedFile) {
+      alert('Please provide a document title and select a file.');
+      return;
+    }
     setUploading(true);
 
-    setTimeout(() => {
-      // Simulate smart OCR text extraction based on title contents
-      let extractedOcr = `REDP Platform Smart OCR Scanned Document. Title: ${newTitle}. Scanned & indexed successfully. `;
-      
-      if (newTitle.toLowerCase().includes('contract') || newTitle.toLowerCase().includes('agreement')) {
-        extractedOcr += "This legal document contains sales agreements, installment terms, delay penalties, unit dimensions, and digital signature logs.";
-      } else if (newTitle.toLowerCase().includes('id') || newTitle.toLowerCase().includes('national')) {
-        extractedOcr += "Identities Card document. Valid national ID number: 29509081234567. Expiry date: 2030-05-12. Address: New Cairo, Egypt.";
-      } else {
-        extractedOcr += "Standard property record sheet. Contains floor overlay metadata, inspection checklists, and snagging items indexes.";
+    try {
+      const formData = new FormData();
+      formData.append('title', newTitle);
+      formData.append('file', selectedFile);
+
+      const response = await api.post('/v1/delivery/documents/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data && response.data.success) {
+        setNewTitle('');
+        setSelectedFile(null);
+        alert('Document uploaded and OCR indexed successfully!');
+        await fetchDocuments(searchQuery);
       }
-
-      const doc = {
-        id: 'd' + (documents.length + 1),
-        title: newTitle.endsWith('.pdf') ? newTitle : newTitle + '.pdf',
-        size: '1.5 MB',
-        status: 'indexed',
-        date: nowIsoDate(),
-        ocr: extractedOcr
-      };
-
-      setDocuments([doc, ...documents]);
-      setNewTitle('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to upload document.');
+    } finally {
       setUploading(false);
-    }, 800);
+    }
   };
 
-  const nowIsoDate = () => {
-    return new Date().toISOString().split('T')[0];
-  };
-
-  // Fuzzy Search filter (Section H.20 search matching)
-  const filteredDocs = documents.filter(doc => 
-    doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    doc.ocr.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Simple highlighted helper
   const highlightSearch = (text: string, query: string) => {
     if (!query) return text;
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
@@ -70,9 +85,27 @@ const Documents: React.FC = () => {
     );
   };
 
+  if (isLoading && documents.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-      
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
+      {isLoading && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div className="animate-spin" style={{ width: '32px', height: '32px', border: '3px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        </div>
+      )}
+
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -112,17 +145,17 @@ const Documents: React.FC = () => {
 
           {/* Documents Grid */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {filteredDocs.length === 0 ? (
+            {documents.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No matches found inside OCR indexed records.</div>
             ) : (
-              filteredDocs.map((doc) => (
+              documents.map((doc) => (
                 <div key={doc.id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <FileText style={{ color: 'var(--color-primary)', width: '28px', height: '28px' }} />
                       <div>
                         <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{highlightSearch(doc.title, searchQuery)}</h4>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Size: {doc.size} | Uploaded: {doc.date}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Uploaded: {doc.created_at ? doc.created_at.substring(0,10) : 'N/A'}</span>
                       </div>
                     </div>
                     <span className="badge badge-success">OCR Scanned</span>
@@ -134,7 +167,7 @@ const Documents: React.FC = () => {
                       <Tag style={{ width: '10px', height: '10px' }} />
                       OCR Text Index Output
                     </span>
-                    {highlightSearch(doc.ocr, searchQuery)}
+                    {highlightSearch(doc.ocr_content, searchQuery)}
                   </div>
                 </div>
               ))
@@ -151,7 +184,7 @@ const Documents: React.FC = () => {
               <UploadCloud style={{ color: 'var(--color-primary)' }} />
               Upload & OCR Index Document
             </h2>
-            <p style={{ fontSize: '0.8rem', marginBottom: '24px' }}>Submit contracts or national ID scans. File will be indexed and extracted using mock text tags.</p>
+            <p style={{ fontSize: '0.8rem', marginBottom: '24px' }}>Submit contracts or national ID scans. File will be indexed and extracted automatically on upload.</p>
 
             <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
@@ -159,10 +192,18 @@ const Documents: React.FC = () => {
                 <input type="text" className="form-control" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Melwany_Signed_Contract" required />
               </div>
 
-              {/* simulated drop zone */}
-              <div style={{ padding: '30px', border: '2px dashed var(--border-glass)', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.02)', textAlign: 'center', cursor: 'pointer' }}>
-                <UploadCloud style={{ width: '36px', height: '36px', color: 'var(--text-muted)', marginBottom: '8px' }} />
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 600 }}>Select local property file to index</h4>
+              {/* file input */}
+              <div style={{ position: 'relative', padding: '20px', border: '2px dashed var(--border-glass)', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.02)', textAlign: 'center' }}>
+                <input 
+                  type="file" 
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                  required
+                />
+                <UploadCloud style={{ width: '36px', height: '36px', color: 'var(--text-muted)', marginBottom: '8px', margin: '0 auto' }} />
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px' }}>
+                  {selectedFile ? selectedFile.name : 'Select local property file to index'}
+                </h4>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>PDF, JPG, PNG up to 10MB</span>
               </div>
 

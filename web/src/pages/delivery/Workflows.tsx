@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Terminal, Play, ArrowRight, Sparkles, Plus, CheckCircle, Save, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 
 const Workflows: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [workflows, setWorkflows] = useState([
     { id: 'wf1', trigger: 'PaymentReceived', action: 'SendWhatsAppNotification', payload: 'Thank you! Q3 installment processed.', active: true },
     { id: 'wf2', trigger: 'ReservationConfirmed', action: 'ScheduleQCInspection', payload: 'Handover unit check timeline.', active: true },
@@ -12,6 +13,22 @@ const Workflows: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState('SendWhatsAppNotification');
   const [payloadText, setPayloadText] = useState('');
   const [publishing, setPublishing] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();

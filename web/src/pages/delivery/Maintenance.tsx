@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wrench, ShieldAlert, CheckCircle2, UserCheck, Plus, Clock, ClipboardList } from 'lucide-react';
 
 const Maintenance: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [tickets, setTickets] = useState([
     { id: 't1', title: 'Water leakage in master bathroom', category: 'Plumbing', priority: 'high', status: 'open', vendor: null, date: '2026-06-01' },
     { id: 't2', title: 'Main circuit breaker keeps tripping', category: 'Electrical', priority: 'critical', status: 'assigned', vendor: 'El-Swedy Electrics', date: '2026-05-31' },
@@ -16,6 +17,22 @@ const Maintenance: React.FC = () => {
 
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   const handleOpenDispatch = (ticket: any) => {
     setActiveTicket(ticket);

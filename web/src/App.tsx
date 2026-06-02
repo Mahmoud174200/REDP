@@ -65,7 +65,7 @@ const HomeRedirect: React.FC = () => {
 
   // Route to the appropriate sandbox based on who logged in
   if (user.role === 'sales_agent' || user.role === 'broker') {
-    return <Navigate to="/acquisition/crm" replace />;
+    return <Navigate to="/acquisition/leads" replace />;
   }
   if (user.role === 'finance_officer') {
     return <Navigate to="/finance/inventory" replace />;
@@ -74,8 +74,8 @@ const HomeRedirect: React.FC = () => {
     return <Navigate to="/delivery/overview" replace />;
   }
 
-  // Admins land on CRM overview
-  return <Navigate to="/acquisition/crm" replace />;
+  // Admins land on Leads & KYC first
+  return <Navigate to="/acquisition/leads" replace />;
 };
 
 const App: React.FC = () => {

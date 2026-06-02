@@ -12,7 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->statefulApi(); // Enable stateful Sanctum auth for SPA
+        // $middleware->statefulApi(); // Enable stateful Sanctum auth for SPA
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         ]);
@@ -21,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Customize global API error response behavior
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {
-                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                $statusCode = $response->getStatusCode() ?: 500;
                 
                 // Keep development exception tracing transparent
                 $data = [

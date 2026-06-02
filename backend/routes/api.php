@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/eoi/{id}/cancel', [EOIQueueController::class, 'cancel']);
 
         // ── Broker Portal ──
+        Route::get('/brokers', [BrokerController::class, 'index']);
         Route::post('/brokers/register', [BrokerController::class, 'register']);
         Route::get('/brokers/{brokerId}/commissions', [BrokerController::class, 'getCommissions']);
         Route::get('/brokers/{brokerId}/leads', [BrokerController::class, 'getLeads']);
