@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle, Clock, XCircle, Search, Download, PenTool, Eye, X, AlertTriangle, Plus } from 'lucide-react';
+import api from '../../services/api';
 
 interface ContractData {
   id: string;
@@ -18,28 +19,74 @@ interface ContractData {
   created_at: string;
 }
 
-const mockContracts: ContractData[] = [
-  { id: 'c1', contract_number: 'REDP-CTR-2026-0001', client_name: 'Ahmed Hassan', client_email: 'ahmed@email.com', unit_number: 'A-101', project_name: 'Palm Hills October', type: 'installment', total_amount: 3400000, paid_amount: 850000, status: 'active', signed_at: '2026-03-15', installments_count: 12, monthly_amount: 212500, created_at: '2026-03-10' },
-  { id: 'c2', contract_number: 'REDP-CTR-2026-0002', client_name: 'Sara Mohamed', client_email: 'sara@email.com', unit_number: 'V-501', project_name: 'Palm Hills October', type: 'installment', total_amount: 12400000, paid_amount: 3100000, status: 'active', signed_at: '2026-04-01', installments_count: 24, monthly_amount: 387500, created_at: '2026-03-28' },
-  { id: 'c3', contract_number: 'REDP-CTR-2026-0003', client_name: 'Karim Ali', client_email: 'karim@email.com', unit_number: 'O-204', project_name: 'SODIC East', type: 'sale', total_amount: 6800000, paid_amount: 6800000, status: 'completed', signed_at: '2026-02-20', installments_count: 1, monthly_amount: 6800000, created_at: '2026-02-18' },
-  { id: 'c4', contract_number: 'REDP-CTR-2026-0004', client_name: 'Fatma Ibrahim', client_email: 'fatma@email.com', unit_number: 'D-301', project_name: 'Marassi', type: 'installment', total_amount: 8900000, paid_amount: 50000, status: 'draft', signed_at: null, installments_count: 16, monthly_amount: 553125, created_at: '2026-05-25' },
-  { id: 'c5', contract_number: 'REDP-CTR-2026-0005', client_name: 'Omar Youssef', client_email: 'omar@email.com', unit_number: 'A-205', project_name: 'Mountain View iCity', type: 'installment', total_amount: 2980000, paid_amount: 745000, status: 'pending_signature', signed_at: null, installments_count: 8, monthly_amount: 279375, created_at: '2026-05-20' },
-  { id: 'c6', contract_number: 'REDP-CTR-2026-0006', client_name: 'Nour El Din', client_email: 'nour@email.com', unit_number: 'P-801', project_name: 'Marassi', type: 'installment', total_amount: 15600000, paid_amount: 2000000, status: 'cancelled', signed_at: null, installments_count: 20, monthly_amount: 680000, created_at: '2026-04-10' },
-];
-
 const Contracts: React.FC = () => {
-  const [contracts] = useState<ContractData[]>(mockContracts);
+  const [contracts, setContracts] = useState<ContractData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  const fetchContracts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/v1/finance/contracts');
+      if (response.data && response.data.success) {
+        const mapped = response.data.data.map((c: any) => ({
+          id: c.id,
+          contract_number: c.contract_number,
+          client_name: c.client?.name || 'N/A',
+          client_email: c.client?.email || 'N/A',
+          unit_number: c.unit?.unit_number || 'N/A',
+          project_name: c.unit?.project?.name || 'N/A',
+          type: c.type,
+          total_amount: parseFloat(c.total_amount) || 0,
+          paid_amount: parseFloat(c.paid_amount) || 0,
+          status: c.status,
+          signed_at: c.signed_at ? c.signed_at.substring(0, 10) : null,
+          installments_count: c.payment_plan?.total_installments || 0,
+          monthly_amount: parseFloat(c.payment_plan?.monthly_amount) || 0,
+          created_at: c.created_at ? c.created_at.substring(0, 10) : 'N/A'
+        }));
+        setContracts(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch contracts:', err);
+    } finally {
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
   }, []);
+
+  const handleSign = async (id: string) => {
+    try {
+      const res = await api.post(`/v1/finance/contracts/${id}/sign`);
+      if (res.data?.success) {
+        alert('Contract signed successfully.');
+        fetchContracts();
+      }
+    } catch (err) {
+      console.error('Failed to sign contract:', err);
+      alert('Error signing contract.');
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (!confirm('Are you sure you want to cancel this contract?')) return;
+    try {
+      const res = await api.post(`/v1/finance/contracts/${id}/cancel`);
+      if (res.data?.success) {
+        alert('Contract cancelled successfully.');
+        setSelectedContract(null);
+        fetchContracts();
+      }
+    } catch (err) {
+      console.error('Failed to cancel contract:', err);
+      alert('Error cancelling contract.');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -185,8 +232,8 @@ const Contracts: React.FC = () => {
                       <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => setSelectedContract(contract)}>
                         <Eye size={12} /> View
                       </button>
-                      {contract.status === 'draft' && (
-                        <button className="btn-primary" style={{ padding: '6px 10px', fontSize: '0.7rem' }}>
+                      {(contract.status === 'draft' || contract.status === 'pending_signature') && (
+                        <button className="btn-primary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => handleSign(contract.id)}>
                           <PenTool size={12} /> Sign
                         </button>
                       )}
@@ -279,7 +326,7 @@ const Contracts: React.FC = () => {
                 <Download size={14} /> Download PDF
               </button>
               {selectedContract.status !== 'cancelled' && selectedContract.status !== 'completed' && (
-                <button className="btn-secondary" style={{ padding: '12px 20px' }}>
+                <button className="btn-secondary" style={{ padding: '12px 20px' }} onClick={() => handleCancel(selectedContract.id)}>
                   <AlertTriangle size={14} /> Cancel
                 </button>
               )}

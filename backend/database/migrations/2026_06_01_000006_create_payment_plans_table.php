@@ -10,6 +10,8 @@ return new class extends Migration {
             $table->uuid('contract_id');
             $table->integer('total_installments');
             $table->integer('unpaid_installments');
+            $table->decimal('monthly_amount', 15, 2);
+            $table->date('start_date')->nullable();
             $table->string('status')->default('active');
             $table->timestamps();
             $table->foreign('contract_id')->references('id')->on('contracts')->onDelete('cascade');

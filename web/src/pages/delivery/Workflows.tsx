@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Play, ArrowRight, Sparkles, Plus, CheckCircle, Save, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import api from '../../services/api';
+
+interface WorkflowData {
+  id: string;
+  trigger: string;
+  action: string;
+  payload: string;
+  active: boolean;
+}
 
 const Workflows: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [workflows, setWorkflows] = useState([
-    { id: 'wf1', trigger: 'PaymentReceived', action: 'SendWhatsAppNotification', payload: 'Thank you! Q3 installment processed.', active: true },
-    { id: 'wf2', trigger: 'ReservationConfirmed', action: 'ScheduleQCInspection', payload: 'Handover unit check timeline.', active: true },
-    { id: 'wf3', trigger: 'ContractSigned', action: 'GenerateHandoverTimeline', payload: 'Timeline PDF generation.', active: false }
-  ]);
+  const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
 
   const [selectedTrigger, setSelectedTrigger] = useState('PaymentReceived');
   const [selectedAction, setSelectedAction] = useState('SendWhatsAppNotification');
   const [payloadText, setPayloadText] = useState('');
   const [publishing, setPublishing] = useState(false);
 
+  const fetchWorkflows = async () => {
+    try {
+      const response = await api.get('/v1/delivery/workflows');
+      if (response.data && response.data.success) {
+        const list = response.data.data.map((wf: any) => ({
+          id: wf.id,
+          trigger: wf.trigger_name,
+          action: wf.action_name,
+          payload: wf.rules_payload?.payload || '',
+          active: wf.active,
+        }));
+        setWorkflows(list);
+      }
+    } catch (err) {
+      console.error('Failed to fetch workflows:', err);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const init = async () => {
+      setIsLoading(true);
+      await fetchWorkflows();
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    init();
   }, []);
 
   if (isLoading) {
@@ -30,31 +55,52 @@ const Workflows: React.FC = () => {
     );
   }
 
-  const handleCreateRule = (e: React.FormEvent) => {
+  const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     setPublishing(true);
-
-    setTimeout(() => {
-      const newRule = {
-        id: 'wf' + (workflows.length + 1),
-        trigger: selectedTrigger,
-        action: selectedAction,
+    try {
+      const res = await api.post('/v1/delivery/workflows', {
+        trigger_name: selectedTrigger,
+        action_name: selectedAction,
         payload: payloadText || 'Default automated system operation payload.',
-        active: true
-      };
-
-      setWorkflows([...workflows, newRule]);
-      setPayloadText('');
+      });
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        setPayloadText('');
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to create workflow:', err);
+      alert(err.response?.data?.message || 'Error creating workflow.');
+    } finally {
       setPublishing(false);
-    }, 600);
+    }
   };
 
-  const toggleRule = (id: string) => {
-    setWorkflows(prev => prev.map(w => w.id === id ? { ...w, active: !w.active } : w));
+  const toggleRule = async (id: string) => {
+    try {
+      const res = await api.put(`/v1/delivery/workflows/${id}/toggle`);
+      if (res.data && res.data.success) {
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle workflow:', err);
+      alert('Error toggling workflow rule status.');
+    }
   };
 
-  const deleteRule = (id: string) => {
-    setWorkflows(prev => prev.filter(w => w.id !== id));
+  const deleteRule = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this workflow rule?')) return;
+    try {
+      const res = await api.delete(`/v1/delivery/workflows/${id}`);
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        fetchWorkflows();
+      }
+    } catch (err: any) {
+      console.error('Failed to delete workflow:', err);
+      alert('Error deleting workflow rule.');
+    }
   };
 
   return (

@@ -219,4 +219,28 @@ class PaymentController extends Controller
                 return response()->json(['success' => false, 'message' => 'Unknown gateway'], 400);
         }
     }
+
+    /**
+     * Get all payment installments with filters.
+     */
+    public function index(Request $request)
+    {
+        $query = Payment::with(['contract.client', 'contract.unit']);
+
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('gateway') && $request->gateway !== 'all') {
+            $query->where('gateway', $request->gateway);
+        }
+
+        $payments = $query->latest('due_date')->get();
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🔵 Finance Team (Finance)',
+            'data' => $payments
+        ], 200);
+    }
 }

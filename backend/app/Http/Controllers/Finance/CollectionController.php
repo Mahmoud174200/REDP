@@ -323,4 +323,20 @@ class CollectionController extends Controller
             'aging_buckets' => $buckets,
         ]);
     }
+
+    /**
+     * Get all rescheduling requests.
+     */
+    public function getRescheduleRequests(Request $request)
+    {
+        $requests = ReschedulingRequest::with(['contract.client', 'contract.unit'])
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🔵 Finance Team (Finance)',
+            'data' => $requests
+        ], 200);
+    }
 }

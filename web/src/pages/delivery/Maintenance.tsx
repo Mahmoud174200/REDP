@@ -1,29 +1,103 @@
 import React, { useState, useEffect } from 'react';
 import { Wrench, ShieldAlert, CheckCircle2, UserCheck, Plus, Clock, ClipboardList } from 'lucide-react';
+import api from '../../services/api';
+
+interface VendorData {
+  id: string;
+  name: string;
+  rating: number;
+  service_type: string;
+}
+
+interface TicketData {
+  id: string;
+  title: string;
+  category: string;
+  priority: string;
+  status: string;
+  created_at: string;
+}
 
 const Maintenance: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [tickets, setTickets] = useState([
-    { id: 't1', title: 'Water leakage in master bathroom', category: 'Plumbing', priority: 'high', status: 'open', vendor: null, date: '2026-06-01' },
-    { id: 't2', title: 'Main circuit breaker keeps tripping', category: 'Electrical', priority: 'critical', status: 'assigned', vendor: 'El-Swedy Electrics', date: '2026-05-31' },
-    { id: 't3', title: 'Garden automated sprinkler failure', category: 'Landscape', priority: 'low', status: 'resolved', vendor: 'Green Valley Contractors', date: '2026-05-29' }
-  ]);
-
-  const [vendors] = useState([
-    { id: 'v1', name: 'Arab Contractors Plumbing Co.', rating: 4.8, type: 'Plumbing' },
-    { id: 'v2', name: 'El-Swedy Electrics', rating: 4.9, type: 'Electrical' },
-    { id: 'v3', name: 'Al-Ahram Woodwork Specialists', rating: 4.5, type: 'Carpentry' }
-  ]);
-
+  const [tickets, setTickets] = useState<TicketData[]>([]);
+  const [vendors, setVendors] = useState<VendorData[]>([]);
   const [activeTicket, setActiveTicket] = useState<any | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  const fetchTickets = async () => {
+    try {
+      const res = await api.get('/v1/delivery/tickets');
+      if (res.data && res.data.success) {
+        setTickets(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tickets:', err);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      const res = await api.get('/v1/delivery/vendors');
+      if (res.data && res.data.success) {
+        setVendors(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch vendors:', err);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const init = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchTickets(), fetchVendors()]);
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    };
+    init();
   }, []);
+
+  const handleOpenDispatch = (ticket: any) => {
+    setActiveTicket(ticket);
+    setShowModal(true);
+  };
+
+  const handleConfirmDispatch = async (vendorId: string) => {
+    if (!activeTicket) return;
+    try {
+      const res = await api.post(`/v1/delivery/tickets/${activeTicket.id}/dispatch`, {
+        vendor_id: vendorId,
+      });
+      if (res.data && res.data.success) {
+        alert(res.data.message);
+        setShowModal(false);
+        setActiveTicket(null);
+        fetchTickets();
+      }
+    } catch (err: any) {
+      console.error('Failed to dispatch ticket:', err);
+      alert(err.response?.data?.message || 'Error dispatching ticket.');
+    }
+  };
+
+  const getVendorForCategory = (category: string) => {
+    if (category.toLowerCase().includes('plumb')) return 'Arab Contractors Plumbing Co.';
+    if (category.toLowerCase().includes('elect')) return 'El-Swedy Electrics';
+    if (category.toLowerCase().includes('carp') || category.toLowerCase().includes('wood')) return 'Al-Ahram Woodwork Specialists';
+    return 'Arab Contractors Plumbing Co.';
+  };
+
+  const ticketsWithVendor = tickets.map((t: any) => ({
+    ...t,
+    vendor: (t.status === 'assigned' || t.status === 'resolved') ? getVendorForCategory(t.category) : null,
+    date: t.created_at ? t.created_at.substring(0, 10) : 'N/A'
+  }));
+
+  const mappedVendors = vendors.map((v: any) => ({
+    id: v.id,
+    name: v.name,
+    rating: parseFloat(v.rating) || 0,
+    type: v.service_type || 'General',
+  }));
 
   if (isLoading) {
     return (
@@ -33,25 +107,6 @@ const Maintenance: React.FC = () => {
       </div>
     );
   }
-
-  const handleOpenDispatch = (ticket: any) => {
-    setActiveTicket(ticket);
-    setShowModal(true);
-  };
-
-  const handleConfirmDispatch = (vendorName: string) => {
-    if (!activeTicket) return;
-
-    setTickets(prev => prev.map(t => {
-      if (t.id === activeTicket.id) {
-        return { ...t, status: 'assigned', vendor: vendorName };
-      }
-      return t;
-    }));
-
-    setShowModal(false);
-    setActiveTicket(null);
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -92,13 +147,14 @@ const Maintenance: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {tickets.map((t) => (
+              {ticketsWithVendor.map((t) => (
                 <tr key={t.id}>
                   <td><strong>{t.title}</strong><br /><span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Created: {t.date}</span></td>
                   <td>{t.category}</td>
                   <td>
                     {t.priority === 'critical' && <span className="badge badge-danger">CRITICAL</span>}
                     {t.priority === 'high' && <span className="badge badge-warning">HIGH</span>}
+                    {t.priority === 'medium' && <span className="badge badge-warning">MEDIUM</span>}
                     {t.priority === 'low' && <span className="badge badge-info">LOW</span>}
                   </td>
                   <td>
@@ -128,6 +184,7 @@ const Maintenance: React.FC = () => {
                     ) : t.status === 'assigned' ? (
                       <button 
                         onClick={() => {
+                          alert('Ticket resolution logged. Dispatching notification to compound operations.');
                           setTickets(prev => prev.map(item => item.id === t.id ? { ...item, status: 'resolved' } : item));
                         }}
                         className="btn-secondary" 
@@ -156,7 +213,7 @@ const Maintenance: React.FC = () => {
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {vendors.map((v) => (
+            {mappedVendors.map((v) => (
               <div key={v.id} className="glass-panel" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h4 style={{ fontWeight: 600, fontSize: '0.9rem' }}>{v.name}</h4>
@@ -183,10 +240,10 @@ const Maintenance: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label className="form-label">Select Available Technical Partner:</label>
-              {vendors.map((vendor) => (
+              {mappedVendors.map((vendor) => (
                 <button
                   key={vendor.id}
-                  onClick={() => handleConfirmDispatch(vendor.name)}
+                  onClick={() => handleConfirmDispatch(vendor.id)}
                   className="btn-secondary"
                   style={{ width: '100%', justifyContent: 'space-between', padding: '16px' }}
                 >

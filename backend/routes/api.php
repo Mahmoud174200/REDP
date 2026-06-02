@@ -24,6 +24,7 @@ use App\Http\Controllers\Delivery\HandoverController;
 use App\Http\Controllers\Delivery\VendorController;
 use App\Http\Controllers\Delivery\DocumentController;
 use App\Http\Controllers\Delivery\AnalyticsController;
+use App\Http\Controllers\Delivery\WorkflowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,12 +146,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
 
             // Payment management
+            Route::get('/payments', [PaymentController::class, 'index']);
             Route::get('/payments/{contractId}', [PaymentController::class, 'getInstallments']);
             Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
+            Route::get('/collections/reschedules', [CollectionController::class, 'getRescheduleRequests']);
             Route::post('/collections/{id}/promise', [CollectionController::class, 'recordPromiseToPay']);
             Route::post('/reschedule/{contractId}', [CollectionController::class, 'reschedule']);
             Route::post('/reschedule/{id}/approve', [CollectionController::class, 'approveReschedule']);
@@ -188,6 +191,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/vendors', [VendorController::class, 'getVendors']);
             Route::get('/tickets', [VendorController::class, 'getTickets']);
             Route::post('/tickets/{ticketId}/dispatch', [VendorController::class, 'dispatchTicket']);
+
+            // Workflow templates manager
+            Route::get('/workflows', [WorkflowController::class, 'index']);
+            Route::post('/workflows', [WorkflowController::class, 'store']);
+            Route::put('/workflows/{id}/toggle', [WorkflowController::class, 'toggle']);
+            Route::delete('/workflows/{id}', [WorkflowController::class, 'destroy']);
         });
     });
 });
