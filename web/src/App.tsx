@@ -67,7 +67,7 @@ const HomeRedirect: React.FC = () => {
   const user = userStr ? JSON.parse(userStr) : { role: 'admin' };
 
   // Route to the appropriate sandbox based on who logged in
-  if (user.role === 'sales_agent' || user.role === 'broker') {
+  if (user.role === 'sales_agent' || user.role === 'broker' || user.role === 'tele_sales' || user.role === 'company_sales') {
     return <Navigate to="/acquisition/leads" replace />;
   }
   if (user.role === 'finance_officer') {

@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CreditCard
 } from 'lucide-react';
+import api from '../services/api';
 
 interface SidebarProps {
   userRole: string;
@@ -54,42 +55,42 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
   const menuItems = [
     {
       title: 'Acquisition',
-      roles: ['admin', 'sales_agent', 'broker'],
+      roles: ['admin', 'sales_agent', 'broker', 'tele_sales', 'company_sales'],
       items: [
-        { name: 'Leads & KYC', path: '/acquisition/leads', icon: 'fa-solid fa-users' },
-        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple' },
-        { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
-        { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },
-        { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: 'fa-solid fa-bullhorn' },
+        { name: 'Leads & KYC', path: '/acquisition/leads', icon: 'fa-solid fa-users', roles: ['admin', 'sales_agent', 'broker', 'tele_sales', 'company_sales'] },
+        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple', roles: ['admin', 'sales_agent', 'company_sales'] },
+        { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake', roles: ['admin', 'sales_agent', 'company_sales', 'broker'] },
+        { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved', roles: ['admin', 'sales_agent'] },
+        { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: 'fa-solid fa-bullhorn', roles: ['admin', 'sales_agent'] },
       ]
     },
     {
       title: 'Finance & Contracts',
-      roles: ['admin', 'finance_officer', 'client'],
+      roles: ['admin', 'finance_officer', 'client', 'broker', 'company_sales'],
       items: [
-        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
-        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard },
-        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText },
-        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle },
+        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2, roles: ['admin', 'finance_officer', 'client', 'broker', 'company_sales'] },
+        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard, roles: ['admin', 'finance_officer'] },
+        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText, roles: ['admin', 'finance_officer', 'company_sales'] },
+        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle, roles: ['admin', 'finance_officer'] },
       ]
     },
     {
       title: 'Delivery & Platform',
       roles: ['admin', 'delivery_engineer', 'client'],
       items: [
-        { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2 },
-        { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench },
-        { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck },
-        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText },
-        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3 },
-        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal },
+        { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2, roles: ['admin', 'delivery_engineer', 'client'] },
+        { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench, roles: ['admin', 'delivery_engineer'] },
+        { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer'] },
+        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'delivery_engineer', 'client'] },
+        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'delivery_engineer'] },
+        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'delivery_engineer'] },
       ]
     },
     {
       title: 'System Settings',
       roles: ['admin'],
       items: [
-        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings }
+        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings, roles: ['admin'] }
       ]
     }
   ];
@@ -191,6 +192,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
                 </h3>
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {section.items.map((item) => {
+                    const hasItemAccess = !item.roles || item.roles.includes(userRole) || userRole === 'admin';
+                    if (!hasItemAccess) return null;
                     const isActive = location.pathname === item.path;
                     const Icon = item.icon;
                     return (

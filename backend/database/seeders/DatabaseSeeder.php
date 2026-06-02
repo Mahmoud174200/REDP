@@ -73,22 +73,24 @@ class DatabaseSeeder extends Seeder
 
         $clientUser = User::create([
             'id' => (string) Str::uuid(),
-<<<<<<< HEAD
             'name' => 'Tarek Client',
             'email' => 'client@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201004444444',
-=======
-            'name' => 'Mohamed Nabil',
-            'email' => 'client@redp.com',
-            'password' => bcrypt('password'),
-            'phone' => '+201201112223',
->>>>>>> 2fc4f52a97199d2cc489072c73556d381c5ddfad
             'role' => 'client',
             'status' => 'active',
         ]);
 
-<<<<<<< HEAD
+        $clientUser2 = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sherif Kamal',
+            'email' => 'client2@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201509998887',
+            'role' => 'client',
+            'status' => 'active',
+        ]);
+
         $brokerUser = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Ahmed Broker',
@@ -96,6 +98,26 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'phone' => '+201005555555',
             'role' => 'broker',
+            'status' => 'active',
+        ]);
+
+        $teleSalesUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sara TeleSales',
+            'email' => 'tele_sales@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555511',
+            'role' => 'tele_sales',
+            'status' => 'active',
+        ]);
+
+        $companySalesUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Karim CompanySales',
+            'email' => 'company_sales@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555522',
+            'role' => 'company_sales',
             'status' => 'active',
         ]);
 
@@ -176,15 +198,6 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'phone' => '+201009999994',
             'role' => 'compliance_officer',
-=======
-        $clientUser2 = User::create([
-            'id' => (string) Str::uuid(),
-            'name' => 'Sherif Kamal',
-            'email' => 'client2@redp.com',
-            'password' => bcrypt('password'),
-            'phone' => '+201509998887',
-            'role' => 'client',
->>>>>>> 2fc4f52a97199d2cc489072c73556d381c5ddfad
             'status' => 'active',
         ]);
 
@@ -292,6 +305,7 @@ class DatabaseSeeder extends Seeder
             'license_no' => 'LIC-88291',
             'status' => 'active',
             'referral_code' => 'REMAX2026',
+            'user_id' => $brokerUser->id,
         ]);
 
         $brokerColdwell = Broker::create([
@@ -314,6 +328,8 @@ class DatabaseSeeder extends Seeder
             'status' => 'new',
             'lead_score' => 85,
             'assigned_sales_agent_id' => $salesAgent->id,
+            'tele_sales_agent_id' => $teleSalesUser->id,
+            'current_tier' => 'tier_1',
             'kyc_status' => 'verified',
             'facial_match_score' => 96.50,
             'source' => 'facebook',
@@ -329,6 +345,8 @@ class DatabaseSeeder extends Seeder
             'status' => 'interested',
             'lead_score' => 92,
             'assigned_sales_agent_id' => $salesAgent->id,
+            'tele_sales_agent_id' => $teleSalesUser->id,
+            'current_tier' => 'tier_1',
             'kyc_status' => 'pending',
             'facial_match_score' => 84.20,
             'source' => 'google',
@@ -344,6 +362,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'negotiation',
             'lead_score' => 78,
             'assigned_sales_agent_id' => $salesAgent->id,
+            'current_tier' => 'tier_2',
             'kyc_status' => 'none',
             'source' => 'broker',
             'broker_id' => $brokerRemax->id,

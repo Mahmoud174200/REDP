@@ -178,7 +178,9 @@ const Login: React.FC = () => {
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>👑 Admin</button>
-              <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟠 Acquisition (Sales)</button>
+              <button type="button" onClick={() => fillProfile('tele_sales')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>📞 Tier 1 Tele-Sales</button>
+              <button type="button" onClick={() => fillProfile('broker')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🍊 Tier 2 Broker</button>
+              <button type="button" onClick={() => fillProfile('company_sales')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🏢 Tier 3 Sales Rep</button>
               <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🔵 Accounts (Finance)</button>
               <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟢 Operations (Delivery)</button>
             </div>
@@ -283,8 +285,10 @@ const Login: React.FC = () => {
               style={{ cursor: 'pointer', fontSize: '0.85rem' }}
             >
               <option value="admin">👑 Platform Administrator</option>
-              <option value="sales_agent">🟠 Acquisition & KYC</option>
-              <option value="broker">🍊 External Broker Agency</option>
+              <option value="tele_sales">📞 Tier 1 Tele-Sales Agent</option>
+              <option value="broker">🍊 Tier 2 External Broker</option>
+              <option value="company_sales">🏢 Tier 3 Company Sales Representative</option>
+              <option value="sales_agent">🟠 Legacy Acquisition & KYC</option>
               <option value="finance_officer">🔵 Finance & Locks</option>
               <option value="client">🐳 Compound Client/Homeowner</option>
               <option value="delivery_engineer">🟢 Inspection Snagger</option>

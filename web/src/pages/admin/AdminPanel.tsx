@@ -48,6 +48,7 @@ interface LeadItem {
   lead_score: number;
   assigned_sales_agent_id: string | null;
   agent?: UserItem;
+  source?: string;
   created_at: string;
 }
 
@@ -122,6 +123,7 @@ const AdminPanel: React.FC = () => {
     maintenance_mode: 'false',
     system_name: 'Ether REDP',
     system_logo_url: '',
+    system_icon_url: '',
     system_icon_name: 'Building2',
     mail_host: 'smtp.mailtrap.io',
     mail_port: '2525',
@@ -1878,11 +1880,13 @@ const AdminPanel: React.FC = () => {
                   <label className="form-label">Security Role</label>
                   <select className="form-control" value={formUserRole} onChange={e => setFormUserRole(e.target.value)}>
                     <option value="admin">System Admin</option>
-                    <option value="sales_agent">Sales Agent</option>
+                    <option value="tele_sales">Tier 1: Tele-Sales Agent</option>
+                    <option value="broker">Tier 2: External Broker</option>
+                    <option value="company_sales">Tier 3: Company Sales Representative</option>
+                    <option value="sales_agent">Legacy Sales Agent</option>
                     <option value="finance_officer">Finance Officer</option>
                     <option value="delivery_engineer">Delivery Engineer</option>
                     <option value="client">Client (Homeowner)</option>
-                    <option value="broker">External Broker</option>
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
