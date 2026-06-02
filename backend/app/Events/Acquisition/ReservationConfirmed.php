@@ -8,15 +8,15 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Event: ReservationConfirmed
  *
  * Fired when a lead is updated to the 'reserved' state.
  * Payload contains ONLY lead_id and unit_id for loose-coupling.
  * 
  * Consumed by:
- *   - Finance (Melwany): Creates contract + payment plan
- *   - Delivery (Mahmoud): Schedules handover inspection
+ *   - Finance : Creates contract + payment plan
+ *   - Delivery : Schedules handover inspection
  * ─────────────────────────────────────────────────────────
  */
 class ReservationConfirmed

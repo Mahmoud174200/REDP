@@ -4,12 +4,12 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
-// ── 🟠 Acquisition Events (Ragab) ──
+// ── 🟠 Acquisition Events  ──
 use App\Events\Acquisition\LeadCreated;
 use App\Events\Acquisition\BrokerRegistered;
 use App\Events\Acquisition\ReservationConfirmed as AcquisitionReservationConfirmed;
 
-// ── 🟢 Base / Financial Events (Melwany / Mahmoud) ──
+// ── 🟢 Base / Financial Events  ──
 use App\Events\ReservationConfirmed as BaseReservationConfirmed;
 use App\Events\PaymentReceived;
 use App\Events\ContractSigned;
@@ -28,7 +28,7 @@ use App\Listeners\Finance\HandleReservationConfirmed;
  * ─────────────────────────────────────────────────────────
  * REDP — Event Service Provider
  * Central registry for event-listener mappings across all domains.
- * Resolves both Acquisition (Ragab) and Delivery (Mahmoud) event flows.
+ * Resolves both Acquisition  and Delivery  event flows.
  * ─────────────────────────────────────────────────────────
  */
 class EventServiceProvider extends ServiceProvider
@@ -44,7 +44,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         // ══════════════════════════════════════════════════
-        // 🟠 ACQUISITION DOMAIN (Ragab)
+        // 🟠 ACQUISITION DOMAIN 
         // ══════════════════════════════════════════════════
 
         LeadCreated::class => [
@@ -61,7 +61,7 @@ class EventServiceProvider extends ServiceProvider
         ],
 
         // ══════════════════════════════════════════════════
-        // 🟢 DELIVERY & BASE EVENTS (Mahmoud / Melwany)
+        // 🟢 DELIVERY & BASE EVENTS 
         // ══════════════════════════════════════════════════
 
         BaseReservationConfirmed::class => [

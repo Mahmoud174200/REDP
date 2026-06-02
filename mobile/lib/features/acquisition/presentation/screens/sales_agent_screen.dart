@@ -4,7 +4,7 @@ import '../providers/sales_agent_provider.dart';
 import '../../domain/entities/lead.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Screen: Sales Agent Lead & Interaction Manager
 /// Provides assigned leads lists, status filters, search, 
 /// and a premium bottom sheet to log interactions.

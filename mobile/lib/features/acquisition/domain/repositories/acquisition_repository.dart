@@ -2,7 +2,7 @@ import '../entities/lead.dart';
 import '../entities/broker.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Domain Repository: AcquisitionRepository (Abstract)
 /// Clean Architecture — Domain Layer Contract
 /// ─────────────────────────────────────────────────────────

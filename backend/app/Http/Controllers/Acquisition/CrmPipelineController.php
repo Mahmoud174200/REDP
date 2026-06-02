@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: CrmPipelineController
  * Blueprint Section: H.9 — CRM Kanban Board
  *

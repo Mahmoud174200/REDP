@@ -116,7 +116,7 @@ const Documents: React.FC = () => {
           <p>Optical Character Recognition full-text vaults, automatic file categories tags, and search indexers.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.20 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.20</span>
         </div>
       </div>
 
@@ -189,7 +189,7 @@ const Documents: React.FC = () => {
             <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Document Title</label>
-                <input type="text" className="form-control" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Melwany_Signed_Contract" required />
+                <input type="text" className="form-control" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Signed_Contract" required />
               </div>
 
               {/* file input */}

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/broker_provider.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Screen: Broker Dashboard
 /// Shows referral links, total earnings, client pipeline,
 /// and commission tracker.

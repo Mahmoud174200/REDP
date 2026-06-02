@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: RegistrationController
  * Blueprint Section: H.1 — KYC & Facial Verification API
  *

@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Service: AntiPoachingService
  *
  * Enforces broker anti-poaching rules:

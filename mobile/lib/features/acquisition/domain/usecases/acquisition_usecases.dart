@@ -2,7 +2,7 @@ import '../entities/lead.dart';
 import '../repositories/acquisition_repository.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Use Case: GetAssignedLeads
 /// Clean Architecture — Domain Layer
 /// ─────────────────────────────────────────────────────────

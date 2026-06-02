@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: LeadController
  * Blueprint Sections: H.1 KYC, H.9 CRM Pipeline, H.11 Webhooks
  * ─────────────────────────────────────────────────────────

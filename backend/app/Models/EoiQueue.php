@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Model: EoiQueue (Expression of Interest Priority Queue)
  * Manages project launch express booking with microtime ordering.
  * ─────────────────────────────────────────────────────────

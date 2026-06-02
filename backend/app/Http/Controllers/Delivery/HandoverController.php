@@ -24,7 +24,7 @@ class HandoverController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'unit' => [
                 'id' => $unit->id,
                 'number' => $unit->unit_number,
@@ -73,7 +73,7 @@ class HandoverController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'QC Snag logged successfully and queued for vendor repair.',
             'snag' => $snag
         ], 201);
@@ -99,7 +99,7 @@ class HandoverController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🟢 Mahmoud (Delivery & Infra)',
+            'owner' => '🟢 Delivery & Infra',
             'message' => 'Handover QC sign-off complete. Client digital signature verified and logged.',
             'timestamp' => now()->toIso8601String()
         ], 200);

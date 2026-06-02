@@ -163,7 +163,7 @@ const Inventory: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Unit catalog with transactional row locking, dynamic pricing & real-time availability</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.5 — MELWANY</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.5</span>
         </div>
       </div>
 

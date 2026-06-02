@@ -53,7 +53,7 @@ class CollectionController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'data' => $items,
             'buckets' => $bucketSummary,
             'total_outstanding' => $totalOutstanding,
@@ -317,7 +317,7 @@ class CollectionController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'total_overdue' => (float) $overduePayments->sum('amount'),
             'total_overdue_count' => $overduePayments->count(),
             'aging_buckets' => $buckets,

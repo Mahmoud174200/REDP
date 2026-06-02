@@ -32,9 +32,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $ragab = User::create([
+        $salesAgent = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ragab Sales',
+            'name' => 'Sales Agent',
             'email' => 'sales_agent@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201001111111',
@@ -42,9 +42,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $melwany = User::create([
+        $financeOfficer = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Melwany Finance',
+            'name' => 'Finance Officer',
             'email' => 'finance_officer@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201002222222',
@@ -52,9 +52,9 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $mahmoud = User::create([
+        $deliverySpecialist = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Mahmoud Delivery',
+            'name' => 'Delivery Specialist',
             'email' => 'delivery_engineer@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201003333333',
@@ -187,7 +187,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29501011234567',
             'status' => 'new',
             'lead_score' => 85,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'verified',
             'facial_match_score' => 96.50,
             'source' => 'facebook',
@@ -202,7 +202,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29202021234567',
             'status' => 'interested',
             'lead_score' => 92,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'pending',
             'facial_match_score' => 84.20,
             'source' => 'google',
@@ -217,7 +217,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29803031234567',
             'status' => 'negotiation',
             'lead_score' => 78,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'none',
             'source' => 'broker',
             'broker_id' => $brokerRemax->id,
@@ -231,7 +231,7 @@ class DatabaseSeeder extends Seeder
             'national_id' => '29004041234567',
             'status' => 'reserved',
             'lead_score' => 98,
-            'assigned_sales_agent_id' => $ragab->id,
+            'assigned_sales_agent_id' => $salesAgent->id,
             'kyc_status' => 'verified',
             'facial_match_score' => 98.90,
             'source' => 'facebook',
@@ -271,7 +271,7 @@ class DatabaseSeeder extends Seeder
                 'national_id' => '29' . rand(0, 9) . '0' . rand(1, 9) . rand(10, 28) . rand(1000000, 9999999),
                 'status' => $n[3],
                 'lead_score' => $n[4] === 'broker' ? 78 : $n[5],
-                'assigned_sales_agent_id' => $ragab->id,
+                'assigned_sales_agent_id' => $salesAgent->id,
                 'kyc_status' => $n[6],
                 'facial_match_score' => $n[6] === 'verified' ? rand(86, 99) . '.' . rand(10, 99) : null,
                 'source' => $n[4],
@@ -287,7 +287,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'call',
             'notes' => 'Customer inquired about commercial pricing structure in the Administrative Capital. Warm lead.',
             'follow_up_date' => now()->addDays(2),
-            'logged_by' => $ragab->id,
+            'logged_by' => $salesAgent->id,
         ]);
 
         Interaction::create([
@@ -296,7 +296,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'meeting',
             'notes' => 'Face-to-face walkthrough. Client expressed strong interest in Patio Luxury Compound.',
             'follow_up_date' => now()->addDays(5),
-            'logged_by' => $ragab->id,
+            'logged_by' => $salesAgent->id,
         ]);
 
         // ── 8. Create VoIP Call Logs ──

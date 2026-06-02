@@ -221,7 +221,7 @@ const Brokers: React.FC = () => {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
         <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading Broker Dashboard from Database...</span>
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
       </div>
     );
   }
@@ -271,7 +271,7 @@ const Brokers: React.FC = () => {
             {showAddForm ? 'Cancel' : 'Register Broker'}
           </button>
           <div style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>🟠 RAGAB — H.6 BROKER</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)' }}>H.6 BROKER</span>
           </div>
         </div>
       </div>

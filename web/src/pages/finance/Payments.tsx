@@ -79,7 +79,7 @@ const Payments: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Financial KPIs, installment tracking, gateway management & billing reports</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.3 — MELWANY</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.3</span>
         </div>
       </div>
 

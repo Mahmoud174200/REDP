@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: VoipCallController
  * Blueprint Section: H.10 — VoIP Softphone Call Logs
  *

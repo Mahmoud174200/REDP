@@ -6,7 +6,7 @@
 
 ---
 
-## 🟠 Engineer 1: Ragab — محرك المبيعات والتسويق وجلب العملاء (Acquisition & Sales Engine)
+## 🟠 Engineer 1: محرك المبيعات والتسويق وجلب العملاء (Acquisition & Sales Engine)
 
 ### الهدف الأساسي
 جذب العملاء المهتمين والسماسرة الجدد وتسجيل بياناتهم والتحقق من هوياتهم بشكل آلي وتوجيههم لخط سير المبيعات، ومراقبة أداء المكالمات والحملات.
@@ -50,7 +50,7 @@
 
 ---
 
-## 🔵 Engineer 2: Melwany — محرك المعاملات المالية، الجداول والتعاقدات (Financial Engine)
+## 🔵 Engineer 2: محرك المعاملات المالية، الجداول والتعاقدات (Financial Engine)
 
 ### الهدف الأساسي
 معالجة المعاملات المالية بشكل فائق السرعة، ومراقبة المخزون الفعلي، وصياغة العقود وتعديل خطط السداد وإلغائها تلقائياً دون أي تداخل مع أنظمة الدعاية والتسليم.
@@ -97,7 +97,7 @@
 
 ---
 
-## 🟢 Engineer 3: Mahmoud — خدمات ما بعد البيع والتسليم والبنية التحتية للمنصة (Delivery & Platform)
+## 🟢 Engineer 3: خدمات ما بعد البيع والتسليم والبنية التحتية للمنصة (Delivery & Platform)
 
 ### الهدف الأساسي
 تسليم الوحدات المباعة، وتوفير تجربة تشغيل مثالية للملاك، وتنسيق أعمال المقاولين، وتطوير الأدوات البرمجية الذكية لخدمة الإدارة العليا وصناع القرار.
@@ -157,7 +157,7 @@ No engineer should ever call another engineer's database models or write databas
 Communication happens purely via Laravel **Events** and **Listeners** using PHP interfaces.
 
 ```
-Acquisition (Ragab)             Finance (Melwany)               Delivery (Mahmoud)
+Acquisition              Finance                Delivery 
         │                               │                               │
         │ ReservationConfirmed (Event)  │                               │
         │──────────────────────────────>│                               │

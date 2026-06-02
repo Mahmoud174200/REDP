@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     /**
      * ─────────────────────────────────────────────────────────
-     * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+     * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
      * Table: lead_locks (Broker Anti-Poaching System)
      * 90-day exclusive lock on leads registered via broker referral
      * ─────────────────────────────────────────────────────────

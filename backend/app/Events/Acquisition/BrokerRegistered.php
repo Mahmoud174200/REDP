@@ -8,7 +8,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Event: BrokerRegistered
  *
  * Fired when a new broker completes registration.

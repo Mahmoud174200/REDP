@@ -81,7 +81,7 @@ const Handover: React.FC = () => {
           <p>Handover checklists, biometric defect records, and client digital signature confirmations.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.17 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.17</span>
         </div>
       </div>
 

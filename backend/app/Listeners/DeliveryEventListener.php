@@ -19,8 +19,8 @@ class DeliveryEventListener
 {
     /**
      * Handle ReservationConfirmed Event.
-     * Triggered by: Ragab (Acquisition)
-     * Action: Mahmoud's engine schedules an initial handover QC inspection appointment.
+     * Triggered by: Acquisition
+     * Action: the Delivery engine schedules an initial handover QC inspection appointment.
      */
     public function handleReservationConfirmed(ReservationConfirmed $event): void
     {
@@ -43,8 +43,8 @@ class DeliveryEventListener
 
     /**
      * Handle ContractSigned Event.
-     * Triggered by: Melwany (Finance)
-     * Action: Mahmoud's engine creates physical handover planning timelines in DMS documents.
+     * Triggered by: Finance Team (Finance)
+     * Action: the Delivery engine creates physical handover planning timelines in DMS documents.
      */
     public function handleContractSigned(ContractSigned $event): void
     {
@@ -67,8 +67,8 @@ class DeliveryEventListener
 
     /**
      * Handle PaymentReceived Event.
-     * Triggered by: Melwany (Finance)
-     * Action: Mahmoud's engine sends push notifications/SMS alerts confirming receipt.
+     * Triggered by: Finance Team (Finance)
+     * Action: the Delivery engine sends push notifications/SMS alerts confirming receipt.
      */
     public function handlePaymentReceived(PaymentReceived $event): void
     {
@@ -93,8 +93,8 @@ class DeliveryEventListener
 
     /**
      * Handle simulated Contract Cancellation Event.
-     * Triggered by: Melwany (Finance)
-     * Action: Mahmoud's engine automatically terminates active maintenance tickets for cancelled properties.
+     * Triggered by: Finance Team (Finance)
+     * Action: the Delivery engine automatically terminates active maintenance tickets for cancelled properties.
      */
     public function handleCancellationProcessed(string $contractId, string $clientId): void
     {

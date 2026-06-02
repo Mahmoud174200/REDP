@@ -47,7 +47,7 @@ class ContractController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'data' => $contracts,
             'summary' => [
                 'total_contracts' => $totalContracts,

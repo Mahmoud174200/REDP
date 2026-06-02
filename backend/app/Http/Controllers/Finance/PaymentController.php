@@ -25,7 +25,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'contract' => $contract,
             'installments' => $contract->payments,
             'payment_plan' => $contract->paymentPlan,
@@ -177,7 +177,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'owner' => '🔵 Melwany (Finance)',
+            'owner' => '🔵 Finance Team (Finance)',
             'dashboard' => [
                 'total_revenue' => (float) $totalRevenue,
                 'pending_amount' => (float) $pendingAmount,

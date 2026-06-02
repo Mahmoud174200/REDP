@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/acquisition_models.dart';
 
 /// ─────────────────────────────────────────────────────────
-/// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+/// REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
 /// Remote Data Source: Dio HTTP Client
 /// Clean Architecture — Data Layer
 /// ─────────────────────────────────────────────────────────

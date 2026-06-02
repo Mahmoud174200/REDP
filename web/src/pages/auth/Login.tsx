@@ -142,9 +142,9 @@ const Login: React.FC = () => {
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>👑 Admin</button>
-              <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟠 Ragab (Sales)</button>
-              <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🔵 Melwany (Finance)</button>
-              <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟢 Mahmoud (Delivery)</button>
+              <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟠 Acquisition (Sales)</button>
+              <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🔵 Accounts (Finance)</button>
+              <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟢 Operations (Delivery)</button>
             </div>
           </div>
         )}
@@ -164,7 +164,7 @@ const Login: React.FC = () => {
                   style={{ paddingLeft: '44px', fontSize: '0.85rem' }} 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Ragab El-Sayed" 
+                  placeholder="e.g. User Operator" 
                   required 
                 />
               </div>
@@ -247,11 +247,11 @@ const Login: React.FC = () => {
               style={{ cursor: 'pointer', fontSize: '0.85rem' }}
             >
               <option value="admin">👑 Platform Administrator</option>
-              <option value="sales_agent">🟠 Ragab (Acquisition & KYC)</option>
+              <option value="sales_agent">🟠 Acquisition & KYC</option>
               <option value="broker">🍊 External Broker Agency</option>
-              <option value="finance_officer">🔵 Melwany (Finance & Locks)</option>
+              <option value="finance_officer">🔵 Finance & Locks</option>
               <option value="client">🐳 Compound Client/Homeowner</option>
-              <option value="delivery_engineer">🟢 Mahmoud (Inspection Snagger)</option>
+              <option value="delivery_engineer">🟢 Inspection Snagger</option>
             </select>
           </div>
 

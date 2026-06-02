@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ─────────────────────────────────────────────────────────
- * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+ * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
  * Controller: SocialAdsWebhookController
  * Blueprint Section: H.11 — Lead Ads Ingestion
  *

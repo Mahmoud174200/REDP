@@ -7,7 +7,7 @@ import {
 import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────
-// REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+// REDP — Acquisition & Sales Engine
 // Page: Campaigns & Marketing Analytics (Unified Glassmorphism UI)
 // ─────────────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ const Campaigns: React.FC = () => {
           </button>
           
           <div style={{ padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.11 (RAGAB)</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.11</span>
           </div>
         </div>
       </div>

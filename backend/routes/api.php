@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 
-// ── 🟠 Acquisition Controllers (Ragab) ──
+// ── 🟠 Acquisition Controllers ──
 use App\Http\Controllers\Acquisition\LeadController;
 use App\Http\Controllers\Acquisition\BrokerController;
 use App\Http\Controllers\Acquisition\RegistrationController;
@@ -12,11 +12,11 @@ use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
 
-// ── 🔵 Finance Controllers (Melwany) ──
+// ── 🔵 Finance Controllers ──
 use App\Http\Controllers\Finance\InventoryController;
 use App\Http\Controllers\Finance\PaymentController;
 
-// ── 🟢 Delivery Controllers (Mahmoud) ──
+// ── 🟢 Delivery Controllers ──
 use App\Http\Controllers\Finance\ContractController;
 use App\Http\Controllers\Finance\CollectionController;
 use App\Http\Controllers\Delivery\ClientPortalController;
@@ -45,7 +45,7 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
 
-// ── 🟠 Public Webhooks (Acquisition - Ragab) ──
+// ── 🟠 Public Webhooks (Acquisition) ──
 Route::prefix('v1/webhooks')->group(function () {
     // VoIP Provider Webhooks (Twilio)
     Route::post('/voip/call-status', [VoipCallController::class, 'handleCallStatus']);
@@ -71,7 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     // ══════════════════════════════════════════════════════════
-    // 🟠 ACQUISITION MODULE (Owner: Ragab)
+    // 🟠 ACQUISITION MODULE
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/acquisition')->group(function () {
 
@@ -116,7 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ══════════════════════════════════════════════════════════
-    // 🔵 FINANCIAL ENGINE (Owner: Melwany)
+    // 🔵 FINANCIAL ENGINE
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/finance')->group(function () {
         // ── Unit Inventory (open to all logged-in users) ──
@@ -160,7 +160,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ══════════════════════════════════════════════════════════
-    // 🟢 DELIVERY & OPERATIONS (Owner: Mahmoud)
+    // 🟢 DELIVERY & OPERATIONS
     // ══════════════════════════════════════════════════════════
     Route::prefix('v1/delivery')->group(function () {
         Route::get('/overview', [ClientPortalController::class, 'getOverview']);

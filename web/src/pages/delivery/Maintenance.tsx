@@ -66,7 +66,7 @@ const Maintenance: React.FC = () => {
           <p>Compound facilities repair queues, technician dispatcher consoles, and SLA timelines.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.8 / H.16 (MAHMOUD)</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>MODULE: H.8 / H.16</span>
         </div>
       </div>
 

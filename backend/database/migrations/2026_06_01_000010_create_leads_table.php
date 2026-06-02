@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     /**
      * ─────────────────────────────────────────────────────────
-     * REDP — Acquisition & Sales Engine (Developer 1: Ragab)
+     * REDP — Acquisition & Sales Engine (Sales & Acquisition Engine)
      * Table: leads
      * ─────────────────────────────────────────────────────────
      */
@@ -66,7 +66,7 @@ return new class extends Migration {
             $table->index(['phone', 'national_id'], 'idx_leads_phone_nid_composite');
             $table->index(['status', 'assigned_sales_agent_id'], 'idx_leads_status_agent');
 
-            // ── Foreign Keys (loose-coupling: agent is on users table owned by Mahmoud) ──
+            // ── Foreign Keys (loose-coupling: agent is on users table owned by Delivery Team) ──
             $table->foreign('assigned_sales_agent_id')
                   ->references('id')->on('users')
                   ->onDelete('set null');

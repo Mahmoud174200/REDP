@@ -111,7 +111,7 @@ const Collections: React.FC = () => {
           <p style={{ fontSize: '0.85rem' }}>Aging debt tracker, promise-to-pay management, rescheduling & cancellation processor</p>
         </div>
         <div style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', letterSpacing: '0.05em' }}>MODULE: H.13/14/15 — MELWANY</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', letterSpacing: '0.05em' }}>MODULE: H.13/14/15</span>
         </div>
       </div>
 
