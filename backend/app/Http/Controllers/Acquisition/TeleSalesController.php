@@ -44,7 +44,7 @@ class TeleSalesController extends Controller
         $user = $request->user();
 
         $query = Lead::forTier($user)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(5)]);
+            ->with(['interactions' => fn($q) => $q->latest()->limit(5), 'interestedProject']);
 
         // Status filter
         if ($request->has('status')) {
@@ -85,12 +85,15 @@ class TeleSalesController extends Controller
         $user = $request->user();
 
         $fields = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name'  => 'required|string|max:100',
-            'email'      => 'nullable|email|max:255',
-            'phone'      => 'required|string|max:20',
-            'source'     => 'nullable|string|in:facebook,google,tiktok,direct,referral',
-            'notes'      => 'nullable|string|max:1000',
+            'first_name'            => 'required|string|max:100',
+            'last_name'             => 'required|string|max:100',
+            'email'                 => 'nullable|email|max:255',
+            'phone'                 => 'required|string|max:20',
+            'source'                => 'nullable|string|in:facebook,google,tiktok,direct,referral',
+            'notes'                 => 'nullable|string|max:1000',
+            'budget'                => 'nullable|numeric|min:0',
+            'payment_method'        => 'nullable|string|in:cash,installment',
+            'interested_project_id' => 'nullable|uuid|exists:projects,id',
         ]);
 
         // Check for duplicate phone
@@ -115,6 +118,9 @@ class TeleSalesController extends Controller
             'kyc_status'            => 'none',
             'tele_sales_agent_id'   => $user->id,
             'current_tier'          => 'tier_1',
+            'budget'                => $fields['budget'] ?? null,
+            'payment_method'        => $fields['payment_method'] ?? 'installment',
+            'interested_project_id' => $fields['interested_project_id'] ?? null,
         ]);
 
         // Record journey
@@ -146,7 +152,7 @@ class TeleSalesController extends Controller
         $user = $request->user();
 
         $lead = Lead::forTier($user)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(10)])
+            ->with(['interactions' => fn($q) => $q->latest()->limit(10), 'interestedProject'])
             ->findOrFail($id);
 
         return response()->json([

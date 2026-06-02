@@ -10,6 +10,11 @@ import Brokers from './pages/acquisition/Brokers';
 import KycApprovals from './pages/acquisition/KycApprovals';
 import Campaigns from './pages/acquisition/Campaigns';
 
+// 🔶 Tiered Sales Portals
+import TeleSalesPortal from './pages/sales/TeleSalesPortal';
+import BrokerPortal from './pages/sales/BrokerPortal';
+import CompanySalesPortal from './pages/sales/CompanySalesPortal';
+
 // 🔵 Finance Pages
 import Inventory from './pages/finance/Inventory';
 import Contracts from './pages/finance/Contracts';
@@ -67,7 +72,16 @@ const HomeRedirect: React.FC = () => {
   const user = userStr ? JSON.parse(userStr) : { role: 'admin' };
 
   // Route to the appropriate sandbox based on who logged in
-  if (user.role === 'sales_agent' || user.role === 'broker') {
+  if (user.role === 'tele_sales') {
+    return <Navigate to="/sales/tele/dashboard" replace />;
+  }
+  if (user.role === 'broker') {
+    return <Navigate to="/sales/broker/dashboard" replace />;
+  }
+  if (user.role === 'company_sales') {
+    return <Navigate to="/sales/company/dashboard" replace />;
+  }
+  if (user.role === 'sales_agent') {
     return <Navigate to="/acquisition/leads" replace />;
   }
   if (user.role === 'finance_officer') {
@@ -97,6 +111,11 @@ const App: React.FC = () => {
         <Route path="/acquisition/brokers" element={<DashboardWrapper><Brokers /></DashboardWrapper>} />
         <Route path="/acquisition/kyc" element={<DashboardWrapper><KycApprovals /></DashboardWrapper>} />
         <Route path="/acquisition/campaigns" element={<DashboardWrapper><Campaigns /></DashboardWrapper>} />
+
+        {/* 🔶 Tiered Sales Portals */}
+        <Route path="/sales/tele/dashboard" element={<DashboardWrapper><TeleSalesPortal /></DashboardWrapper>} />
+        <Route path="/sales/broker/dashboard" element={<DashboardWrapper><BrokerPortal /></DashboardWrapper>} />
+        <Route path="/sales/company/dashboard" element={<DashboardWrapper><CompanySalesPortal /></DashboardWrapper>} />
 
         {/* 🔵 Financial routes */}
         <Route path="/finance/inventory" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />

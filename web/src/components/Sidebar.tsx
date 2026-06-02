@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import {
   Building2, Users, Wallet, FileText, Settings, ShieldCheck,
   LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, TrendingUp, X, Terminal,
-  AlertTriangle,
-  CreditCard
+  AlertTriangle, CreditCard, Phone, Handshake
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -53,10 +53,31 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
 
   const menuItems = [
     {
-      title: 'Acquisition',
-      roles: ['admin', 'sales_agent', 'broker'],
+      title: 'Tier 1: Tele-Sales',
+      roles: ['admin', 'tele_sales'],
       items: [
-        { name: 'Leads & KYC', path: '/acquisition/leads', icon: 'fa-solid fa-users' },
+        { name: 'Tele-Sales Portal', path: '/sales/tele/dashboard', icon: Phone }
+      ]
+    },
+    {
+      title: 'Tier 2: Broker Portal',
+      roles: ['admin', 'broker'],
+      items: [
+        { name: 'Broker Dashboard', path: '/sales/broker/dashboard', icon: Handshake }
+      ]
+    },
+    {
+      title: 'Tier 3: Company Sales',
+      roles: ['admin', 'company_sales'],
+      items: [
+        { name: 'Company Sales Portal', path: '/sales/company/dashboard', icon: Building2 }
+      ]
+    },
+    {
+      title: 'Acquisition (Legacy)',
+      roles: ['admin', 'sales_agent'],
+      items: [
+        { name: 'Leads & KYC', path: '/acquisition/leads', icon: Users },
         { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple' },
         { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
         { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },
@@ -65,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
     },
     {
       title: 'Finance & Contracts',
-      roles: ['admin', 'finance_officer', 'client'],
+      roles: ['admin', 'finance_officer', 'client', 'company_sales', 'broker'],
       items: [
         { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
         { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard },
