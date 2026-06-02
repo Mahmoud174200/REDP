@@ -21,6 +21,9 @@ class ContractController extends Controller
      */
     public function index(Request $request)
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $query = Contract::with(['client', 'unit.project', 'paymentPlan']);
 
         if ($request->has('status') && $request->status !== 'all') {
@@ -64,6 +67,9 @@ class ContractController extends Controller
      */
     public function show(string $id)
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $contract = Contract::with([
             'client',
             'unit.project',
@@ -86,27 +92,67 @@ class ContractController extends Controller
      */
     public function generate(Request $request, string $reservationId)
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $reservation = Reservation::with('unit')->findOrFail($reservationId);
+
+        if ($reservation->status === 'expired') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This reservation has expired and cannot be contracted.',
+            ], 400);
+        }
 
         // Check if contract already exists
         $existing = Contract::where('reservation_id', $reservationId)->first();
         if ($existing) {
-            return response()->json([
-                'success' => false,
-                'message' => 'A contract already exists for this reservation.',
-                'contract' => $existing,
-            ], 400);
+            if ($existing->status === 'draft') {
+                // Safely delete the auto-generated draft to make way for the custom finalized contract
+                \Illuminate\Support\Facades\DB::transaction(function () use ($existing) {
+                    if ($existing->paymentPlan) {
+                        Payment::where('payment_plan_id', $existing->paymentPlan->id)->delete();
+                        $existing->paymentPlan->delete();
+                    }
+                    Payment::where('contract_id', $existing->id)->delete();
+                    $existing->delete();
+                });
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A finalized or active contract already exists for this reservation.',
+                    'contract' => $existing,
+                ], 400);
+            }
         }
 
         $request->validate([
             'type' => 'nullable|string|in:sale,reservation,installment',
             'total_installments' => 'nullable|integer|min:1|max:120',
             'notes' => 'nullable|string',
+            'schedule' => 'nullable|array',
+            'schedule.*.amount' => 'required|numeric',
+            'schedule.*.dueDate' => 'required|string',
+            'schedule.*.label' => 'required|string',
+            'schedule.*.type' => 'required|string',
+            'monthly_amount' => 'nullable|numeric',
         ]);
 
         $unit = $reservation->unit;
-        $totalInstallments = $request->total_installments ?? 12;
         $type = $request->type ?? 'installment';
+        $schedule = $request->input('schedule', []);
+
+        // Calculate paid today (EOI + Down Payment)
+        $totalPaidToday = (float) $reservation->eoi_amount;
+        $dpAmount = 0.0;
+        if (!empty($schedule)) {
+            foreach ($schedule as $item) {
+                if ($item['type'] === 'down_payment') {
+                    $dpAmount += (float) $item['amount'];
+                }
+            }
+        }
+        $totalPaidToday += $dpAmount;
 
         // Create the contract
         $contract = Contract::create([
@@ -116,37 +162,71 @@ class ContractController extends Controller
             'unit_id' => $unit->id,
             'client_id' => $reservation->client_id,
             'total_amount' => $unit->price,
-            'paid_amount' => $reservation->eoi_amount,
+            'paid_amount' => $totalPaidToday,
             'type' => $type,
             'status' => 'draft',
             'notes' => $request->notes ?? 'Generated from reservation.',
         ]);
 
-        // Generate payment plan
-        $remainingAmount = $unit->price - $reservation->eoi_amount;
-        $monthlyAmount = round($remainingAmount / $totalInstallments, 2);
+        // Generate payment plan and payments
+        if (!empty($schedule)) {
+            $futureInstallments = array_filter($schedule, function ($item) {
+                return !in_array($item['type'], ['eoi', 'down_payment']);
+            });
+            $totalInstallmentsCount = count($futureInstallments);
 
-        $paymentPlan = PaymentPlan::create([
-            'id' => (string) Str::uuid(),
-            'contract_id' => $contract->id,
-            'total_installments' => $totalInstallments,
-            'unpaid_installments' => $totalInstallments,
-            'monthly_amount' => $monthlyAmount,
-            'status' => 'active',
-            'start_date' => now()->addMonth(),
-        ]);
-
-        // Create installment entries
-        for ($i = 1; $i <= $totalInstallments; $i++) {
-            Payment::create([
+            $paymentPlan = PaymentPlan::create([
                 'id' => (string) Str::uuid(),
                 'contract_id' => $contract->id,
-                'payment_plan_id' => $paymentPlan->id,
-                'amount' => $monthlyAmount,
-                'status' => 'pending',
-                'due_date' => now()->addMonths($i * 3), // Quarterly installments
-                'installment_number' => $i,
+                'total_installments' => $totalInstallmentsCount,
+                'unpaid_installments' => $totalInstallmentsCount,
+                'monthly_amount' => (float) $request->input('monthly_amount', 0.0),
+                'status' => 'active',
+                'start_date' => now()->addMonth(),
             ]);
+
+            $index = 1;
+            foreach ($schedule as $item) {
+                $isPaidToday = in_array($item['type'], ['eoi', 'down_payment']);
+
+                Payment::create([
+                    'id' => (string) Str::uuid(),
+                    'contract_id' => $contract->id,
+                    'payment_plan_id' => $paymentPlan->id,
+                    'amount' => (float) $item['amount'],
+                    'status' => $isPaidToday ? 'paid' : 'pending',
+                    'transaction_reference' => $item['label'] ?? null,
+                    'due_date' => isset($item['dueDate']) ? date('Y-m-d', strtotime($item['dueDate'])) : now(),
+                    'installment_number' => $isPaidToday ? 0 : $index++,
+                    'paid_at' => $isPaidToday ? now() : null,
+                ]);
+            }
+        } else {
+            $totalInstallments = $request->total_installments ?? 12;
+            $remainingAmount = $unit->price - $reservation->eoi_amount;
+            $monthlyAmount = round($remainingAmount / $totalInstallments, 2);
+
+            $paymentPlan = PaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'contract_id' => $contract->id,
+                'total_installments' => $totalInstallments,
+                'unpaid_installments' => $totalInstallments,
+                'monthly_amount' => $monthlyAmount,
+                'status' => 'active',
+                'start_date' => now()->addMonth(),
+            ]);
+
+            for ($i = 1; $i <= $totalInstallments; $i++) {
+                Payment::create([
+                    'id' => (string) Str::uuid(),
+                    'contract_id' => $contract->id,
+                    'payment_plan_id' => $paymentPlan->id,
+                    'amount' => $monthlyAmount,
+                    'status' => 'pending',
+                    'due_date' => now()->addMonths($i * 3),
+                    'installment_number' => $i,
+                ]);
+            }
         }
 
         AuditLogService::log('CONTRACT_GENERATED', $request->user()->id, [

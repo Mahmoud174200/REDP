@@ -147,6 +147,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Bookings (transaction execution)
             Route::post('/bookings', [CompanySalesController::class, 'createBooking']);
+            Route::post('/bookings/{id}/cancel', [CompanySalesController::class, 'cancelBooking']);
 
             // Units (full access + status management)
             Route::get('/units', [CompanySalesController::class, 'listUnits']);
