@@ -1,8 +1,80 @@
 import React, { useState, useEffect } from 'react';
 import { Users, ClipboardList, Send, ShieldCheck, CheckCircle2, Milestone, DollarSign, ListFilter, AlertCircle, ShoppingCart } from 'lucide-react';
 import api from '../../services/api';
+import { ToastContainer } from '../../components/Toast';
 
 const CompanySalesPortal: React.FC = () => {
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const renderMetadata = (metadata: any) => {
+    if (!metadata || typeof metadata !== 'object') return null;
+
+    const items: { label: string; value: string; icon: string }[] = [];
+
+    if (metadata.source) {
+      items.push({ label: 'Source', value: metadata.source, icon: '📍' });
+    }
+    if (metadata.interaction_type) {
+      items.push({ label: 'Interaction Channel', value: metadata.interaction_type, icon: '💬' });
+    }
+    if (metadata.meeting_date) {
+      const formattedDate = new Date(metadata.meeting_date).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+      items.push({ label: 'Meeting Date', value: formattedDate, icon: '📅' });
+    }
+    if (metadata.location) {
+      items.push({ label: 'Location', value: metadata.location, icon: '🏢' });
+    }
+    if (metadata.from_tier || metadata.to_tier) {
+      const from = (metadata.from_tier || '').replace('tier_', 'Tier ');
+      const to = (metadata.to_tier || '').replace('tier_', 'Tier ');
+      items.push({ label: 'Tier Escalation', value: `${from} ➔ ${to}`, icon: '⚡' });
+    }
+    if (metadata.notes) {
+      items.push({ label: 'Notes', value: metadata.notes, icon: '📝' });
+    }
+    if (metadata.unit_number) {
+      items.push({ label: 'Unit Number', value: `#${metadata.unit_number}`, icon: '🔑' });
+    }
+    if (metadata.price) {
+      items.push({ label: 'Unit Price', value: `${parseFloat(metadata.price).toLocaleString()} EGP`, icon: '💰' });
+    }
+    if (metadata.eoi_amount) {
+      items.push({ label: 'EOI Amount', value: `${parseFloat(metadata.eoi_amount).toLocaleString()} EGP`, icon: '💵' });
+    }
+
+    if (items.length > 0) {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '8px', padding: '10px 14px', background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(50, 71, 58, 0.08)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)' }}>
+          {items.map((item, idx) => (
+            <div key={idx} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.9rem' }}>{item.icon}</span>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{item.label}:</span>
+              <strong style={{ color: 'var(--text-main)' }}>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <pre style={{ margin: '4px 0 0 0', padding: '6px', background: 'rgba(0,0,0,0.03)', borderRadius: 'var(--radius-xs)', fontSize: '0.7rem', overflowX: 'auto', fontFamily: 'monospace' }}>
+        {JSON.stringify(metadata, null, 2)}
+      </pre>
+    );
+  };
+
   const [stats, setStats] = useState<any>({
     pipeline: { total_leads: 0, tier_1: 0, tier_2: 0, tier_3: 0, my_leads: 0 },
     bookings: { total_confirmed: 0 },
@@ -75,10 +147,10 @@ const CompanySalesPortal: React.FC = () => {
       const res = await api.put(`/v1/sales/company/leads/${leadId}/assign`);
       if (res.data && res.data.success) {
         await fetchPortalData();
-        alert('Lead successfully assigned to you.');
+        showToast('Lead successfully assigned to you.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign lead.');
+      showToast(err.response?.data?.message || 'Failed to assign lead.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +167,7 @@ const CompanySalesPortal: React.FC = () => {
         setShowJourneyModal(true);
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to fetch journey details.');
+      showToast(err.response?.data?.message || 'Failed to fetch journey details.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -119,10 +191,10 @@ const CompanySalesPortal: React.FC = () => {
         setShowBookingModal(false);
         setSelectedLeadForBooking(null);
         await fetchPortalData();
-        alert('Booking executed successfully! Unit reserved, and client credentials created.');
+        showToast('Booking executed successfully! Unit reserved, and client credentials created.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to execute booking.');
+      showToast(err.response?.data?.message || 'Failed to execute booking.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -143,14 +215,15 @@ const CompanySalesPortal: React.FC = () => {
         setShowUnitModal(false);
         setSelectedUnit(null);
         await fetchPortalData();
-        alert('Unit status updated successfully.');
+        showToast('Unit status updated successfully.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update unit status.');
+      showToast(err.response?.data?.message || 'Failed to update unit status.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
@@ -413,8 +486,8 @@ const CompanySalesPortal: React.FC = () => {
 
       {/* 🧭 TIMELINE CLIENT JOURNEY MODAL */}
       {showJourneyModal && journeyLead && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '600px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '600px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
               <h3 style={{ fontWeight: 800 }}>Journey Timeline: {journeyLead.first_name} {journeyLead.last_name}</h3>
               <span className="badge badge-info">{journeyLead.source} source</span>
@@ -426,9 +499,9 @@ const CompanySalesPortal: React.FC = () => {
                 <h4 style={{ fontSize: '0.85rem', fontWeight: 850, color: 'var(--color-primary)', marginBottom: '8px' }}>Broker Presentations Shown:</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px' }}>
                   {journeyPresentations.map(p => (
-                    <div key={p.id} style={{ padding: '10px', background: 'rgba(255,255,255,0.4)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
+                    <div key={p.id} style={{ padding: '12px', background: 'rgba(255,255,255,0.4)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5)' }}>
                       <strong>Agency:</strong> {p.broker?.name || 'External'} | <strong>Project:</strong> {p.project?.name}
-                      {p.presentation_notes && <p style={{ margin: '4px 0 0 0', fontStyle: 'italic' }}>Notes: "{p.presentation_notes}"</p>}
+                      {p.presentation_notes && <p style={{ margin: '4px 0 0 0', fontStyle: 'italic', color: 'var(--text-muted)' }}>Notes: "{p.presentation_notes}"</p>}
                     </div>
                   ))}
                 </div>
@@ -442,15 +515,11 @@ const CompanySalesPortal: React.FC = () => {
                 <div key={log.id} style={{ position: 'relative' }}>
                   <div style={{ position: 'absolute', left: '-27px', top: '2px', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid #ffffff' }} />
                   <div style={{ fontSize: '0.8rem' }}>
-                    <strong style={{ textTransform: 'capitalize' }}>{log.stage.replace(/_/g, ' ')}</strong>
+                    <strong style={{ textTransform: 'capitalize', color: 'var(--text-main)' }}>{log.stage.replace(/_/g, ' ')}</strong>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       Done by: {log.actor?.name || 'System'} ({log.actor_role}) on {new Date(log.created_at).toLocaleString()}
                     </div>
-                    {log.metadata && (
-                      <pre style={{ margin: '4px 0 0 0', padding: '6px', background: 'rgba(0,0,0,0.03)', borderRadius: 'var(--radius-xs)', fontSize: '0.7rem', overflowX: 'auto', fontFamily: 'monospace' }}>
-                        {JSON.stringify(log.metadata, null, 2)}
-                      </pre>
-                    )}
+                    {log.metadata && renderMetadata(log.metadata)}
                   </div>
                 </div>
               ))}
@@ -465,8 +534,8 @@ const CompanySalesPortal: React.FC = () => {
 
       {/* EXECUTE BOOKING MODAL */}
       {showBookingModal && selectedLeadForBooking && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '480px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Execute Booking & Reservation</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Reserve an inventory unit for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
@@ -505,8 +574,8 @@ const CompanySalesPortal: React.FC = () => {
 
       {/* UPDATE UNIT STATUS MODAL */}
       {showUnitModal && selectedUnit && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '400px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Configure Unit Status: {selectedUnit.unit_number}</h3>
             <form onSubmit={handleUpdateUnitStatus} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
@@ -533,8 +602,10 @@ const CompanySalesPortal: React.FC = () => {
         </div>
       )}
 
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
+
 
 export default CompanySalesPortal;

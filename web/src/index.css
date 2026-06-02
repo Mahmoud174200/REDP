@@ -495,3 +495,136 @@ p {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* ───────────────────────────────────────────────────
+   Premium Toast Notifications
+   ─────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+  max-width: 420px;
+  width: calc(100vw - 48px);
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 22px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  box-shadow: 0 10px 30px rgba(44, 62, 50, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid var(--border-glass);
+  animation: toast-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: var(--transition-smooth);
+}
+
+.toast-item.toast-success {
+  border-left: 6px solid var(--color-success);
+}
+
+.toast-item.toast-error {
+  border-left: 6px solid var(--color-danger);
+}
+
+.toast-item.toast-info {
+  border-left: 6px solid var(--color-primary);
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.toast-success .toast-icon {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--color-success);
+}
+
+.toast-error .toast-icon {
+  background: rgba(211, 47, 47, 0.1);
+  color: var(--color-danger);
+}
+
+.toast-info .toast-icon {
+  background: rgba(50, 71, 58, 0.1);
+  color: var(--color-primary);
+}
+
+.toast-message {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(120%) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ───────────────────────────────────────────────────
+   Premium Modal Transitions
+   ─────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 44, 36, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: modal-fade-in 0.25s ease-out forwards;
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 30px 70px rgba(44, 62, 50, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.4) inset !important;
+  animation: modal-slide-up 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-slide-up {
+  from {
+    transform: translateY(30px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
