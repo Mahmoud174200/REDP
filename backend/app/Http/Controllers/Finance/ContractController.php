@@ -356,4 +356,65 @@ class ContractController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Get all reserved/sold units with original vs contract pricing and payment progress.
+     */
+    public function getReservedUnits(Request $request)
+    {
+        $contracts = Contract::with(['client', 'unit.project', 'paymentPlan'])
+            ->whereIn('status', ['active', 'pending_signature', 'completed'])
+            ->latest()
+            ->get();
+
+        $data = $contracts->map(function ($contract) {
+            $unit = $contract->unit;
+            $client = $contract->client;
+            
+            $originalPrice = $unit ? (float) $unit->price : 0.0;
+            $contractPrice = (float) $contract->total_amount;
+            $paidAmount = (float) $contract->paid_amount;
+            $remainingAmount = max(0.0, $contractPrice - $paidAmount);
+            
+            // Determine if there is a discount or interest markup
+            $priceDifference = $contractPrice - $originalPrice;
+            $priceStatus = 'exact';
+            if ($priceDifference < 0) {
+                $priceStatus = 'discounted'; // Discount applied (e.g. cash discount)
+            } elseif ($priceDifference > 0) {
+                $priceStatus = 'interest_markup'; // Installment interest markup
+            }
+
+            return [
+                'id' => $contract->id,
+                'contract_number' => $contract->contract_number,
+                'status' => $contract->status,
+                'type' => $contract->type, // sale (cash), installment, reservation
+                'unit_id' => $unit->id ?? null,
+                'unit_number' => $unit->unit_number ?? 'N/A',
+                'floor' => $unit->floor ?? 'N/A',
+                'area' => $unit ? (float) $unit->area : 0.0,
+                'unit_type' => $unit->type ?? 'N/A',
+                'project_name' => $unit->project->name ?? 'N/A',
+                'client_name' => $client->name ?? 'N/A',
+                'client_email' => $client->email ?? 'N/A',
+                'client_phone' => $client->phone ?? 'N/A',
+                'original_price' => $originalPrice,
+                'contract_price' => $contractPrice,
+                'price_difference' => $priceDifference,
+                'price_status' => $priceStatus,
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => $remainingAmount,
+                'payment_progress' => $contractPrice > 0 ? round(($paidAmount / $contractPrice) * 100, 1) : 0.0,
+                'total_installments' => $contract->paymentPlan->total_installments ?? 0,
+                'unpaid_installments' => $contract->paymentPlan->unpaid_installments ?? 0,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🔵 Finance Team (Finance)',
+            'data' => $data,
+        ]);
+    }
 }

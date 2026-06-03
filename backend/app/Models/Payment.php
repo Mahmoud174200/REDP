@@ -14,6 +14,8 @@ class Payment extends Model
         'contract_id',
         'payment_plan_id',
         'amount',
+        'penalty_amount',
+        'penalty_waived',
         'status', // 'pending', 'paid', 'failed', 'refunded'
         'transaction_reference',
         'gateway', // 'stripe', 'fawry', 'bank_transfer', 'cash'
@@ -24,6 +26,8 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'penalty_amount' => 'decimal:2',
+        'penalty_waived' => 'boolean',
         'paid_at' => 'datetime',
         'due_date' => 'date',
     ];

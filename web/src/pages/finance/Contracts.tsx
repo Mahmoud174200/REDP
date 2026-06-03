@@ -138,7 +138,11 @@ const Contracts: React.FC = () => {
     const unitNumber = selectedContract.unit?.unit_number || selectedContract.unit_number || 'N/A';
     const projectName = selectedContract.unit?.project?.name || selectedContract.project_name || 'N/A';
     const contractNum = selectedContract.contract_number || 'N/A';
+    
     const amountVal = parseFloat(payment.amount) || 0;
+    const penaltyVal = parseFloat(payment.penalty_amount) || 0;
+    const totalVal = amountVal + penaltyVal;
+    
     const dateStr = payment.paid_at ? new Date(payment.paid_at).toLocaleString('ar-EG') : new Date().toLocaleString('ar-EG');
     const paymentMethodMap: Record<string, string> = {
       cash: '💵 Cash / نقدي',
@@ -232,7 +236,7 @@ const Contracts: React.FC = () => {
           .details-table td.label {
             font-weight: 700;
             color: #5c7064;
-            width: 30%;
+            width: 35%;
           }
           .details-table td.value {
             color: #1d2d24;
@@ -328,8 +332,8 @@ const Contracts: React.FC = () => {
           </div>
 
           <div class="amount-box">
-            <span>المبلغ المستلم / Amount Received:</span>
-            <strong>${amountVal.toLocaleString('ar-EG')} جنيه مصري / EGP</strong>
+            <span>المبلغ الإجمالي المستلم / Total Amount Received:</span>
+            <strong>${totalVal.toLocaleString('ar-EG')} جنيه مصري / EGP</strong>
           </div>
 
           <table class="details-table">
@@ -346,6 +350,16 @@ const Contracts: React.FC = () => {
               <td class="value"><strong>${clientName}</strong></td>
             </tr>
             <tr>
+              <td class="label">قيمة القسط الأساسي / Installment Amount:</td>
+              <td class="value">${amountVal.toLocaleString('ar-EG')} جنيه مصري / EGP</td>
+            </tr>
+            ${penaltyVal > 0 ? `
+            <tr>
+              <td class="label" style="color: #c62828;">غرامة التأخير المحصلة / Late Penalty Paid:</td>
+              <td class="value" style="color: #c62828; font-weight: bold;">${penaltyVal.toLocaleString('ar-EG')} جنيه مصري / EGP</td>
+            </tr>
+            ` : ''}
+            <tr>
               <td class="label">وذلك قيمة / For:</td>
               <td class="value">
                 ${payment.installment_number === 0 ? 'مقدم التعاقد / Down Payment' : `قسط شهر ${payment.installment_number} / Installment Month ${payment.installment_number}`} 
@@ -360,10 +374,10 @@ const Contracts: React.FC = () => {
               <td class="label">طريقة الدفع / Payment Method:</td>
               <td class="value">${methodText}</td>
             </tr>
-            ${payment.transaction_reference ? `
+            ${payment.transaction_ref || payment.transaction_reference ? `
             <tr>
               <td class="label">رقم المعاملة / Reference No:</td>
-              <td class="value"><code style="font-family: monospace; font-weight: 600;">${payment.transaction_reference}</code></td>
+              <td class="value"><code style="font-family: monospace; font-weight: 600;">${payment.transaction_ref || payment.transaction_reference}</code></td>
             </tr>
             ` : ''}
             ${payment.notes ? `
@@ -744,6 +758,11 @@ const Contracts: React.FC = () => {
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)' }}>{payment.due_date}</td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
                               {(parseFloat(payment.amount) || 0).toLocaleString()} EGP
+                              {parseFloat(payment.penalty_amount) > 0 && (
+                                <div style={{ fontSize: '0.65rem', color: 'var(--color-danger)', fontWeight: 600, marginTop: '2px' }}>
+                                  + {(parseFloat(payment.penalty_amount) || 0).toLocaleString()} EGP Late Fee
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'center' }}>
                               {payment.status === 'paid' && (
@@ -838,7 +857,7 @@ const Contracts: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <Wallet size={18} style={{ color: 'var(--color-success)' }} />
-                Collect Payment / تسجيل تحصيل دفعة
+                Collect Payment
               </h3>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem', padding: 0 }} onClick={() => setSelectedPaymentForCollection(null)}>
                 ✕
@@ -848,24 +867,62 @@ const Contracts: React.FC = () => {
             <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', background: 'rgba(50, 71, 58, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
               <div>Client: <strong>{selectedContract.client?.name || selectedContract.client_name}</strong></div>
               <div>Contract: <strong>{selectedContract.contract_number}</strong></div>
-              <div>Installment: <strong>{selectedPaymentForCollection.installment_number === 0 ? 'Down Payment / مقدم' : `Month ${selectedPaymentForCollection.installment_number}`}</strong></div>
-              <div>Scheduled Amount: <strong style={{ color: 'var(--color-primary)' }}>{(parseFloat(selectedPaymentForCollection.amount) || 0).toLocaleString()} EGP</strong></div>
+              <div>Installment: <strong>{selectedPaymentForCollection.installment_number === 0 ? 'Down Payment' : `Month ${selectedPaymentForCollection.installment_number}`}</strong></div>
+              <div>Scheduled Amount: <strong>{(parseFloat(selectedPaymentForCollection.amount) || 0).toLocaleString()} EGP</strong></div>
               <div>Due Date: <strong>{selectedPaymentForCollection.due_date}</strong></div>
+              {parseFloat(selectedPaymentForCollection.penalty_amount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.08)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.15)', marginTop: '4px' }}>
+                  <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>
+                    ⚠️ Late Penalty (10%): {(parseFloat(selectedPaymentForCollection.penalty_amount) || 0).toLocaleString()} EGP
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ padding: '3px 8px', fontSize: '0.65rem', background: '#ffffff', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to waive this overdue penalty?')) {
+                        try {
+                          const res = await api.post(`/v1/finance/payments/${selectedPaymentForCollection.id}/waive-penalty`);
+                          if (res.data?.success) {
+                            showToast('Penalty waived successfully.', 'success');
+                            setSelectedPaymentForCollection({
+                              ...selectedPaymentForCollection,
+                              penalty_amount: '0.00',
+                              penalty_waived: true
+                            });
+                            // Refresh contract details modal
+                            handleViewContract(selectedContract.id);
+                          }
+                        } catch (err: any) {
+                          showToast(err.response?.data?.message || 'Failed to waive penalty.', 'error');
+                        }
+                      }
+                    }}
+                  >
+                    Waive Penalty
+                  </button>
+                </div>
+              )}
+              {parseFloat(selectedPaymentForCollection.penalty_amount) > 0 && (
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, borderTop: '1px solid var(--border-glass)', paddingTop: '6px', marginTop: '6px', color: 'var(--color-primary)' }}>
+                  Total Due (with penalty): {((parseFloat(selectedPaymentForCollection.amount) || 0) + (parseFloat(selectedPaymentForCollection.penalty_amount) || 0)).toLocaleString()} EGP
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleCollectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Payment Method / طريقة الدفع</label>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Payment Method</label>
                 <select className="form-control" value={collectGateway} onChange={e => setCollectGateway(e.target.value as any)} style={{ fontSize: '0.8rem' }}>
-                  <option value="cash">💵 Cash (نقدي)</option>
-                  <option value="bank_transfer">🏛️ Bank Transfer (تحويل بنكي)</option>
-                  <option value="stripe">💳 Stripe (بوابة إلكترونية)</option>
-                  <option value="fawry">⚡ Fawry (فوري)</option>
+                  <option value="cash">💵 Cash</option>
+                  <option value="bank_transfer">🏛️ Bank Transfer</option>
+                  <option value="stripe">💳 Stripe</option>
+                  <option value="fawry">⚡ Fawry</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Amount Collected / القيمة المحصلة (EGP)</label>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Amount Collected (EGP)</label>
                 <input
                   type="number"
                   className="form-control"
@@ -883,7 +940,7 @@ const Contracts: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Receipt / Transaction Reference (رقم الإيصال / المعاملة)</label>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Receipt / Transaction Reference</label>
                 <input
                   type="text"
                   className="form-control"
@@ -895,7 +952,7 @@ const Contracts: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Notes / ملاحظات</label>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Notes</label>
                 <textarea
                   className="form-control"
                   value={collectNotes}

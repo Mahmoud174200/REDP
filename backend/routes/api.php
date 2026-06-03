@@ -236,6 +236,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
             Route::post('/payments/{id}/collect', [PaymentController::class, 'collectPayment']);
+            Route::post('/payments/{id}/waive-penalty', [PaymentController::class, 'waivePenalty']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
@@ -245,6 +246,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('/reschedule/{id}/approve', [CollectionController::class, 'approveReschedule']);
             Route::post('/cancel/{contractId}', [CollectionController::class, 'processCancellation']);
             Route::get('/aging-report', [CollectionController::class, 'getAgingReport']);
+            Route::get('/reserved-units', [ContractController::class, 'getReservedUnits']);
         });
 
         // ── Legal and Contract operations (Legal Team, Finance Officer, and Company Sales Rep) ──

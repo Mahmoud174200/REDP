@@ -20,6 +20,7 @@ import Inventory from './pages/finance/Inventory';
 import Contracts from './pages/finance/Contracts';
 import Payments from './pages/finance/Payments';
 import Collections from './pages/finance/Collections';
+import ReservedUnits from './pages/finance/ReservedUnits';
 
 // 🟢 Delivery Pages
 import Overview from './pages/delivery/Overview';
@@ -122,6 +123,7 @@ const App: React.FC = () => {
         <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
         <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
         <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
+        <Route path="/finance/reserved" element={<DashboardWrapper><ReservedUnits /></DashboardWrapper>} />
 
         {/* 🟢 Delivery routes */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />

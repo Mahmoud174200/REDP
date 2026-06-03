@@ -19,6 +19,7 @@ class PaymentController extends Controller
      */
     public function getInstallments(string $contractId)
     {
+        self::applyOverduePenalties();
         $contract = Contract::with(['paymentPlan', 'payments' => function ($q) {
             $q->orderBy('installment_number');
         }, 'unit', 'client'])->findOrFail($contractId);
@@ -122,6 +123,7 @@ class PaymentController extends Controller
      */
     public function getPaymentHistory(string $contractId)
     {
+        self::applyOverduePenalties();
         $payments = Payment::where('contract_id', $contractId)
             ->orderBy('installment_number')
             ->get();
@@ -148,6 +150,7 @@ class PaymentController extends Controller
      */
     public function getDashboard()
     {
+        self::applyOverduePenalties();
         $totalRevenue = Payment::where('status', 'paid')->sum('amount');
         $pendingAmount = Payment::where('status', 'pending')->sum('amount');
         $overduePayments = Payment::where('status', 'pending')
@@ -183,6 +186,64 @@ class PaymentController extends Controller
             ->take(10)
             ->get();
 
+        // Expected collections
+        $thisMonthExpected = Payment::where('status', 'pending')
+            ->whereMonth('due_date', now()->month)
+            ->whereYear('due_date', now()->year)
+            ->sum('amount');
+
+        $nextMonthExpected = Payment::where('status', 'pending')
+            ->whereMonth('due_date', now()->addMonth()->month)
+            ->whereYear('due_date', now()->addMonth()->year)
+            ->sum('amount');
+
+        $thisYearExpected = Payment::where('status', 'pending')
+            ->whereYear('due_date', now()->year)
+            ->sum('amount');
+
+        // Compounds and units breakdown (H.3 / Outstanding collection segmentation)
+        $contracts = Contract::with(['client', 'unit.project'])
+            ->whereIn('status', ['active', 'pending_signature', 'completed'])
+            ->get();
+
+        $compoundStats = [];
+        foreach ($contracts as $contract) {
+            $projectName = $contract->unit->project->name ?? 'External Project / Landmark';
+            $clientName = $contract->client->name ?? 'N/A';
+            $unitNumber = $contract->unit->unit_number ?? 'N/A';
+            
+            $total = (float) $contract->total_amount;
+            $paid = (float) $contract->paid_amount;
+            $outstanding = max(0.0, $total - $paid);
+
+            if (!isset($compoundStats[$projectName])) {
+                $compoundStats[$projectName] = [
+                    'project_name' => $projectName,
+                    'total_contracts' => 0,
+                    'total_amount' => 0.0,
+                    'paid_amount' => 0.0,
+                    'outstanding' => 0.0,
+                    'units' => [],
+                ];
+            }
+
+            $compoundStats[$projectName]['total_contracts']++;
+            $compoundStats[$projectName]['total_amount'] += $total;
+            $compoundStats[$projectName]['paid_amount'] += $paid;
+            $compoundStats[$projectName]['outstanding'] += $outstanding;
+
+            $compoundStats[$projectName]['units'][] = [
+                'unit_number' => $unitNumber,
+                'client_name' => $clientName,
+                'contract_number' => $contract->contract_number,
+                'total_amount' => $total,
+                'paid_amount' => $paid,
+                'outstanding' => $outstanding,
+                'status' => $contract->status,
+            ];
+        }
+        $compoundStats = array_values($compoundStats);
+
         return response()->json([
             'success' => true,
             'owner' => '🔵 Finance Team (Finance)',
@@ -200,6 +261,10 @@ class PaymentController extends Controller
                 'completed_contracts' => $completedContracts,
                 'cash_balance' => (float) $cashBalance,
                 'bank_balance' => (float) $bankBalance,
+                'this_month_expected' => (float) $thisMonthExpected,
+                'next_month_expected' => (float) $nextMonthExpected,
+                'this_year_expected' => (float) $thisYearExpected,
+                'compound_stats' => $compoundStats,
             ],
             'recent_payments' => $recentPayments,
         ]);
@@ -235,6 +300,7 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
+        self::applyOverduePenalties();
         $query = Payment::with(['contract.client', 'contract.unit']);
 
         if ($request->has('status') && $request->status !== 'all') {
@@ -376,6 +442,58 @@ class PaymentController extends Controller
                 ? 'Partial payment collected successfully. Remainder installment created.'
                 : 'Payment collected successfully in full.',
             'data' => $payment,
+        ]);
+    }
+
+    /**
+     * Apply late penalties (10%) to any overdue installments.
+     */
+    public static function applyOverduePenalties()
+    {
+        $overduePayments = Payment::where('status', 'pending')
+            ->where('due_date', '<', now()->toDateString())
+            ->where('penalty_amount', 0)
+            ->where('penalty_waived', false)
+            ->get();
+
+        foreach ($overduePayments as $payment) {
+            // Apply 10% late penalty
+            $penalty = round($payment->amount * 0.10, 2);
+            $payment->update([
+                'penalty_amount' => $penalty,
+            ]);
+        }
+    }
+
+    /**
+     * Waive/remove the overdue penalty for a payment.
+     */
+    public function waivePenalty(string $id)
+    {
+        $payment = Payment::findOrFail($id);
+
+        if ($payment->status === 'paid') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot waive penalty on an already paid installment.',
+            ], 400);
+        }
+
+        $payment->update([
+            'penalty_amount' => 0.00,
+            'penalty_waived' => true,
+        ]);
+
+        AuditLogService::log('PAYMENT_PENALTY_WAIVED', auth()->user()->id ?? null, [
+            'payment_id' => $payment->id,
+            'contract_id' => $payment->contract_id,
+            'installment_number' => $payment->installment_number,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Overdue penalty has been successfully waived.',
+            'payment' => $payment,
         ]);
     }
 }
