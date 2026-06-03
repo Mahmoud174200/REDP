@@ -148,6 +148,7 @@ const CompanySalesPortal: React.FC = () => {
   const [annualInstallmentAmount, setAnnualInstallmentAmount] = useState('50000');
   const [yearPercentages, setYearPercentages] = useState<number[]>([]);
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
+  const [isPlanSaved, setIsPlanSaved] = useState(false);
 
   const getCashDueDate = () => {
     const date = new Date();
@@ -200,6 +201,41 @@ const CompanySalesPortal: React.FC = () => {
       setYearPercentages([]);
     }
   }, [installmentTerm]);
+  // Set isPlanSaved to false whenever any payment plan parameters are modified
+  useEffect(() => {
+    setIsPlanSaved(false);
+  }, [
+    discountPercent,
+    finalPaymentMethod,
+    cashGracePeriod,
+    installmentType,
+    interestType,
+    installmentTerm,
+    installmentInterest,
+    installmentStartMonth,
+    downPayment,
+    yearPercentages,
+    includeClub,
+    clubCost,
+    clubPaymentMethod,
+    clubTerm,
+    clubInstallmentStartYear,
+    includeGarage,
+    garageCost,
+    garagePaymentMethod,
+    garageTerm,
+    garageInstallmentStartYear,
+    includeMaintenance,
+    maintenanceCost,
+    maintenancePaymentMethod,
+    maintenanceTerm,
+    maintenanceInstallmentStartYear,
+    maintenanceDueMonth,
+    enableAnnual,
+    annualInstallmentAmount,
+    customAddons,
+    bookingNotes
+  ]);
 
   const selectedUnitForBookingObj = units.find(u => u.id === bookingUnitId);
   const unitPrice = selectedUnitForBookingObj ? parseFloat(selectedUnitForBookingObj.price) : 0;
@@ -940,8 +976,8 @@ const CompanySalesPortal: React.FC = () => {
   };
 
 
-  const handleFinalizeContract = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFinalizeContract = async (e: React.FormEvent, autoSign: boolean = false) => {
+    if (e) e.preventDefault();
     if (!selectedReservationForContract) return;
 
     const plan = calculatePlan();
@@ -957,6 +993,53 @@ const CompanySalesPortal: React.FC = () => {
       });
 
       if (res.data && res.data.success) {
+        const generatedContract = res.data.contract;
+        if (autoSign && generatedContract) {
+          const signRes = await api.post(`/v1/finance/contracts/${generatedContract.id}/sign`);
+          if (signRes.data && signRes.data.success) {
+            showToast('Contract finalized, signed, and sent to Accounts successfully!', 'success');
+          } else {
+            showToast('Contract saved, but failed to sign.', 'info');
+          }
+          setShowContractModal(false);
+          setSelectedReservationForContract(null);
+          setBookingUnitId('');
+          setBookingNotes('');
+          setBookingEoi('50000');
+          setDiscountPercent('0');
+          setDownPayment('');
+          setIncludeClub(false);
+          setIncludeGarage(false);
+          setIncludeMaintenance(false);
+          setCustomAddons([]);
+          setIsPlanSaved(false);
+          await fetchPortalData();
+        } else {
+          showToast('Contract and payment schedule saved as draft successfully!', 'success');
+          setSelectedReservationForContract((prev: any) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              contract: generatedContract
+            };
+          });
+          setIsPlanSaved(true);
+          await fetchPortalData();
+        }
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to finalize contract.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignContract = async (contractId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/finance/contracts/${contractId}/sign`);
+      if (res.data && res.data.success) {
+        showToast('Contract signed and sent to Finance team successfully!', 'success');
         setShowContractModal(false);
         setSelectedReservationForContract(null);
         setBookingUnitId('');
@@ -968,18 +1051,15 @@ const CompanySalesPortal: React.FC = () => {
         setIncludeGarage(false);
         setIncludeMaintenance(false);
         setCustomAddons([]);
+        setIsPlanSaved(false);
         await fetchPortalData();
-        showToast('Contract and payment schedule finalized successfully!', 'success');
       }
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to finalize contract.', 'error');
+      showToast(err.response?.data?.message || 'Failed to sign contract.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
-
-
-
 
   const handleUpdateUnitStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1170,22 +1250,41 @@ const CompanySalesPortal: React.FC = () => {
                             if (txn) {
                               return (
                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedReservationForContract(txn);
-                                      setBookingUnitId(txn.unit_id);
-                                      setBookingEoi(txn.eoi_amount.toString());
-                                      setDiscountPercent('0');
-                                      const uPrice = parseFloat(txn.unit?.price) || 0;
-                                      setDownPayment((uPrice * 0.1).toString());
-                                      setMaintenanceCost((uPrice * 0.08).toString());
-                                      setShowContractModal(true);
-                                    }}
-                                    className="btn-primary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
-                                  >
-                                    إتمام التعاقد / Finalize
-                                  </button>
+                                  {!txn.contract ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedReservationForContract(txn);
+                                        setBookingUnitId(txn.unit_id);
+                                        setBookingEoi(txn.eoi_amount.toString());
+                                        setDiscountPercent('0');
+                                        const uPrice = parseFloat(txn.unit?.price) || 0;
+                                        setDownPayment((uPrice * 0.1).toString());
+                                        setMaintenanceCost((uPrice * 0.08).toString());
+                                        setShowContractModal(true);
+                                      }}
+                                      className="btn-primary"
+                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                    >
+                                      إتمام التعاقد / Finalize
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedReservationForContract(txn);
+                                        setBookingUnitId(txn.unit_id);
+                                        setBookingEoi(txn.eoi_amount.toString());
+                                        setDiscountPercent('0');
+                                        const uPrice = parseFloat(txn.unit?.price) || 0;
+                                        setDownPayment((uPrice * 0.1).toString());
+                                        setMaintenanceCost((uPrice * 0.08).toString());
+                                        setShowContractModal(true);
+                                      }}
+                                      className="btn-primary"
+                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                    >
+                                      تعديل وتوقيع الخطة / Edit & Sign
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handleCancelBooking(txn.id)}
                                     className="btn-secondary"
@@ -1337,22 +1436,41 @@ const CompanySalesPortal: React.FC = () => {
                         <td>
                           {!isExpired && txn.status === 'confirmed' && (!txn.contract || txn.contract.status === 'draft') && (
                             <div style={{ display: 'flex', gap: '6px' }}>
-                              <button
-                                onClick={() => {
-                                  setSelectedReservationForContract(txn);
-                                  setBookingUnitId(txn.unit_id);
-                                  setBookingEoi(txn.eoi_amount.toString());
-                                  setDiscountPercent('0');
-                                  const uPrice = parseFloat(txn.unit?.price) || 0;
-                                  setDownPayment((uPrice * 0.1).toString());
-                                  setMaintenanceCost((uPrice * 0.08).toString());
-                                  setShowContractModal(true);
-                                }}
-                                className="btn-primary"
-                                style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
-                              >
-                                Finalize Contract
-                              </button>
+                              {!txn.contract ? (
+                                <button
+                                  onClick={() => {
+                                    setSelectedReservationForContract(txn);
+                                    setBookingUnitId(txn.unit_id);
+                                    setBookingEoi(txn.eoi_amount.toString());
+                                    setDiscountPercent('0');
+                                    const uPrice = parseFloat(txn.unit?.price) || 0;
+                                    setDownPayment((uPrice * 0.1).toString());
+                                    setMaintenanceCost((uPrice * 0.08).toString());
+                                    setShowContractModal(true);
+                                  }}
+                                  className="btn-primary"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                >
+                                  Finalize Contract
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setSelectedReservationForContract(txn);
+                                    setBookingUnitId(txn.unit_id);
+                                    setBookingEoi(txn.eoi_amount.toString());
+                                    setDiscountPercent('0');
+                                    const uPrice = parseFloat(txn.unit?.price) || 0;
+                                    setDownPayment((uPrice * 0.1).toString());
+                                    setMaintenanceCost((uPrice * 0.08).toString());
+                                    setShowContractModal(true);
+                                  }}
+                                  className="btn-primary"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                >
+                                  Edit & Sign / تعديل وتوقيع الخطة
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleCancelBooking(txn.id)}
                                 className="btn-secondary"
@@ -1898,6 +2016,60 @@ const CompanySalesPortal: React.FC = () => {
                       required
                     />
                   </div>
+
+                  {/* Yearly Percentage Distribution Configuration */}
+                  <div style={{ marginTop: '14px', marginBottom: '14px', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                    {(() => {
+                      const plan = calculatePlan();
+                      const remainingToAmortize = plan.remaining;
+                      const totalAllocated = yearPercentages.reduce((s, p) => s + p, 0);
+                      return (
+                        <>
+                          <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>📅 Yearly Distribution / توزيع النسب السنوية</span>
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              fontWeight: 700, 
+                              color: Math.abs(totalAllocated - 100) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)'
+                            }}>
+                              Total: {totalAllocated}% / 100%
+                            </span>
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
+                            {yearPercentages.map((pct, idx) => {
+                              const yearlyAmount = remainingToAmortize * (pct / 100);
+                              return (
+                                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Year {idx + 1}</label>
+                                  <div style={{ position: 'relative' }}>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      style={{ paddingRight: '16px', fontSize: '0.75rem', padding: '4px 6px', height: '28px' }}
+                                      value={pct}
+                                      min="0"
+                                      max="100"
+                                      onChange={e => handleYearPercentageChange(idx, parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span style={{ position: 'absolute', right: '4px', top: '4px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>%</span>
+                                  </div>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--color-success)', fontWeight: 700, marginTop: '2px' }}>
+                                    {Math.round(yearlyAmount).toLocaleString()} EGP
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {Math.abs(totalAllocated - 100) > 0.01 && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--color-danger)', marginTop: '6px', display: 'block' }}>
+                              ⚠️ Warning: Total percentage must equal exactly 100% to submit.
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </>
               )}
 
@@ -1960,8 +2132,39 @@ const CompanySalesPortal: React.FC = () => {
                   setCustomAddons([]);
                   setShowContractModal(false); 
                   setSelectedReservationForContract(null); 
+                  setIsPlanSaved(false);
                 }}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }} disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}>Confirm & Generate Contract</button>
+                {selectedReservationForContract?.contract && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    <button 
+                      type="button" 
+                      className="btn-primary" 
+                      style={{ 
+                        background: isPlanSaved ? 'var(--color-success)' : 'var(--text-muted)', 
+                        borderColor: isPlanSaved ? 'var(--color-success)' : 'var(--text-muted)',
+                        cursor: isPlanSaved ? 'pointer' : 'not-allowed',
+                        opacity: isPlanSaved ? 1 : 0.6
+                      }}
+                      disabled={!isPlanSaved || (finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01)}
+                      onClick={() => handleSignContract(selectedReservationForContract.contract.id)}
+                    >
+                      توقيع وإرسال للحسابات / Sign & Send
+                    </button>
+                    {!isPlanSaved && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--color-warning)', fontWeight: 650, marginTop: '2px', display: 'block', maxWidth: '300px', textAlign: 'right' }}>
+                        ⚠️ يرجى حفظ خطة الدفع أولاً لتفعيل زر التوقيع والإرسال / Please save the payment plan first to enable Sign & Send.
+                      </span>
+                    )}
+                  </div>
+                )}
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }} 
+                  disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}
+                >
+                  {selectedReservationForContract?.contract ? 'حفظ التعديلات / Save Plan' : 'حفظ الخطة كمسودة / Save Plan'}
+                </button>
               </div>
             </form>
           </div>

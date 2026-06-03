@@ -168,6 +168,14 @@ class PaymentController extends Controller
         $activeContracts = Contract::active()->count();
         $completedContracts = Contract::where('status', 'completed')->count();
 
+        // Calculate Cash vs Bank balances
+        $cashBalance = Payment::where('status', 'paid')
+            ->where('gateway', 'cash')
+            ->sum('amount');
+        $bankBalance = Payment::where('status', 'paid')
+            ->where('gateway', '!=', 'cash')
+            ->sum('amount');
+
         // Recent payments
         $recentPayments = Payment::where('status', 'paid')
             ->with('contract.client')
@@ -190,6 +198,8 @@ class PaymentController extends Controller
                     : 0,
                 'active_contracts' => $activeContracts,
                 'completed_contracts' => $completedContracts,
+                'cash_balance' => (float) $cashBalance,
+                'bank_balance' => (float) $bankBalance,
             ],
             'recent_payments' => $recentPayments,
         ]);
@@ -242,5 +252,130 @@ class PaymentController extends Controller
             'owner' => '🔵 Finance Team (Finance)',
             'data' => $payments
         ], 200);
+    }
+
+    /**
+     * Collect a payment manually (Finance Officer operation).
+     */
+    public function collectPayment(Request $request, string $id)
+    {
+        $fields = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'gateway' => 'required|string|in:cash,bank_transfer,stripe,fawry',
+            'transaction_reference' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $payment = Payment::findOrFail($id);
+
+        if ($payment->status === 'paid') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This installment has already been paid.',
+            ], 400);
+        }
+
+        $officerId = $request->user()->id;
+        $originalAmount = (float) $payment->amount;
+        $paidAmount = (float) $fields['amount'];
+        $gateway = $fields['gateway'];
+        $transactionRef = $fields['transaction_reference'] ?? strtoupper(Str::random(16));
+        $notes = $fields['notes'];
+
+        // Determine if this is a partial payment or full payment
+        $isPartial = $paidAmount < $originalAmount;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $isPartial, $paidAmount, $originalAmount, $gateway, $transactionRef, $notes) {
+            if ($isPartial) {
+                // Partial payment:
+                // 1. Update current payment record to the collected amount, and mark as paid
+                $payment->update([
+                    'amount' => $paidAmount,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'gateway' => $gateway,
+                    'transaction_reference' => $transactionRef . ' (Partial)',
+                ]);
+
+                // 2. Create a new pending payment record for the remainder
+                $remainder = $originalAmount - $paidAmount;
+                Payment::create([
+                    'id' => (string) Str::uuid(),
+                    'contract_id' => $payment->contract_id,
+                    'payment_plan_id' => $payment->payment_plan_id,
+                    'amount' => $remainder,
+                    'status' => 'pending',
+                    'due_date' => $payment->due_date,
+                    'installment_number' => $payment->installment_number,
+                    'transaction_reference' => 'Remainder of installment #' . $payment->installment_number,
+                ]);
+
+                // Note: We do NOT decrement unpaid_installments because a remainder installment is still pending!
+            } else {
+                // Full payment:
+                // 1. Mark as paid
+                $payment->update([
+                    'amount' => $paidAmount, // in case they paid more or exact
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'gateway' => $gateway,
+                    'transaction_reference' => $transactionRef,
+                ]);
+
+                // 2. Decrement unpaid installments on the plan
+                $paymentPlan = $payment->paymentPlan;
+                if ($paymentPlan) {
+                    $paymentPlan->decrement('unpaid_installments');
+                    if ($paymentPlan->unpaid_installments <= 0) {
+                        $paymentPlan->update(['status' => 'completed']);
+                    }
+                }
+            }
+
+            // 3. Increment paid amount on the contract
+            $contract = $payment->contract;
+            if ($contract) {
+                $contract->increment('paid_amount', $paidAmount);
+                if ($contract->isPaid()) {
+                    $contract->update(['status' => 'completed']);
+                }
+            }
+        });
+
+        // Refetch updated models
+        $payment->refresh();
+        $contract = $payment->contract;
+        $clientId = $contract ? $contract->client_id : $request->user()->id;
+
+        // Emit decoupled event with the Client ID
+        event(new \App\Events\PaymentReceived(
+            $payment->id,
+            $clientId,
+            $paidAmount,
+            $contract->id ?? null,
+            $payment->installment_number,
+            $gateway,
+            $transactionRef
+        ));
+
+        // Audit Log
+        AuditLogService::log('PAYMENT_MANUAL_COLLECT', $officerId, [
+            'payment_id' => $payment->id,
+            'contract_id' => $contract->id ?? null,
+            'amount_collected' => $paidAmount,
+            'is_partial' => $isPartial,
+            'original_amount' => $originalAmount,
+            'gateway' => $gateway,
+            'transaction_reference' => $transactionRef,
+            'notes' => $notes,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $isPartial 
+                ? 'Partial payment collected successfully. Remainder installment created.'
+                : 'Payment collected successfully in full.',
+            'data' => $payment,
+        ]);
     }
 }

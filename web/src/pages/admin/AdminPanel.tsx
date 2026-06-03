@@ -48,6 +48,7 @@ interface LeadItem {
   lead_score: number;
   assigned_sales_agent_id: string | null;
   agent?: UserItem;
+  source?: string | null;
   created_at: string;
 }
 
@@ -122,6 +123,7 @@ const AdminPanel: React.FC = () => {
     maintenance_mode: 'false',
     system_name: 'Ether REDP',
     system_logo_url: '',
+    system_icon_url: '',
     system_icon_name: 'Building2',
     mail_host: 'smtp.mailtrap.io',
     mail_port: '2525',

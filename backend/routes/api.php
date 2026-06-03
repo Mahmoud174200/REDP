@@ -235,6 +235,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/payments/{contractId}', [PaymentController::class, 'getInstallments']);
             Route::get('/payments/{contractId}/history', [PaymentController::class, 'getPaymentHistory']);
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
+            Route::post('/payments/{id}/collect', [PaymentController::class, 'collectPayment']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
@@ -246,8 +247,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/aging-report', [CollectionController::class, 'getAgingReport']);
         });
 
-        // ── Legal and Contract operations (Legal Team and Finance Officer) ──
-        Route::middleware('role:finance_officer,legal_officer')->group(function () {
+        // ── Legal and Contract operations (Legal Team, Finance Officer, and Company Sales Rep) ──
+        Route::middleware('role:finance_officer,legal_officer,company_sales')->group(function () {
             // Contract management
             Route::get('/contracts', [ContractController::class, 'index']);
             Route::get('/contracts/{id}', [ContractController::class, 'show']);

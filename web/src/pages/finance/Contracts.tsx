@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Search, Download, PenTool, Eye, X, AlertTriangle, Plus } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Search, Download, PenTool, Eye, X, AlertTriangle, Plus, Calendar, DollarSign, Wallet, CreditCard, CheckCircle2 } from 'lucide-react';
 import api from '../../services/api';
+import { ToastContainer } from '../../components/Toast';
 
 interface ContractData {
   id: string;
@@ -23,8 +24,27 @@ const Contracts: React.FC = () => {
   const [contracts, setContracts] = useState<ContractData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
+  const [selectedContract, setSelectedContract] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  // Payment Collection States (for modal)
+  const [selectedPaymentForCollection, setSelectedPaymentForCollection] = useState<any | null>(null);
+  const [collectAmount, setCollectAmount] = useState('');
+  const [collectGateway, setCollectGateway] = useState<'cash' | 'bank_transfer' | 'stripe' | 'fawry'>('cash');
+  const [collectRef, setCollectRef] = useState('');
+  const [collectNotes, setCollectNotes] = useState('');
+  const [isCollecting, setIsCollecting] = useState(false);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const fetchContracts = async () => {
     setIsLoading(true);
@@ -64,12 +84,12 @@ const Contracts: React.FC = () => {
     try {
       const res = await api.post(`/v1/finance/contracts/${id}/sign`);
       if (res.data?.success) {
-        alert('Contract signed successfully.');
+        showToast('Contract signed successfully.', 'success');
         fetchContracts();
       }
     } catch (err) {
       console.error('Failed to sign contract:', err);
-      alert('Error signing contract.');
+      showToast('Error signing contract.', 'error');
     }
   };
 
@@ -78,13 +98,366 @@ const Contracts: React.FC = () => {
     try {
       const res = await api.post(`/v1/finance/contracts/${id}/cancel`);
       if (res.data?.success) {
-        alert('Contract cancelled successfully.');
+        showToast('Contract cancelled successfully.', 'success');
         setSelectedContract(null);
         fetchContracts();
       }
     } catch (err) {
       console.error('Failed to cancel contract:', err);
-      alert('Error cancelling contract.');
+      showToast('Error cancelling contract.', 'error');
+    }
+  };
+
+  const handleViewContract = async (id: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const response = await api.get(`/v1/finance/contracts/${id}`);
+      if (response.data && response.data.success) {
+        setSelectedContract(response.data.data);
+      } else {
+        showToast('Failed to load contract details.', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fetch contract details:', err);
+      showToast('Error loading contract details.', 'error');
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const handlePrintReceipt = (payment: any) => {
+    if (!selectedContract) return;
+
+    const receiptWindow = window.open('', '_blank');
+    if (!receiptWindow) {
+      showToast('Popup blocker prevented opening the receipt. Please allow popups.', 'error');
+      return;
+    }
+
+    const clientName = selectedContract.client?.name || selectedContract.client_name || 'N/A';
+    const unitNumber = selectedContract.unit?.unit_number || selectedContract.unit_number || 'N/A';
+    const projectName = selectedContract.unit?.project?.name || selectedContract.project_name || 'N/A';
+    const contractNum = selectedContract.contract_number || 'N/A';
+    const amountVal = parseFloat(payment.amount) || 0;
+    const dateStr = payment.paid_at ? new Date(payment.paid_at).toLocaleString('ar-EG') : new Date().toLocaleString('ar-EG');
+    const paymentMethodMap: Record<string, string> = {
+      cash: '💵 Cash / نقدي',
+      bank_transfer: '🏛️ Bank Transfer / تحويل بنكي',
+      stripe: '💳 Credit Card (Stripe) / فيزا',
+      fawry: '⚡ Fawry / فوري'
+    };
+    const methodText = paymentMethodMap[payment.gateway] || payment.gateway || 'Manual / يدوي';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <title>إيصال استلام نقدية - REDP</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Cairo', 'Outfit', sans-serif;
+            background: #ffffff;
+            color: #1d2d24;
+            margin: 0;
+            padding: 40px;
+            direction: rtl;
+            text-align: right;
+          }
+          .receipt-box {
+            border: 2px solid #32473a;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 750px;
+            margin: 0 auto;
+            background: #fcfdfc;
+            box-shadow: 0 4px 12px rgba(50, 71, 58, 0.05);
+            position: relative;
+          }
+          .receipt-box::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 1px solid rgba(50, 71, 58, 0.1);
+            border-radius: 14px;
+            pointer-events: none;
+            margin: 4px;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #32473a;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+          }
+          .logo-area h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 800;
+            color: #32473a;
+            letter-spacing: 2px;
+          }
+          .logo-area p {
+            margin: 2px 0 0 0;
+            font-size: 11px;
+            color: #5c7064;
+            letter-spacing: 1px;
+          }
+          .title-area {
+            text-align: left;
+          }
+          .title-area h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: #32473a;
+          }
+          .title-area p {
+            margin: 4px 0 0 0;
+            font-size: 13px;
+            color: #5c7064;
+          }
+          .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          .details-table td {
+            padding: 12px 10px;
+            border-bottom: 1px dashed rgba(50, 71, 58, 0.15);
+            font-size: 14px;
+          }
+          .details-table td.label {
+            font-weight: 700;
+            color: #5c7064;
+            width: 30%;
+          }
+          .details-table td.value {
+            color: #1d2d24;
+          }
+          .amount-box {
+            background: #e4ede2;
+            border: 1.5px solid #32473a;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .amount-box span {
+            font-size: 16px;
+            font-weight: 700;
+            color: #32473a;
+          }
+          .amount-box strong {
+            font-size: 22px;
+            color: #2e7d32;
+          }
+          .footer-sigs {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(50, 71, 58, 0.1);
+          }
+          .sig-block {
+            text-align: center;
+            width: 45%;
+          }
+          .sig-block p {
+            font-size: 13px;
+            color: #5c7064;
+            margin: 0 0 45px 0;
+          }
+          .sig-line {
+            border-top: 1.5px solid #32473a;
+            width: 180px;
+            margin: 0 auto;
+            padding-top: 5px;
+            font-size: 12px;
+            color: #1d2d24;
+            font-weight: 600;
+          }
+          .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 90px;
+            font-weight: 800;
+            color: rgba(46, 125, 50, 0.04);
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 5px;
+          }
+          @media print {
+            body {
+              padding: 0;
+              background: #ffffff;
+            }
+            .receipt-box {
+              border: none;
+              box-shadow: none;
+              padding: 10px;
+              max-width: 100%;
+            }
+            .receipt-box::after {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt-box">
+          <div class="watermark">REDP</div>
+          
+          <div class="header">
+            <div class="logo-area">
+              <h1>REDP</h1>
+              <p>REAL ESTATE DEVELOPMENT</p>
+            </div>
+            <div class="title-area">
+              <h2>إيصال استلام نقدية</h2>
+              <p>OFFICIAL RECEIPT</p>
+            </div>
+          </div>
+
+          <div class="amount-box">
+            <span>المبلغ المستلم / Amount Received:</span>
+            <strong>${amountVal.toLocaleString('ar-EG')} جنيه مصري / EGP</strong>
+          </div>
+
+          <table class="details-table">
+            <tr>
+              <td class="label">رقم الإيصال / Receipt No:</td>
+              <td class="value"><strong>REC-${payment.id}</strong></td>
+            </tr>
+            <tr>
+              <td class="label">تاريخ التحصيل / Date:</td>
+              <td class="value">${dateStr}</td>
+            </tr>
+            <tr>
+              <td class="label">استلمنا من السيد/السيدة / Received From:</td>
+              <td class="value"><strong>${clientName}</strong></td>
+            </tr>
+            <tr>
+              <td class="label">وذلك قيمة / For:</td>
+              <td class="value">
+                ${payment.installment_number === 0 ? 'مقدم التعاقد / Down Payment' : `قسط شهر ${payment.installment_number} / Installment Month ${payment.installment_number}`} 
+                - بموجب عقد رقم: (${contractNum})
+              </td>
+            </tr>
+            <tr>
+              <td class="label">الوحدة / Unit:</td>
+              <td class="value">وحدة رقم (${unitNumber}) - مشروع (${projectName})</td>
+            </tr>
+            <tr>
+              <td class="label">طريقة الدفع / Payment Method:</td>
+              <td class="value">${methodText}</td>
+            </tr>
+            ${payment.transaction_reference ? `
+            <tr>
+              <td class="label">رقم المعاملة / Reference No:</td>
+              <td class="value"><code style="font-family: monospace; font-weight: 600;">${payment.transaction_reference}</code></td>
+            </tr>
+            ` : ''}
+            ${payment.notes ? `
+            <tr>
+              <td class="label">ملاحظات / Notes:</td>
+              <td class="value"><em>${payment.notes}</em></td>
+            </tr>
+            ` : ''}
+          </table>
+
+          <div class="footer-sigs">
+            <div class="sig-block">
+              <p>توقيع المستلم / Receiver Signature</p>
+              <div class="sig-line">موظف الحسابات / Accounts Officer</div>
+            </div>
+            <div class="sig-block">
+              <p>خاتم الشركة / Official Seal</p>
+              <div class="sig-line">خزينة الشركة / REDP Treasury</div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    receiptWindow.document.open();
+    receiptWindow.document.write(htmlContent);
+    receiptWindow.document.close();
+  };
+
+  const handleOpenCollect = (payment: any) => {
+    setSelectedPaymentForCollection(payment);
+    setCollectAmount(payment.amount.toString());
+    setCollectGateway('cash');
+    setCollectRef('');
+    setCollectNotes('');
+  };
+
+  const handleCollectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPaymentForCollection || !selectedContract) return;
+
+    const amountNum = parseFloat(collectAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showToast('Please enter a valid amount.', 'error');
+      return;
+    }
+
+    if (amountNum > parseFloat(selectedPaymentForCollection.amount)) {
+      showToast('Collected amount cannot exceed the scheduled installment amount.', 'error');
+      return;
+    }
+
+    setIsCollecting(true);
+    try {
+      const res = await api.post(`/v1/finance/payments/${selectedPaymentForCollection.id}/collect`, {
+        amount: amountNum,
+        gateway: collectGateway,
+        transaction_reference: collectRef,
+        notes: collectNotes
+      });
+
+      if (res.data?.success) {
+        showToast(res.data.message || 'Payment collected successfully.', 'success');
+        
+        // Print Receipt Automatically
+        const updatedPayment = res.data.data;
+        if (updatedPayment) {
+          handlePrintReceipt(updatedPayment);
+        }
+
+        setSelectedPaymentForCollection(null);
+        
+        // Refresh contract details modal to reflect paid installment
+        await handleViewContract(selectedContract.id);
+        
+        // Refresh main contracts table in background
+        await fetchContracts();
+      } else {
+        showToast(res.data?.message || 'Error collecting payment.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Failed to collect payment:', err);
+      showToast(err.response?.data?.message || 'An error occurred while collecting payment.', 'error');
+    } finally {
+      setIsCollecting(false);
     }
   };
 
@@ -229,7 +602,7 @@ const Contracts: React.FC = () => {
                   <td style={{ fontSize: '0.8rem' }}>{contract.signed_at || '—'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => setSelectedContract(contract)}>
+                      <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => handleViewContract(contract.id)}>
                         <Eye size={12} /> View
                       </button>
                       {(contract.status === 'draft' || contract.status === 'pending_signature') && (
@@ -248,75 +621,198 @@ const Contracts: React.FC = () => {
 
       {/* Contract Detail Modal */}
       {selectedContract && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px',
-        }} onClick={() => setSelectedContract(null)}>
-          <div className="glass-panel" style={{ maxWidth: '640px', width: '100%', padding: '32px', position: 'relative', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop" onClick={() => setSelectedContract(null)}>
+          <div className="modal-content" style={{ maxWidth: '850px', width: '100%', padding: '32px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedContract(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
               <X size={20} />
             </button>
 
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '4px' }}>{selectedContract.contract_number}</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px' }}>Contract Details & Payment Timeline</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '16px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>{selectedContract.contract_number}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '4px 0 0 0' }}>Contract Details & Payment Timeline</p>
+              </div>
+              <span className={`badge ${getStatusConfig(selectedContract.status).class}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                {getStatusConfig(selectedContract.status).icon} {getStatusConfig(selectedContract.status).label}
+              </span>
+            </div>
 
             {/* Contract Info Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-              {[
-                { label: 'Client', value: selectedContract.client_name },
-                { label: 'Unit', value: `${selectedContract.unit_number} — ${selectedContract.project_name}` },
-                { label: 'Type', value: selectedContract.type },
-                { label: 'Status', value: selectedContract.status },
-                { label: 'Created', value: selectedContract.created_at },
-                { label: 'Signed', value: selectedContract.signed_at || 'Not yet signed' },
-              ].map((item, i) => (
-                <div key={i} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</span>
-                  <p style={{ fontWeight: 600, marginTop: '4px', textTransform: 'capitalize' }}>{item.value}</p>
-                </div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
+              {/* Client Card */}
+              <div style={{ padding: '14px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.55)', border: '1px solid var(--border-glass)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Client Profile</span>
+                <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: '6px 0 2px 0', color: 'var(--text-main)' }}>{selectedContract.client?.name || selectedContract.client_name || 'N/A'}</p>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{selectedContract.client?.email || selectedContract.client_email || 'N/A'}</span>
+              </div>
+              
+              {/* Unit Card */}
+              <div style={{ padding: '14px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.55)', border: '1px solid var(--border-glass)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Property Unit</span>
+                <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: '6px 0 2px 0', color: 'var(--text-main)' }}>Unit {selectedContract.unit?.unit_number || selectedContract.unit_number || 'N/A'}</p>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{selectedContract.unit?.project?.name || selectedContract.project_name || 'N/A'}</span>
+              </div>
+
+              {/* Payment Plan Card */}
+              <div style={{ padding: '14px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.55)', border: '1px solid var(--border-glass)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Payment Structure</span>
+                <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: '6px 0 2px 0', color: 'var(--text-main)' }}>{selectedContract.type === 'cash' ? 'Full Cash' : `Installment Plan`}</p>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {selectedContract.payment_plan?.total_installments || selectedContract.installments_count || 0} installments
+                </span>
+              </div>
             </div>
 
             {/* Financial Summary */}
-            <div style={{ padding: '20px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Financial Summary</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div style={{ padding: '20px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.04)', border: '1px solid rgba(50, 71, 58, 0.15)', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Financial Ledger Summary</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                  {Math.round(((parseFloat(selectedContract.paid_amount) || 0) / Math.max(1, parseFloat(selectedContract.total_amount) || 1)) * 100)}% Collected
+                </span>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Total Amount</span>
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)' }}>{selectedContract.total_amount.toLocaleString()}</h4>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--text-main)' }}>
+                    {(parseFloat(selectedContract.total_amount) || 0).toLocaleString()} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>EGP</span>
+                  </h4>
                 </div>
                 <div>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Paid Amount</span>
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-success)' }}>{selectedContract.paid_amount.toLocaleString()}</h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Total Paid to Date</span>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-success)' }}>
+                    {(parseFloat(selectedContract.paid_amount) || 0).toLocaleString()} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>EGP</span>
+                  </h4>
                 </div>
                 <div>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Outstanding</span>
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-danger)' }}>{(selectedContract.total_amount - selectedContract.paid_amount).toLocaleString()}</h4>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Outstanding Balance</span>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-danger)' }}>
+                    {((parseFloat(selectedContract.total_amount) || 0) - (parseFloat(selectedContract.paid_amount) || 0)).toLocaleString()} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>EGP</span>
+                  </h4>
                 </div>
               </div>
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Collection Progress</span>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{Math.round((selectedContract.paid_amount / selectedContract.total_amount) * 100)}%</span>
-                </div>
-                <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: `${(selectedContract.paid_amount / selectedContract.total_amount) * 100}%`, height: '100%', borderRadius: '3px', background: 'linear-gradient(90deg, var(--color-primary), var(--color-success))' }} />
-                </div>
+
+              <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(50, 71, 58, 0.1)' }}>
+                <div style={{ 
+                  width: `${((parseFloat(selectedContract.paid_amount) || 0) / Math.max(1, parseFloat(selectedContract.total_amount) || 1)) * 100}%`, 
+                  height: '100%', 
+                  borderRadius: '3px', 
+                  background: 'linear-gradient(90deg, var(--color-secondary), var(--color-success))',
+                  transition: 'width 0.6s ease'
+                }} />
               </div>
             </div>
 
-            {/* Payment Plan Info */}
-            <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)', marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Payment Plan</h4>
-              <div style={{ display: 'flex', gap: '24px' }}>
-                <div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Installments</span>
-                  <p style={{ fontWeight: 700 }}>{selectedContract.installments_count}</p>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Monthly Amount</span>
-                  <p style={{ fontWeight: 700 }}>{selectedContract.monthly_amount.toLocaleString()} EGP</p>
-                </div>
+            {/* Detailed Installments Table */}
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+                <Calendar size={16} style={{ color: 'var(--color-primary)' }} />
+                📅 خطة دفع الأقساط والتحصيل (Installment Plan & Collection Schedule)
+              </h3>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.25)' }}>
+                <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.75rem', margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'left' }}>Month / الدفعة</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'left' }}>Type / البيان</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'left' }}>Due Date / الاستحقاق</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'right' }}>Amount / القيمة</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'center' }}>Status / الحالة</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'left' }}>Receipt / Reference</th>
+                      <th style={{ position: 'sticky', top: 0, background: '#e4ede2', zIndex: 10, padding: '12px 14px', borderBottom: '2px solid var(--border-glass)', color: 'var(--text-main)', fontWeight: 700, textAlign: 'center' }}>Action / الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!selectedContract.payments || selectedContract.payments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>
+                          No payment schedule generated yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      selectedContract.payments.map((payment: any) => {
+                        const isOverdue = payment.status === 'pending' && new Date(payment.due_date) < new Date();
+                        return (
+                          <tr key={payment.id} style={{ background: payment.status === 'paid' ? 'rgba(46, 125, 50, 0.05)' : 'transparent', transition: 'background-color 0.2s' }}>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', fontWeight: 600 }}>
+                              {payment.installment_number === 0 ? 'Down Payment / مقدم' : `Month ${payment.installment_number}`}
+                            </td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', color: 'var(--text-muted)' }}>
+                              {payment.transaction_reference || (payment.installment_number === 0 ? 'Down Payment/EOI' : 'Installment')}
+                            </td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)' }}>{payment.due_date}</td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {(parseFloat(payment.amount) || 0).toLocaleString()} EGP
+                            </td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'center' }}>
+                              {payment.status === 'paid' && (
+                                <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
+                                  <CheckCircle size={10} /> Paid
+                                </span>
+                              )}
+                              {payment.status === 'pending' && !isOverdue && (
+                                <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
+                                  <Clock size={10} /> Pending
+                                </span>
+                              )}
+                              {payment.status === 'pending' && isOverdue && (
+                                <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
+                                  <AlertTriangle size={10} /> Overdue
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)' }}>
+                              {payment.status === 'paid' ? (
+                                <div style={{ fontSize: '0.7rem' }}>
+                                  <span style={{ textTransform: 'capitalize', fontWeight: 600, color: 'var(--color-primary)' }}>
+                                    {payment.gateway ? payment.gateway.replace('_', ' ') : 'Manual'}
+                                  </span>
+                                  {payment.transaction_reference && (
+                                    <div style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: '2px' }}>
+                                      Ref: {payment.transaction_reference}
+                                    </div>
+                                  )}
+                                  {payment.paid_at && (
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                      Date: {payment.paid_at.substring(0, 10)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)' }}>—</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'center' }}>
+                              {payment.status === 'pending' ? (
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '0.68rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                  onClick={() => handleOpenCollect(payment)}
+                                >
+                                  <DollarSign size={10} /> تحصيل / Collect
+                                </button>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                  <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '0.7rem' }}>✓ Done / تم الدفع</span>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    style={{ padding: '3px 6px', fontSize: '0.65rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.9)' }}
+                                    onClick={() => handlePrintReceipt(payment)}
+                                  >
+                                    🖨️ Receipt / إيصال
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -327,13 +823,103 @@ const Contracts: React.FC = () => {
               </button>
               {selectedContract.status !== 'cancelled' && selectedContract.status !== 'completed' && (
                 <button className="btn-secondary" style={{ padding: '12px 20px' }} onClick={() => handleCancel(selectedContract.id)}>
-                  <AlertTriangle size={14} /> Cancel
+                  <AlertTriangle size={14} /> Cancel Contract
                 </button>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Nested Collect Payment Modal */}
+      {selectedPaymentForCollection && selectedContract && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }} onClick={() => setSelectedPaymentForCollection(null)}>
+          <div className="modal-content" style={{ maxWidth: '480px', width: '100%', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Wallet size={18} style={{ color: 'var(--color-success)' }} />
+                Collect Payment / تسجيل تحصيل دفعة
+              </h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem', padding: 0 }} onClick={() => setSelectedPaymentForCollection(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', background: 'rgba(50, 71, 58, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+              <div>Client: <strong>{selectedContract.client?.name || selectedContract.client_name}</strong></div>
+              <div>Contract: <strong>{selectedContract.contract_number}</strong></div>
+              <div>Installment: <strong>{selectedPaymentForCollection.installment_number === 0 ? 'Down Payment / مقدم' : `Month ${selectedPaymentForCollection.installment_number}`}</strong></div>
+              <div>Scheduled Amount: <strong style={{ color: 'var(--color-primary)' }}>{(parseFloat(selectedPaymentForCollection.amount) || 0).toLocaleString()} EGP</strong></div>
+              <div>Due Date: <strong>{selectedPaymentForCollection.due_date}</strong></div>
+            </div>
+
+            <form onSubmit={handleCollectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Payment Method / طريقة الدفع</label>
+                <select className="form-control" value={collectGateway} onChange={e => setCollectGateway(e.target.value as any)} style={{ fontSize: '0.8rem' }}>
+                  <option value="cash">💵 Cash (نقدي)</option>
+                  <option value="bank_transfer">🏛️ Bank Transfer (تحويل بنكي)</option>
+                  <option value="stripe">💳 Stripe (بوابة إلكترونية)</option>
+                  <option value="fawry">⚡ Fawry (فوري)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Amount Collected / القيمة المحصلة (EGP)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={collectAmount}
+                  onChange={e => setCollectAmount(e.target.value)}
+                  placeholder="Enter collected amount"
+                  required
+                  style={{ fontSize: '0.8rem' }}
+                />
+                {parseFloat(collectAmount) < parseFloat(selectedPaymentForCollection.amount) && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)', marginTop: '4px', display: 'block' }}>
+                    ⚠️ Warning: This is a partial payment. A new pending installment of {(parseFloat(selectedPaymentForCollection.amount) - parseFloat(collectAmount)).toLocaleString()} EGP will be created for the remainder.
+                  </span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Receipt / Transaction Reference (رقم الإيصال / المعاملة)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={collectRef}
+                  onChange={e => setCollectRef(e.target.value)}
+                  placeholder="e.g. REC-10294 or bank txn reference"
+                  style={{ fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Notes / ملاحظات</label>
+                <textarea
+                  className="form-control"
+                  value={collectNotes}
+                  onChange={e => setCollectNotes(e.target.value)}
+                  placeholder="Optional collection notes..."
+                  rows={2}
+                  style={{ fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setSelectedPaymentForCollection(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'var(--color-success)', borderColor: 'var(--color-success)' }} disabled={isCollecting}>
+                  {isCollecting ? 'Recording...' : 'Confirm Receipt'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
