@@ -2120,51 +2120,53 @@ const CompanySalesPortal: React.FC = () => {
                 <textarea className="form-control" value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} placeholder="Agreed installment dates, grace periods, etc..." style={{ height: '60px' }} />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" className="btn-secondary" onClick={() => { 
-                  setBookingUnitId('');
-                  setBookingNotes('');
-                  setDiscountPercent('0');
-                  setDownPayment('');
-                  setIncludeClub(false);
-                  setIncludeGarage(false);
-                  setIncludeMaintenance(false);
-                  setCustomAddons([]);
-                  setShowContractModal(false); 
-                  setSelectedReservationForContract(null); 
-                  setIsPlanSaved(false);
-                }}>Cancel</button>
-                {selectedReservationForContract?.contract && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  <button type="button" className="btn-secondary" onClick={() => { 
+                    setBookingUnitId('');
+                    setBookingNotes('');
+                    setDiscountPercent('0');
+                    setDownPayment('');
+                    setIncludeClub(false);
+                    setIncludeGarage(false);
+                    setIncludeMaintenance(false);
+                    setCustomAddons([]);
+                    setShowContractModal(false); 
+                    setSelectedReservationForContract(null); 
+                    setIsPlanSaved(false);
+                  }}>Cancel</button>
+                  {selectedReservationForContract?.contract && (
                     <button 
                       type="button" 
                       className="btn-primary" 
                       style={{ 
-                        background: isPlanSaved ? 'var(--color-success)' : 'var(--text-muted)', 
-                        borderColor: isPlanSaved ? 'var(--color-success)' : 'var(--text-muted)',
+                        background: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.12)', 
+                        color: isPlanSaved ? '#ffffff' : 'var(--text-muted)',
+                        border: '1px solid',
+                        borderColor: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.2)',
                         cursor: isPlanSaved ? 'pointer' : 'not-allowed',
-                        opacity: isPlanSaved ? 1 : 0.6
+                        opacity: isPlanSaved ? 1 : 0.8
                       }}
                       disabled={!isPlanSaved || (finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01)}
                       onClick={() => handleSignContract(selectedReservationForContract.contract.id)}
                     >
                       توقيع وإرسال للحسابات / Sign & Send
                     </button>
-                    {!isPlanSaved && (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--color-warning)', fontWeight: 650, marginTop: '2px', display: 'block', maxWidth: '300px', textAlign: 'right' }}>
-                        ⚠️ يرجى حفظ خطة الدفع أولاً لتفعيل زر التوقيع والإرسال / Please save the payment plan first to enable Sign & Send.
-                      </span>
-                    )}
-                  </div>
+                  )}
+                  <button 
+                    type="submit" 
+                    className="btn-primary" 
+                    style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }} 
+                    disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}
+                  >
+                    {selectedReservationForContract?.contract ? 'حفظ التعديلات / Save Plan' : 'حفظ الخطة كمسودة / Save Plan'}
+                  </button>
+                </div>
+                {selectedReservationForContract?.contract && !isPlanSaved && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-warning)', fontWeight: 650, display: 'block', textAlign: 'right' }}>
+                    ⚠️ يرجى حفظ خطة الدفع أولاً لتفعيل زر التوقيع والإرسال / Please save the payment plan first to enable Sign & Send.
+                  </span>
                 )}
-                <button 
-                  type="submit" 
-                  className="btn-primary" 
-                  style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }} 
-                  disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}
-                >
-                  {selectedReservationForContract?.contract ? 'حفظ التعديلات / Save Plan' : 'حفظ الخطة كمسودة / Save Plan'}
-                </button>
               </div>
             </form>
           </div>
