@@ -81,6 +81,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+<<<<<<< HEAD
         $clientUser2 = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Sherif Kamal',
@@ -91,6 +92,8 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+=======
+>>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
         $brokerUser = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Ahmed Broker',
@@ -106,17 +109,28 @@ class DatabaseSeeder extends Seeder
             'name' => 'Sara TeleSales',
             'email' => 'tele_sales@redp.com',
             'password' => bcrypt('password'),
+<<<<<<< HEAD
             'phone' => '+201005555511',
+=======
+            'phone' => '+201007777776',
+>>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
             'role' => 'tele_sales',
             'status' => 'active',
         ]);
 
         $companySalesUser = User::create([
             'id' => (string) Str::uuid(),
+<<<<<<< HEAD
             'name' => 'Karim CompanySales',
             'email' => 'company_sales@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201005555522',
+=======
+            'name' => 'Mostafa CompanySales',
+            'email' => 'company_sales@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201009999993',
+>>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
             'role' => 'company_sales',
             'status' => 'active',
         ]);
@@ -198,6 +212,19 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'phone' => '+201009999994',
             'role' => 'compliance_officer',
+<<<<<<< HEAD
+=======
+            'status' => 'active',
+        ]);
+
+        $clientUser2 = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Sherif Kamal',
+            'email' => 'client2@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201509998887',
+            'role' => 'client',
+>>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
             'status' => 'active',
         ]);
 
@@ -298,6 +325,7 @@ class DatabaseSeeder extends Seeder
 
         // ── 5. Create Brokers ──
         $brokerRemax = Broker::create([
+            'user_id' => $brokerUser->id,
             'agency_name' => 'RE/MAX Egypt',
             'agent_name' => 'Ahmed Ali',
             'email' => 'remax@redp.com',

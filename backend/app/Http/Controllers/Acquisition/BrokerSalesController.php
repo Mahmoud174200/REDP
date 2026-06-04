@@ -149,7 +149,7 @@ class BrokerSalesController extends Controller
         }
 
         $query = Lead::where('broker_id', $broker->id)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(5)]);
+            ->with(['interactions' => fn($q) => $q->latest()->limit(5), 'interestedProject']);
 
         if ($request->has('status')) {
             $query->byStatus($request->input('status'));
@@ -184,7 +184,7 @@ class BrokerSalesController extends Controller
         $broker = Broker::where('user_id', $user->id)->firstOrFail();
 
         $lead = Lead::where('broker_id', $broker->id)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(10)])
+            ->with(['interactions' => fn($q) => $q->latest()->limit(10), 'interestedProject'])
             ->findOrFail($id);
 
         return response()->json([

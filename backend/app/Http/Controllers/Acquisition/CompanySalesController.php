@@ -49,6 +49,7 @@ class CompanySalesController extends Controller
             'companySalesAgent:id,name,email',
             'broker:id,agency_name,agent_name',
             'interactions' => fn($q) => $q->latest()->limit(5),
+            'interestedProject',
         ]);
 
         // Optional: filter only leads assigned to this agent
@@ -103,6 +104,7 @@ class CompanySalesController extends Controller
             'presentations' => fn($q) => $q->with(['broker:id,name', 'project:id,name'])->latest(),
             'journeyLogs' => fn($q) => $q->with('actor:id,name,role')->oldest(),
             'commissions',
+            'interestedProject',
         ])->findOrFail($id);
 
         return response()->json([

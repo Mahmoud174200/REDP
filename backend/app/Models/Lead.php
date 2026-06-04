@@ -67,6 +67,9 @@ class Lead extends Model
         'source',
         'campaign_id',
         'broker_id',
+        'budget',
+        'payment_method',
+        'interested_project_id',
     ];
 
     protected $casts = [
@@ -112,6 +115,11 @@ class Lead extends Model
     public function broker(): BelongsTo
     {
         return $this->belongsTo(Broker::class);
+    }
+
+    public function interestedProject(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'interested_project_id');
     }
 
     public function interactions(): HasMany
