@@ -473,7 +473,8 @@ class CompanySalesController extends Controller
         $query = Reservation::with([
             'unit.project',
             'client:id,name,email,phone',
-            'contract',
+            'contract.paymentPlan',
+            'contract.payments' => fn($q) => $q->orderBy('installment_number'),
         ]);
 
         if ($request->has('status')) {

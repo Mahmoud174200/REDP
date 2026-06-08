@@ -149,11 +149,107 @@ const CompanySalesPortal: React.FC = () => {
   const [yearPercentages, setYearPercentages] = useState<number[]>([]);
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
   const [isPlanSaved, setIsPlanSaved] = useState(false);
+  const [savedSchedule, setSavedSchedule] = useState<any[]>([]);
 
   const getCashDueDate = () => {
     const date = new Date();
     date.setDate(date.getDate() + cashGracePeriod);
     return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+  };
+
+  // Helper: Load existing contract data into modal form when reopening
+  const loadContractDataIntoModal = (txn: any) => {
+    setSelectedReservationForContract(txn);
+    setBookingUnitId(txn.unit_id);
+    setBookingEoi(txn.eoi_amount.toString());
+
+    const contract = txn.contract;
+    const payments = contract?.payments || [];
+    const uPrice = parseFloat(txn.unit?.price) || 0;
+
+    // Load notes from contract
+    if (contract?.notes && contract.notes !== 'Generated from reservation.') {
+      setBookingNotes(contract.notes);
+    } else {
+      setBookingNotes('');
+    }
+
+    // Load payment method from contract type
+    if (contract?.type === 'installment') {
+      setFinalPaymentMethod('installment');
+    } else if (contract?.type === 'sale' || contract?.type === 'cash') {
+      setFinalPaymentMethod('cash');
+    }
+
+    // Extract down payment from saved payments
+    const dpPayment = payments.find((p: any) => p.transaction_reference?.includes('Down Payment') || p.transaction_reference?.includes('دفعة مقدمة'));
+    if (dpPayment) {
+      setDownPayment(parseFloat(dpPayment.amount).toString());
+    } else {
+      setDownPayment((uPrice * 0.1).toString());
+    }
+
+    // Try to derive discount from saved data
+    const totalScheduledAmount = payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+    if (totalScheduledAmount > 0 && totalScheduledAmount < uPrice) {
+      const discountVal = ((uPrice - totalScheduledAmount) / uPrice) * 100;
+      if (discountVal > 0.5 && discountVal < 100) {
+        setDiscountPercent(Math.round(discountVal).toString());
+      } else {
+        setDiscountPercent('0');
+      }
+    } else {
+      setDiscountPercent('0');
+    }
+
+    // Extract maintenance from saved payments
+    const maintenancePayments = payments.filter((p: any) => 
+      p.transaction_reference?.includes('Maintenance') || p.transaction_reference?.includes('صيانة')
+    );
+    if (maintenancePayments.length > 0) {
+      const maintenanceTotal = maintenancePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setMaintenanceCost(maintenanceTotal.toString());
+      setIncludeMaintenance(true);
+    } else {
+      setMaintenanceCost((uPrice * 0.08).toString());
+      setIncludeMaintenance(false);
+    }
+
+    // Extract club membership from saved payments
+    const clubPayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Club') || p.transaction_reference?.includes('نادي')
+    );
+    if (clubPayments.length > 0) {
+      const clubTotal = clubPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setClubCost(clubTotal.toString());
+      setIncludeClub(true);
+    } else {
+      setIncludeClub(false);
+    }
+
+    // Extract garage from saved payments
+    const garagePayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Garage') || p.transaction_reference?.includes('جراج')
+    );
+    if (garagePayments.length > 0) {
+      const garageTotal = garagePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setGarageCost(garageTotal.toString());
+      setIncludeGarage(true);
+    } else {
+      setIncludeGarage(false);
+    }
+
+    // Build saved schedule for display
+    const schedule = payments.map((p: any) => ({
+      label: p.transaction_reference || `Payment #${p.installment_number}`,
+      amount: parseFloat(p.amount) || 0,
+      dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+      status: p.status,
+      installmentNumber: p.installment_number,
+    }));
+    setSavedSchedule(schedule);
+    setIsPlanSaved(true);
+    setShowContractModal(true);
   };
 
 
@@ -1012,6 +1108,7 @@ const CompanySalesPortal: React.FC = () => {
           setIncludeGarage(false);
           setIncludeMaintenance(false);
           setCustomAddons([]);
+          setSavedSchedule([]);
           setIsPlanSaved(false);
           await fetchPortalData();
         } else {
@@ -1023,6 +1120,16 @@ const CompanySalesPortal: React.FC = () => {
               contract: generatedContract
             };
           });
+          // Update saved schedule from returned contract payments
+          const returnedPayments = generatedContract?.payments || [];
+          const newSavedSchedule = returnedPayments.map((p: any) => ({
+            label: p.transaction_reference || `Payment #${p.installment_number}`,
+            amount: parseFloat(p.amount) || 0,
+            dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+            status: p.status,
+            installmentNumber: p.installment_number,
+          }));
+          setSavedSchedule(newSavedSchedule);
           setIsPlanSaved(true);
           await fetchPortalData();
         }
@@ -1051,6 +1158,7 @@ const CompanySalesPortal: React.FC = () => {
         setIncludeGarage(false);
         setIncludeMaintenance(false);
         setCustomAddons([]);
+        setSavedSchedule([]);
         setIsPlanSaved(false);
         await fetchPortalData();
       }
@@ -1260,6 +1368,12 @@ const CompanySalesPortal: React.FC = () => {
                                         const uPrice = parseFloat(txn.unit?.price) || 0;
                                         setDownPayment((uPrice * 0.1).toString());
                                         setMaintenanceCost((uPrice * 0.08).toString());
+                                        setSavedSchedule([]);
+                                        setBookingNotes('');
+                                        setIncludeClub(false);
+                                        setIncludeGarage(false);
+                                        setIncludeMaintenance(false);
+                                        setIsPlanSaved(false);
                                         setShowContractModal(true);
                                       }}
                                       className="btn-primary"
@@ -1269,16 +1383,7 @@ const CompanySalesPortal: React.FC = () => {
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => {
-                                        setSelectedReservationForContract(txn);
-                                        setBookingUnitId(txn.unit_id);
-                                        setBookingEoi(txn.eoi_amount.toString());
-                                        setDiscountPercent('0');
-                                        const uPrice = parseFloat(txn.unit?.price) || 0;
-                                        setDownPayment((uPrice * 0.1).toString());
-                                        setMaintenanceCost((uPrice * 0.08).toString());
-                                        setShowContractModal(true);
-                                      }}
+                                      onClick={() => loadContractDataIntoModal(txn)}
                                       className="btn-primary"
                                       style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                                     >
@@ -1446,6 +1551,12 @@ const CompanySalesPortal: React.FC = () => {
                                     const uPrice = parseFloat(txn.unit?.price) || 0;
                                     setDownPayment((uPrice * 0.1).toString());
                                     setMaintenanceCost((uPrice * 0.08).toString());
+                                    setSavedSchedule([]);
+                                    setBookingNotes('');
+                                    setIncludeClub(false);
+                                    setIncludeGarage(false);
+                                    setIncludeMaintenance(false);
+                                    setIsPlanSaved(false);
                                     setShowContractModal(true);
                                   }}
                                   className="btn-primary"
@@ -1455,16 +1566,7 @@ const CompanySalesPortal: React.FC = () => {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => {
-                                    setSelectedReservationForContract(txn);
-                                    setBookingUnitId(txn.unit_id);
-                                    setBookingEoi(txn.eoi_amount.toString());
-                                    setDiscountPercent('0');
-                                    const uPrice = parseFloat(txn.unit?.price) || 0;
-                                    setDownPayment((uPrice * 0.1).toString());
-                                    setMaintenanceCost((uPrice * 0.08).toString());
-                                    setShowContractModal(true);
-                                  }}
+                                  onClick={() => loadContractDataIntoModal(txn)}
                                   className="btn-primary"
                                   style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                                 >
@@ -1634,6 +1736,54 @@ const CompanySalesPortal: React.FC = () => {
                   <strong style={{ color: 'var(--color-success)' }}>{parseFloat(selectedReservationForContract.eoi_amount || 0).toLocaleString()} EGP</strong>
                 </div>
               </div>
+
+              {/* Previously Saved Schedule */}
+              {savedSchedule.length > 0 && (
+                <div style={{ padding: '12px', background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16,185,129,0.2)', borderLeft: '4px solid var(--color-success)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-success)' }}>✅ خطة الدفع المحفوظة / Previously Saved Schedule ({savedSchedule.length} items)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Total: {savedSchedule.reduce((s, i) => s + i.amount, 0).toLocaleString()} EGP
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 'var(--radius-xs)' }} className="sidebar-scroll-container">
+                    <table className="premium-table" style={{ fontSize: '0.7rem', margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th>Description</th>
+                          <th>Due Date</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ textAlign: 'center' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {savedSchedule.map((item, idx) => (
+                          <tr key={idx} style={{ background: item.status === 'paid' ? 'rgba(16,185,129,0.05)' : 'transparent' }}>
+                            <td>{item.label}</td>
+                            <td>{item.dueDate}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{item.amount.toLocaleString()} EGP</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                background: item.status === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                color: item.status === 'paid' ? 'var(--color-success)' : 'var(--color-warning)',
+                              }}>
+                                {item.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0, fontStyle: 'italic' }}>
+                    ℹ️ هذه الخطة المحفوظة مسبقاً. يمكنك تعديل الإعدادات أدناه وحفظ خطة جديدة. / This is the previously saved plan. You can modify the settings below and save an updated plan.
+                  </p>
+                </div>
+              )}
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Discount Percent (%) / نسبة الخصم</label>
@@ -2130,6 +2280,7 @@ const CompanySalesPortal: React.FC = () => {
                   setIncludeGarage(false);
                   setIncludeMaintenance(false);
                   setCustomAddons([]);
+                  setSavedSchedule([]);
                   setShowContractModal(false); 
                   setSelectedReservationForContract(null); 
                   setIsPlanSaved(false);
