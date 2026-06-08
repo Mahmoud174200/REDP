@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Traits\HasPermissions;
+use App\Traits\BelongsToTenant;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasPermissions, BelongsToTenant;
 
     /**
      * Primary key is a UUID string.
@@ -24,12 +26,19 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'id',
+        'tenant_id',
         'name',
         'email',
         'password',
         'phone',
         'role', // 'admin', 'sales_agent', 'tele_sales', 'broker', 'company_sales', 'client', 'finance_officer', 'delivery_engineer', 'contractor'
         'status', // 'active', 'inactive', 'pending_kyc', 'verified'
+        'company_id',
+        'branch_id',
+        'department_id',
+        'team_id',
+        'position_id',
+        'employee_number',
     ];
 
     /**
@@ -155,5 +164,58 @@ class User extends Authenticatable
     public function maintenanceTickets()
     {
         return $this->hasMany(MaintenanceTicket::class, 'client_id');
+    }
+
+    // ── Enterprise Organizational Relationships ──
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    public function position()
+    {
+        return $this->belongsTo(Position::class);
+    }
+
+    public function employeeHierarchy()
+    {
+        return $this->hasOne(EmployeeHierarchy::class);
+    }
+
+    public function delegationsGiven()
+    {
+        return $this->hasMany(Delegation::class, 'delegator_id');
+    }
+
+    public function delegationsReceived()
+    {
+        return $this->hasMany(Delegation::class, 'delegate_id');
+    }
+
+    /**
+     * Check if this user has an active delegation from another user.
+     */
+    public function hasActiveDelegationFrom(string $delegatorId): bool
+    {
+        return $this->delegationsReceived()
+            ->where('delegator_id', $delegatorId)
+            ->active()
+            ->exists();
     }
 }

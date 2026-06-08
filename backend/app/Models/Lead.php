@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
+use App\Traits\Auditable;
+use App\Traits\BelongsToTenant;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Lead extends Model
 {
-    use HasUuids, HasFactory, SoftDeletes;
+    use HasUuids, HasFactory, SoftDeletes, Auditable, BelongsToTenant;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -46,6 +48,7 @@ class Lead extends Model
 
     protected $fillable = [
         'id',
+        'tenant_id',
         'first_name',
         'last_name',
         'email',

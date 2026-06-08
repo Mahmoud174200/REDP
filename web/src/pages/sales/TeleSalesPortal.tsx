@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, PhoneCall, Calendar, ArrowRight, ClipboardList, MapPin } from 'lucide-react';
 import api from '../../services/api';
+import { ToastContainer } from '../../components/Toast';
 
 const TeleSalesPortal: React.FC = () => {
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const [stats, setStats] = useState<any>({
     total_leads: 0,
     new_leads: 0,
@@ -95,10 +107,10 @@ const TeleSalesPortal: React.FC = () => {
         setPaymentMethod('installment');
         setInterestedProjectId('');
         await fetchPortalData();
-        alert('Lead captured successfully!');
+        showToast('Lead captured successfully!', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to capture lead.');
+      showToast(err.response?.data?.message || 'Failed to capture lead.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -119,10 +131,10 @@ const TeleSalesPortal: React.FC = () => {
         setModalType(null);
         setSelectedLead(null);
         await fetchPortalData();
-        alert('Contact logged successfully.');
+        showToast('Contact logged successfully.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to log contact.');
+      showToast(err.response?.data?.message || 'Failed to log contact.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -145,10 +157,10 @@ const TeleSalesPortal: React.FC = () => {
         setModalType(null);
         setSelectedLead(null);
         await fetchPortalData();
-        alert('Viewing meeting scheduled successfully!');
+        showToast('Viewing meeting scheduled successfully!', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to schedule meeting.');
+      showToast(err.response?.data?.message || 'Failed to schedule meeting.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -168,14 +180,23 @@ const TeleSalesPortal: React.FC = () => {
         setModalType(null);
         setSelectedLead(null);
         await fetchPortalData();
-        alert('Lead escalated to Company Sales (Tier 3) successfully.');
+        showToast('Lead escalated to Company Sales (Tier 3) successfully.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to transfer lead.');
+      showToast(err.response?.data?.message || 'Failed to transfer lead.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isLoading && leads.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '20px' }}>
+        <div className="animate-spin" style={{ width: '50px', height: '50px', border: '5px solid var(--color-secondary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
+        <p style={{ color: 'var(--text-muted)', fontWeight: 650, fontFamily: 'var(--font-title)' }}>Loading secure data environment...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
@@ -400,8 +421,8 @@ const TeleSalesPortal: React.FC = () => {
 
       {/* MODALS */}
       {modalType === 'contact' && selectedLead && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Log Contact: {selectedLead.first_name}</h3>
             <form onSubmit={handleLogContact} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
@@ -426,8 +447,8 @@ const TeleSalesPortal: React.FC = () => {
       )}
 
       {modalType === 'meeting' && selectedLead && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Book Viewing Meeting</h3>
             <form onSubmit={handleScheduleMeeting} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
@@ -452,8 +473,8 @@ const TeleSalesPortal: React.FC = () => {
       )}
 
       {modalType === 'transfer' && selectedLead && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Escalate Lead to Tier 3</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               This moves the lead to the Company Sales Representative pool. You will hand over responsibility.
@@ -472,8 +493,10 @@ const TeleSalesPortal: React.FC = () => {
         </div>
       )}
 
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
 
 export default TeleSalesPortal;
+

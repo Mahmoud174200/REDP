@@ -20,6 +20,7 @@ import Inventory from './pages/finance/Inventory';
 import Contracts from './pages/finance/Contracts';
 import Payments from './pages/finance/Payments';
 import Collections from './pages/finance/Collections';
+import ReservedUnits from './pages/finance/ReservedUnits';
 
 // 🟢 Delivery Pages
 import Overview from './pages/delivery/Overview';
@@ -31,6 +32,35 @@ import Workflows from './pages/delivery/Workflows';
 
 // 👑 Admin Pages
 import AdminPanel from './pages/admin/AdminPanel';
+
+// 🏢 Enterprise Pages
+import OrganizationManagement from './pages/enterprise/OrganizationManagement';
+import RbacManagement from './pages/enterprise/RbacManagement';
+import ApprovalWorkflows from './pages/enterprise/ApprovalWorkflows';
+import LegalManagement from './pages/enterprise/LegalManagement';
+import Customer360 from './pages/enterprise/Customer360';
+import TaskBoard from './pages/enterprise/TaskBoard';
+import MessageHub from './pages/enterprise/MessageHub';
+import AuditDashboard from './pages/enterprise/AuditDashboard';
+import ChartOfAccounts from './pages/enterprise/accounting/ChartOfAccounts';
+import JournalEntries from './pages/enterprise/accounting/JournalEntries';
+import FinancialReports from './pages/enterprise/accounting/FinancialReports';
+import BudgetManagement from './pages/enterprise/accounting/BudgetManagement';
+import PurchaseRequests from './pages/enterprise/procurement/PurchaseRequests';
+import RFQs from './pages/enterprise/procurement/RFQs';
+import PurchaseOrders from './pages/enterprise/procurement/PurchaseOrders';
+import GoodsReceipts from './pages/enterprise/procurement/GoodsReceipts';
+import VendorInvoices from './pages/enterprise/procurement/VendorInvoices';
+import CommissionRules from './pages/enterprise/commission/CommissionRules';
+import CommissionCalculations from './pages/enterprise/commission/CommissionCalculations';
+import CommissionPayouts from './pages/enterprise/commission/CommissionPayouts';
+import AiDashboard from './pages/enterprise/ai/AiDashboard';
+import ExecutiveDashboards from './pages/enterprise/dashboard/ExecutiveDashboards';
+import TenantManagement from './pages/enterprise/tenant/TenantManagement';
+import GlobalizationSettings from './pages/enterprise/globalization/GlobalizationSettings';
+import ConstructionProgress from './pages/enterprise/construction/ConstructionProgress';
+import QualityManagement from './pages/enterprise/quality/QualityManagement';
+
 
 
 // 📞 Global Components
@@ -90,6 +120,21 @@ const HomeRedirect: React.FC = () => {
   if (user.role === 'delivery_engineer' || user.role === 'client') {
     return <Navigate to="/delivery/overview" replace />;
   }
+  if (user.role === 'executive') {
+    return <Navigate to="/enterprise/dashboard" replace />;
+  }
+  if (user.role === 'project_manager') {
+    return <Navigate to="/enterprise/construction" replace />;
+  }
+  if (user.role === 'maintenance_manager') {
+    return <Navigate to="/delivery/maintenance" replace />;
+  }
+  if (user.role === 'legal_officer') {
+    return <Navigate to="/enterprise/legal" replace />;
+  }
+  if (user.role === 'compliance_officer') {
+    return <Navigate to="/enterprise/audit" replace />;
+  }
 
   // Admins land on Leads & KYC first
   return <Navigate to="/acquisition/leads" replace />;
@@ -122,6 +167,7 @@ const App: React.FC = () => {
         <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
         <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
         <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
+        <Route path="/finance/reserved" element={<DashboardWrapper><ReservedUnits /></DashboardWrapper>} />
 
         {/* 🟢 Delivery routes */}
         <Route path="/delivery/overview" element={<DashboardWrapper><Overview /></DashboardWrapper>} />
@@ -133,6 +179,35 @@ const App: React.FC = () => {
 
         {/* 👑 Admin routes */}
         <Route path="/admin/panel" element={<DashboardWrapper><AdminPanel /></DashboardWrapper>} />
+
+        {/* 🏢 Enterprise routes */}
+        <Route path="/enterprise/organization" element={<DashboardWrapper><OrganizationManagement /></DashboardWrapper>} />
+        <Route path="/enterprise/rbac" element={<DashboardWrapper><RbacManagement /></DashboardWrapper>} />
+        <Route path="/enterprise/workflows" element={<DashboardWrapper><ApprovalWorkflows /></DashboardWrapper>} />
+        <Route path="/enterprise/legal" element={<DashboardWrapper><LegalManagement /></DashboardWrapper>} />
+        <Route path="/enterprise/customer360" element={<DashboardWrapper><Customer360 /></DashboardWrapper>} />
+        <Route path="/enterprise/tasks" element={<DashboardWrapper><TaskBoard /></DashboardWrapper>} />
+        <Route path="/enterprise/messages" element={<DashboardWrapper><MessageHub /></DashboardWrapper>} />
+        <Route path="/enterprise/audit" element={<DashboardWrapper><AuditDashboard /></DashboardWrapper>} />
+        <Route path="/enterprise/accounting/chart" element={<DashboardWrapper><ChartOfAccounts /></DashboardWrapper>} />
+        <Route path="/enterprise/accounting/entries" element={<DashboardWrapper><JournalEntries /></DashboardWrapper>} />
+        <Route path="/enterprise/accounting/reports" element={<DashboardWrapper><FinancialReports /></DashboardWrapper>} />
+        <Route path="/enterprise/accounting/budgets" element={<DashboardWrapper><BudgetManagement /></DashboardWrapper>} />
+        <Route path="/enterprise/procurement/requests" element={<DashboardWrapper><PurchaseRequests /></DashboardWrapper>} />
+        <Route path="/enterprise/procurement/rfqs" element={<DashboardWrapper><RFQs /></DashboardWrapper>} />
+        <Route path="/enterprise/procurement/orders" element={<DashboardWrapper><PurchaseOrders /></DashboardWrapper>} />
+        <Route path="/enterprise/procurement/receipts" element={<DashboardWrapper><GoodsReceipts /></DashboardWrapper>} />
+        <Route path="/enterprise/procurement/invoices" element={<DashboardWrapper><VendorInvoices /></DashboardWrapper>} />
+        <Route path="/enterprise/commission/rules" element={<DashboardWrapper><CommissionRules /></DashboardWrapper>} />
+        <Route path="/enterprise/commission/ledger" element={<DashboardWrapper><CommissionCalculations /></DashboardWrapper>} />
+        <Route path="/enterprise/commission/payouts" element={<DashboardWrapper><CommissionPayouts /></DashboardWrapper>} />
+        <Route path="/enterprise/ai" element={<DashboardWrapper><AiDashboard /></DashboardWrapper>} />
+        <Route path="/enterprise/dashboard" element={<DashboardWrapper><ExecutiveDashboards /></DashboardWrapper>} />
+        <Route path="/enterprise/tenant" element={<DashboardWrapper><TenantManagement /></DashboardWrapper>} />
+        <Route path="/enterprise/globalization" element={<DashboardWrapper><GlobalizationSettings /></DashboardWrapper>} />
+        <Route path="/enterprise/construction" element={<DashboardWrapper><ConstructionProgress /></DashboardWrapper>} />
+        <Route path="/enterprise/quality" element={<DashboardWrapper><QualityManagement /></DashboardWrapper>} />
+
 
 
         {/* 🔄 Fallback Catch-All */}

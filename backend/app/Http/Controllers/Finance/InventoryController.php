@@ -21,6 +21,9 @@ class InventoryController extends Controller
      */
     public function index(Request $request)
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $query = Unit::with('project');
 
         // Apply filters
@@ -57,6 +60,9 @@ class InventoryController extends Controller
      */
     public function show(string $id)
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $unit = Unit::with(['project', 'reservations.client', 'activeReservation'])->findOrFail($id);
 
         return response()->json([

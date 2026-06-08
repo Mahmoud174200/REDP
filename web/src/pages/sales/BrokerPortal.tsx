@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, ClipboardList, MapPin, Sparkles, Send, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
+import { ToastContainer } from '../../components/Toast';
 
 const BrokerPortal: React.FC = () => {
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const [stats, setStats] = useState<any>({
     total_leads: 0,
     total_presentations: 0,
@@ -103,10 +115,10 @@ const BrokerPortal: React.FC = () => {
         setPresNotes('');
         setShowPresModal(false);
         await fetchPortalData();
-        alert('Presentation logged successfully! Client progressed to Tier 2.');
+        showToast('Presentation logged successfully! Client progressed to Tier 2.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create presentation.');
+      showToast(err.response?.data?.message || 'Failed to create presentation.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -126,14 +138,15 @@ const BrokerPortal: React.FC = () => {
         setShowEscalateModal(false);
         setSelectedPres(null);
         await fetchPortalData();
-        alert('Presentation escalated to Company Sales! Client progressed to Tier 3.');
+        showToast('Presentation escalated to Company Sales! Client progressed to Tier 3.', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to escalate presentation.');
+      showToast(err.response?.data?.message || 'Failed to escalate presentation.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleUnitToggle = (unitId: string) => {
     if (selectedUnitIds.includes(unitId)) {
@@ -142,6 +155,15 @@ const BrokerPortal: React.FC = () => {
       setSelectedUnitIds([...selectedUnitIds, unitId]);
     }
   };
+
+  if (isLoading && leads.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '20px' }}>
+        <div className="animate-spin" style={{ width: '50px', height: '50px', border: '5px solid var(--color-secondary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
+        <p style={{ color: 'var(--text-muted)', fontWeight: 650, fontFamily: 'var(--font-title)' }}>Loading secure data environment...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
@@ -193,7 +215,7 @@ const BrokerPortal: React.FC = () => {
             <button 
               onClick={() => {
                 if (leads.length === 0) {
-                  alert('No leads assigned to your Broker profile. Please create leads via tele-sales/admin first.');
+                  showToast('No leads assigned to your Broker profile. Please create leads via tele-sales/admin first.', 'info');
                   return;
                 }
                 setShowPresModal(true);
@@ -306,8 +328,8 @@ const BrokerPortal: React.FC = () => {
 
       {/* CREATE PRESENTATION MODAL */}
       {showPresModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '500px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontWeight: 800 }}>Log Client Presentation</h3>
             <form onSubmit={handleCreatePresentation} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
@@ -364,8 +386,8 @@ const BrokerPortal: React.FC = () => {
 
       {/* ESCALATE MODAL */}
       {showEscalateModal && selectedPres && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontWeight: 800 }}>Escalate to Company Sales</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Send this presentation to Company Sales Representative (Tier 3) to execute final booking & reservation contract.
@@ -384,8 +406,10 @@ const BrokerPortal: React.FC = () => {
         </div>
       )}
 
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
 
 export default BrokerPortal;
+

@@ -13,6 +13,8 @@ use App\Events\Acquisition\ReservationConfirmed as AcquisitionReservationConfirm
 use App\Events\ReservationConfirmed as BaseReservationConfirmed;
 use App\Events\PaymentReceived;
 use App\Events\ContractSigned;
+use App\Events\Finance\CancellationProcessed;
+use App\Listeners\Finance\PostJournalEntries;
 
 // ── 🟠 Acquisition Listeners ──
 use App\Listeners\Acquisition\HandlePaymentReceived;
@@ -72,11 +74,28 @@ class EventServiceProvider extends ServiceProvider
         PaymentReceived::class => [
             HandlePaymentReceived::class,
             [DeliveryEventListener::class, 'handlePaymentReceived'],
+            [PostJournalEntries::class, 'handlePaymentReceived'],
+            \App\Listeners\CalculateCommissions::class,
         ],
 
         ContractSigned::class => [
             HandleContractSigned::class,
             [DeliveryEventListener::class, 'handleContractSigned'],
+            [PostJournalEntries::class, 'handleContractSigned'],
+        ],
+
+        CancellationProcessed::class => [
+            [PostJournalEntries::class, 'handleCancellationProcessed'],
+        ],
+
+        \App\Events\ApprovalApproved::class => [
+            [\App\Listeners\UpdateProcurementStatus::class, 'handleApproved'],
+            [\App\Listeners\UpdatePayoutStatus::class, 'handleApproved'],
+        ],
+
+        \App\Events\ApprovalRejected::class => [
+            [\App\Listeners\UpdateProcurementStatus::class, 'handleRejected'],
+            [\App\Listeners\UpdatePayoutStatus::class, 'handleRejected'],
         ],
     ];
 
@@ -94,17 +113,41 @@ class EventServiceProvider extends ServiceProvider
                 $lead = \App\Models\Lead::findOrFail($event->leadId);
                 $unit = \App\Models\Unit::findOrFail($event->unitId);
 
-                // Find or create the client user from Lead details
-                $user = \App\Models\User::firstOrCreate(
-                    ['email' => $lead->email],
-                    [
+                // Find or create the client user from Lead details (checking phone/email to avoid duplication/null email errors)
+                $user = null;
+                if ($lead->email) {
+                    $user = \App\Models\User::where('email', $lead->email)->first();
+                }
+                if (!$user && $lead->phone) {
+                    $user = \App\Models\User::where('phone', $lead->phone)->first();
+                }
+
+                if (!$user) {
+                    $email = $lead->email;
+                    if (empty($email)) {
+                        $phoneClean = preg_replace('/[^0-9]/', '', $lead->phone);
+                        $email = ($phoneClean ? $phoneClean : (string)\Illuminate\Support\Str::random(10)) . '@redp-client.com';
+                    }
+
+                    // Make sure the email is unique
+                    $baseEmail = $email;
+                    $counter = 1;
+                    while (\App\Models\User::where('email', $email)->exists()) {
+                        $parts = explode('@', $baseEmail);
+                        $email = $parts[0] . '_' . $counter . '@' . ($parts[1] ?? 'redp-client.com');
+                        $counter++;
+                    }
+
+                    $user = \App\Models\User::create([
                         'id' => (string) \Illuminate\Support\Str::uuid(),
                         'name' => $lead->full_name,
+                        'email' => $email,
                         'phone' => $lead->phone,
                         'role' => 'client',
                         'password' => \Illuminate\Support\Facades\Hash::make('password'),
-                    ]
-                );
+                        'status' => 'active',
+                    ]);
+                }
 
                 // Create the Reservation record
                 $reservation = \App\Models\Reservation::create([

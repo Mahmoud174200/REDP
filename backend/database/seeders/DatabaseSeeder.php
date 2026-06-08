@@ -21,6 +21,15 @@ use App\Models\Vendor;
 use App\Models\MaintenanceTicket;
 use App\Models\DefectsSnag;
 use App\Models\WorkflowTemplate;
+use App\Models\EnterpriseCountry;
+use App\Models\Company;
+use App\Models\CompanyGroup;
+use App\Models\Region;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\Team;
+use App\Models\Position;
+use App\Models\EmployeeHierarchy;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
@@ -30,6 +39,213 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // ── 0. Create Enterprise Structure ──
+        $egypt = EnterpriseCountry::updateOrCreate(
+            ['code' => 'EG'],
+            [
+                'id' => (string) Str::uuid(),
+                'name' => 'Egypt',
+                'phone_code' => '+20',
+                'currency_code' => 'EGP',
+                'timezone' => 'Africa/Cairo',
+                'flag_emoji' => '🇪🇬',
+                'status' => 'active'
+            ]
+        );
+
+        $group = CompanyGroup::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'REDP Holding Group',
+            'description' => 'Real Estate Digital Platform Holding Group',
+            'status' => 'active'
+        ]);
+
+        $holdingCompany = Company::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'REDP Holding',
+            'legal_name' => 'REDP Holding SAE',
+            'registration_number' => 'REG-111111',
+            'tax_id' => 'TAX-222222',
+            'type' => 'holding',
+            'address' => 'Corporate Hub, Smart Village',
+            'city' => 'Giza',
+            'country_id' => $egypt->id,
+            'phone' => '+20235391000',
+            'email' => 'corporate@redp.com',
+            'website' => 'https://redp.com',
+            'status' => 'active',
+            'settings' => []
+        ]);
+
+        $devCompany = Company::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'REDP Development',
+            'legal_name' => 'REDP Real Estate Development SAE',
+            'registration_number' => 'REG-333333',
+            'tax_id' => 'TAX-444444',
+            'type' => 'subsidiary',
+            'parent_company_id' => $holdingCompany->id,
+            'address' => 'Cairo Festival City Business Park',
+            'city' => 'Cairo',
+            'country_id' => $egypt->id,
+            'phone' => '+2022345678',
+            'email' => 'dev@redp.com',
+            'website' => 'https://dev.redp.com',
+            'status' => 'active',
+            'settings' => []
+        ]);
+
+        $cairoRegion = Region::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Cairo Greater Region',
+            'code' => 'REG-CAI',
+            'company_id' => $holdingCompany->id,
+            'description' => 'Greater Cairo Metropolitan Area',
+            'status' => 'active'
+        ]);
+
+        $mainBranch = Branch::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'New Cairo HQ Branch',
+            'code' => 'BR-NC',
+            'company_id' => $holdingCompany->id,
+            'country_id' => $egypt->id,
+            'region_id' => $cairoRegion->id,
+            'address' => 'North 90th Street',
+            'city' => 'New Cairo',
+            'phone' => '+20100200300',
+            'email' => 'branch.nc@redp.com',
+            'status' => 'active'
+        ]);
+
+        // Departments
+        $boardDept = Department::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Executive Board Office',
+            'code' => 'DEP-EX',
+            'branch_id' => $mainBranch->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        $salesDept = Department::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Commercial Sales Division',
+            'code' => 'DEP-SL',
+            'branch_id' => $mainBranch->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        $financeDept = Department::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Financial Operations Center',
+            'code' => 'DEP-FI',
+            'branch_id' => $mainBranch->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        $opsDept = Department::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Operations & Construction',
+            'code' => 'DEP-OPS',
+            'branch_id' => $mainBranch->id,
+            'company_id' => $devCompany->id,
+            'status' => 'active'
+        ]);
+
+        $legalDept = Department::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Legal Affairs',
+            'code' => 'DEP-LEG',
+            'branch_id' => $mainBranch->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        // Teams
+        $directSalesTeam = Team::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Direct Sales Team',
+            'department_id' => $salesDept->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        $teleSalesTeam = Team::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Tele-Sales Team',
+            'department_id' => $salesDept->id,
+            'company_id' => $holdingCompany->id,
+            'status' => 'active'
+        ]);
+
+        $inspectionsTeam = Team::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Site Handovers & QA Team',
+            'department_id' => $opsDept->id,
+            'company_id' => $devCompany->id,
+            'status' => 'active'
+        ]);
+
+        // Positions
+        $ceoPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Chief Executive Officer (CEO)',
+            'code' => 'POS-CEO',
+            'department_id' => $boardDept->id,
+            'company_id' => $holdingCompany->id,
+            'level' => 1,
+            'status' => 'active'
+        ]);
+
+        $execDirPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Executive Director',
+            'code' => 'POS-ED',
+            'department_id' => $boardDept->id,
+            'company_id' => $holdingCompany->id,
+            'level' => 2,
+            'status' => 'active'
+        ]);
+
+        $deptHeadPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Department Head',
+            'code' => 'POS-DH',
+            'company_id' => $holdingCompany->id,
+            'level' => 3,
+            'status' => 'active'
+        ]);
+
+        $teamLeaderPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Team Leader',
+            'code' => 'POS-TL',
+            'company_id' => $holdingCompany->id,
+            'level' => 4,
+            'status' => 'active'
+        ]);
+
+        $seniorOfficerPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Senior Officer',
+            'code' => 'POS-SO',
+            'company_id' => $holdingCompany->id,
+            'level' => 5,
+            'status' => 'active'
+        ]);
+
+        $officerPos = Position::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Officer Specialist',
+            'code' => 'POS-OF',
+            'company_id' => $holdingCompany->id,
+            'level' => 6,
+            'status' => 'active'
+        ]);
+
         // ── 1. Create Core Users ──
         $admin = User::create([
             'id' => (string) Str::uuid(),
@@ -39,6 +255,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201009999999',
             'role' => 'admin',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $boardDept->id,
+            'position_id' => $ceoPos->id,
+            'employee_number' => 'EMP-0001'
         ]);
 
         $salesAgent = User::create([
@@ -49,6 +270,12 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201001111111',
             'role' => 'sales_agent',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0004'
         ]);
 
         $financeOfficer = User::create([
@@ -59,6 +286,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201002222222',
             'role' => 'finance_officer',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $financeDept->id,
+            'position_id' => $seniorOfficerPos->id,
+            'employee_number' => 'EMP-0006'
         ]);
 
         $deliverySpecialist = User::create([
@@ -69,6 +301,12 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201003333333',
             'role' => 'delivery_engineer',
             'status' => 'active',
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0008'
         ]);
 
         $clientUser = User::create([
@@ -81,7 +319,6 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-<<<<<<< HEAD
         $clientUser2 = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Sherif Kamal',
@@ -92,8 +329,6 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-=======
->>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
         $brokerUser = User::create([
             'id' => (string) Str::uuid(),
             'name' => 'Ahmed Broker',
@@ -109,30 +344,30 @@ class DatabaseSeeder extends Seeder
             'name' => 'Sara TeleSales',
             'email' => 'tele_sales@redp.com',
             'password' => bcrypt('password'),
-<<<<<<< HEAD
             'phone' => '+201005555511',
-=======
-            'phone' => '+201007777776',
->>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
             'role' => 'tele_sales',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $teleSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0005'
         ]);
 
         $companySalesUser = User::create([
             'id' => (string) Str::uuid(),
-<<<<<<< HEAD
             'name' => 'Karim CompanySales',
             'email' => 'company_sales@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201005555522',
-=======
-            'name' => 'Mostafa CompanySales',
-            'email' => 'company_sales@redp.com',
-            'password' => bcrypt('password'),
-            'phone' => '+201009999993',
->>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
             'role' => 'company_sales',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'position_id' => $deptHeadPos->id,
+            'employee_number' => 'EMP-0003'
         ]);
 
         $brokerManagerUser = User::create([
@@ -173,6 +408,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201009999998',
             'role' => 'maintenance_manager',
             'status' => 'active',
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'position_id' => $teamLeaderPos->id,
+            'employee_number' => 'EMP-0009'
         ]);
 
         $projectManagerUser = User::create([
@@ -183,6 +423,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201009999997',
             'role' => 'project_manager',
             'status' => 'active',
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'position_id' => $deptHeadPos->id,
+            'employee_number' => 'EMP-0007'
         ]);
 
         $legalOfficerUser = User::create([
@@ -193,6 +438,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201009999996',
             'role' => 'legal_officer',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $legalDept->id,
+            'position_id' => $seniorOfficerPos->id,
+            'employee_number' => 'EMP-0010'
         ]);
 
         $executiveUser = User::create([
@@ -203,6 +453,11 @@ class DatabaseSeeder extends Seeder
             'phone' => '+201009999995',
             'role' => 'executive',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $boardDept->id,
+            'position_id' => $execDirPos->id,
+            'employee_number' => 'EMP-0002'
         ]);
 
         $complianceOfficerUser = User::create([
@@ -212,20 +467,174 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
             'phone' => '+201009999994',
             'role' => 'compliance_officer',
-<<<<<<< HEAD
-=======
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $legalDept->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0011'
         ]);
 
-        $clientUser2 = User::create([
+        // ── 1.1 Create Employee Hierarchy Map (CEO down to Officer) ──
+        // CEO
+        EmployeeHierarchy::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Sherif Kamal',
-            'email' => 'client2@redp.com',
-            'password' => bcrypt('password'),
-            'phone' => '+201509998887',
-            'role' => 'client',
->>>>>>> 2fa5c7bdea7d5762520db2a9222778952e0b2d0a
-            'status' => 'active',
+            'user_id' => $admin->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $boardDept->id,
+            'position_id' => $ceoPos->id,
+            'employee_number' => 'EMP-0001',
+            'hire_date' => '2023-01-01',
+            'status' => 'active'
+        ]);
+
+        // Executive Director (reports to CEO)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $executiveUser->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $boardDept->id,
+            'position_id' => $execDirPos->id,
+            'direct_manager_id' => $admin->id,
+            'employee_number' => 'EMP-0002',
+            'hire_date' => '2023-02-15',
+            'status' => 'active'
+        ]);
+
+        // Commercial Sales Division Head (reports to Executive Director)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $companySalesUser->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'position_id' => $deptHeadPos->id,
+            'direct_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0003',
+            'hire_date' => '2023-05-10',
+            'status' => 'active'
+        ]);
+
+        // Sales Agent (reports to Commercial Sales Division Head)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $salesAgent->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $companySalesUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0004',
+            'hire_date' => '2024-01-10',
+            'status' => 'active'
+        ]);
+
+        // TeleSales (reports to Commercial Sales Division Head)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $teleSalesUser->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $teleSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $companySalesUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0005',
+            'hire_date' => '2024-03-01',
+            'status' => 'active'
+        ]);
+
+        // Finance Officer (reports to Executive Director)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $financeOfficer->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $financeDept->id,
+            'position_id' => $seniorOfficerPos->id,
+            'direct_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0006',
+            'hire_date' => '2023-04-01',
+            'status' => 'active'
+        ]);
+
+        // Project Manager (reports to Executive Director)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $projectManagerUser->id,
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'position_id' => $deptHeadPos->id,
+            'direct_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0007',
+            'hire_date' => '2023-06-01',
+            'status' => 'active'
+        ]);
+
+        // Delivery Specialist (reports to Project Manager)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $deliverySpecialist->id,
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $projectManagerUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0008',
+            'hire_date' => '2024-02-15',
+            'status' => 'active'
+        ]);
+
+        // Maintenance Manager (reports to Project Manager)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $maintenanceManagerUser->id,
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'position_id' => $teamLeaderPos->id,
+            'direct_manager_id' => $projectManagerUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0009',
+            'hire_date' => '2023-09-01',
+            'status' => 'active'
+        ]);
+
+        // Legal Officer (reports to CEO)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $legalOfficerUser->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $legalDept->id,
+            'position_id' => $seniorOfficerPos->id,
+            'direct_manager_id' => $admin->id,
+            'employee_number' => 'EMP-0010',
+            'hire_date' => '2023-08-01',
+            'status' => 'active'
+        ]);
+
+        // Compliance Officer (reports to Legal Officer)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $complianceOfficerUser->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $legalDept->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $legalOfficerUser->id,
+            'indirect_manager_id' => $admin->id,
+            'employee_number' => 'EMP-0011',
+            'hire_date' => '2024-04-01',
+            'status' => 'active'
         ]);
 
         // ── 2. Create Real Estate Projects ──

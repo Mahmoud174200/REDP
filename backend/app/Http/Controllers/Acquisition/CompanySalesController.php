@@ -184,17 +184,19 @@ class CompanySalesController extends Controller
         $user = $request->user();
 
         $fields = $request->validate([
-            'lead_id'    => 'required|uuid|exists:leads,id',
-            'unit_id'    => 'required|uuid|exists:units,id',
-            'eoi_amount' => 'nullable|numeric|min:1000',
-            'notes'      => 'nullable|string|max:2000',
+            'lead_id'      => 'required|uuid|exists:leads,id',
+            'unit_id'      => 'required|uuid|exists:units,id',
+            'eoi_amount'   => 'nullable|numeric|min:1000',
+            'holding_days' => 'nullable|integer|min:1|max:90',
+            'notes'        => 'nullable|string|max:2000',
         ]);
 
         $lead = Lead::findOrFail($fields['lead_id']);
         $eoiAmount = $fields['eoi_amount'] ?? 50000.00;
+        $holdingDays = $fields['holding_days'] ?? 7;
 
         try {
-            $reservation = DB::transaction(function () use ($fields, $lead, $user, $eoiAmount) {
+            $reservation = DB::transaction(function () use ($fields, $lead, $user, $eoiAmount, $holdingDays) {
                 // Row-level locking to prevent double-booking
                 $unit = Unit::where('id', $fields['unit_id'])
                     ->lockForUpdate()
@@ -207,27 +209,50 @@ class CompanySalesController extends Controller
                 // 1. Lock the unit
                 $unit->update(['status' => 'reserved']);
 
-                // 2. Find or create client user from lead
-                $clientUser = \App\Models\User::firstOrCreate(
-                    ['email' => $lead->email],
-                    [
+                // 2. Find or create client user from lead (checking phone/email to avoid duplication/null email errors)
+                $clientUser = null;
+                if ($lead->email) {
+                    $clientUser = \App\Models\User::where('email', $lead->email)->first();
+                }
+                if (!$clientUser && $lead->phone) {
+                    $clientUser = \App\Models\User::where('phone', $lead->phone)->first();
+                }
+
+                if (!$clientUser) {
+                    $email = $lead->email;
+                    if (empty($email)) {
+                        $phoneClean = preg_replace('/[^0-9]/', '', $lead->phone);
+                        $email = ($phoneClean ? $phoneClean : (string)Str::random(10)) . '@redp-client.com';
+                    }
+
+                    // Make sure the email is unique
+                    $baseEmail = $email;
+                    $counter = 1;
+                    while (\App\Models\User::where('email', $email)->exists()) {
+                        $parts = explode('@', $baseEmail);
+                        $email = $parts[0] . '_' . $counter . '@' . ($parts[1] ?? 'redp-client.com');
+                        $counter++;
+                    }
+
+                    $clientUser = \App\Models\User::create([
                         'id'       => (string) Str::uuid(),
                         'name'     => $lead->full_name,
+                        'email'    => $email,
                         'phone'    => $lead->phone,
                         'role'     => 'client',
                         'password' => \Illuminate\Support\Facades\Hash::make('changeme'),
                         'status'   => 'active',
-                    ]
-                );
+                    ]);
+                }
 
-                // 3. Create reservation
+                // 3. Create reservation with custom holding duration
                 $reservation = Reservation::create([
                     'id'         => (string) Str::uuid(),
                     'unit_id'    => $unit->id,
                     'client_id'  => $clientUser->id,
                     'eoi_amount' => $eoiAmount,
                     'status'     => 'confirmed',
-                    'expires_at' => now()->addDays(7),
+                    'expires_at' => now()->addDays($holdingDays),
                 ]);
 
                 // 4. Update lead status
@@ -256,6 +281,7 @@ class CompanySalesController extends Controller
                     'unit_id'        => $fields['unit_id'],
                     'reservation_id' => $reservation->id,
                     'eoi_amount'     => $eoiAmount,
+                    'holding_days'   => $holdingDays,
                 ]
             );
 
@@ -278,6 +304,94 @@ class CompanySalesController extends Controller
         }
     }
 
+    /**
+     * POST /api/v1/sales/company/bookings/{id}/cancel
+     * Cancel an active booking reservation hold.
+     */
+    public function cancelBooking(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $reservation = Reservation::findOrFail($id);
+
+        if ($reservation->status !== 'confirmed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only active confirmed reservations can be cancelled.',
+            ], 400);
+        }
+
+        if ($reservation->contract()->exists()) {
+            $contract = $reservation->contract;
+            if ($contract && $contract->status !== 'draft') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot cancel a reservation that already has an active contract.',
+                ], 400);
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($reservation, $user) {
+                // 1. Delete associated draft contract, payment plan, and payments
+                $contract = $reservation->contract;
+                if ($contract && $contract->status === 'draft') {
+                    if ($contract->paymentPlan) {
+                        \App\Models\Payment::where('payment_plan_id', $contract->paymentPlan->id)->delete();
+                        $contract->paymentPlan->delete();
+                    }
+                    \App\Models\Payment::where('contract_id', $contract->id)->delete();
+                    $contract->delete();
+                }
+
+                // 2. Mark reservation as cancelled
+                $reservation->update(['status' => 'cancelled']);
+
+                // 3. Set unit back to available
+                $unit = $reservation->unit;
+                if ($unit && $unit->status === 'reserved') {
+                    $unit->update(['status' => 'available']);
+                    
+                    event(new \App\Events\Finance\UnitStatusChanged(
+                        $unit->id,
+                        'reserved',
+                        'available',
+                        null
+                    ));
+                }
+
+                // 3. Reset associated lead back to negotiation stage
+                if ($reservation->client) {
+                    $lead = Lead::where('email', $reservation->client->email)
+                        ->orWhere('phone', $reservation->client->phone)
+                        ->first();
+                    if ($lead && $lead->status === Lead::STATUS_RESERVED) {
+                        $lead->update(['status' => Lead::STATUS_NEGOTIATION]);
+                    }
+                }
+
+                // 4. Record audit log
+                AuditLogService::log('RESERVATION_CANCELLED', $user->id, [
+                    'reservation_id' => $reservation->id,
+                    'unit_id'        => $reservation->unit_id,
+                    'client_id'      => $reservation->client_id,
+                    'refund_amount'  => (float) $reservation->eoi_amount,
+                ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reservation hold cancelled successfully. Unit is now available and EOI marked for refund.',
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+
     // ════════════════════════════════════════════════
     // UNIT MANAGEMENT
     // ════════════════════════════════════════════════
@@ -288,6 +402,9 @@ class CompanySalesController extends Controller
      */
     public function listUnits(Request $request): JsonResponse
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $query = Unit::with('project');
 
         if ($request->has('status') && $request->status !== 'all') {
@@ -350,6 +467,9 @@ class CompanySalesController extends Controller
      */
     public function listTransactions(Request $request): JsonResponse
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $query = Reservation::with([
             'unit.project',
             'client:id,name,email,phone',
@@ -375,6 +495,9 @@ class CompanySalesController extends Controller
      */
     public function showTransaction(string $id): JsonResponse
     {
+        // Reactive check and release expired reservations
+        Reservation::checkAndReleaseExpired();
+
         $reservation = Reservation::with([
             'unit.project',
             'client',

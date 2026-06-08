@@ -4,7 +4,7 @@ import api from '../services/api';
 import {
   Building2, Users, Wallet, FileText, Settings, ShieldCheck,
   LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, TrendingUp, X, Terminal,
-  AlertTriangle, CreditCard, Phone, Handshake
+  AlertTriangle, CreditCard, Phone, Handshake, Network, Shield, GitBranch, CheckSquare, MessageSquare, FolderTree, Award, Brain, Globe, Hammer
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -86,24 +86,25 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
     },
     {
       title: 'Finance & Contracts',
-      roles: ['admin', 'finance_officer', 'client', 'company_sales', 'broker'],
+      roles: ['admin', 'finance_officer', 'client', 'company_sales', 'broker', 'executive'],
       items: [
-        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2, roles: ['admin', 'finance_officer', 'client', 'broker', 'company_sales'] },
-        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard, roles: ['admin', 'finance_officer'] },
-        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText, roles: ['admin', 'finance_officer', 'company_sales'] },
-        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle, roles: ['admin', 'finance_officer'] },
+        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
+        { name: 'Reserved Units', path: '/finance/reserved', icon: ShieldCheck },
+        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard },
+        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText },
+        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle },
       ]
     },
     {
       title: 'Delivery & Platform',
-      roles: ['admin', 'delivery_engineer', 'client'],
+      roles: ['admin', 'delivery_engineer', 'client', 'project_manager', 'maintenance_manager', 'executive'],
       items: [
-        { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2, roles: ['admin', 'delivery_engineer', 'client'] },
-        { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench, roles: ['admin', 'delivery_engineer'] },
-        { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer'] },
-        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'delivery_engineer', 'client'] },
-        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'delivery_engineer'] },
-        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'delivery_engineer'] },
+        { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2, roles: ['admin', 'delivery_engineer', 'client', 'executive'] },
+        { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench, roles: ['admin', 'delivery_engineer', 'maintenance_manager'] },
+        { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer', 'project_manager'] },
+        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'delivery_engineer', 'client', 'executive'] },
+        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'delivery_engineer', 'project_manager', 'executive'] },
+        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'delivery_engineer', 'project_manager'] },
       ]
     },
     {
@@ -111,6 +112,38 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       roles: ['admin'],
       items: [
         { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings, roles: ['admin'] }
+      ]
+    },
+    {
+      title: 'Enterprise',
+      roles: ['admin', 'executive', 'project_manager', 'finance_officer', 'legal_officer', 'compliance_officer', 'company_sales'],
+      items: [
+        { name: 'Organization', path: '/enterprise/organization', icon: Network, roles: ['admin', 'executive'] },
+        { name: 'RBAC Engine', path: '/enterprise/rbac', icon: Shield, roles: ['admin'] },
+        { name: 'Approval Workflows', path: '/enterprise/workflows', icon: CheckSquare, roles: ['admin', 'executive'] },
+        { name: 'Legal Disputes', path: '/enterprise/legal', icon: FileText, roles: ['admin', 'executive', 'legal_officer'] },
+        { name: 'Customer 360', path: '/enterprise/customer360', icon: Users, roles: ['admin', 'executive', 'company_sales'] },
+        { name: 'Task Board', path: '/enterprise/tasks', icon: CheckSquare, roles: ['admin', 'executive', 'project_manager'] },
+        { name: 'Message Hub', path: '/enterprise/messages', icon: MessageSquare, roles: ['admin', 'executive'] },
+        { name: 'Audit Logs', path: '/enterprise/audit', icon: ShieldAlert, roles: ['admin', 'compliance_officer'] },
+        { name: 'Chart of Accounts', path: '/enterprise/accounting/chart', icon: FolderTree, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'Journal Vouchers', path: '/enterprise/accounting/entries', icon: FileText, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'Financial Reports', path: '/enterprise/accounting/reports', icon: BarChart3, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'Expense Budgets', path: '/enterprise/accounting/budgets', icon: Award, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'Purchase Requests', path: '/enterprise/procurement/requests', icon: FileText, roles: ['admin', 'executive', 'finance_officer', 'project_manager'] },
+        { name: 'Requests for Quote (RFQ)', path: '/enterprise/procurement/rfqs', icon: MessageSquare, roles: ['admin', 'executive', 'project_manager'] },
+        { name: 'Purchase Orders (PO)', path: '/enterprise/procurement/orders', icon: FileText, roles: ['admin', 'executive', 'project_manager'] },
+        { name: 'Goods Receipts', path: '/enterprise/procurement/receipts', icon: CheckSquare, roles: ['admin', 'executive', 'project_manager'] },
+        { name: 'Vendor Invoices', path: '/enterprise/procurement/invoices', icon: Wallet, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'Commission Rules', path: '/enterprise/commission/rules', icon: Award, roles: ['admin', 'executive'] },
+        { name: 'Commission Ledger', path: '/enterprise/commission/ledger', icon: FileText, roles: ['admin', 'executive'] },
+        { name: 'Commission Payouts', path: '/enterprise/commission/payouts', icon: Wallet, roles: ['admin', 'executive', 'finance_officer'] },
+        { name: 'AI Predictive Operations', path: '/enterprise/ai', icon: Brain, roles: ['admin', 'executive'] },
+        { name: 'Executive BI Dashboard', path: '/enterprise/dashboard', icon: TrendingUp, roles: ['admin', 'executive'] },
+        { name: 'SaaS Tenant Config', path: '/enterprise/tenant', icon: Shield, roles: ['admin'] },
+        { name: 'Globalization & i18n', path: '/enterprise/globalization', icon: Globe, roles: ['admin'] },
+        { name: 'Construction Progress', path: '/enterprise/construction', icon: Hammer, roles: ['admin', 'executive', 'project_manager'] },
+        { name: 'Quality Inspections', path: '/enterprise/quality', icon: ShieldCheck, roles: ['admin', 'executive', 'project_manager', 'delivery_engineer'] },
       ]
     }
   ];
@@ -156,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
               <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-sm)', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
                 {(() => {
                   const Icon = (() => {
-                    switch(systemIconName) {
+                    switch (systemIconName) {
                       case 'Building2': return Building2;
                       case 'Users': return Users;
                       case 'Wallet': return Wallet;

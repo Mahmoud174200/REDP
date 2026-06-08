@@ -324,7 +324,6 @@ class TeleSalesController extends Controller
         $user = $request->user();
 
         $projects = Project::select('id', 'name', 'location', 'status')
-            ->where('status', 'active')
             ->orderBy('name')
             ->get();
 

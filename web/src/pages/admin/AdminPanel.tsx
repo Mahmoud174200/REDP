@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Settings, Plus, Edit2, Trash2, Key, ToggleLeft, ToggleRight, 
-  Save, X, Search, Building2, ClipboardList, AlertCircle, FileText, 
+import {
+  Users, Settings, Plus, Edit2, Trash2, Key, ToggleLeft, ToggleRight,
+  Save, X, Search, Building2, ClipboardList, AlertCircle, FileText,
   Trash, RefreshCw, Layers, UserCheck, ShieldAlert, Activity, Monitor
 } from 'lucide-react';
 import api from '../../services/api';
@@ -48,7 +48,7 @@ interface LeadItem {
   lead_score: number;
   assigned_sales_agent_id: string | null;
   agent?: UserItem;
-  source?: string;
+  source?: string | null;
   created_at: string;
 }
 
@@ -112,7 +112,7 @@ const AdminPanel: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
-  
+
   const [configs, setConfigs] = useState({
     kyc_auto_approve: 'false',
     lead_assignment_mode: 'manual',
@@ -208,7 +208,7 @@ const AdminPanel: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'icon') => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
@@ -744,7 +744,7 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-      
+
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -775,7 +775,7 @@ const AdminPanel: React.FC = () => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
           return (
-            <button 
+            <button
               key={tab.id}
               onClick={() => { setActiveTab(tab.id as any); setSearchQuery(''); }}
               className="btn-secondary"
@@ -808,17 +808,17 @@ const AdminPanel: React.FC = () => {
           {activeTab !== 'health' ? (
             <div style={{ position: 'relative', width: '320px' }}>
               <Search style={{ position: 'absolute', left: '16px', top: '13px', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
-              <input 
-                type="text" 
-                className="form-control" 
-                style={{ paddingLeft: '44px', height: '42px' }} 
-                placeholder={`Search ${activeTab.replace('_', ' ')}...`} 
+              <input
+                type="text"
+                className="form-control"
+                style={{ paddingLeft: '44px', height: '42px' }}
+                placeholder={`Search ${activeTab.replace('_', ' ')}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           ) : <div />}
-          
+
           <div style={{ display: 'flex', gap: '8px' }}>
             {activeTab === 'users' && (
               <button onClick={openAddUserModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
@@ -1005,11 +1005,10 @@ const AdminPanel: React.FC = () => {
                     <td style={{ textTransform: 'capitalize' }}>{un.type}</td>
                     <td style={{ fontWeight: 700 }}>EGP {Number(un.price).toLocaleString()}</td>
                     <td>
-                      <span className={`badge ${
-                        un.status === 'available' ? 'badge-success' : 
-                        un.status === 'reserved' ? 'badge-info' : 
-                        un.status === 'sold' ? 'badge-danger' : 'badge-danger'
-                      }`} style={{ textTransform: 'uppercase' }}>
+                      <span className={`badge ${un.status === 'available' ? 'badge-success' :
+                          un.status === 'reserved' ? 'badge-info' :
+                            un.status === 'sold' ? 'badge-danger' : 'badge-danger'
+                        }`} style={{ textTransform: 'uppercase' }}>
                         {un.status}
                       </span>
                     </td>
@@ -1124,10 +1123,9 @@ const AdminPanel: React.FC = () => {
                     <td>{t.unit ? `Unit ${t.unit.unit_number}` : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                     <td style={{ textTransform: 'capitalize' }}>{t.category}</td>
                     <td>
-                      <span className={`badge ${
-                        t.priority === 'critical' || t.priority === 'high' ? 'badge-danger' : 
-                        t.priority === 'medium' ? 'badge-info' : 'badge-success'
-                      }`} style={{ textTransform: 'uppercase' }}>
+                      <span className={`badge ${t.priority === 'critical' || t.priority === 'high' ? 'badge-danger' :
+                          t.priority === 'medium' ? 'badge-info' : 'badge-success'
+                        }`} style={{ textTransform: 'uppercase' }}>
                         {t.priority}
                       </span>
                     </td>
@@ -1237,9 +1235,9 @@ const AdminPanel: React.FC = () => {
                       {session.last_used_at ? session.last_used_at.substring(0, 19).replace('T', ' ') : 'Active Now'}
                     </td>
                     <td>
-                      <button 
-                        onClick={() => handleRevokeSession(session.id)} 
-                        className="btn-secondary" 
+                      <button
+                        onClick={() => handleRevokeSession(session.id)}
+                        className="btn-secondary"
                         style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
                       >
                         <ShieldAlert size={12} style={{ marginRight: '4px' }} /> Force Logout
@@ -1256,18 +1254,18 @@ const AdminPanel: React.FC = () => {
       {/* ── Tab Content: SYSTEM HEALTH ── */}
       {activeTab === 'health' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* Main indicators grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-            
+
             {/* Database Connection */}
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                width: '48px', height: '48px', borderRadius: '50%', 
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
                 background: systemHealth?.db_connected ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
-                <Building2 style={{ 
+                <Building2 style={{
                   color: systemHealth?.db_connected ? 'var(--color-success)' : 'var(--color-danger)',
                   width: '24px', height: '24px'
                 }} />
@@ -1283,8 +1281,8 @@ const AdminPanel: React.FC = () => {
 
             {/* Cache Status */}
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                width: '48px', height: '48px', borderRadius: '50%', 
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
                 background: 'rgba(59,130,246,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
@@ -1300,8 +1298,8 @@ const AdminPanel: React.FC = () => {
 
             {/* API Average Response Time */}
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                width: '48px', height: '48px', borderRadius: '50%', 
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
                 background: 'rgba(99,102,241,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
@@ -1317,12 +1315,12 @@ const AdminPanel: React.FC = () => {
 
             {/* API Error Counts */}
             <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ 
-                width: '48px', height: '48px', borderRadius: '50%', 
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
                 background: systemHealth?.api_error_count && systemHealth.api_error_count > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
-                <ShieldAlert style={{ 
+                <ShieldAlert style={{
                   color: systemHealth?.api_error_count && systemHealth.api_error_count > 0 ? 'var(--color-danger)' : 'var(--color-success)',
                   width: '24px', height: '24px'
                 }} />
@@ -1339,7 +1337,7 @@ const AdminPanel: React.FC = () => {
 
           {/* Disk & Memory resource usage */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            
+
             {/* Disk space card */}
             <div className="glass-panel" style={{ padding: '24px' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', color: 'var(--text-main)' }}>💿 Hard Disk Storage Space</h3>
@@ -1348,9 +1346,9 @@ const AdminPanel: React.FC = () => {
                 <span>Total: {systemHealth?.disk_total_gb || 0} GB</span>
               </div>
               <div style={{ width: '100%', height: '14px', background: 'rgba(0,0,0,0.06)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
-                <div style={{ 
-                  width: `${systemHealth?.disk_usage_percent || 0}%`, 
-                  height: '100%', 
+                <div style={{
+                  width: `${systemHealth?.disk_usage_percent || 0}%`,
+                  height: '100%',
                   background: (systemHealth?.disk_usage_percent || 0) > 85 ? 'var(--color-danger)' : (systemHealth?.disk_usage_percent || 0) > 65 ? '#f59e0b' : 'var(--color-success)',
                   borderRadius: '10px',
                   transition: 'width 0.4s ease'
@@ -1370,9 +1368,9 @@ const AdminPanel: React.FC = () => {
                 <span>Max Limit: {systemHealth?.memory_limit || '128M'}</span>
               </div>
               <div style={{ width: '100%', height: '14px', background: 'rgba(0,0,0,0.06)', borderRadius: '10px', overflow: 'hidden', position: 'relative' }}>
-                <div style={{ 
-                  width: `${Math.min(((systemHealth?.memory_usage_mb || 0) / 128) * 100, 100)}%`, 
-                  height: '100%', 
+                <div style={{
+                  width: `${Math.min(((systemHealth?.memory_usage_mb || 0) / 128) * 100, 100)}%`,
+                  height: '100%',
                   background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))',
                   borderRadius: '10px',
                   transition: 'width 0.4s ease'
@@ -1406,20 +1404,20 @@ const AdminPanel: React.FC = () => {
       {/* ── Tab Content: CONFIGURATIONS ── */}
       {activeTab === 'configs' && (
         <form onSubmit={handleSaveConfigs} className="glass-panel" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '35px' }}>
-          
+
           {/* Section 1: Branding & Identity */}
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, borderBottom: '1.5px solid var(--border-glass)', paddingBottom: '10px', marginBottom: '20px', color: 'var(--color-primary)' }}>
               🖼️ System Branding & Identity
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
-              
+
               {/* Form inputs */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 700 }}>System Platform Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="form-control"
                     value={configs.system_name || ''}
                     onChange={(e) => updateConfigKey('system_name', e.target.value)}
@@ -1430,7 +1428,7 @@ const AdminPanel: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 700 }}>Fallback Lucide Icon</label>
-                    <select 
+                    <select
                       className="form-control"
                       value={configs.system_icon_name || 'Building2'}
                       onChange={(e) => updateConfigKey('system_icon_name', e.target.value)}
@@ -1447,8 +1445,8 @@ const AdminPanel: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 700 }}>Upload Custom Icon File</label>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       className="form-control"
                       style={{ padding: '6px' }}
@@ -1460,8 +1458,8 @@ const AdminPanel: React.FC = () => {
 
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 700 }}>Upload Custom Logo File</label>
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     accept="image/*"
                     className="form-control"
                     style={{ padding: '6px' }}
@@ -1472,8 +1470,8 @@ const AdminPanel: React.FC = () => {
 
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 700 }}>System Logo Image URL</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="form-control"
                     value={configs.system_logo_url || ''}
                     onChange={(e) => updateConfigKey('system_logo_url', e.target.value)}
@@ -1483,8 +1481,8 @@ const AdminPanel: React.FC = () => {
 
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 700 }}>System Custom Icon URL</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="form-control"
                     value={configs.system_icon_url || ''}
                     onChange={(e) => updateConfigKey('system_icon_url', e.target.value)}
@@ -1499,20 +1497,20 @@ const AdminPanel: React.FC = () => {
                   👀 Sidebar Branding Preview
                 </h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', background: '#ffffff' }}>
-                  
+
                   {/* Icon/Logo render preview */}
                   {configs.system_logo_url ? (
-                    <img 
-                      src={configs.system_logo_url} 
-                      alt="Logo Preview" 
-                      style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} 
+                    <img
+                      src={configs.system_logo_url}
+                      alt="Logo Preview"
+                      style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }}
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : configs.system_icon_url ? (
-                    <img 
-                      src={configs.system_icon_url} 
-                      alt="Icon Preview" 
-                      style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} 
+                    <img
+                      src={configs.system_icon_url}
+                      alt="Icon Preview"
+                      style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }}
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
@@ -1546,8 +1544,8 @@ const AdminPanel: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>SMTP Mail Host</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control"
                   value={configs.mail_host || ''}
                   onChange={(e) => updateConfigKey('mail_host', e.target.value)}
@@ -1556,8 +1554,8 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>SMTP Mail Port</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control"
                   value={configs.mail_port || ''}
                   onChange={(e) => updateConfigKey('mail_port', e.target.value)}
@@ -1566,7 +1564,7 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Encryption Protocol</label>
-                <select 
+                <select
                   className="form-control"
                   value={configs.mail_encryption || 'tls'}
                   onChange={(e) => updateConfigKey('mail_encryption', e.target.value)}
@@ -1578,8 +1576,8 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>SMTP Username</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control"
                   value={configs.mail_username || ''}
                   onChange={(e) => updateConfigKey('mail_username', e.target.value)}
@@ -1587,8 +1585,8 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>SMTP Password</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   className="form-control"
                   value={configs.mail_password || ''}
                   onChange={(e) => updateConfigKey('mail_password', e.target.value)}
@@ -1596,8 +1594,8 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Sender From Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-control"
                   value={configs.mail_from_name || ''}
                   onChange={(e) => updateConfigKey('mail_from_name', e.target.value)}
@@ -1606,8 +1604,8 @@ const AdminPanel: React.FC = () => {
               </div>
               <div className="form-group" style={{ gridColumn: 'span 3' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Sender From Email Address</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   className="form-control"
                   value={configs.mail_from_address || ''}
                   onChange={(e) => updateConfigKey('mail_from_address', e.target.value)}
@@ -1623,11 +1621,11 @@ const AdminPanel: React.FC = () => {
               🔔 System Event Notification Rules
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              
+
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Enable Email Notifications</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => updateConfigKey('enable_email_notifications', configs.enable_email_notifications === 'true' ? 'false' : 'true')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
@@ -1645,7 +1643,7 @@ const AdminPanel: React.FC = () => {
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Enable In-App Notifications</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => updateConfigKey('enable_app_notifications', configs.enable_app_notifications === 'true' ? 'false' : 'true')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
@@ -1662,7 +1660,7 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>CRM Lead Ingestion Notification Recipient</label>
-                <select 
+                <select
                   className="form-control"
                   value={configs.notify_lead_creation_recipient || 'sales_agent'}
                   onChange={(e) => updateConfigKey('notify_lead_creation_recipient', e.target.value)}
@@ -1676,7 +1674,7 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Maintenance Ticket Creation Notification Recipient</label>
-                <select 
+                <select
                   className="form-control"
                   value={configs.notify_ticket_creation_recipient || 'delivery_engineer'}
                   onChange={(e) => updateConfigKey('notify_ticket_creation_recipient', e.target.value)}
@@ -1690,7 +1688,7 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Payment Overdue & Collections Notification Recipient</label>
-                <select 
+                <select
                   className="form-control"
                   value={configs.notify_payment_collection_recipient || 'finance_officer'}
                   onChange={(e) => updateConfigKey('notify_payment_collection_recipient', e.target.value)}
@@ -1711,11 +1709,11 @@ const AdminPanel: React.FC = () => {
               ⚙️ Platform Operations & Compliance
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              
+
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>KYC Automatic Approval Scan</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => updateConfigKey('kyc_auto_approve', configs.kyc_auto_approve === 'true' ? 'false' : 'true')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
@@ -1735,7 +1733,7 @@ const AdminPanel: React.FC = () => {
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Sandbox Developer Flag</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => updateConfigKey('sandbox_mode', configs.sandbox_mode === 'true' ? 'false' : 'true')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
@@ -1754,7 +1752,7 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Lead Assignment Routing Mode</label>
-                <select 
+                <select
                   className="form-control"
                   value={configs.lead_assignment_mode}
                   onChange={(e) => updateConfigKey('lead_assignment_mode', e.target.value)}
@@ -1767,8 +1765,8 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Default Broker Commission Rate (%)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.05"
                   className="form-control"
                   value={configs.default_broker_commission_rate}
@@ -1779,8 +1777,8 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Contractor SLA Dispatch Target (Hours)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   className="form-control"
                   value={configs.maintenance_sla_hours}
                   onChange={(e) => updateConfigKey('maintenance_sla_hours', e.target.value)}
@@ -1790,8 +1788,8 @@ const AdminPanel: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 700 }}>Value Added Tax (VAT) Rate (%)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.1"
                   className="form-control"
                   value={configs.vat_rate}
@@ -1804,7 +1802,7 @@ const AdminPanel: React.FC = () => {
                   ⚠️ System Maintenance Mode
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', padding: '14px', background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed rgba(239, 68, 68, 0.2)', borderRadius: 'var(--radius-md)' }}>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => updateConfigKey('maintenance_mode', configs.maintenance_mode === 'true' ? 'false' : 'true')}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
@@ -1830,9 +1828,9 @@ const AdminPanel: React.FC = () => {
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '20px', display: 'flex', gap: '12px' }}>
-            <button 
-              type="submit" 
-              className="btn-primary" 
+            <button
+              type="submit"
+              className="btn-primary"
               style={{ width: '220px', justifyContent: 'center' }}
               disabled={savingConfigs}
             >
@@ -1856,7 +1854,7 @@ const AdminPanel: React.FC = () => {
               <Users size={20} style={{ color: 'var(--color-primary)' }} />
               {userModalMode === 'add' ? 'Create System User Account' : 'Edit User Account'}
             </h3>
-            
+
             <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Full Name</label>
@@ -1874,7 +1872,7 @@ const AdminPanel: React.FC = () => {
                 <label className="form-label">Phone Number</label>
                 <input type="text" className="form-control" value={formUserPhone} onChange={e => setFormUserPhone(e.target.value)} />
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Security Role</label>
@@ -1917,7 +1915,7 @@ const AdminPanel: React.FC = () => {
               <Building2 size={20} style={{ color: 'var(--color-primary)' }} />
               {projectModalMode === 'add' ? 'Add New Project' : 'Edit Project Details'}
             </h3>
-            
+
             <form onSubmit={handleProjectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Project Name</label>
@@ -1955,7 +1953,7 @@ const AdminPanel: React.FC = () => {
               <Layers size={20} style={{ color: 'var(--color-primary)' }} />
               {unitModalMode === 'add' ? 'Create Inventory Unit' : 'Edit Unit Details'}
             </h3>
-            
+
             <form onSubmit={handleUnitSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Associated Project</label>
@@ -1966,7 +1964,7 @@ const AdminPanel: React.FC = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Unit Number</label>
@@ -2025,7 +2023,7 @@ const AdminPanel: React.FC = () => {
               <UserCheck size={20} style={{ color: 'var(--color-primary)' }} />
               {leadModalMode === 'add' ? 'Create Lead Profile' : 'Edit Lead Details'}
             </h3>
-            
+
             <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -2108,7 +2106,7 @@ const AdminPanel: React.FC = () => {
               <AlertCircle size={20} style={{ color: 'var(--color-primary)' }} />
               {ticketModalMode === 'add' ? 'Log Maintenance Ticket' : 'Edit Ticket Details'}
             </h3>
-            
+
             <form onSubmit={handleTicketSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>

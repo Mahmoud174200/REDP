@@ -46,7 +46,6 @@ class BrokerSalesController extends Controller
     public function listProjects(Request $request): JsonResponse
     {
         $projects = Project::withCount('units')
-            ->where('status', 'active')
             ->orderBy('name')
             ->get();
 

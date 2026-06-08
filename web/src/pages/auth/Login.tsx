@@ -174,15 +174,58 @@ const Login: React.FC = () => {
           <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.6)' }}>
             <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-primary)', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <UserCheck style={{ width: '12px', height: '12px' }} />
-              Quick-Fill Database Profiles
+              Quick-Fill Corporate Profiles
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>👑 Admin</button>
-              <button type="button" onClick={() => fillProfile('tele_sales')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>📞 Tele-Sales (T1)</button>
-              <button type="button" onClick={() => fillProfile('broker')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🍊 Broker (T2)</button>
-              <button type="button" onClick={() => fillProfile('company_sales')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🏢 Company Sales (T3)</button>
-              <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🔵 Accounts (Finance)</button>
-              <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '8px', fontSize: '0.7rem', justifyContent: 'center' }}>🟢 Operations (Delivery)</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              
+              {/* Board & Executive */}
+              <div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Executive Board</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  <button type="button" onClick={() => fillProfile('admin')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>👑 Admin (CEO)</button>
+                  <button type="button" onClick={() => fillProfile('executive')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>👔 Exec Director</button>
+                </div>
+              </div>
+
+              {/* Commercial Sales */}
+              <div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Commercial & Sales (CRM)</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  <button type="button" onClick={() => fillProfile('company_sales')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🏢 Sales Head (T3)</button>
+                  <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🟠 Sales Agent</button>
+                  <button type="button" onClick={() => fillProfile('tele_sales')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>📞 Tele-Sales (T1)</button>
+                  <button type="button" onClick={() => fillProfile('broker')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🍊 Broker (T2)</button>
+                </div>
+              </div>
+
+              {/* Operations & Finance */}
+              <div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Operations & Finance</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔵 Finance Officer</button>
+                  <button type="button" onClick={() => fillProfile('project_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🏗️ Project Mgr</button>
+                  <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🟢 Delivery Specialist</button>
+                  <button type="button" onClick={() => fillProfile('maintenance_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔧 Maintenance Mgr</button>
+                </div>
+              </div>
+
+              {/* Legal & Compliance */}
+              <div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Legal & Compliance</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  <button type="button" onClick={() => fillProfile('legal_officer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>⚖️ Legal Officer</button>
+                  <button type="button" onClick={() => fillProfile('compliance_officer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔒 Compliance</button>
+                </div>
+              </div>
+
+              {/* Clients */}
+              <div>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Clients</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px' }}>
+                  <button type="button" onClick={() => fillProfile('client')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🐳 Homeowner Client</button>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -281,17 +324,28 @@ const Login: React.FC = () => {
             <select 
               className="form-control"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setRole(val);
+                if (!isRegister) {
+                  fillProfile(val);
+                }
+              }}
               style={{ cursor: 'pointer', fontSize: '0.85rem' }}
             >
-              <option value="admin">👑 Platform Administrator</option>
+              <option value="admin">👑 Platform Administrator (CEO)</option>
+              <option value="executive">👔 Executive Director</option>
+              <option value="company_sales">🏢 Commercial Sales Head (Tier 3)</option>
+              <option value="sales_agent">🟠 Sales Agent</option>
               <option value="tele_sales">📞 Tele-Sales Agent (Tier 1)</option>
-              <option value="broker">🍊 External Broker Agency (Tier 2)</option>
-              <option value="company_sales">🏢 Company Sales Rep (Tier 3)</option>
-              <option value="sales_agent">🟠 Acquisition & KYC</option>
-              <option value="finance_officer">🔵 Finance & Locks</option>
+              <option value="broker">🍊 External Broker (Tier 2)</option>
+              <option value="finance_officer">🔵 Financial Officer</option>
+              <option value="project_manager">🏗️ Project Manager</option>
+              <option value="delivery_engineer">🟢 Delivery Specialist</option>
+              <option value="maintenance_manager">🔧 Facilities Maintenance Manager</option>
+              <option value="legal_officer">⚖️ Legal Officer</option>
+              <option value="compliance_officer">🔒 Compliance Officer</option>
               <option value="client">🐳 Compound Client/Homeowner</option>
-              <option value="delivery_engineer">🟢 Inspection Snagger</option>
             </select>
           </div>
 
