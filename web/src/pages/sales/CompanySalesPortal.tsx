@@ -150,6 +150,113 @@ const CompanySalesPortal: React.FC = () => {
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
   const [isPlanSaved, setIsPlanSaved] = useState(false);
 
+  // ── Standard Project Payment Plan States ──
+  const [standardPlans, setStandardPlans] = useState<any[]>([]);
+  const [selectedStandardPlanId, setSelectedStandardPlanId] = useState('');
+
+  useEffect(() => {
+    if (selectedReservationForContract && selectedReservationForContract.unit?.project_id) {
+      const projId = selectedReservationForContract.unit.project_id;
+      api.get(`/v1/sales/company/projects/${projId}/payment-plans`)
+        .then(res => {
+          if (res.data && res.data.success) {
+            setStandardPlans(res.data.data || []);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch standard plans for project:", err);
+          setStandardPlans([]);
+        });
+    } else {
+      setStandardPlans([]);
+      setSelectedStandardPlanId('');
+    }
+  }, [selectedReservationForContract]);
+
+  const handleStandardPlanChange = (planId: string) => {
+    setSelectedStandardPlanId(planId);
+    if (!planId) return;
+
+    const plan = standardPlans.find(p => p.id === planId);
+    if (!plan) return;
+
+    const dpPct = parseFloat(plan.down_payment_pct) || 0;
+    const discPct = parseFloat(plan.discount_pct) || 0;
+    const installmentsCount = parseInt(plan.installments) || 0;
+
+    setDiscountPercent(discPct.toString());
+    
+    const price = unitPrice;
+    const netPrice = price - (price * (discPct / 100));
+    const dpAmount = Math.round(netPrice * (dpPct / 100));
+    setDownPayment(dpAmount.toString());
+
+    const settings = plan.settings || {};
+
+    if (plan.settings) {
+      setFinalPaymentMethod(settings.finalPaymentMethod || (installmentsCount > 0 ? 'installment' : 'cash'));
+      setInstallmentType(settings.installmentType || 'direct');
+      setInterestType(settings.interestType || 'reducing');
+      setInstallmentTerm(settings.installmentTerm || Math.max(1, Math.round(installmentsCount / 12)));
+      setInstallmentInterest(settings.installmentInterest ?? 0);
+      setInstallmentStartMonth(settings.installmentStartMonth ?? 1);
+      setCashGracePeriod(settings.cashGracePeriod ?? 14);
+      
+      setEnableAnnual(settings.enableAnnual || false);
+      setAnnualInstallmentAmount((settings.annualInstallmentAmount ?? '50000').toString());
+      
+      setIncludeClub(settings.includeClub || false);
+      setClubCost((settings.clubCost ?? '150000').toString());
+      setClubPaymentMethod(settings.clubPaymentMethod || 'cash');
+      setClubTerm(settings.clubTerm ?? 5);
+      setClubInstallmentStartYear(settings.clubInstallmentStartYear ?? 1);
+      
+      setIncludeGarage(settings.includeGarage || false);
+      setGarageCost((settings.garageCost ?? '100000').toString());
+      setGaragePaymentMethod(settings.garagePaymentMethod || 'cash');
+      setGarageTerm(settings.garageTerm ?? 5);
+      setGarageInstallmentStartYear(settings.garageInstallmentStartYear ?? 1);
+      
+      setIncludeMaintenance(settings.includeMaintenance || false);
+      setMaintenanceCost((settings.maintenanceCost ?? '').toString());
+      setMaintenancePaymentMethod(settings.maintenancePaymentMethod || 'cash');
+      setMaintenanceTerm(settings.maintenanceTerm ?? 5);
+      setMaintenanceDueMonth(settings.maintenanceDueMonth ?? 36);
+      setMaintenanceInstallmentStartYear(settings.maintenanceInstallmentStartYear ?? 1);
+
+      const termYears = settings.installmentTerm || Math.max(1, Math.round(installmentsCount / 12));
+      const basePct = Math.floor(100 / termYears);
+      const remainder = 100 - (basePct * termYears);
+      const newPercentages = Array.from({ length: termYears }, (_, i) => {
+        return basePct + (i === termYears - 1 ? remainder : 0);
+      });
+      setYearPercentages(newPercentages);
+    } else {
+      setFinalPaymentMethod(installmentsCount > 0 ? 'installment' : 'cash');
+      setInstallmentType('direct');
+      setInterestType('reducing');
+      setInstallmentInterest(0);
+      setInstallmentStartMonth(1);
+      setCashGracePeriod(14);
+      setEnableAnnual(false);
+      setAnnualInstallmentAmount('50000');
+      setIncludeClub(false);
+      setIncludeGarage(false);
+      setIncludeMaintenance(false);
+
+      if (installmentsCount > 0) {
+        const termYears = Math.max(1, Math.round(installmentsCount / 12));
+        setInstallmentTerm(termYears);
+        const basePct = Math.floor(100 / termYears);
+        const remainder = 100 - (basePct * termYears);
+        const newPercentages = Array.from({ length: termYears }, (_, i) => {
+          return basePct + (i === termYears - 1 ? remainder : 0);
+        });
+        setYearPercentages(newPercentages);
+      }
+    }
+  };
+
   const getCashDueDate = () => {
     const date = new Date();
     date.setDate(date.getDate() + cashGracePeriod);
@@ -1337,7 +1444,14 @@ const CompanySalesPortal: React.FC = () => {
                 {units.map(unit => (
                   <tr key={unit.id}>
                     <td><strong>{unit.unit_number}</strong></td>
-                    <td>{unit.project?.name}</td>
+                    <td>
+                      <div>{unit.project?.name}</div>
+                      {unit.project?.delivery_date && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          📅 Delivery: {unit.project.delivery_date.substring(0, 10)}
+                        </div>
+                      )}
+                    </td>
                     <td>Floor {unit.floor} ({unit.type})</td>
                     <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
                     <td>
@@ -1573,10 +1687,16 @@ const CompanySalesPortal: React.FC = () => {
                   <option value="">-- Choose Unit --</option>
                   {units.filter(u => u.status === 'available').map(unit => (
                     <option key={unit.id} value={unit.id}>
-                      {unit.unit_number} - {unit.price?.toLocaleString()} EGP ({unit.project?.name} / {unit.type})
+                      {unit.unit_number} - {unit.price?.toLocaleString()} EGP ({unit.project?.name} {unit.project?.delivery_date ? `[Deliv: ${unit.project.delivery_date.substring(0, 10)}]` : ''} / {unit.type})
                     </option>
                   ))}
                 </select>
+                {selectedUnitForBookingObj && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderLeft: '4px solid var(--color-success)', borderRadius: 'var(--radius-xs)', fontSize: '0.78rem', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div>🏢 <strong>Project:</strong> {selectedUnitForBookingObj.project?.name}</div>
+                    <div>📅 <strong>Project Delivery Date:</strong> {selectedUnitForBookingObj.project?.delivery_date ? selectedUnitForBookingObj.project.delivery_date.substring(0, 10) : 'Not specified'}</div>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
@@ -1633,6 +1753,16 @@ const CompanySalesPortal: React.FC = () => {
                   <span style={{ color: 'var(--text-muted)' }}>EOI Deposit Already Paid:</span>
                   <strong style={{ color: 'var(--color-success)' }}>{parseFloat(selectedReservationForContract.eoi_amount || 0).toLocaleString()} EGP</strong>
                 </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Standard Payment Plan (نظام سداد قياسي)</label>
+                <select className="form-control" value={selectedStandardPlanId} onChange={e => handleStandardPlanChange(e.target.value)}>
+                  <option value="">-- Customize / نظام سداد مخصص --</option>
+                  {standardPlans.map(plan => (
+                    <option key={plan.id} value={plan.id}>{plan.name} / {plan.name_ar} (DP: {plan.down_payment_pct}%, Term: {plan.installments} mo, Disc: {plan.discount_pct}%)</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>

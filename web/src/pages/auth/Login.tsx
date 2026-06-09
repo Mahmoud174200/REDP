@@ -101,7 +101,8 @@ const Login: React.FC = () => {
   };
 
   const fillProfile = (selectedRole: string) => {
-    setRole(selectedRole);
+    const roleValue = selectedRole === 'handover' ? 'handover_officer' : selectedRole;
+    setRole(roleValue);
     setEmail(`${selectedRole}@redp.com`);
     setPassword('password');
     setConfirmPassword('password');
@@ -205,6 +206,7 @@ const Login: React.FC = () => {
                   <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔵 Finance Officer</button>
                   <button type="button" onClick={() => fillProfile('project_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🏗️ Project Mgr</button>
                   <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🟢 Delivery Specialist</button>
+                  <button type="button" onClick={() => fillProfile('handover')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔑 Handover Specialist</button>
                   <button type="button" onClick={() => fillProfile('maintenance_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔧 Maintenance Mgr</button>
                 </div>
               </div>
@@ -342,6 +344,7 @@ const Login: React.FC = () => {
               <option value="finance_officer">🔵 Financial Officer</option>
               <option value="project_manager">🏗️ Project Manager</option>
               <option value="delivery_engineer">🟢 Delivery Specialist</option>
+              <option value="handover_officer">🔑 Apartment Handover Specialist</option>
               <option value="maintenance_manager">🔧 Facilities Maintenance Manager</option>
               <option value="legal_officer">⚖️ Legal Officer</option>
               <option value="compliance_officer">🔒 Compliance Officer</option>

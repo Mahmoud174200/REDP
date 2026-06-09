@@ -18,7 +18,48 @@ class ClientPortalController extends Controller
      */
     public function getOverview(Request $request)
     {
-        $clientId = $request->user()->id;
+        $user = $request->user();
+
+        if ($user->role === 'handover_officer' || $user->role === 'delivery_engineer' || $user->role === 'project_manager' || $user->role === 'admin') {
+            $totalProjects = \App\Models\Project::count();
+            $totalUnits = \App\Models\Unit::count();
+            $completedHandovers = \App\Models\Unit::where('status', 'sold')->count();
+            $pendingHandovers = \App\Models\Unit::where('status', '!=', 'sold')->count();
+            $activeSnags = \App\Models\DefectsSnag::where('status', 'pending')->count();
+            $totalSnags = \App\Models\DefectsSnag::count();
+
+            $scheduledHandovers = \App\Models\Unit::whereNotNull('handover_date')
+                ->with('project')
+                ->orderBy('handover_date', 'asc')
+                ->limit(10)
+                ->get()
+                ->map(function ($unit) {
+                    return [
+                        'id' => $unit->id,
+                        'unit_number' => $unit->unit_number,
+                        'project_name' => $unit->project?->name ?? 'N/A',
+                        'handover_date' => $unit->handover_date,
+                        'status' => $unit->status
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'role' => $user->role,
+                'metrics' => [
+                    'total_projects' => $totalProjects,
+                    'total_units' => $totalUnits,
+                    'completed_handovers' => $completedHandovers,
+                    'pending_handovers' => $pendingHandovers,
+                    'active_snags' => $activeSnags,
+                    'total_snags' => $totalSnags
+                ],
+                'scheduled_handovers' => $scheduledHandovers,
+                'recent_snags' => \App\Models\DefectsSnag::with('unit')->latest()->limit(5)->get()
+            ]);
+        }
+
+        $clientId = $user->id;
 
         // Fetch counts for this client
         $ticketsCount = MaintenanceTicket::where('client_id', $clientId)->count();

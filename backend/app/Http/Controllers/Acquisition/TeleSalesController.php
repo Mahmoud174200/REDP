@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Acquisition;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Project;
+use App\Models\Unit;
 use App\Models\ClientJourneyLog;
 use App\Services\AuditLogService;
 use App\Services\TierAccessService;
@@ -311,30 +312,161 @@ class TeleSalesController extends Controller
     }
 
     // ════════════════════════════════════════════════
-    // PROJECT BROWSING (READ-ONLY, BASIC INFO)
+    // PROJECT & INVENTORY BROWSING
     // ════════════════════════════════════════════════
 
     /**
      * GET /api/v1/sales/tele/projects
-     * Returns project names and basic categories only.
-     * NO pricing, NO unit details, NO payment plans.
+     * Returns projects with summary stats (unit counts, price range, types).
      */
     public function listProjects(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $projects = Project::orderBy('name')->get();
 
-        $projects = Project::select('id', 'name', 'location', 'status')
-            ->orderBy('name')
-            ->get();
+        $data = $projects->map(function ($project) {
+            $units = Unit::where('project_id', $project->id)->get();
+            $availableUnits = $units->where('status', 'available');
 
-        // Extra safety: run through tier filter
-        $filtered = $projects->map(fn($p) =>
-            TierAccessService::filterProjectForRole($p->toArray(), $user)
-        );
+            return [
+                'id'             => $project->id,
+                'name'           => $project->name,
+                'location'       => $project->location,
+                'status'         => $project->status,
+                'delivery_date'  => $project->delivery_date,
+                'total_units'    => $units->count(),
+                'available_units'=> $availableUnits->count(),
+                'sold_units'     => $units->whereIn('status', ['sold', 'reserved'])->count(),
+                'price_min'      => $units->min('price'),
+                'price_max'      => $units->max('price'),
+                'unit_types'     => $units->pluck('type')->unique()->values()->toArray(),
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data'    => $filtered,
+            'data'    => $data,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/tele/projects/{projectId}
+     * Returns full project details with all units.
+     */
+    public function showProject(Request $request, string $projectId): JsonResponse
+    {
+        $project = Project::findOrFail($projectId);
+        $units = Unit::where('project_id', $projectId)
+            ->orderBy('floor')
+            ->orderBy('unit_number')
+            ->get();
+
+        // Group units by type for summary
+        $unitsByType = $units->groupBy('type')->map(function ($group, $type) {
+            return [
+                'type'           => $type,
+                'count'          => $group->count(),
+                'available'      => $group->where('status', 'available')->count(),
+                'price_min'      => $group->min('price'),
+                'price_max'      => $group->max('price'),
+                'area_min'       => $group->min('area'),
+                'area_max'       => $group->max('area'),
+                'bedrooms_range' => $group->pluck('bedrooms')->filter()->unique()->sort()->values()->toArray(),
+            ];
+        })->values();
+
+        // Generate standard payment plan templates based on unit prices
+        $avgPrice = $units->avg('price') ?? 0;
+        
+        $dbPlans = \App\Models\ProjectPaymentPlan::where('project_id', $projectId)->get();
+        if ($dbPlans->isNotEmpty()) {
+            $paymentPlans = $dbPlans->map(function ($pp) use ($avgPrice) {
+                $remPct = 1 - ($pp->down_payment_pct / 100);
+                return [
+                    'name'              => $pp->name,
+                    'name_ar'           => $pp->name_ar,
+                    'down_payment_pct'  => (float) $pp->down_payment_pct,
+                    'installments'      => (int) $pp->installments,
+                    'duration_months'   => (int) $pp->installments,
+                    'monthly_amount'    => $pp->installments > 0 ? round($avgPrice * $remPct / $pp->installments, 2) : 0,
+                    'discount_pct'      => (float) $pp->discount_pct,
+                    'description'       => $pp->description,
+                ];
+            })->toArray();
+        } else {
+            $paymentPlans = [
+                [
+                    'name'              => 'Cash Payment',
+                    'name_ar'           => 'كاش',
+                    'down_payment_pct'  => 100,
+                    'installments'      => 0,
+                    'duration_months'   => 0,
+                    'monthly_amount'    => 0,
+                    'discount_pct'      => 10,
+                    'description'       => 'Full cash payment with 10% discount',
+                ],
+                [
+                    'name'              => '5-Year Plan',
+                    'name_ar'           => 'خطة 5 سنوات',
+                    'down_payment_pct'  => 20,
+                    'installments'      => 60,
+                    'duration_months'   => 60,
+                    'monthly_amount'    => round($avgPrice * 0.80 / 60, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '20% down payment + 60 monthly installments',
+                ],
+                [
+                    'name'              => '7-Year Plan',
+                    'name_ar'           => 'خطة 7 سنوات',
+                    'down_payment_pct'  => 15,
+                    'installments'      => 84,
+                    'duration_months'   => 84,
+                    'monthly_amount'    => round($avgPrice * 0.85 / 84, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '15% down payment + 84 monthly installments',
+                ],
+                [
+                    'name'              => '10-Year Plan',
+                    'name_ar'           => 'خطة 10 سنوات',
+                    'down_payment_pct'  => 10,
+                    'installments'      => 120,
+                    'duration_months'   => 120,
+                    'monthly_amount'    => round($avgPrice * 0.90 / 120, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '10% down payment + 120 monthly installments',
+                ],
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'project'        => [
+                    'id'            => $project->id,
+                    'name'          => $project->name,
+                    'location'      => $project->location,
+                    'status'        => $project->status,
+                    'delivery_date' => $project->delivery_date,
+                    'total_units'   => $units->count(),
+                    'available_units' => $units->where('status', 'available')->count(),
+                ],
+                'units_summary'  => $unitsByType,
+                'units'          => $units->map(fn($u) => [
+                    'id'           => $u->id,
+                    'unit_number'  => $u->unit_number,
+                    'floor'        => $u->floor,
+                    'type'         => $u->type,
+                    'area'         => $u->area,
+                    'bedrooms'     => $u->bedrooms,
+                    'bathrooms'    => $u->bathrooms,
+                    'view_type'    => $u->view_type,
+                    'building'     => $u->building,
+                    'layout_description' => $u->layout_description,
+                    'price'        => $u->price,
+                    'status'       => $u->status,
+                    'handover_date'=> $u->handover_date,
+                ])->values(),
+                'payment_plans'  => $paymentPlans,
+            ],
         ]);
     }
 

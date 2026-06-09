@@ -347,9 +347,17 @@ const BrokerPortal: React.FC = () => {
                 <select className="form-control" value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} required>
                   <option value="">-- Choose Project --</option>
                   {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.location})</option>
+                    <option key={p.id} value={p.id}>{p.name} ({p.location}) {p.delivery_date ? `[Delivery: ${p.delivery_date.substring(0, 10)}]` : ''}</option>
                   ))}
                 </select>
+                {selectedProjectId && (() => {
+                  const proj = projects.find(p => p.id === selectedProjectId);
+                  return proj?.delivery_date ? (
+                    <div style={{ padding: '8px 12px', background: 'rgba(59,130,246,0.08)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-xs)', fontSize: '0.78rem', marginTop: '6px' }}>
+                      📅 <strong>Project Delivery Date:</strong> {proj.delivery_date.substring(0, 10)}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {selectedProjectId && units.length > 0 && (

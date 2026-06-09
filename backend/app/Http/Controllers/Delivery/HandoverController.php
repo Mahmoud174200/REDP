@@ -30,6 +30,10 @@ class HandoverController extends Controller
                 'number' => $unit->unit_number,
                 'type' => $unit->type,
                 'status' => $unit->status,
+                'handover_date' => $unit->handover_date,
+                'project_id' => $unit->project_id,
+                'project_name' => $unit->project->name ?? '—',
+                'project_delivery_date' => $unit->project->delivery_date ?? null,
             ],
             'checklist' => [
                 ['id' => 'chk_walls', 'item' => 'Wall plaster smoothness & painting layers', 'passed' => $existingSnags->where('description', 'like', '%wall%')->count() === 0],
@@ -103,5 +107,59 @@ class HandoverController extends Controller
             'message' => 'Handover QC sign-off complete. Client digital signature verified and logged.',
             'timestamp' => now()->toIso8601String()
         ], 200);
+    }
+
+    /**
+     * Update unit's handover date.
+     */
+    public function updateHandoverDate(Request $request, string $unitId)
+    {
+        $request->validate([
+            'handover_date' => 'nullable|date',
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+        $oldDate = $unit->handover_date;
+        $unit->update(['handover_date' => $request->handover_date]);
+
+        AuditLogService::log(
+            'UNIT_HANDOVER_DATE_UPDATE', 
+            $request->user()->id, 
+            ['unit_id' => $unitId, 'old_date' => $oldDate, 'new_date' => $request->handover_date]
+        );
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🟢 Delivery & Infra',
+            'message' => 'Unit handover date updated successfully.',
+            'handover_date' => $request->handover_date
+        ]);
+    }
+
+    /**
+     * Update project's delivery date.
+     */
+    public function updateDeliveryDate(Request $request, string $projectId)
+    {
+        $request->validate([
+            'delivery_date' => 'nullable|date',
+        ]);
+
+        $project = \App\Models\Project::findOrFail($projectId);
+        $oldDate = $project->delivery_date;
+        $project->update(['delivery_date' => $request->delivery_date]);
+
+        AuditLogService::log(
+            'PROJECT_DELIVERY_DATE_UPDATE', 
+            $request->user()->id, 
+            ['project_id' => $projectId, 'old_date' => $oldDate, 'new_date' => $request->delivery_date]
+        );
+
+        return response()->json([
+            'success' => true,
+            'owner' => '🟢 Delivery & Infra',
+            'message' => 'Project delivery date updated successfully.',
+            'delivery_date' => $request->delivery_date
+        ]);
     }
 }

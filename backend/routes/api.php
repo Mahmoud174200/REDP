@@ -100,8 +100,9 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::put('/leads/{id}/schedule-meeting', [TeleSalesController::class, 'scheduleMeeting']);
             Route::put('/leads/{id}/transfer', [TeleSalesController::class, 'transfer']);
 
-            // Projects (basic info only — no pricing)
+            // Projects (full details with units and pricing)
             Route::get('/projects', [TeleSalesController::class, 'listProjects']);
+            Route::get('/projects/{projectId}', [TeleSalesController::class, 'showProject']);
 
             // Dashboard
             Route::get('/dashboard', [TeleSalesController::class, 'dashboard']);
@@ -159,9 +160,15 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Projects
             Route::get('/projects', [CompanySalesController::class, 'listProjects']);
+            Route::get('/projects/{projectId}/payment-plans', [CompanySalesController::class, 'getProjectPaymentPlans']);
 
             // Dashboard
             Route::get('/dashboard', [CompanySalesController::class, 'dashboard']);
+
+            // Resale Requests Management (from homeowners)
+            $homeCtrl = \App\Http\Controllers\Delivery\HomeownerPortalController::class;
+            Route::get('/resale-requests', [$homeCtrl, 'getResaleRequests']);
+            Route::put('/resale-requests/{id}/review', [$homeCtrl, 'reviewResale']);
         });
 
     // ══════════════════════════════════════════════════════════
@@ -282,13 +289,34 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::middleware('role:client')->group(function () {
             Route::post('/gate-code', [ClientPortalController::class, 'requestGateCode']);
             Route::post('/tickets', [VendorController::class, 'storeTicket']);
+
+            // ── Homeowner Portal (H.9) ──
+            $homeCtrl = \App\Http\Controllers\Delivery\HomeownerPortalController::class;
+            Route::get('/homeowner/dashboard', [$homeCtrl, 'getDashboard']);
+
+            // Family Members
+            Route::post('/homeowner/family', [$homeCtrl, 'addFamilyMember']);
+            Route::delete('/homeowner/family/{id}', [$homeCtrl, 'removeFamilyMember']);
+
+            // Vehicles
+            Route::post('/homeowner/vehicles', [$homeCtrl, 'addVehicle']);
+            Route::delete('/homeowner/vehicles/{id}', [$homeCtrl, 'removeVehicle']);
+
+            // Service Requests (electrician, plumber, etc.)
+            Route::post('/homeowner/service-requests', [$homeCtrl, 'createServiceRequest']);
+
+            // Resale
+            Route::post('/homeowner/resale', [$homeCtrl, 'requestResale']);
+            Route::post('/homeowner/resale/{id}/cancel', [$homeCtrl, 'cancelResale']);
         });
 
         // Handover checklist/snags/sign-off (Delivery Engineers, Project Managers, and Technicians)
-        Route::middleware('role:delivery_engineer,project_manager,technician')->group(function () {
+        Route::middleware('role:handover_officer,delivery_engineer,project_manager,technician')->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
+            Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
+            Route::put('/projects/{projectId}/delivery-date', [HandoverController::class, 'updateDeliveryDate']);
         });
 
         // Maintenance ticket dispatch & contractor lists (Delivery Engineers, Maintenance Managers, and Technicians)
@@ -356,6 +384,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // Active Sessions
         Route::get('/active-sessions', [\App\Http\Controllers\Admin\AdminController::class, 'getActiveSessions']);
         Route::delete('/active-sessions/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'revokeSession']);
+
+        // Project Payment Plans CRUD
+        Route::get('/project-payment-plans', [\App\Http\Controllers\Admin\AdminController::class, 'getProjectPaymentPlans']);
+        Route::post('/project-payment-plans', [\App\Http\Controllers\Admin\AdminController::class, 'createProjectPaymentPlan']);
+        Route::put('/project-payment-plans/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateProjectPaymentPlan']);
+        Route::delete('/project-payment-plans/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteProjectPaymentPlan']);
     });
 
     // ══════════════════════════════════════════════════════════

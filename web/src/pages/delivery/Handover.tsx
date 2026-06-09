@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, AlertTriangle, PenTool, CheckCircle, FileSignature } from 'lucide-react';
+import { ShieldCheck, Lock, AlertTriangle, PenTool, CheckCircle, FileSignature, Calendar } from 'lucide-react';
 import api from '../../services/api';
 
 interface UnitData {
@@ -37,6 +37,14 @@ const Handover: React.FC = () => {
   const [signing, setSigning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [unitDetails, setUnitDetails] = useState<any | null>(null);
+  const [handoverDate, setHandoverDate] = useState<string>('');
+  const [projectDeliveryDate, setProjectDeliveryDate] = useState<string>('');
+
+  const userStr = localStorage.getItem('redp_user');
+  const user = userStr ? JSON.parse(userStr) : { role: 'handover_officer' };
+  const canEditDates = user.role === 'admin' || user.role === 'handover_officer' || user.role === 'project_manager';
+
   const fetchUnits = async () => {
     try {
       const res = await api.get('/v1/finance/units');
@@ -70,9 +78,45 @@ const Handover: React.FC = () => {
           date: snag.created_at ? snag.created_at.substring(0, 10) : 'N/A',
         }));
         setSnags(snagList);
+
+        if (res.data.unit) {
+          setUnitDetails(res.data.unit);
+          setHandoverDate(res.data.unit.handover_date || '');
+          setProjectDeliveryDate(res.data.unit.project_delivery_date || '');
+        }
       }
     } catch (err) {
       console.error('Failed to fetch checklist:', err);
+    }
+  };
+
+  const handleUpdateHandoverDate = async () => {
+    if (!selectedUnitId) return;
+    try {
+      const res = await api.put(`/v1/delivery/units/${selectedUnitId}/handover-date`, {
+        handover_date: handoverDate || null
+      });
+      if (res.data && res.data.success) {
+        alert('Unit handover date updated successfully!');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error updating handover date.');
+    }
+  };
+
+  const handleUpdateProjectDeliveryDate = async () => {
+    if (!unitDetails?.project_id) return;
+    try {
+      const res = await api.put(`/v1/delivery/projects/${unitDetails.project_id}/delivery-date`, {
+        delivery_date: projectDeliveryDate || null
+      });
+      if (res.data && res.data.success) {
+        alert('Project delivery date updated successfully!');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error updating project delivery date.');
     }
   };
 
@@ -189,6 +233,71 @@ const Handover: React.FC = () => {
           ))}
         </select>
       </div>
+
+      {/* Handover & Project Schedule Panel */}
+      {unitDetails && (
+        <div className="glass-panel" style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+          <div>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={18} color="var(--color-primary)" />
+              Project Schedule Details (جدول المشروع)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Project:</span> <strong>{unitDetails.project_name}</strong>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>Project Delivery Date (تسليم المشروع كامل)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                    value={projectDeliveryDate.substring(0, 10)}
+                    onChange={(e) => setProjectDeliveryDate(e.target.value)}
+                    disabled={!canEditDates}
+                  />
+                  {canEditDates && (
+                    <button onClick={handleUpdateProjectDeliveryDate} className="btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                      Update
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '12px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={18} color="#10b981" />
+              Unit Handover Schedule (جدول استلاف الشقة)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Unit Number:</span> <strong>{unitDetails.number}</strong>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>Unit Handover Date (تسليم الشقة)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                    value={handoverDate.substring(0, 10)}
+                    onChange={(e) => setHandoverDate(e.target.value)}
+                    disabled={!canEditDates}
+                  />
+                  {canEditDates && (
+                    <button onClick={handleUpdateHandoverDate} className="btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                      Update
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px', alignItems: 'start' }}>
         

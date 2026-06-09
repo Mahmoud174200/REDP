@@ -475,6 +475,22 @@ class DatabaseSeeder extends Seeder
             'employee_number' => 'EMP-0011'
         ]);
 
+        $handoverOfficerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Apartment Handover Specialist',
+            'email' => 'handover@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201003333344',
+            'role' => 'handover_officer',
+            'status' => 'active',
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0012'
+        ]);
+
         // ── 1.1 Create Employee Hierarchy Map (CEO down to Officer) ──
         // CEO
         EmployeeHierarchy::create([
@@ -637,6 +653,22 @@ class DatabaseSeeder extends Seeder
             'status' => 'active'
         ]);
 
+        // Handover Officer (reports to Project Manager)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $handoverOfficerUser->id,
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $projectManagerUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0012',
+            'hire_date' => '2024-05-01',
+            'status' => 'active'
+        ]);
+
         // ── 2. Create Real Estate Projects ──
         $patio = Project::create([
             'id' => (string) Str::uuid(),
@@ -644,6 +676,7 @@ class DatabaseSeeder extends Seeder
             'location' => 'New Cairo, Egypt',
             'total_units' => 45,
             'status' => 'construction',
+            'delivery_date' => '2027-12-31',
         ]);
 
         $uptown = Project::create([
@@ -652,7 +685,97 @@ class DatabaseSeeder extends Seeder
             'location' => '6th of October City, Egypt',
             'total_units' => 80,
             'status' => 'planning',
+            'delivery_date' => '2028-06-30',
         ]);
+
+        // Seed standard project payment plan templates
+        foreach ([$patio, $uptown] as $proj) {
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => 'Cash Payment',
+                'name_ar' => 'كاش',
+                'down_payment_pct' => 100.00,
+                'installments' => 0,
+                'discount_pct' => 10.00,
+                'description' => 'Full cash payment with 10% discount',
+                'settings' => [
+                    'finalPaymentMethod' => 'cash',
+                    'cashGracePeriod' => 14,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '5-Year Plan',
+                'name_ar' => 'خطة 5 سنوات',
+                'down_payment_pct' => 20.00,
+                'installments' => 60,
+                'discount_pct' => 0.00,
+                'description' => '20% down payment + 60 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 5,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '7-Year Plan',
+                'name_ar' => 'خطة 7 سنوات',
+                'down_payment_pct' => 15.00,
+                'installments' => 84,
+                'discount_pct' => 0.00,
+                'description' => '15% down payment + 84 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 7,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '10-Year Plan',
+                'name_ar' => 'خطة 10 سنوات',
+                'down_payment_pct' => 10.00,
+                'installments' => 120,
+                'discount_pct' => 0.00,
+                'description' => '10% down payment + 120 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 10,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                    'enableAnnual' => true,
+                    'annualInstallmentAmount' => '50000',
+                    'includeClub' => true,
+                    'clubCost' => '150000',
+                    'clubPaymentMethod' => 'installment',
+                    'clubTerm' => 10,
+                    'clubInstallmentStartYear' => 1,
+                    'includeGarage' => true,
+                    'garageCost' => '100000',
+                    'garagePaymentMethod' => 'installment',
+                    'garageTerm' => 10,
+                    'garageInstallmentStartYear' => 1,
+                    'includeMaintenance' => true,
+                    'maintenanceCost' => '200000',
+                    'maintenancePaymentMethod' => 'installment',
+                    'maintenanceTerm' => 10,
+                    'maintenanceInstallmentStartYear' => 1,
+                ]
+            ]);
+        }
 
         // ── 3. Create Units for Projects ──
         $unitA = Unit::create([
@@ -661,8 +784,15 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '101-A',
             'floor' => 1,
             'type' => 'Apartment',
+            'area' => 150.00,
+            'bedrooms' => 3,
+            'bathrooms' => 2,
+            'view_type' => 'sea',
+            'building' => 'Block A1',
+            'layout_description' => '3 غرف، 2 حمام، ريسبشن 3 قطع، مطبخ، تراس كبير بإطلالة بحرية مميزة',
             'price' => 4500000.00,
             'status' => 'available',
+            'handover_date' => '2027-05-15',
         ]);
 
         $unitB = Unit::create([
@@ -671,8 +801,15 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '201-B',
             'floor' => 2,
             'type' => 'Penthouse',
+            'area' => 260.00,
+            'bedrooms' => 4,
+            'bathrooms' => 3,
+            'view_type' => 'pool',
+            'building' => 'Block A1',
+            'layout_description' => 'الدور السفلي: ريسبشن 3 قطع، مطبخ، حمام ضيوف. الدور العلوي: 4 غرف نوم (منهم غرفتان ماستر)، 2 حمام، ليفينج، روف تراس واسع يطل على حمام السباحة',
             'price' => 8900000.00,
             'status' => 'reserved',
+            'handover_date' => '2027-08-20',
         ]);
 
         $unitC = Unit::create([
@@ -681,31 +818,58 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '12-C',
             'floor' => 3,
             'type' => 'Duplex',
+            'area' => 210.00,
+            'bedrooms' => 3,
+            'bathrooms' => 3,
+            'view_type' => 'garden',
+            'building' => 'Building 12',
+            'layout_description' => 'الدور الأرضي: ريسبشن قطعتين، مطبخ، حمام ضيوف، حديقة خاصة 50م. الدور الأول: 3 غرف نوم (منهم غرفة ماستر بدريسنج وحمام)، ليفينج، حمام رئيسي',
             'price' => 6200000.00,
             'status' => 'available',
+            'handover_date' => '2028-02-10',
         ]);
 
         // Additional units to enrich inventory
         for ($i = 2; $i <= 8; $i++) {
+            $isApartment = ($i % 2 === 0);
             Unit::create([
                 'id' => (string) Str::uuid(),
                 'project_id' => $patio->id,
                 'unit_number' => "{$i}02-A",
                 'floor' => $i,
-                'type' => $i % 2 === 0 ? 'Apartment' : 'Townhouse',
+                'type' => $isApartment ? 'Apartment' : 'Townhouse',
+                'area' => $isApartment ? (120.00 + ($i * 5)) : (180.00 + ($i * 10)),
+                'bedrooms' => 3,
+                'bathrooms' => $isApartment ? 2 : 3,
+                'view_type' => $isApartment ? 'garden' : 'pool',
+                'building' => $isApartment ? "Block B{$i}" : "Phase 2 Townhouses",
+                'layout_description' => $isApartment 
+                    ? "شقة فاخرة: 3 غرف نوم، 2 حمام، ريسبشن قطعتين، مطبخ، تراس يطل على اللاندسكيب"
+                    : "تاون هاوس مستقل: الأرضي (ريسبشن 3 قطع، مطبخ، حمام، تراس وحديقة)، الأول (3 غرف نوم منهم ماستر، ليفينج، حمام إضافي)",
                 'price' => 3000000.00 + ($i * 500000),
                 'status' => 'available',
+                'handover_date' => '2027-' . str_pad((string)($i + 2), 2, '0', STR_PAD_LEFT) . '-15',
             ]);
         }
         for ($i = 1; $i <= 5; $i++) {
+            $isVilla = ($i % 2 === 0);
             Unit::create([
                 'id' => (string) Str::uuid(),
                 'project_id' => $uptown->id,
                 'unit_number' => "{$i}4-C",
                 'floor' => $i,
-                'type' => $i % 2 === 0 ? 'Villa' : 'Studio',
+                'type' => $isVilla ? 'Villa' : 'Studio',
+                'area' => $isVilla ? (300.00 + ($i * 15)) : (55.00 + ($i * 5)),
+                'bedrooms' => $isVilla ? 5 : 1,
+                'bathrooms' => $isVilla ? 4 : 1,
+                'view_type' => $isVilla ? 'sea' : 'street',
+                'building' => $isVilla ? "Villas Zone C" : "Residences Bldg G",
+                'layout_description' => $isVilla 
+                    ? "فيلا مستقلة: الأرضي (ريسبشن واسع 4 قطع، مطبخ كبير، غرفة مربية بحمام، حمام ضيوف)، الأول (5 غرف نوم منهم جناح رئيسي، ليفينج، 3 حمامات)، روف بالكامل"
+                    : "استوديو مميز: غرفة نوم مفتوحة، ريسبشن قطعة واحدة، مطبخ أمريكي مفتوح، حمام، تراس بإطلالة مفتوحة",
                 'price' => 5000000.00 + ($i * 750000),
                 'status' => 'available',
+                'handover_date' => '2028-' . str_pad((string)$i, 2, '0', STR_PAD_LEFT) . '-20',
             ]);
         }
 
@@ -1169,5 +1333,7 @@ class DatabaseSeeder extends Seeder
             'rules_payload' => ['payload' => 'Timeline PDF generation.'],
             'active' => false,
         ]);
+
+        $this->call(PermissionSeeder::class);
     }
 }

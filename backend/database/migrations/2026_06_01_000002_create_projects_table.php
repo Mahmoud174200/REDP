@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->string('location');
             $table->integer('total_units')->default(0);
             $table->string('status')->default('planning');
+            $table->date('delivery_date')->nullable();
             $table->timestamps();
         });
     }

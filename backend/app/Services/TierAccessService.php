@@ -116,10 +116,11 @@ class TierAccessService
 
         // Tier 1: Only name and location (basic categories)
         return [
-            'id'       => $project['id'] ?? null,
-            'name'     => $project['name'] ?? null,
-            'location' => $project['location'] ?? null,
-            'status'   => $project['status'] ?? null,
+            'id'            => $project['id'] ?? null,
+            'name'          => $project['name'] ?? null,
+            'location'      => $project['location'] ?? null,
+            'status'        => $project['status'] ?? null,
+            'delivery_date' => $project['delivery_date'] ?? null,
         ];
     }
 

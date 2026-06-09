@@ -15,10 +15,16 @@ class Project extends Model
         'location',
         'total_units',
         'status', // 'planning', 'active', 'completed'
+        'delivery_date',
     ];
 
     public function units()
     {
         return $this->hasMany(Unit::class);
+    }
+
+    public function paymentPlans()
+    {
+        return $this->hasMany(ProjectPaymentPlan::class);
     }
 }

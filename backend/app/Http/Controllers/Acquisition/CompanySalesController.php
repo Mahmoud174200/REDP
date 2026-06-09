@@ -598,4 +598,17 @@ class CompanySalesController extends Controller
             'data'    => $projects,
         ]);
     }
+
+    /**
+     * GET /api/v1/sales/company/projects/{projectId}/payment-plans
+     * Get standard project payment plans.
+     */
+    public function getProjectPaymentPlans(string $projectId): JsonResponse
+    {
+        $plans = \App\Models\ProjectPaymentPlan::where('project_id', $projectId)->get();
+        return response()->json([
+            'success' => true,
+            'data'    => $plans,
+        ]);
+    }
 }
