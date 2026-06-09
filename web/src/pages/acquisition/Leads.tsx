@@ -8,15 +8,38 @@ const Leads: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [userRole, setUserRole] = useState('admin');
+
+  // Tele-Sales Action States
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [actionLeadId, setActionLeadId] = useState<string | null>(null);
+  const [meetingDate, setMeetingDate] = useState('');
+  const [meetingLocation, setMeetingLocation] = useState('Company HQ Office');
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
 
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get('/v1/acquisition/leads', {
+      const userStr = localStorage.getItem('redp_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role || 'admin';
+      
+      let endpoint = '/v1/acquisition/leads';
+      if (role === 'tele_sales') {
+        endpoint = '/v1/sales/tele/leads';
+      } else if (role === 'broker') {
+        endpoint = '/v1/sales/broker/leads';
+      } else if (role === 'company_sales') {
+        endpoint = '/v1/sales/company/leads';
+      }
+
+      const response = await api.get(endpoint, {
         params: { per_page: 100 }
       });
       if (response.data && response.data.success) {
-        const fetchedLeads = response.data.data.data || [];
+        const fetchedLeads = response.data.data?.data || response.data.data || [];
         const mappedLeads = fetchedLeads.map((lead: any) => ({
           id: lead.id,
           name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'N/A',
@@ -35,6 +58,11 @@ const Leads: React.FC = () => {
   };
 
   useEffect(() => {
+    const userStr = localStorage.getItem('redp_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (user && user.role) {
+      setUserRole(user.role);
+    }
     fetchLeads();
   }, []);
 
@@ -48,7 +76,16 @@ const Leads: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const response = await api.post('/v1/acquisition/leads', {
+      const userStr = localStorage.getItem('redp_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role || 'admin';
+
+      let endpoint = '/v1/acquisition/leads';
+      if (role === 'tele_sales') {
+        endpoint = '/v1/sales/tele/leads';
+      }
+
+      const response = await api.post(endpoint, {
         first_name: firstName,
         last_name: lastName,
         email: email || undefined,
@@ -82,6 +119,51 @@ const Leads: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to approve KYC.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleScheduleMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actionLeadId || !meetingDate) return;
+    try {
+      setIsLoading(true);
+      const response = await api.put(`/v1/sales/tele/leads/${actionLeadId}/schedule-meeting`, {
+        meeting_date: meetingDate,
+        location: meetingLocation,
+        notes: meetingNotes
+      });
+      if (response.data && response.data.success) {
+        alert('Meeting scheduled successfully!');
+        setShowMeetingModal(false);
+        setMeetingDate('');
+        setMeetingNotes('');
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to schedule meeting.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTransferLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actionLeadId) return;
+    try {
+      setIsLoading(true);
+      const response = await api.put(`/v1/sales/tele/leads/${actionLeadId}/transfer`, {
+        notes: transferNotes
+      });
+      if (response.data && response.data.success) {
+        alert('Lead transferred to company sales team!');
+        setShowTransferModal(false);
+        setTransferNotes('');
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to transfer lead.');
     } finally {
       setIsLoading(false);
     }
@@ -224,7 +306,7 @@ const Leads: React.FC = () => {
                       {lead.kyc === 'rejected' && <span className="badge badge-danger">Rejected</span>}
                     </td>
                     <td>
-                      {lead.kyc === 'none' && (
+                      {lead.kyc === 'none' && (userRole === 'admin' || userRole === 'sales_agent') ? (
                         <button 
                           onClick={() => handleKycApprove(lead.id)}
                           className="btn-secondary" 
@@ -232,7 +314,9 @@ const Leads: React.FC = () => {
                         >
                           Run KYC Verification
                         </button>
-                      )}
+                      ) : lead.kyc === 'none' ? (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pending</span>
+                      ) : null}
                       {lead.kyc !== 'none' && <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>Checked</span>}
                     </td>
                   </tr>
@@ -261,15 +345,46 @@ const Leads: React.FC = () => {
                     <div key={lead.id} className="kanban-card">
                       <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '6px' }}>{lead.name}</h4>
                       <p style={{ fontSize: '0.75rem', marginBottom: '8px' }}>{lead.phone}</p>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ID: {lead.id.substring(0, 8)}...</span>
-                        {stage.key !== 'contracted' && (
-                          <button 
-                            onClick={() => handleMoveStage(lead.id, lead.stage)}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--color-primary)' }}
-                          >
-                            <ArrowRight style={{ width: '14px', height: '14px' }} />
-                          </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ID: {lead.id.substring(0, 8)}...</span>
+                          {(userRole === 'admin' || userRole === 'sales_agent') && stage.key !== 'contracted' && (
+                            <button 
+                              onClick={() => handleMoveStage(lead.id, lead.stage)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--color-primary)' }}
+                              title="Move to Next CRM Stage"
+                            >
+                              <ArrowRight style={{ width: '14px', height: '14px' }} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Tele-Sales Agent Actions */}
+                        {userRole === 'tele_sales' && (
+                          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                            {lead.stage !== 'visit_scheduled' && lead.stage !== 'contracted' && (
+                              <button 
+                                onClick={() => {
+                                  setActionLeadId(lead.id);
+                                  setShowMeetingModal(true);
+                                }}
+                                className="btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '0.65rem', flex: 1, justifyContent: 'center' }}
+                              >
+                                📅 Meeting
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => {
+                                  setActionLeadId(lead.id);
+                                  setShowTransferModal(true);
+                              }}
+                              className="btn-primary"
+                              style={{ padding: '4px 8px', fontSize: '0.65rem', flex: 1, justifyContent: 'center' }}
+                            >
+                              🚀 Transfer
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -280,6 +395,82 @@ const Leads: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* 📅 Schedule Meeting Modal */}
+      {showMeetingModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '400px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+            <button onClick={() => setShowMeetingModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              X
+            </button>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>📅 Schedule Client Meeting</h3>
+            <form onSubmit={handleScheduleMeeting} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Meeting Date & Time</label>
+                <input 
+                  type="datetime-local" 
+                  className="form-control" 
+                  value={meetingDate} 
+                  onChange={e => setMeetingDate(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Location</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={meetingLocation} 
+                  onChange={e => setMeetingLocation(e.target.value)} 
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Meeting Notes</label>
+                <textarea 
+                  className="form-control" 
+                  style={{ minHeight: '80px', resize: 'vertical' }}
+                  value={meetingNotes} 
+                  onChange={e => setMeetingNotes(e.target.value)} 
+                  placeholder="e.g. Client interested in 3-bedroom unit..."
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowMeetingModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Schedule</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 Transfer Lead Modal */}
+      {showTransferModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '400px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+            <button onClick={() => setShowTransferModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              X
+            </button>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>🚀 Transfer Lead to Sales Team</h3>
+            <form onSubmit={handleTransferLead} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Transfer & Handover Notes</label>
+                <textarea 
+                  className="form-control" 
+                  style={{ minHeight: '120px', resize: 'vertical' }}
+                  value={transferNotes} 
+                  onChange={e => setTransferNotes(e.target.value)} 
+                  placeholder="Provide details about the client's interests, budget, and meeting outcomes for the sales agent..."
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowTransferModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Transfer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

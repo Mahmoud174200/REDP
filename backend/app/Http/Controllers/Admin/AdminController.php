@@ -39,7 +39,7 @@ class AdminController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in(['admin', 'sales_agent', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
+            'role' => ['required', Rule::in(['admin', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
             'status' => ['required', Rule::in(['active', 'inactive'])]
         ]);
 
@@ -72,7 +72,7 @@ class AdminController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:6',
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in(['admin', 'sales_agent', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
+            'role' => ['required', Rule::in(['admin', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
             'status' => ['required', Rule::in(['active', 'inactive'])]
         ]);
 

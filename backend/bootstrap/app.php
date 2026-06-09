@@ -12,12 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // $middleware->statefulApi(); // Enable stateful Sanctum auth for SPA
+        $middleware->append(\App\Http\Middleware\ResolveTenant::class);
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'tier' => \App\Http\Middleware\EnsureTierAccess::class,
             'maintenance' => \App\Http\Middleware\EnsureSystemNotUnderMaintenance::class,
             'audit.access' => \App\Http\Middleware\AuditDataAccess::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

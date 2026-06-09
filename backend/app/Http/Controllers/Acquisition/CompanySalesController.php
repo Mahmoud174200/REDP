@@ -10,6 +10,9 @@ use App\Models\Lead;
 use App\Models\Project;
 use App\Models\Reservation;
 use App\Models\Unit;
+use App\Models\Commission;
+use App\Models\CommissionPayoutRequest;
+use App\Models\User;
 use App\Events\ReservationConfirmed;
 use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
@@ -473,6 +476,7 @@ class CompanySalesController extends Controller
         $query = Reservation::with([
             'unit.project',
             'client:id,name,email,phone',
+            'broker:id,agency_name,agent_name',
             'contract.paymentPlan',
             'contract.payments' => fn($q) => $q->orderBy('installment_number'),
         ]);
@@ -597,6 +601,306 @@ class CompanySalesController extends Controller
         return response()->json([
             'success' => true,
             'data'    => $projects,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/company/reservations
+     * List all broker reservation requests.
+     */
+    public function listBrokerReservations(Request $request): JsonResponse
+    {
+        $reservations = Reservation::whereNotNull('broker_id')
+            ->with(['unit.project', 'client', 'broker'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $reservations,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/company/reservations/{id}/approve
+     * Approve a pending broker reservation.
+     */
+    public function approveBrokerReservation(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $reservation = Reservation::with(['unit', 'client', 'broker'])->findOrFail($id);
+
+        if ($reservation->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending reservation requests can be approved.',
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($reservation, $user) {
+                // 1. Confirm reservation
+                $reservation->update([
+                    'status'     => 'confirmed',
+                    'expires_at' => now()->addDays(7),
+                ]);
+
+                // 2. Lock unit to reserved
+                $unit = $reservation->unit;
+                $previousStatus = $unit->status;
+                $unit->update(['status' => 'reserved']);
+
+                // 3. Cancel other pending reservations for this unit
+                Reservation::where('unit_id', $reservation->unit_id)
+                    ->where('id', '!=', $reservation->id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status'               => 'cancelled',
+                        'cancellation_reason'  => 'Unit reserved by another approved hold request.',
+                    ]);
+
+                // 4. Update lead status to Reserved
+                $lead = Lead::where('phone', $reservation->client->phone)
+                    ->orWhere('email', $reservation->client->email)
+                    ->first();
+
+                if ($lead) {
+                    $lead->update([
+                        'status'                 => Lead::STATUS_RESERVED,
+                        'company_sales_agent_id' => $user->id,
+                        'current_tier'           => 'tier_3',
+                    ]);
+
+                    // 5. Generate commission pending ledger
+                    Commission::create([
+                        'id'           => (string) Str::uuid(),
+                        'broker_id'    => $reservation->broker_id,
+                        'lead_id'      => $lead->id,
+                        'unit_id'      => $reservation->unit_id,
+                        'rate_percent' => 2.50, // Standard 2.50% commission rate
+                        'gross_amount' => $unit->price * 0.025,
+                        'status'       => 'pending',
+                    ]);
+
+                    // Record journey
+                    AuditLogService::recordJourney(
+                        $lead->id,
+                        ClientJourneyLog::STAGE_BOOKING_INITIATED,
+                        $user,
+                        [
+                            'unit_id'        => $reservation->unit_id,
+                            'reservation_id' => $reservation->id,
+                            'eoi_amount'     => $reservation->eoi_amount,
+                        ]
+                    );
+                }
+
+                // Emit event
+                event(new \App\Events\Finance\UnitStatusChanged($unit->id, $previousStatus, 'reserved', $reservation->client_id));
+            });
+
+            // Emit decoupled notification event
+            event(new ReservationConfirmed($reservation->id, $reservation->unit_id, $reservation->client_id));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Broker reservation hold approved. Unit is locked and commission ledger registered.',
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * POST /api/v1/sales/company/reservations/{id}/cancel
+     * Cancel a broker reservation.
+     */
+    public function cancelBrokerReservation(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $reservation = Reservation::findOrFail($id);
+
+        $fields = $request->validate([
+            'cancellation_reason' => 'required|string|max:1000',
+        ]);
+
+        try {
+            DB::transaction(function () use ($reservation, $fields, $user) {
+                $previousStatus = $reservation->unit->status;
+
+                // 1. Mark reservation as cancelled
+                $reservation->update([
+                    'status'              => 'cancelled',
+                    'cancelled_by'        => $user->id,
+                    'cancellation_reason' => $fields['cancellation_reason'],
+                ]);
+
+                // 2. Set unit back to available if it is currently reserved or pending_reservation
+                $unit = $reservation->unit;
+                if ($unit && ($unit->status === 'reserved' || $unit->status === 'pending_reservation')) {
+                    // Check if there are other pending holds on this unit
+                    $hasOtherHolds = Reservation::where('unit_id', $unit->id)
+                        ->where('status', 'pending')
+                        ->exists();
+
+                    $newStatus = $hasOtherHolds ? 'pending_reservation' : 'available';
+                    $unit->update(['status' => $newStatus]);
+                    
+                    event(new \App\Events\Finance\UnitStatusChanged($unit->id, $previousStatus, $newStatus, null));
+                }
+
+                // 3. Reset associated lead back to negotiation stage
+                if ($reservation->client) {
+                    $lead = Lead::where('email', $reservation->client->email)
+                        ->orWhere('phone', $reservation->client->phone)
+                        ->first();
+                    if ($lead && $lead->status === Lead::STATUS_RESERVED) {
+                        $lead->update(['status' => Lead::STATUS_NEGOTIATION]);
+                    }
+
+                    // Void any pending commission record
+                    if ($lead) {
+                        Commission::where('unit_id', $reservation->unit_id)
+                            ->where('broker_id', $reservation->broker_id)
+                            ->delete();
+                    }
+                }
+
+                // 4. Record audit log
+                AuditLogService::log('RESERVATION_CANCELLED', $user->id, [
+                    'reservation_id' => $reservation->id,
+                    'unit_id'        => $reservation->unit_id,
+                    'client_id'      => $reservation->client_id,
+                ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Broker reservation cancelled successfully. Inventory released and commission voided.',
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * GET /api/v1/sales/company/payout-requests
+     */
+    public function listPayoutRequests(Request $request): JsonResponse
+    {
+        $payouts = CommissionPayoutRequest::with('broker')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $payouts,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/company/payout-requests/{id}/approve
+     */
+    public function approvePayoutRequest(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $payout = CommissionPayoutRequest::findOrFail($id);
+
+        if ($payout->status !== 'pending_review') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This payout request has already been processed.',
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($payout, $user) {
+                // 1. Mark payout as paid
+                $payout->update([
+                    'status'      => 'paid',
+                    'approved_by' => $user->id,
+                    'approved_at' => now(),
+                ]);
+
+                // 2. Mark corresponding commissions of this broker as paid up to the payout amount
+                $commissions = Commission::where('broker_id', $payout->broker_id)
+                    ->approved()
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                $remainingAmount = $payout->amount;
+                foreach ($commissions as $comm) {
+                    if ($remainingAmount <= 0) break;
+                    if ($comm->gross_amount <= $remainingAmount) {
+                        $comm->update(['status' => 'paid']);
+                        $remainingAmount -= $comm->gross_amount;
+                    } else {
+                        $comm->update(['status' => 'paid']); // Mark paid for simple resolution
+                        break;
+                    }
+                }
+
+                AuditLogService::log('BROKER_PAYOUT_APPROVED', $user->id, [
+                    'payout_id' => $payout->id,
+                    'broker_id' => $payout->broker_id,
+                    'amount'    => $payout->amount,
+                ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payout request approved and marked as paid.',
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * POST /api/v1/sales/company/payout-requests/{id}/reject
+     */
+    public function rejectPayoutRequest(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $payout = CommissionPayoutRequest::findOrFail($id);
+
+        if ($payout->status !== 'pending_review') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This payout request has already been processed.',
+            ], 400);
+        }
+
+        $fields = $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+
+        $payout->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $fields['rejection_reason'],
+        ]);
+
+        AuditLogService::log('BROKER_PAYOUT_REJECTED', $user->id, [
+            'payout_id' => $payout->id,
+            'broker_id' => $payout->broker_id,
+            'reason'    => $fields['rejection_reason'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payout request rejected.',
         ]);
     }
 }

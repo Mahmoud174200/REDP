@@ -14,9 +14,14 @@ class Reservation extends Model
         'id',
         'unit_id',
         'client_id',
+        'broker_id',
         'eoi_amount',
+        'payment_receipt_path',
         'status', // 'pending', 'confirmed', 'cancelled', 'expired'
         'expires_at',
+        'approval_notes',
+        'cancelled_by',
+        'cancellation_reason',
     ];
 
     /**
@@ -70,6 +75,11 @@ class Reservation extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function broker()
+    {
+        return $this->belongsTo(Broker::class);
     }
 
     public function client()
