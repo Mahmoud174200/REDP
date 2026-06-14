@@ -13,6 +13,8 @@ use App\Events\Acquisition\ReservationConfirmed as AcquisitionReservationConfirm
 use App\Events\ReservationConfirmed as BaseReservationConfirmed;
 use App\Events\PaymentReceived;
 use App\Events\ContractSigned;
+use App\Events\Finance\CancellationProcessed;
+use App\Listeners\Finance\PostJournalEntries;
 
 // ── 🟠 Acquisition Listeners ──
 use App\Listeners\Acquisition\HandlePaymentReceived;
@@ -72,11 +74,28 @@ class EventServiceProvider extends ServiceProvider
         PaymentReceived::class => [
             HandlePaymentReceived::class,
             [DeliveryEventListener::class, 'handlePaymentReceived'],
+            [PostJournalEntries::class, 'handlePaymentReceived'],
+            \App\Listeners\CalculateCommissions::class,
         ],
 
         ContractSigned::class => [
             HandleContractSigned::class,
             [DeliveryEventListener::class, 'handleContractSigned'],
+            [PostJournalEntries::class, 'handleContractSigned'],
+        ],
+
+        CancellationProcessed::class => [
+            [PostJournalEntries::class, 'handleCancellationProcessed'],
+        ],
+
+        \App\Events\ApprovalApproved::class => [
+            [\App\Listeners\UpdateProcurementStatus::class, 'handleApproved'],
+            [\App\Listeners\UpdatePayoutStatus::class, 'handleApproved'],
+        ],
+
+        \App\Events\ApprovalRejected::class => [
+            [\App\Listeners\UpdateProcurementStatus::class, 'handleRejected'],
+            [\App\Listeners\UpdatePayoutStatus::class, 'handleRejected'],
         ],
     ];
 

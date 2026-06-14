@@ -12,8 +12,8 @@
   --bg-secondary: rgba(255, 255, 255, 0.65);
   
   /* Highly blurred milk glass tokens */
-  --bg-glass: rgba(255, 255, 255, 0.45);
-  --border-glass: rgba(255, 255, 255, 0.65);
+  --bg-glass: rgba(255, 255, 255, 0.82);
+  --border-glass: rgba(255, 255, 255, 0.9);
   --backdrop-blur: blur(28px);
   
   /* Deep forest-charcoal color palette */

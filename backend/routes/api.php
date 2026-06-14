@@ -121,6 +121,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Leads (own broker leads only)
             Route::get('/leads', [BrokerSalesController::class, 'listLeads']);
+            Route::post('/leads', [BrokerSalesController::class, 'registerLead']);
             Route::get('/leads/{id}', [BrokerSalesController::class, 'showLead']);
 
             // Presentations (own only — strict isolation)
@@ -129,6 +130,18 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/presentations/{id}', [BrokerSalesController::class, 'showPresentation']);
             Route::put('/presentations/{id}/outcome', [BrokerSalesController::class, 'updateOutcome']);
             Route::put('/presentations/{id}/escalate', [BrokerSalesController::class, 'escalate']);
+
+            // Reservation Requests (broker holds)
+            Route::get('/reservations', [BrokerSalesController::class, 'listReservations']);
+            Route::post('/reservations', [BrokerSalesController::class, 'submitReservation']);
+            Route::get('/reservations/{id}', [BrokerSalesController::class, 'showReservation']);
+
+            // Payout Requests (broker invoices)
+            Route::get('/payout-requests', [BrokerSalesController::class, 'listPayoutRequests']);
+            Route::post('/payout-requests', [BrokerSalesController::class, 'submitPayoutRequest']);
+
+            // Leaderboard
+            Route::get('/leaderboard', [BrokerSalesController::class, 'leaderboard']);
 
             // Dashboard
             Route::get('/dashboard', [BrokerSalesController::class, 'dashboard']);
@@ -159,6 +172,15 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Projects
             Route::get('/projects', [CompanySalesController::class, 'listProjects']);
+
+            // Broker Request auditing (reservations & payout approvals)
+            Route::get('/reservations', [CompanySalesController::class, 'listBrokerReservations']);
+            Route::post('/reservations/{id}/approve', [CompanySalesController::class, 'approveBrokerReservation']);
+            Route::post('/reservations/{id}/cancel', [CompanySalesController::class, 'cancelBrokerReservation']);
+
+            Route::get('/payout-requests', [CompanySalesController::class, 'listPayoutRequests']);
+            Route::post('/payout-requests/{id}/approve', [CompanySalesController::class, 'approvePayoutRequest']);
+            Route::post('/payout-requests/{id}/reject', [CompanySalesController::class, 'rejectPayoutRequest']);
 
             // Dashboard
             Route::get('/dashboard', [CompanySalesController::class, 'dashboard']);
@@ -357,4 +379,289 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/active-sessions', [\App\Http\Controllers\Admin\AdminController::class, 'getActiveSessions']);
         Route::delete('/active-sessions/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'revokeSession']);
     });
+
+    // ══════════════════════════════════════════════════════════
+    // 🏢 ENTERPRISE ORGANIZATION MODULE
+    // ══════════════════════════════════════════════════════════
+    Route::prefix('v1/enterprise')->group(function () {
+        $orgCtrl = \App\Http\Controllers\Enterprise\OrganizationController::class;
+
+        // Countries (read for all, write for admin)
+        Route::get('/countries', [$orgCtrl, 'getCountries']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/countries', [$orgCtrl, 'createCountry']);
+            Route::put('/countries/{id}', [$orgCtrl, 'updateCountry']);
+        });
+
+        // Companies
+        Route::get('/companies', [$orgCtrl, 'getCompanies']);
+        Route::get('/companies/tree', [$orgCtrl, 'getCompanyTree']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/companies', [$orgCtrl, 'createCompany']);
+            Route::put('/companies/{id}', [$orgCtrl, 'updateCompany']);
+            Route::delete('/companies/{id}', [$orgCtrl, 'deleteCompany']);
+        });
+
+        // Company Groups
+        Route::get('/company-groups', [$orgCtrl, 'getCompanyGroups']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/company-groups', [$orgCtrl, 'createCompanyGroup']);
+            Route::put('/company-groups/{id}', [$orgCtrl, 'updateCompanyGroup']);
+            Route::delete('/company-groups/{id}', [$orgCtrl, 'deleteCompanyGroup']);
+        });
+
+        // Regions
+        Route::get('/regions', [$orgCtrl, 'getRegions']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/regions', [$orgCtrl, 'createRegion']);
+            Route::put('/regions/{id}', [$orgCtrl, 'updateRegion']);
+            Route::delete('/regions/{id}', [$orgCtrl, 'deleteRegion']);
+        });
+
+        // Branches
+        Route::get('/branches', [$orgCtrl, 'getBranches']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/branches', [$orgCtrl, 'createBranch']);
+            Route::put('/branches/{id}', [$orgCtrl, 'updateBranch']);
+            Route::delete('/branches/{id}', [$orgCtrl, 'deleteBranch']);
+        });
+
+        // Departments
+        Route::get('/departments', [$orgCtrl, 'getDepartments']);
+        Route::get('/departments/tree', [$orgCtrl, 'getDepartmentTree']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/departments', [$orgCtrl, 'createDepartment']);
+            Route::put('/departments/{id}', [$orgCtrl, 'updateDepartment']);
+            Route::delete('/departments/{id}', [$orgCtrl, 'deleteDepartment']);
+        });
+
+        // Teams
+        Route::get('/teams', [$orgCtrl, 'getTeams']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/teams', [$orgCtrl, 'createTeam']);
+            Route::put('/teams/{id}', [$orgCtrl, 'updateTeam']);
+            Route::delete('/teams/{id}', [$orgCtrl, 'deleteTeam']);
+        });
+
+        // Positions
+        Route::get('/positions', [$orgCtrl, 'getPositions']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/positions', [$orgCtrl, 'createPosition']);
+            Route::put('/positions/{id}', [$orgCtrl, 'updatePosition']);
+            Route::delete('/positions/{id}', [$orgCtrl, 'deletePosition']);
+        });
+
+        // Employee Hierarchy & Org Chart
+        Route::get('/hierarchy', [$orgCtrl, 'getHierarchy']);
+        Route::get('/org-chart', [$orgCtrl, 'getOrgChart']);
+        Route::get('/reporting/{userId}', [$orgCtrl, 'getReportingStructure']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/hierarchy/assign', [$orgCtrl, 'assignToHierarchy']);
+            Route::post('/hierarchy/transfer', [$orgCtrl, 'transferEmployee']);
+        });
+
+        // Delegations
+        Route::get('/delegations', [$orgCtrl, 'getDelegations']);
+        Route::middleware('role:admin')->group(function () use ($orgCtrl) {
+            Route::post('/delegations', [$orgCtrl, 'createDelegation']);
+            Route::post('/delegations/{id}/revoke', [$orgCtrl, 'revokeDelegation']);
+        });
+
+        // ── Advanced RBAC Engine ──
+        $rbacCtrl = \App\Http\Controllers\Enterprise\RbacController::class;
+        Route::get('/permissions', [$rbacCtrl, 'getPermissions']);
+        Route::get('/roles', [$rbacCtrl, 'getRoles']);
+        Route::get('/permission-templates', [$rbacCtrl, 'getTemplates']);
+
+        Route::middleware('role:admin')->group(function () use ($rbacCtrl) {
+            // Roles CRUD
+            Route::post('/roles', [$rbacCtrl, 'createRole']);
+            Route::put('/roles/{id}', [$rbacCtrl, 'updateRole']);
+            Route::delete('/roles/{id}', [$rbacCtrl, 'deleteRole']);
+
+            // Role Permissions
+            Route::get('/roles/{roleId}/permissions', [$rbacCtrl, 'getRolePermissions']);
+            Route::post('/roles/{roleId}/permissions', [$rbacCtrl, 'assignRolePermissions']);
+            Route::post('/roles/{roleId}/apply-template', [$rbacCtrl, 'applyTemplateToRole']);
+
+            // Templates CRUD
+            Route::post('/permission-templates', [$rbacCtrl, 'createTemplate']);
+
+            // User Assignment
+            Route::get('/users/{userId}/permissions', [$rbacCtrl, 'getUserPermissions']);
+            Route::post('/users/{userId}/roles', [$rbacCtrl, 'assignUserRole']);
+            Route::delete('/users/{userId}/roles', [$rbacCtrl, 'removeUserRole']);
+            Route::post('/users/{userId}/permissions/override', [$rbacCtrl, 'overrideUserPermission']);
+            Route::delete('/users/{userId}/permissions/{permissionId}/override', [$rbacCtrl, 'revokeUserPermissionOverride']);
+        });
+
+        // ── Approval Workflow Engine ──
+        $wfCtrl = \App\Http\Controllers\Enterprise\ApprovalWorkflowController::class;
+        $apprCtrl = \App\Http\Controllers\Enterprise\ApprovalController::class;
+
+        // Requester/Approver Inbox & Actions (available to authenticated users)
+        Route::get('/approvals/inbox', [$apprCtrl, 'getInbox']);
+        Route::post('/approvals/{id}/action', [$apprCtrl, 'submitDecision']);
+        Route::get('/approvals/history', [$apprCtrl, 'getHistory']);
+        Route::post('/approvals/test-initiate', [$apprCtrl, 'initiateTestApproval']);
+
+        // Workflow Designer (Admin only)
+        Route::get('/approval-workflows/entity-types', [$wfCtrl, 'getEntityTypes']);
+        Route::get('/approval-workflows', [$wfCtrl, 'index']);
+        Route::middleware('role:admin')->group(function () use ($wfCtrl) {
+            Route::post('/approval-workflows', [$wfCtrl, 'store']);
+            Route::put('/approval-workflows/{id}', [$wfCtrl, 'update']);
+            Route::delete('/approval-workflows/{id}', [$wfCtrl, 'destroy']);
+        });
+
+        // ── Legal Management Module ──
+        $legalCtrl = \App\Http\Controllers\Enterprise\LegalController::class;
+        Route::get('/legal/dashboard', [$legalCtrl, 'getDashboard']);
+        Route::get('/legal/cases', [$legalCtrl, 'index']);
+        Route::post('/legal/cases', [$legalCtrl, 'store']);
+        Route::get('/legal/cases/{id}', [$legalCtrl, 'show']);
+        Route::put('/legal/cases/{id}', [$legalCtrl, 'update']);
+        Route::post('/legal/cases/{id}/sessions', [$legalCtrl, 'addSession']);
+        Route::put('/legal/cases/{id}/sessions/{sessionId}', [$legalCtrl, 'updateSession']);
+        Route::post('/legal/cases/{id}/actions', [$legalCtrl, 'addAction']);
+        Route::put('/legal/cases/{id}/actions/{actionId}/complete', [$legalCtrl, 'completeAction']);
+        Route::post('/legal/cases/{id}/documents', [$legalCtrl, 'addDocument']);
+
+        // ── Customer 360 View ──
+        $c360Ctrl = \App\Http\Controllers\Enterprise\Customer360Controller::class;
+        Route::get('/customer360/search', [$c360Ctrl, 'search']);
+        Route::get('/customer360/{id}', [$c360Ctrl, 'show']);
+
+        // ── Task & Work Management ──
+        $taskCtrl = \App\Http\Controllers\Enterprise\TaskController::class;
+        Route::get('/tasks', [$taskCtrl, 'index']);
+        Route::post('/tasks', [$taskCtrl, 'store']);
+        Route::get('/tasks/{id}', [$taskCtrl, 'show']);
+        Route::put('/tasks/{id}', [$taskCtrl, 'update']);
+        Route::delete('/tasks/{id}', [$taskCtrl, 'destroy']);
+        Route::post('/tasks/{id}/comments', [$taskCtrl, 'addComment']);
+        Route::post('/tasks/{id}/attachments', [$taskCtrl, 'addAttachment']);
+        Route::post('/tasks/{id}/checklists', [$taskCtrl, 'addChecklistItem']);
+        Route::put('/tasks/{id}/checklists/{itemId}', [$taskCtrl, 'toggleChecklistItem']);
+        Route::post('/tasks/{id}/dependencies', [$taskCtrl, 'addDependency']);
+
+        // ── Omnichannel Communication Hub ──
+        $omniCtrl = \App\Http\Controllers\Enterprise\OmnichannelController::class;
+        Route::get('/omnichannel/conversations', [$omniCtrl, 'getConversations']);
+        Route::post('/omnichannel/conversations', [$omniCtrl, 'storeConversation']);
+        Route::get('/omnichannel/conversations/{id}/messages', [$omniCtrl, 'getMessages']);
+        Route::post('/omnichannel/conversations/{id}/messages', [$omniCtrl, 'sendMessage']);
+        Route::get('/omnichannel/templates', [$omniCtrl, 'getTemplates']);
+        Route::post('/omnichannel/receive-mock', [$omniCtrl, 'receiveMockMessage']);
+
+        // ── Enterprise Audit System ──
+        $auditCtrl = \App\Http\Controllers\Enterprise\EnterpriseAuditController::class;
+        Route::get('/audit/logs', [$auditCtrl, 'index']);
+        Route::get('/audit/logs/summary', [$auditCtrl, 'summary']);
+        Route::get('/audit/logs/{id}', [$auditCtrl, 'show']);
+
+        // ── Full Accounting ERP ──
+        $accCtrl = \App\Http\Controllers\Enterprise\AccountingController::class;
+        Route::get('/accounting/accounts', [$accCtrl, 'getAccounts']);
+        Route::post('/accounting/accounts', [$accCtrl, 'createAccount']);
+        Route::get('/accounting/cost-centers', [$accCtrl, 'getCostCenters']);
+        Route::post('/accounting/cost-centers', [$accCtrl, 'createCostCenter']);
+        Route::get('/accounting/profit-centers', [$accCtrl, 'getProfitCenters']);
+        Route::post('/accounting/profit-centers', [$accCtrl, 'createProfitCenter']);
+        Route::get('/accounting/entries', [$accCtrl, 'getJournalEntries']);
+        Route::post('/accounting/entries', [$accCtrl, 'createJournalEntry']);
+        Route::post('/accounting/entries/{id}/post', [$accCtrl, 'postJournalEntry']);
+        Route::get('/accounting/reports', [$accCtrl, 'getReports']);
+        Route::get('/accounting/budgets', [$accCtrl, 'getBudgets']);
+        Route::post('/accounting/budgets', [$accCtrl, 'createBudget']);
+
+        // ── Procurement & Vendor Management ──
+        $procCtrl = \App\Http\Controllers\Enterprise\ProcurementController::class;
+        Route::get('/procurement/requests', [$procCtrl, 'getPurchaseRequests']);
+        Route::post('/procurement/requests', [$procCtrl, 'createPurchaseRequest']);
+        Route::get('/procurement/requests/{id}', [$procCtrl, 'showPurchaseRequest']);
+        Route::put('/procurement/requests/{id}', [$procCtrl, 'updatePurchaseRequest']);
+        Route::post('/procurement/requests/{id}/submit-approval', [$procCtrl, 'submitPRApproval']);
+
+        Route::get('/procurement/rfqs', [$procCtrl, 'getRFQs']);
+        Route::post('/procurement/rfqs', [$procCtrl, 'createRFQ']);
+        Route::get('/procurement/rfqs/{id}', [$procCtrl, 'showRFQ']);
+        Route::post('/procurement/rfqs/{id}/quotations', [$procCtrl, 'submitVendorQuotation']);
+        Route::get('/procurement/rfqs/{id}/quotations', [$procCtrl, 'getRFQQuotations']);
+        Route::put('/procurement/quotations/{id}/status', [$procCtrl, 'updateQuotationStatus']);
+
+        Route::get('/procurement/orders', [$procCtrl, 'getPurchaseOrders']);
+        Route::post('/procurement/orders', [$procCtrl, 'createPurchaseOrder']);
+        Route::get('/procurement/orders/{id}', [$procCtrl, 'showPurchaseOrder']);
+        Route::post('/procurement/orders/{id}/submit-approval', [$procCtrl, 'submitPOApproval']);
+
+        Route::get('/procurement/receipts', [$procCtrl, 'getGoodsReceipts']);
+        Route::post('/procurement/receipts', [$procCtrl, 'createGoodsReceipt']);
+        Route::get('/procurement/receipts/{id}', [$procCtrl, 'showGoodsReceipt']);
+
+        Route::get('/procurement/invoices', [$procCtrl, 'getVendorInvoices']);
+        Route::post('/procurement/invoices', [$procCtrl, 'createVendorInvoice']);
+        Route::get('/procurement/invoices/{id}', [$procCtrl, 'showVendorInvoice']);
+        Route::post('/procurement/invoices/{id}/match', [$procCtrl, 'matchInvoice']);
+
+        // ── Commission Engine ──
+        $commCtrl = \App\Http\Controllers\Enterprise\CommissionController::class;
+        Route::get('/commissions/rules', [$commCtrl, 'getRules']);
+        Route::post('/commissions/rules', [$commCtrl, 'createRule']);
+        Route::get('/commissions/calculations', [$commCtrl, 'getCalculations']);
+        Route::get('/commissions/payouts', [$commCtrl, 'getPayouts']);
+        Route::post('/commissions/payouts', [$commCtrl, 'createPayoutBatch']);
+        Route::post('/commissions/payouts/{id}/pay', [$commCtrl, 'payOut']);
+
+        // ── AI Layer ──
+        $aiCtrl = \App\Http\Controllers\Enterprise\AiController::class;
+        Route::post('/ai/lead-score/{lead}', [$aiCtrl, 'scoreLead']);
+        Route::get('/ai/sales-forecast', [$aiCtrl, 'salesForecast']);
+        Route::post('/ai/collection-risk/{payment}', [$aiCtrl, 'predictCollectionRisk']);
+        Route::post('/ai/chat', [$aiCtrl, 'chat']);
+        Route::post('/ai/chat/clear', [$aiCtrl, 'clearChat']);
+        Route::get('/ai/predictions', [$aiCtrl, 'getPredictions']);
+
+        // ── Enterprise Data Platform ──
+        $dpCtrl = \App\Http\Controllers\Enterprise\DataPlatformController::class;
+        Route::get('/kpis', [$dpCtrl, 'getKpis']);
+        Route::get('/dashboards/{roleType}', [$dpCtrl, 'getDashboard']);
+        Route::post('/kpis/recalculate', [$dpCtrl, 'recalculateKpis']);
+        Route::get('/dashboards/export', [$dpCtrl, 'exportDashboardData']);
+
+        // ── Multi-Tenant SaaS ──
+        $tenantCtrl = \App\Http\Controllers\Enterprise\TenantController::class;
+        Route::get('/tenants', [$tenantCtrl, 'index']);
+        Route::post('/tenants/register', [$tenantCtrl, 'register']);
+        Route::put('/tenants/branding', [$tenantCtrl, 'updateBranding']);
+        Route::get('/tenants/quotas', [$tenantCtrl, 'getQuotas']);
+
+        // ── Globalization & Multi-Currency ──
+        $globCtrl = \App\Http\Controllers\Enterprise\GlobalizationController::class;
+        Route::get('/currencies', [$globCtrl, 'getCurrencies']);
+        Route::get('/currencies/rates', [$globCtrl, 'getExchangeRates']);
+        Route::post('/currencies/rates/sync', [$globCtrl, 'syncExchangeRates']);
+        Route::get('/translations/{locale}', [$globCtrl, 'getTranslations']);
+        Route::post('/translations', [$globCtrl, 'saveTranslation']);
+
+        // ── Project & Construction Management ──
+        $constCtrl = \App\Http\Controllers\Enterprise\ConstructionController::class;
+        Route::get('/construction/phases', [$constCtrl, 'getPhases']);
+        Route::get('/construction/milestones', [$constCtrl, 'getMilestones']);
+        Route::post('/construction/phases', [$constCtrl, 'createPhase']);
+        Route::put('/construction/milestones/{id}/progress', [$constCtrl, 'updateMilestone']);
+        Route::get('/construction/boq', [$constCtrl, 'getBoq']);
+        Route::post('/construction/resources', [$constCtrl, 'createResource']);
+
+        // ── Quality Management ──
+        $qualCtrl = \App\Http\Controllers\Enterprise\QualityController::class;
+        Route::get('/quality/inspections', [$qualCtrl, 'getInspections']);
+        Route::post('/quality/inspections', [$qualCtrl, 'createInspection']);
+        Route::get('/quality/ncrs', [$qualCtrl, 'getNcrs']);
+        Route::post('/quality/ncrs/{id}/resolve', [$qualCtrl, 'resolveNcr']);
+        Route::post('/quality/capa', [$qualCtrl, 'createCapa']);
+    });
 });
+
+
+

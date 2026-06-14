@@ -91,6 +91,16 @@ const CompanySalesPortal: React.FC = () => {
   const [journeyPresentations, setJourneyPresentations] = useState<any[]>([]);
   const [showJourneyModal, setShowJourneyModal] = useState(false);
 
+  // Broker Mediation States
+  const [brokerReservations, setBrokerReservations] = useState<any[]>([]);
+  const [brokerPayouts, setBrokerPayouts] = useState<any[]>([]);
+  const [rejectionModal, setRejectionModal] = useState<{ show: boolean; type: 'reservation' | 'payout'; id: string; reason: string }>({
+    show: false,
+    type: 'reservation',
+    id: '',
+    reason: ''
+  });
+
   // Custom Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean;
@@ -101,7 +111,7 @@ const CompanySalesPortal: React.FC = () => {
     show: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // Booking Modal States & Calculation parameters
@@ -124,36 +134,132 @@ const CompanySalesPortal: React.FC = () => {
   // New payment schedule and add-ons state
   const [discountPercent, setDiscountPercent] = useState('0');
   const [installmentStartMonth, setInstallmentStartMonth] = useState(1); // starting month
-  
+
   const [includeClub, setIncludeClub] = useState(false);
   const [clubCost, setClubCost] = useState('150000');
   const [clubPaymentMethod, setClubPaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [clubTerm, setClubTerm] = useState(5); // in years
   const [clubInstallmentStartYear, setClubInstallmentStartYear] = useState(1);
-  
+
   const [includeGarage, setIncludeGarage] = useState(false);
   const [garageCost, setGarageCost] = useState('100000');
   const [garagePaymentMethod, setGaragePaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [garageTerm, setGarageTerm] = useState(5); // in years
   const [garageInstallmentStartYear, setGarageInstallmentStartYear] = useState(1);
-  
+
   const [includeMaintenance, setIncludeMaintenance] = useState(false);
   const [maintenanceCost, setMaintenanceCost] = useState('');
   const [maintenancePaymentMethod, setMaintenancePaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [maintenanceTerm, setMaintenanceTerm] = useState(5); // in years
   const [maintenanceDueMonth, setMaintenanceDueMonth] = useState(36); // if cash
   const [maintenanceInstallmentStartYear, setMaintenanceInstallmentStartYear] = useState(1);
-  
+
   const [enableAnnual, setEnableAnnual] = useState(false);
   const [annualInstallmentAmount, setAnnualInstallmentAmount] = useState('50000');
   const [yearPercentages, setYearPercentages] = useState<number[]>([]);
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
   const [isPlanSaved, setIsPlanSaved] = useState(false);
+  const [savedSchedule, setSavedSchedule] = useState<any[]>([]);
 
   const getCashDueDate = () => {
     const date = new Date();
     date.setDate(date.getDate() + cashGracePeriod);
     return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+  };
+
+  // Helper: Load existing contract data into modal form when reopening
+  const loadContractDataIntoModal = (txn: any) => {
+    setSelectedReservationForContract(txn);
+    setBookingUnitId(txn.unit_id);
+    setBookingEoi(txn.eoi_amount.toString());
+
+    const contract = txn.contract;
+    const payments = contract?.payments || [];
+    const uPrice = parseFloat(txn.unit?.price) || 0;
+
+    // Load notes from contract
+    if (contract?.notes && contract.notes !== 'Generated from reservation.') {
+      setBookingNotes(contract.notes);
+    } else {
+      setBookingNotes('');
+    }
+
+    // Load payment method from contract type
+    if (contract?.type === 'installment') {
+      setFinalPaymentMethod('installment');
+    } else if (contract?.type === 'sale' || contract?.type === 'cash') {
+      setFinalPaymentMethod('cash');
+    }
+
+    // Extract down payment from saved payments
+    const dpPayment = payments.find((p: any) => p.transaction_reference?.includes('Down Payment') || p.transaction_reference?.includes('دفعة مقدمة'));
+    if (dpPayment) {
+      setDownPayment(parseFloat(dpPayment.amount).toString());
+    } else {
+      setDownPayment((uPrice * 0.1).toString());
+    }
+
+    // Try to derive discount from saved data
+    const totalScheduledAmount = payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+    if (totalScheduledAmount > 0 && totalScheduledAmount < uPrice) {
+      const discountVal = ((uPrice - totalScheduledAmount) / uPrice) * 100;
+      if (discountVal > 0.5 && discountVal < 100) {
+        setDiscountPercent(Math.round(discountVal).toString());
+      } else {
+        setDiscountPercent('0');
+      }
+    } else {
+      setDiscountPercent('0');
+    }
+
+    // Extract maintenance from saved payments
+    const maintenancePayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Maintenance') || p.transaction_reference?.includes('صيانة')
+    );
+    if (maintenancePayments.length > 0) {
+      const maintenanceTotal = maintenancePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setMaintenanceCost(maintenanceTotal.toString());
+      setIncludeMaintenance(true);
+    } else {
+      setMaintenanceCost((uPrice * 0.08).toString());
+      setIncludeMaintenance(false);
+    }
+
+    // Extract club membership from saved payments
+    const clubPayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Club') || p.transaction_reference?.includes('نادي')
+    );
+    if (clubPayments.length > 0) {
+      const clubTotal = clubPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setClubCost(clubTotal.toString());
+      setIncludeClub(true);
+    } else {
+      setIncludeClub(false);
+    }
+
+    // Extract garage from saved payments
+    const garagePayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Garage') || p.transaction_reference?.includes('جراج')
+    );
+    if (garagePayments.length > 0) {
+      const garageTotal = garagePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setGarageCost(garageTotal.toString());
+      setIncludeGarage(true);
+    } else {
+      setIncludeGarage(false);
+    }
+
+    // Build saved schedule for display
+    const schedule = payments.map((p: any) => ({
+      label: p.transaction_reference || `Payment #${p.installment_number}`,
+      amount: parseFloat(p.amount) || 0,
+      dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+      status: p.status,
+      installmentNumber: p.installment_number,
+    }));
+    setSavedSchedule(schedule);
+    setIsPlanSaved(true);
+    setShowContractModal(true);
   };
 
 
@@ -616,7 +722,7 @@ const CompanySalesPortal: React.FC = () => {
   const handlePrintSchedule = () => {
     const schedule = generatePaymentSchedule();
     const plan = calculatePlan();
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showToast('Popup blocker prevented printing. Please allow popups.', 'error');
@@ -642,9 +748,9 @@ const CompanySalesPortal: React.FC = () => {
       const items = groupedByMonth[mNum];
       const monthTotal = items.reduce((sum, item) => sum + item.amount, 0);
       const monthPct = totalOutlays > 0 ? (monthTotal / totalOutlays) * 100 : 0;
-      
-      const titleStr = mNum === 0 
-        ? 'Today (المقدم وجدية الحجز)' 
+
+      const titleStr = mNum === 0
+        ? 'Today (المقدم وجدية الحجز)'
         : `Month ${mNum} (الشهر ${mNum})`;
 
       return `
@@ -678,7 +784,7 @@ const CompanySalesPortal: React.FC = () => {
         </div>
       `;
     }).join('');
-    
+
     let html = `
       <html>
         <head>
@@ -798,15 +904,15 @@ const CompanySalesPortal: React.FC = () => {
             <div class="section-title">Yearly Distribution / التوزيع السنوي للأقساط</div>
             <div class="years-grid">
               ${yearPercentages.map((pct, idx) => {
-                const amount = plan.remaining * (pct / 100);
-                return `
+      const amount = plan.remaining * (pct / 100);
+      return `
                   <div class="year-box">
                     <div class="year-box-title">Year ${idx + 1}</div>
                     <div class="year-box-val">${Math.round(amount).toLocaleString()} EGP</div>
                     <div class="year-box-pct">${pct}% of installments</div>
                   </div>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           ` : ''}
 
@@ -823,7 +929,7 @@ const CompanySalesPortal: React.FC = () => {
         </body>
       </html>
     `;
-    
+
     printWindow.document.write(html);
     printWindow.document.close();
   };
@@ -834,7 +940,7 @@ const CompanySalesPortal: React.FC = () => {
 
     let csvContent = "\ufeff"; // BOM for excel arabic support
     csvContent += "Month,Description,Due Date,Amount (EGP),% of Total\n";
-    
+
     schedule.forEach(item => {
       csvContent += `${item.month},"${item.label}",${item.dueDate},${item.amount},${(item.percentage || 0).toFixed(2)}%\n`;
     });
@@ -878,6 +984,18 @@ const CompanySalesPortal: React.FC = () => {
       const transRes = await api.get('/v1/sales/company/transactions');
       if (transRes.data && transRes.data.success) {
         setTransactions(transRes.data.data.data || []);
+      }
+
+      // 5. Fetch Broker Reservations
+      const bResRes = await api.get('/v1/sales/company/reservations');
+      if (bResRes.data && bResRes.data.success) {
+        setBrokerReservations(bResRes.data.data || []);
+      }
+
+      // 6. Fetch Broker Payouts
+      const bPayoutsRes = await api.get('/v1/sales/company/payout-requests');
+      if (bPayoutsRes.data && bPayoutsRes.data.success) {
+        setBrokerPayouts(bPayoutsRes.data.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch Company Sales portal data:', err);
@@ -1012,6 +1130,7 @@ const CompanySalesPortal: React.FC = () => {
           setIncludeGarage(false);
           setIncludeMaintenance(false);
           setCustomAddons([]);
+          setSavedSchedule([]);
           setIsPlanSaved(false);
           await fetchPortalData();
         } else {
@@ -1023,6 +1142,16 @@ const CompanySalesPortal: React.FC = () => {
               contract: generatedContract
             };
           });
+          // Update saved schedule from returned contract payments
+          const returnedPayments = generatedContract?.payments || [];
+          const newSavedSchedule = returnedPayments.map((p: any) => ({
+            label: p.transaction_reference || `Payment #${p.installment_number}`,
+            amount: parseFloat(p.amount) || 0,
+            dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+            status: p.status,
+            installmentNumber: p.installment_number,
+          }));
+          setSavedSchedule(newSavedSchedule);
           setIsPlanSaved(true);
           await fetchPortalData();
         }
@@ -1051,6 +1180,7 @@ const CompanySalesPortal: React.FC = () => {
         setIncludeGarage(false);
         setIncludeMaintenance(false);
         setCustomAddons([]);
+        setSavedSchedule([]);
         setIsPlanSaved(false);
         await fetchPortalData();
       }
@@ -1084,6 +1214,76 @@ const CompanySalesPortal: React.FC = () => {
       setIsLoading(false);
     }
   };
+ 
+  const handleApproveBrokerReservation = async (resId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/reservations/${resId}/approve`);
+      if (res.data && res.data.success) {
+        await fetchPortalData();
+        showToast('Broker reservation request approved successfully.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to approve reservation hold.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelBrokerReservationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectionModal.id || !rejectionModal.reason) return;
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/reservations/${rejectionModal.id}/cancel`, {
+        cancellation_reason: rejectionModal.reason
+      });
+      if (res.data && res.data.success) {
+        setRejectionModal({ show: false, type: 'reservation', id: '', reason: '' });
+        await fetchPortalData();
+        showToast('Broker reservation hold request cancelled.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to cancel hold request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApprovePayout = async (payoutId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/payout-requests/${payoutId}/approve`);
+      if (res.data && res.data.success) {
+        await fetchPortalData();
+        showToast('Commission payout request approved.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to approve payout request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectPayoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectionModal.id || !rejectionModal.reason) return;
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/payout-requests/${rejectionModal.id}/reject`, {
+        rejection_reason: rejectionModal.reason
+      });
+      if (res.data && res.data.success) {
+        setRejectionModal({ show: false, type: 'payout', id: '', reason: '' });
+        await fetchPortalData();
+        showToast('Commission payout request rejected.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to reject payout request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading && leads.length === 0) {
     return (
@@ -1097,7 +1297,7 @@ const CompanySalesPortal: React.FC = () => {
   return (
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
-      
+
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -1162,7 +1362,7 @@ const CompanySalesPortal: React.FC = () => {
 
       {/* Main Grid Panels */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
-        
+
         {/* Leads and Journeys */}
         <div className="glass-panel" style={{ padding: '25px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1224,7 +1424,7 @@ const CompanySalesPortal: React.FC = () => {
                           >
                             <Milestone style={{ width: '12px', height: '12px' }} /> View Journey
                           </button>
-                          
+
                           {!lead.company_sales_agent_id ? (
                             <button
                               onClick={() => handleAssignToSelf(lead.id)}
@@ -1242,10 +1442,10 @@ const CompanySalesPortal: React.FC = () => {
                               Execute Booking
                             </button>
                           ) : lead.status === 'reserved' ? (() => {
-                            const txn = transactions.find(t => 
+                            const txn = transactions.find(t =>
                               t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
-                              ((lead.email && t.client?.email === lead.email) || 
-                               (lead.phone && t.client?.phone === lead.phone))
+                              ((lead.email && t.client?.email === lead.email) ||
+                                (lead.phone && t.client?.phone === lead.phone))
                             );
                             if (txn) {
                               return (
@@ -1260,6 +1460,12 @@ const CompanySalesPortal: React.FC = () => {
                                         const uPrice = parseFloat(txn.unit?.price) || 0;
                                         setDownPayment((uPrice * 0.1).toString());
                                         setMaintenanceCost((uPrice * 0.08).toString());
+                                        setSavedSchedule([]);
+                                        setBookingNotes('');
+                                        setIncludeClub(false);
+                                        setIncludeGarage(false);
+                                        setIncludeMaintenance(false);
+                                        setIsPlanSaved(false);
                                         setShowContractModal(true);
                                       }}
                                       className="btn-primary"
@@ -1269,16 +1475,7 @@ const CompanySalesPortal: React.FC = () => {
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => {
-                                        setSelectedReservationForContract(txn);
-                                        setBookingUnitId(txn.unit_id);
-                                        setBookingEoi(txn.eoi_amount.toString());
-                                        setDiscountPercent('0');
-                                        const uPrice = parseFloat(txn.unit?.price) || 0;
-                                        setDownPayment((uPrice * 0.1).toString());
-                                        setMaintenanceCost((uPrice * 0.08).toString());
-                                        setShowContractModal(true);
-                                      }}
+                                      onClick={() => loadContractDataIntoModal(txn)}
                                       className="btn-primary"
                                       style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                                     >
@@ -1315,6 +1512,184 @@ const CompanySalesPortal: React.FC = () => {
           </div>
         </div>
 
+        {/* Broker Submissions (Reservations and Payout Requests) */}
+        <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          
+          {/* Section 1: Reservation hold requests */}
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ClipboardList style={{ color: 'var(--color-primary)' }} />
+              Broker Unit Reservation Holds (Awaiting Approval)
+            </h3>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Broker Agency</th>
+                    <th>Unit Details</th>
+                    <th>Customer Name</th>
+                    <th>EOI Deposit</th>
+                    <th>Audit Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {brokerReservations.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No broker reservation requests in the system.</td>
+                    </tr>
+                  ) : (
+                    brokerReservations.map(res => (
+                      <tr key={res.id}>
+                        <td>
+                          <strong>{res.broker?.agency_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agent: {res.broker?.agent_name}</div>
+                        </td>
+                        <td>
+                          <strong>{res.unit?.unit_number}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Project: {res.unit?.project?.name}</div>
+                        </td>
+                        <td>
+                          <strong>{res.client?.name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {res.client?.phone}</div>
+                        </td>
+                        <td>
+                          {parseFloat(res.eoi_amount) > 0 ? (
+                            <>
+                              <strong>{parseFloat(res.eoi_amount).toLocaleString()} EGP</strong>
+                              {res.payment_receipt_path && (
+                                <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Receipt Slip</div>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Client Interest (No Deposit)</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${
+                            res.status === 'pending' ? 'warning' :
+                            res.status === 'confirmed' ? 'success' : 'danger'
+                          }`} style={{ textTransform: 'capitalize' }}>
+                            {res.status}
+                          </span>
+                        </td>
+                        <td>
+                          {res.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button 
+                                onClick={() => handleApproveBrokerReservation(res.id)}
+                                className="btn-primary" 
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Approve Hold
+                              </button>
+                              <button 
+                                onClick={() => setRejectionModal({ show: true, type: 'reservation', id: res.id, reason: '' })}
+                                className="btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              Processed ({res.status})
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <hr style={{ border: '0', borderTop: '1px solid var(--border-glass)', margin: '10px 0' }} />
+
+          {/* Section 2: Payout requests */}
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <DollarSign style={{ color: 'var(--color-success)' }} />
+              Broker Commission Invoice Auditing
+            </h3>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Broker Agency</th>
+                    <th>Requested Amount</th>
+                    <th>Invoice File</th>
+                    <th>Submission Date</th>
+                    <th>Fulfillment State</th>
+                    <th>Operations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {brokerPayouts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No payout request invoices submitted.</td>
+                    </tr>
+                  ) : (
+                    brokerPayouts.map(p => (
+                      <tr key={p.id}>
+                        <td>
+                          <strong>{p.broker?.agency_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IBAN: {p.broker?.bank_iban || 'Not Provided'}</div>
+                        </td>
+                        <td>
+                          <strong style={{ color: 'var(--color-success)' }}>{parseFloat(p.amount).toLocaleString()} EGP</strong>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Invoice PDF</span>
+                        </td>
+                        <td>
+                          {new Date(p.created_at).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${
+                            p.status === 'pending_review' ? 'warning' :
+                            p.status === 'paid' ? 'success' :
+                            p.status === 'rejected' ? 'danger' : 'info'
+                          }`} style={{ textTransform: 'capitalize' }}>
+                            {p.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td>
+                          {p.status === 'pending_review' ? (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button 
+                                onClick={() => handleApprovePayout(p.id)}
+                                className="btn-primary" 
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Release Funds
+                              </button>
+                              <button 
+                                onClick={() => setRejectionModal({ show: true, type: 'payout', id: p.id, reason: '' })}
+                                className="btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              Completed ({p.status})
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         {/* Units and Status Panel */}
         <div className="glass-panel" style={{ padding: '25px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1341,11 +1716,10 @@ const CompanySalesPortal: React.FC = () => {
                     <td>Floor {unit.floor} ({unit.type})</td>
                     <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
                     <td>
-                      <span className={`badge badge-${
-                        unit.status === 'available' ? 'success' :
-                        unit.status === 'reserved' ? 'warning' :
-                        unit.status === 'sold' ? 'info' : 'danger'
-                      }`}>
+                      <span className={`badge badge-${unit.status === 'available' ? 'success' :
+                          unit.status === 'reserved' ? 'warning' :
+                            unit.status === 'sold' ? 'info' : 'danger'
+                        }`}>
                         {unit.status}
                       </span>
                     </td>
@@ -1377,6 +1751,7 @@ const CompanySalesPortal: React.FC = () => {
                 <tr>
                   <th>Reservation ID</th>
                   <th>Client</th>
+                  <th>Sales Channel</th>
                   <th>Unit Number</th>
                   <th>EOI Amount</th>
                   <th>Hold Time Remaining</th>
@@ -1387,7 +1762,7 @@ const CompanySalesPortal: React.FC = () => {
               <tbody>
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
                   </tr>
                 ) : (
                   transactions.map(txn => {
@@ -1413,6 +1788,17 @@ const CompanySalesPortal: React.FC = () => {
                       <tr key={txn.id}>
                         <td><span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{txn.id.substring(0, 18)}...</span></td>
                         <td><strong>{txn.client?.name}</strong></td>
+                        <td>
+                          {txn.broker ? (
+                            <span style={{ color: 'var(--color-warning)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              🍊 Broker: {txn.broker.agency_name}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              🏢 Direct (Company Sales)
+                            </span>
+                          )}
+                        </td>
                         <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
                         <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
                         <td>
@@ -1446,6 +1832,12 @@ const CompanySalesPortal: React.FC = () => {
                                     const uPrice = parseFloat(txn.unit?.price) || 0;
                                     setDownPayment((uPrice * 0.1).toString());
                                     setMaintenanceCost((uPrice * 0.08).toString());
+                                    setSavedSchedule([]);
+                                    setBookingNotes('');
+                                    setIncludeClub(false);
+                                    setIncludeGarage(false);
+                                    setIncludeMaintenance(false);
+                                    setIsPlanSaved(false);
                                     setShowContractModal(true);
                                   }}
                                   className="btn-primary"
@@ -1455,16 +1847,7 @@ const CompanySalesPortal: React.FC = () => {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => {
-                                    setSelectedReservationForContract(txn);
-                                    setBookingUnitId(txn.unit_id);
-                                    setBookingEoi(txn.eoi_amount.toString());
-                                    setDiscountPercent('0');
-                                    const uPrice = parseFloat(txn.unit?.price) || 0;
-                                    setDownPayment((uPrice * 0.1).toString());
-                                    setMaintenanceCost((uPrice * 0.08).toString());
-                                    setShowContractModal(true);
-                                  }}
+                                  onClick={() => loadContractDataIntoModal(txn)}
                                   className="btn-primary"
                                   style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                                 >
@@ -1480,7 +1863,7 @@ const CompanySalesPortal: React.FC = () => {
                               </button>
                             </div>
                           )}
-                          {(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
+{(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No action available</span>
                           )}
                         </td>
@@ -1595,13 +1978,13 @@ const CompanySalesPortal: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" className="btn-secondary" onClick={() => { 
+                <button type="button" className="btn-secondary" onClick={() => {
                   setBookingUnitId('');
                   setBookingNotes('');
                   setBookingEoi('50000');
                   setBookingHoldingDays(7);
-                  setShowBookingModal(false); 
-                  setSelectedLeadForBooking(null); 
+                  setShowBookingModal(false);
+                  setSelectedLeadForBooking(null);
                 }}>Cancel</button>
                 <button type="submit" className="btn-primary" style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }}>Confirm Reservation Hold</button>
               </div>
@@ -1619,7 +2002,7 @@ const CompanySalesPortal: React.FC = () => {
               Set up the payment plan schedule for unit <strong>{selectedReservationForContract.unit?.unit_number}</strong> ({selectedReservationForContract.unit?.project?.name}).
             </p>
             <form onSubmit={handleFinalizeContract} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }} className="sidebar-scroll-container">
-              
+
               <div style={{ padding: '12px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Client:</span>
@@ -1635,6 +2018,54 @@ const CompanySalesPortal: React.FC = () => {
                 </div>
               </div>
 
+              {/* Previously Saved Schedule */}
+              {savedSchedule.length > 0 && (
+                <div style={{ padding: '12px', background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16,185,129,0.2)', borderLeft: '4px solid var(--color-success)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-success)' }}>✅ خطة الدفع المحفوظة / Previously Saved Schedule ({savedSchedule.length} items)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Total: {savedSchedule.reduce((s, i) => s + i.amount, 0).toLocaleString()} EGP
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 'var(--radius-xs)' }} className="sidebar-scroll-container">
+                    <table className="premium-table" style={{ fontSize: '0.7rem', margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th>Description</th>
+                          <th>Due Date</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ textAlign: 'center' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {savedSchedule.map((item, idx) => (
+                          <tr key={idx} style={{ background: item.status === 'paid' ? 'rgba(16,185,129,0.05)' : 'transparent' }}>
+                            <td>{item.label}</td>
+                            <td>{item.dueDate}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{item.amount.toLocaleString()} EGP</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                background: item.status === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                color: item.status === 'paid' ? 'var(--color-success)' : 'var(--color-warning)',
+                              }}>
+                                {item.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0, fontStyle: 'italic' }}>
+                    ℹ️ هذه الخطة المحفوظة مسبقاً. يمكنك تعديل الإعدادات أدناه وحفظ خطة جديدة. / This is the previously saved plan. You can modify the settings below and save an updated plan.
+                  </p>
+                </div>
+              )}
+
               <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Discount Percent (%) / نسبة الخصم</label>
                 <input type="number" className="form-control" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} min="0" max="100" placeholder="0" />
@@ -1643,7 +2074,7 @@ const CompanySalesPortal: React.FC = () => {
               {/* Add-ons Section */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Add-ons / إضافات اختيارية</div>
-                
+
                 {/* Club Card */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: 'rgba(255,255,255,0.2)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -1940,12 +2371,12 @@ const CompanySalesPortal: React.FC = () => {
                 <>
                   <div className="form-group" style={{ marginBottom: '10px' }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>Cash Grace Period (Days) / مهلة سداد الكاش</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={cashGracePeriod} 
-                      onChange={e => setCashGracePeriod(parseInt(e.target.value) || 0)} 
-                      min="1" 
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={cashGracePeriod}
+                      onChange={e => setCashGracePeriod(parseInt(e.target.value) || 0)}
+                      min="1"
                       max="365"
                     />
                   </div>
@@ -1984,11 +2415,11 @@ const CompanySalesPortal: React.FC = () => {
 
                     <div className="form-group" style={{ marginBottom: '10px' }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>Interest Rate (% p.a.)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        value={installmentInterest} 
-                        onChange={e => setInstallmentInterest(parseFloat(e.target.value) || 0)} 
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={installmentInterest}
+                        onChange={e => setInstallmentInterest(parseFloat(e.target.value) || 0)}
                         min="0"
                         max="100"
                         step="0.1"
@@ -2007,11 +2438,11 @@ const CompanySalesPortal: React.FC = () => {
 
                   <div className="form-group" style={{ marginBottom: '10px' }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>Down Payment (EGP) / دفعة مقدمة</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={downPayment} 
-                      onChange={e => setDownPayment(e.target.value)} 
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={downPayment}
+                      onChange={e => setDownPayment(e.target.value)}
                       placeholder="e.g. 500000"
                       required
                     />
@@ -2027,15 +2458,15 @@ const CompanySalesPortal: React.FC = () => {
                         <>
                           <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>📅 Yearly Distribution / توزيع النسب السنوية</span>
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              fontWeight: 700, 
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
                               color: Math.abs(totalAllocated - 100) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)'
                             }}>
                               Total: {totalAllocated}% / 100%
                             </span>
                           </div>
-                          
+
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
                             {yearPercentages.map((pct, idx) => {
                               const yearlyAmount = remainingToAmortize * (pct / 100);
@@ -2043,7 +2474,7 @@ const CompanySalesPortal: React.FC = () => {
                                 <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                   <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Year {idx + 1}</label>
                                   <div style={{ position: 'relative' }}>
-                                    <input 
+                                    <input
                                       type="number"
                                       className="form-control"
                                       style={{ paddingRight: '16px', fontSize: '0.75rem', padding: '4px 6px', height: '28px' }}
@@ -2122,7 +2553,7 @@ const CompanySalesPortal: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <button type="button" className="btn-secondary" onClick={() => { 
+                  <button type="button" className="btn-secondary" onClick={() => {
                     setBookingUnitId('');
                     setBookingNotes('');
                     setDiscountPercent('0');
@@ -2131,16 +2562,16 @@ const CompanySalesPortal: React.FC = () => {
                     setIncludeGarage(false);
                     setIncludeMaintenance(false);
                     setCustomAddons([]);
-                    setShowContractModal(false); 
-                    setSelectedReservationForContract(null); 
+                    setShowContractModal(false);
+                    setSelectedReservationForContract(null);
                     setIsPlanSaved(false);
                   }}>Cancel</button>
                   {selectedReservationForContract?.contract && (
-                    <button 
-                      type="button" 
-                      className="btn-primary" 
-                      style={{ 
-                        background: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.12)', 
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{
+                        background: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.12)',
                         color: isPlanSaved ? '#ffffff' : 'var(--text-muted)',
                         border: '1px solid',
                         borderColor: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.2)',
@@ -2153,10 +2584,10 @@ const CompanySalesPortal: React.FC = () => {
                       توقيع وإرسال للحسابات / Sign & Send
                     </button>
                   )}
-                  <button 
-                    type="submit" 
-                    className="btn-primary" 
-                    style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }} 
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }}
                     disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}
                   >
                     {selectedReservationForContract?.contract ? 'حفظ التعديلات / Save Plan' : 'حفظ الخطة كمسودة / Save Plan'}
@@ -2216,23 +2647,66 @@ const CompanySalesPortal: React.FC = () => {
               {confirmDialog.message}
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button 
-                type="button" 
-                className="btn-secondary" 
+              <button
+                type="button"
+                className="btn-secondary"
                 onClick={() => setConfirmDialog(prev => ({ ...prev, show: false }))}
                 style={{ minWidth: '80px' }}
               >
                 Cancel / تراجع
               </button>
-              <button 
-                type="button" 
-                className="btn-primary" 
+              <button
+                type="button"
+                className="btn-primary"
                 onClick={confirmDialog.onConfirm}
                 style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff', minWidth: '100px' }}
               >
                 Confirm / تأكيد إلغاء الحجز
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ REJECTION / CANCELLATION MODAL */}
+      {rejectionModal.show && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h3 style={{ fontWeight: 800, margin: 0, fontSize: '1.2rem' }}>
+              {rejectionModal.type === 'reservation' ? 'Reject Reservation Hold / رفض حجز الوحدة' : 'Reject Commission Payout / رفض طلب الصرف'}
+            </h3>
+            <form onSubmit={rejectionModal.type === 'reservation' ? handleCancelBrokerReservationSubmit : handleRejectPayoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  Reason for Rejection / سبب الرفض
+                </label>
+                <textarea
+                  className="form-control"
+                  value={rejectionModal.reason}
+                  onChange={e => setRejectionModal(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Provide a detailed rejection reason..."
+                  style={{ height: '100px', width: '100%', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setRejectionModal({ show: false, type: 'reservation', id: '', reason: '' })}
+                >
+                  Cancel / تراجع
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                >
+                  Confirm Rejection / تأكيد الرفض
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

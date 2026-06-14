@@ -652,17 +652,28 @@ const Login: React.FC = () => {
                 <select 
                   className="luxury-select"
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => {
+                const val = e.target.value;
+                setRole(val);
+                if (!isRegister) {
+                  fillProfile(val);
+                }
+              }}
                 >
-                  <option value="admin">👑 Platform Administrator</option>
+                  <option value="admin">👑 Platform Administrator (CEO)</option>
+              <option value="executive">👔 Executive Director</option>
+              <option value="company_sales">🏢 Commercial Sales Head (Tier 3)</option>
+              <option value="sales_agent">🟠 Sales Agent</option>
                   <option value="tele_sales">📞 Tele-Sales Agent (Tier 1)</option>
-                  <option value="broker">🍊 External Broker Agency (Tier 2)</option>
-                  <option value="company_sales">🏢 Company Sales Rep (Tier 3)</option>
-                  <option value="sales_agent">🟠 Acquisition & KYC</option>
-                  <option value="finance_officer">🔵 Finance & Locks</option>
+                  <option value="broker">🍊 External Broker (Tier 2)</option>
+                  <option value="finance_officer">🔵 Financial Officer</option>
+              <option value="project_manager">🏗️ Project Manager</option>
+              <option value="delivery_engineer">🟢 Delivery Specialist</option>
+                  <option value="maintenance_manager">🟠🔧 Facilities Maintenance Manager</option>
+              <option value="legal_officer">⚖️ Legal Officer</option>
+                  <option value="compliance_officer">🔵🔒 Compliance Officer</option>
                   <option value="client">🐳 Compound Client/Homeowner</option>
-                  <option value="delivery_engineer">🟢 Inspection Snagger</option>
-                </select>
+                    </select>
                 <div style={{ 
                   position: 'absolute', 
                   right: '16px', 

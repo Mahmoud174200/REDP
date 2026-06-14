@@ -25,11 +25,52 @@ class AuditLogService
      */
     public static function log(string $action, ?string $userId, array $details = []): AuditLog
     {
+        $userAgent = request()->header('User-Agent');
+        $ip = request()->ip() ?: '127.0.0.1';
+        $sessionId = request()->hasSession() ? request()->session()->getId() : null;
+
+        // Basic User Agent Parsing
+        $browser = 'Unknown';
+        $deviceType = 'Desktop';
+
+        if ($userAgent) {
+            if (preg_match('/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i', $userAgent)) {
+                $deviceType = 'Tablet';
+            } elseif (preg_match('/(mobi|opera mini|nokia|sony|ericsson|mot|blackberry|samsung|htc|lg|nexus|pixel|iphone)/i', $userAgent)) {
+                $deviceType = 'Mobile';
+            }
+
+            if (str_contains($userAgent, 'MSIE') || str_contains($userAgent, 'Trident')) {
+                $browser = 'Internet Explorer';
+            } elseif (str_contains($userAgent, 'Firefox')) {
+                $browser = 'Firefox';
+            } elseif (str_contains($userAgent, 'Chrome')) {
+                $browser = 'Chrome';
+            } elseif (str_contains($userAgent, 'Safari')) {
+                $browser = 'Safari';
+            } elseif (str_contains($userAgent, 'Opera') || str_contains($userAgent, 'OPR')) {
+                $browser = 'Opera';
+            }
+        }
+
+        // Mock Geo Location for development
+        $geoLocation = [
+            'lat' => 30.0444,
+            'lng' => 31.2357,
+            'city' => 'Cairo',
+            'country' => 'Egypt'
+        ];
+
         return AuditLog::create([
             'id' => (string) Str::uuid(),
             'user_id' => $userId,
             'action' => $action,
-            'ip_address' => request()->ip() ?: '127.0.0.1',
+            'ip_address' => $ip,
+            'user_agent' => $userAgent,
+            'device_type' => $deviceType,
+            'browser' => $browser,
+            'geo_location' => $geoLocation,
+            'session_id' => $sessionId,
             'details' => $details,
         ]);
     }

@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Traits\Auditable;
 
 class Payment extends Model
 {
+    use HasUuids, Auditable;
+
     protected $keyType = 'string';
     public $incrementing = false;
 
