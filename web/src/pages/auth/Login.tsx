@@ -101,9 +101,35 @@ const Login: React.FC = () => {
   };
 
   const fillProfile = (selectedRole: string) => {
-    const roleValue = selectedRole === 'handover' ? 'handover_officer' : selectedRole;
+    let emailVal = `${selectedRole}@redp.com`;
+    let roleValue = selectedRole === 'handover' ? 'handover_officer' : selectedRole;
+
+    // Custom hierarchy mappings
+    if (selectedRole === 'tele_sales_manager') {
+      emailVal = 'tele_sales_manager@redp.com';
+      roleValue = 'tele_sales';
+    } else if (selectedRole === 'tele_sales_head') {
+      emailVal = 'tele_sales_head@redp.com';
+      roleValue = 'tele_sales';
+    } else if (selectedRole === 'broker_team_leader') {
+      emailVal = 'broker_team_leader@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'broker_owner') {
+      emailVal = 'broker_owner@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'freelance_broker') {
+      emailVal = 'freelance_broker@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'company_sales_agent') {
+      emailVal = 'company_sales_agent@redp.com';
+      roleValue = 'company_sales';
+    } else if (selectedRole === 'company_sales_leader') {
+      emailVal = 'company_sales_leader@redp.com';
+      roleValue = 'company_sales';
+    }
+
     setRole(roleValue);
-    setEmail(`${selectedRole}@redp.com`);
+    setEmail(emailVal);
     setPassword('password');
     setConfirmPassword('password');
   };
@@ -190,24 +216,82 @@ const Login: React.FC = () => {
 
               {/* Commercial Sales */}
               <div>
-                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Commercial & Sales (CRM)</span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <button type="button" onClick={() => fillProfile('company_sales')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🏢 Sales Head (T3)</button>
-                  <button type="button" onClick={() => fillProfile('sales_agent')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🟠 Sales Agent</button>
-                  <button type="button" onClick={() => fillProfile('tele_sales')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>📞 Tele-Sales (T1)</button>
-                  <button type="button" onClick={() => fillProfile('broker')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🍊 Broker (T2)</button>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Commercial & Sales (CRM Hierarchy)</span>
+                
+                {/* Tier 1: Tele-Sales */}
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Tier 1: Tele-Sales Portal</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '6px' }}>
+                    <button type="button" onClick={() => fillProfile('tele_sales')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>📞 Sara (Agent)</button>
+                    <button type="button" onClick={() => fillProfile('tele_sales_manager')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>📞 Mariam (TL)</button>
+                    <button type="button" onClick={() => fillProfile('tele_sales_head')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>📞 Tarek (Head)</button>
+                  </div>
+                </div>
+
+                {/* Tier 2: Broker Portal */}
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Tier 2: Broker Portal</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <button type="button" onClick={() => fillProfile('broker')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🍊 Ahmed (Agent)</button>
+                    <button type="button" onClick={() => fillProfile('broker_team_leader')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🍊 Hany (TL)</button>
+                    <button type="button" onClick={() => fillProfile('broker_owner')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🏢 John (Owner)</button>
+                    <button type="button" onClick={() => fillProfile('freelance_broker')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>👤 Youssef (Free)</button>
+                  </div>
+                </div>
+
+                {/* Tier 3: Company Sales */}
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Tier 3: Company Sales Portal</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '6px' }}>
+                    <button type="button" onClick={() => fillProfile('company_sales_agent')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🏢 Yasser (Agent)</button>
+                    <button type="button" onClick={() => fillProfile('company_sales_leader')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🏢 Noha (TL)</button>
+                    <button type="button" onClick={() => fillProfile('company_sales')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>👑 Karim (Head)</button>
+                  </div>
                 </div>
               </div>
 
               {/* Operations & Finance */}
               <div>
-                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Operations & Finance</span>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔵 Finance Officer</button>
-                  <button type="button" onClick={() => fillProfile('project_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🏗️ Project Mgr</button>
-                  <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🟢 Delivery Specialist</button>
-                  <button type="button" onClick={() => fillProfile('handover')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔑 Handover Specialist</button>
-                  <button type="button" onClick={() => fillProfile('maintenance_manager')} className="btn-secondary" style={{ padding: '6px 8px', fontSize: '0.68rem', justifyContent: 'center' }}>🔧 Maintenance Mgr</button>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Operations & Finance Hierarchy</span>
+                
+                {/* Finance Division */}
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Finance Division</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px' }}>
+                    <button type="button" onClick={() => fillProfile('finance_officer')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🔵 Finance Officer</button>
+                  </div>
+                </div>
+
+                {/* Operations & Projects */}
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '2px' }}>Operations & Projects</span>
+                  
+                  {/* Head Level */}
+                  <div style={{ marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Division Head</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px' }}>
+                      <button type="button" onClick={() => fillProfile('project_manager')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🏗️ Ramy (Project Manager)</button>
+                    </div>
+                  </div>
+
+                  {/* Specialists Level */}
+                  <div style={{ marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Site Specialists (Reports to PM)</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      <button type="button" onClick={() => fillProfile('delivery_engineer')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🟢 Delivery Specialist</button>
+                      <button type="button" onClick={() => fillProfile('handover')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🔑 Handover Specialist</button>
+                    </div>
+                  </div>
+
+                  {/* Facilities Level */}
+                  <div>
+                    <span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Facilities & Maintenance</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '6px' }}>
+                      <button type="button" onClick={() => fillProfile('maintenance_manager')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🔧 Mostafa (Manager)</button>
+                      <button type="button" onClick={() => fillProfile('technician')} className="btn-secondary" style={{ padding: '4px 6px', fontSize: '0.65rem', justifyContent: 'center' }}>🔧 Hassan (Tech)</button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 

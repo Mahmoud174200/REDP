@@ -10,11 +10,18 @@ use App\Models\Lead;
 use App\Models\PaymentPlan;
 use App\Models\Project;
 use App\Models\Unit;
+use App\Models\Reservation;
+use App\Models\Commission;
+use App\Models\CommissionPayoutRequest;
+use App\Models\User;
+use App\Services\Acquisition\AntiPoachingService;
 use App\Services\AuditLogService;
 use App\Services\TierAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -432,10 +439,71 @@ class BrokerSalesController extends Controller
         $pendingPresentations = ClientPresentation::byBroker($user->id)->pending()->count();
         $escalatedCount    = ClientPresentation::byBroker($user->id)->escalated()->count();
 
-        $recentPresentations = ClientPresentation::byBroker($user->id)
-            ->with(['lead:id,first_name,last_name', 'project:id,name'])
-            ->orderBy('presented_at', 'desc')
-            ->limit(5)
+        // Subordinates Performance
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $subordinatesPerformance = [];
+
+        if (!empty($subordinateIds)) {
+            $subordinateUsers = User::whereIn('id', $subordinateIds)
+                ->with(['employeeHierarchy.position', 'employeeHierarchy.team'])
+                ->get();
+
+            foreach ($subordinateUsers as $subUser) {
+                $subBroker = Broker::where('user_id', $subUser->id)->first();
+                if ($subBroker) {
+                    $leadQuery = Lead::where('broker_id', $subBroker->id);
+
+                    $total = $leadQuery->count();
+                    $new = (clone $leadQuery)->byStatus('new')->count();
+                    $contacted = (clone $leadQuery)->byStatus('contacted')->count();
+                    $meetings = (clone $leadQuery)->byStatus('visit_scheduled')->count();
+                    $reservationsCount = Reservation::where('broker_id', $subBroker->id)->count();
+
+                    $commEarned = Commission::where('broker_id', $subBroker->id)
+                        ->where('status', 'approved')
+                        ->sum('gross_amount');
+
+                    $subordinatesPerformance[] = [
+                        'user_id' => $subUser->id,
+                        'name' => $subUser->name,
+                        'role' => $subUser->role,
+                        'position' => $subUser->employeeHierarchy?->position?->title ?? 'Broker Agent',
+                        'team' => $subUser->employeeHierarchy?->team?->name ?? 'No Team',
+                        'status' => $subUser->status,
+                        'stats' => [
+                            'total_leads' => $total,
+                            'new' => $new,
+                            'contacted' => $contacted,
+                            'meetings' => $meetings,
+                            'reservations' => $reservationsCount,
+                            'commissions_earned' => (float) $commEarned,
+                        ]
+                    ];
+                }
+            }
+        }
+
+        // Personal Commissions
+        $pendingComm = 0.0;
+        $approvedComm = 0.0;
+        $paidComm = 0.0;
+        $commCalculations = [];
+
+        if ($broker) {
+            $pendingComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'pending')->sum('gross_amount');
+            $approvedComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'approved')->sum('gross_amount');
+            $paidComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'paid')->sum('gross_amount');
+
+            $commCalculations = Commission::where('broker_id', $broker->id)
+                ->with(['lead', 'unit.project'])
+                ->latest()
+                ->limit(10)
+                ->get();
+        }
+
+        // Active Commission Rules for Tier 2
+        $commRules = \App\Models\CommissionRule::where('tier_type', 'tier_2')
+            ->where('status', 'active')
             ->get();
 
         return response()->json([
@@ -448,8 +516,361 @@ class BrokerSalesController extends Controller
                 'conversion_rate'      => $totalPresentations > 0
                     ? round(($escalatedCount / $totalPresentations) * 100, 1)
                     : 0,
+                'pending_commission'   => $pendingComm,
+                'approved_commission'  => $approvedComm,
+                'paid_commission'      => $paidComm,
+                'total_commission'     => $pendingComm + $approvedComm + $paidComm,
             ],
-            'recent_presentations' => $recentPresentations,
+            'subordinates_performance' => $subordinatesPerformance,
+            'commissions_history'       => $commCalculations,
+            'commission_rules'          => $commRules,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/broker/leads
+     * Register a new lead under the broker's portfolio with anti-poaching lock.
+     */
+    public function registerLead(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker || $broker->status !== Broker::STATUS_ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active broker profile linked to your account.',
+            ], 403);
+        }
+
+        $fields = $request->validate([
+            'first_name'    => 'required|string|max:100',
+            'last_name'     => 'required|string|max:100',
+            'email'         => 'nullable|email|max:255',
+            'phone'         => 'required|string|max:20',
+            'national_id'   => 'nullable|string|max:30',
+            'passport_no'   => 'nullable|string|max:30',
+            'budget'        => 'nullable|numeric',
+            'payment_method'=> 'nullable|string|in:cash,installments',
+            'interested_project_id' => 'nullable|uuid|exists:projects,id',
+        ]);
+
+        try {
+            $antiPoaching = app(AntiPoachingService::class);
+            $result = $antiPoaching->registerBrokerLead(
+                $broker,
+                $fields['phone'],
+                $fields['national_id'] ?? null,
+                [
+                    'id'                    => (string) Str::uuid(),
+                    'first_name'            => $fields['first_name'],
+                    'last_name'             => $fields['last_name'],
+                    'email'                 => $fields['email'] ?? null,
+                    'passport_no'           => $fields['passport_no'] ?? null,
+                    'budget'                => $fields['budget'] ?? null,
+                    'payment_method'        => $fields['payment_method'] ?? 'installments',
+                    'interested_project_id' => $fields['interested_project_id'] ?? null,
+                    'status'                => Lead::STATUS_NEW,
+                    'current_tier'          => 'tier_2',
+                ]
+            );
+
+            return response()->json([
+                'success'      => true,
+                'message'      => "Client registered and locked under your agency for 90 days.",
+                'data'         => $result['lead'],
+                'lock_expires' => $result['lock']->locked_until->toDateString(),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 409);
+        }
+    }
+
+    /**
+     * POST /api/v1/sales/broker/reservations
+     * Submit a unit reservation request awaiting admin approval.
+     */
+    public function submitReservation(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker || $broker->status !== Broker::STATUS_ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active broker profile linked to your account.',
+            ], 403);
+        }
+
+        $fields = $request->validate([
+            'unit_id'    => 'required|uuid|exists:units,id',
+            'client_id'  => 'required|uuid|exists:leads,id', // lead_id in request
+            'eoi_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $lead = Lead::where('id', $fields['client_id'])
+            ->where('broker_id', $broker->id)
+            ->first();
+
+        if (!$lead) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This client is not registered under your broker portfolio or lock expired.',
+            ], 403);
+        }
+
+        try {
+            $reservation = DB::transaction(function () use ($fields, $lead, $broker, $request) {
+                // Row-level lock unit to prevent double-booking
+                $unit = Unit::where('id', $fields['unit_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                // Check availability
+                if ($unit->status !== 'available' && $unit->status !== 'pending_reservation') {
+                    throw new \Exception("Unit {$unit->unit_number} is already fully reserved or sold.");
+                }
+
+                // If other brokers have a pending reservation request on it, block this broker
+                $existingHold = Reservation::where('unit_id', $unit->id)
+                    ->where('status', 'pending')
+                    ->where('broker_id', '!=', $broker->id)
+                    ->exists();
+
+                if ($existingHold) {
+                    throw new \Exception("Unit {$unit->unit_number} has an active pending hold from another broker agency.");
+                }
+
+                // Update unit status to pending_reservation
+                $unit->update(['status' => 'pending_reservation']);
+
+                // Find or create client User account for the customer lead
+                $clientUser = null;
+                if ($lead->email) {
+                    $clientUser = User::where('email', $lead->email)->first();
+                }
+                if (!$clientUser && $lead->phone) {
+                    $clientUser = User::where('phone', $lead->phone)->first();
+                }
+
+                if (!$clientUser) {
+                    $email = $lead->email;
+                    if (empty($email)) {
+                        $phoneClean = preg_replace('/[^0-9]/', '', $lead->phone);
+                        $email = ($phoneClean ? $phoneClean : (string)Str::random(10)) . '@redp-client.com';
+                    }
+
+                    // Check email duplicate
+                    $baseEmail = $email;
+                    $counter = 1;
+                    while (User::where('email', $email)->exists()) {
+                        $parts = explode('@', $baseEmail);
+                        $email = $parts[0] . '_' . $counter . '@' . ($parts[1] ?? 'redp-client.com');
+                        $counter++;
+                    }
+
+                    $clientUser = User::create([
+                        'id'       => (string) Str::uuid(),
+                        'name'     => $lead->full_name,
+                        'email'    => $email,
+                        'phone'    => $lead->phone,
+                        'role'     => 'client',
+                        'password' => Hash::make('changeme'),
+                        'status'   => 'active',
+                    ]);
+                }
+
+                $eoiAmount = $fields['eoi_amount'] ?? 0.00;
+
+                // Create reservation in pending status
+                $reservation = Reservation::create([
+                    'id'                   => (string) Str::uuid(),
+                    'unit_id'              => $unit->id,
+                    'client_id'            => $clientUser->id,
+                    'broker_id'            => $broker->id,
+                    'eoi_amount'           => $eoiAmount,
+                    'status'               => 'pending',
+                    'expires_at'           => now()->addDays(3),
+                    'payment_receipt_path' => null, // No bank receipt required for interest request
+                ]);
+
+                // Emit status change event
+                event(new \App\Events\Finance\UnitStatusChanged($unit->id, 'available', 'pending_reservation', $clientUser->id));
+
+                return $reservation;
+            });
+
+            return response()->json([
+                'success'     => true,
+                'message'     => 'Reservation hold request submitted. Awaiting sales team approval.',
+                'reservation' => $reservation->load(['unit.project', 'client']),
+            ], 201);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * GET /api/v1/sales/broker/reservations
+     */
+    public function listReservations(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker) {
+            return response()->json(['success' => false, 'message' => 'Broker profile not found.'], 404);
+        }
+
+        $reservations = Reservation::where('broker_id', $broker->id)
+            ->with(['unit.project', 'client'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $reservations,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/broker/reservations/{id}
+     */
+    public function showReservation(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker) {
+            return response()->json(['success' => false, 'message' => 'Broker profile not found.'], 404);
+        }
+
+        $reservation = Reservation::where('broker_id', $broker->id)
+            ->with(['unit.project', 'client'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $reservation,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/broker/payout-requests
+     */
+    public function submitPayoutRequest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker || $broker->status !== Broker::STATUS_ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active broker profile linked to your account.',
+            ], 403);
+        }
+
+        $fields = $request->validate([
+            'amount' => 'required|numeric|min:100',
+        ]);
+
+        // Calculate available balance
+        $totalCommissioned = Commission::where('broker_id', $broker->id)->sum('gross_amount');
+        $approvedAmount    = Commission::where('broker_id', $broker->id)->approved()->sum('gross_amount');
+        $paidAmount        = Commission::where('broker_id', $broker->id)->paid()->sum('gross_amount');
+
+        // Sum of all payout requests that are approved or pending
+        $payoutRequested = CommissionPayoutRequest::where('broker_id', $broker->id)
+            ->whereIn('status', ['pending_review', 'approved', 'paid'])
+            ->sum('amount');
+
+        $availableBalance = max(0, $approvedAmount - $payoutRequested);
+
+        if ($fields['amount'] > $availableBalance) {
+            return response()->json([
+                'success' => false,
+                'message' => "Insufficient approved commission balance. Available: " . number_format($availableBalance) . " EGP.",
+            ], 422);
+        }
+
+        $payout = CommissionPayoutRequest::create([
+            'id'           => (string) Str::uuid(),
+            'broker_id'    => $broker->id,
+            'amount'       => $fields['amount'],
+            'invoice_path' => 'invoices/mock_invoice_' . time() . '.pdf', // Mock uploaded path
+            'status'       => 'pending_review',
+        ]);
+
+        AuditLogService::log('BROKER_PAYOUT_REQUEST', $user->id, [
+            'broker_id' => $broker->id,
+            'payout_id' => $payout->id,
+            'amount'    => $fields['amount'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payout request submitted successfully. Awaiting invoice verification.',
+            'data'    => $payout,
+        ], 201);
+    }
+
+    /**
+     * GET /api/v1/sales/broker/payout-requests
+     */
+    public function listPayoutRequests(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker) {
+            return response()->json(['success' => false, 'message' => 'Broker profile not found.'], 404);
+        }
+
+        $payouts = CommissionPayoutRequest::where('broker_id', $broker->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $payouts,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/broker/leaderboard
+     */
+    public function leaderboard(Request $request): JsonResponse
+    {
+        // Get rankings of top performing active brokers based on commission sum
+        $leaderboard = Broker::active()
+            ->withSum('commissions', 'gross_amount')
+            ->withCount('commissions')
+            ->orderBy('commissions_sum_gross_amount', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Map ranking sequence
+        $rankings = $leaderboard->map(function ($broker, $index) {
+            return [
+                'rank'         => $index + 1,
+                'agency_name'  => $broker->agency_name,
+                'agent_name'   => $broker->agent_name,
+                'total_deals'  => $broker->commissions_count,
+                'total_volume' => (float) ($broker->commissions_sum_gross_amount ?? 0.00),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $rankings,
         ]);
     }
 }

@@ -61,7 +61,7 @@ class CommissionController extends Controller
             'title' => 'required|string|max:255',
             'project_id' => 'nullable|uuid|exists:projects,id',
             'unit_type' => 'nullable|string|max:100',
-            'tier_type' => 'required|string|in:broker,sales_agent,manager,director',
+            'tier_type' => 'required|string|in:broker,sales_agent,manager,director,tier_1,tier_2,tier_3',
             'min_deal_size' => 'nullable|numeric|min:0',
             'max_deal_size' => 'nullable|numeric|min:0',
             'commission_percentage' => 'required|numeric|min:0|max:100',
@@ -78,6 +78,45 @@ class CommissionController extends Controller
             'success' => true,
             'data' => $rule
         ], 201);
+    }
+
+    public function updateRule(Request $request, string $id)
+    {
+        $companyId = $this->getCompanyId($request);
+        $rule = CommissionRule::where('company_id', $companyId)->findOrFail($id);
+
+        $fields = $request->validate([
+            'title' => 'required|string|max:255',
+            'project_id' => 'nullable|uuid|exists:projects,id',
+            'unit_type' => 'nullable|string|max:100',
+            'tier_type' => 'required|string|in:broker,sales_agent,manager,director,tier_1,tier_2,tier_3',
+            'min_deal_size' => 'nullable|numeric|min:0',
+            'max_deal_size' => 'nullable|numeric|min:0',
+            'commission_percentage' => 'required|numeric|min:0|max:100',
+            'status' => 'required|string|in:active,inactive',
+        ]);
+
+        $fields['min_deal_size'] = $fields['min_deal_size'] ?? 0.00;
+        $fields['max_deal_size'] = $fields['max_deal_size'] ?? 999999999.00;
+
+        $rule->update($fields);
+
+        return response()->json([
+            'success' => true,
+            'data' => $rule
+        ]);
+    }
+
+    public function deleteRule(Request $request, string $id)
+    {
+        $companyId = $this->getCompanyId($request);
+        $rule = CommissionRule::where('company_id', $companyId)->findOrFail($id);
+        $rule->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commission rule deleted successfully.'
+        ]);
     }
 
     // ── COMMISSION CALCULATIONS ──

@@ -96,6 +96,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/leads', [TeleSalesController::class, 'index']);
             Route::post('/leads', [TeleSalesController::class, 'store']);
             Route::get('/leads/{id}', [TeleSalesController::class, 'show']);
+            Route::put('/leads/{id}', [TeleSalesController::class, 'update']);
             Route::put('/leads/{id}/contact', [TeleSalesController::class, 'logContact']);
             Route::put('/leads/{id}/schedule-meeting', [TeleSalesController::class, 'scheduleMeeting']);
             Route::put('/leads/{id}/transfer', [TeleSalesController::class, 'transfer']);
@@ -122,6 +123,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Leads (own broker leads only)
             Route::get('/leads', [BrokerSalesController::class, 'listLeads']);
+            Route::post('/leads', [BrokerSalesController::class, 'registerLead']);
             Route::get('/leads/{id}', [BrokerSalesController::class, 'showLead']);
 
             // Presentations (own only — strict isolation)
@@ -130,6 +132,18 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/presentations/{id}', [BrokerSalesController::class, 'showPresentation']);
             Route::put('/presentations/{id}/outcome', [BrokerSalesController::class, 'updateOutcome']);
             Route::put('/presentations/{id}/escalate', [BrokerSalesController::class, 'escalate']);
+
+            // Reservation Requests (broker holds)
+            Route::get('/reservations', [BrokerSalesController::class, 'listReservations']);
+            Route::post('/reservations', [BrokerSalesController::class, 'submitReservation']);
+            Route::get('/reservations/{id}', [BrokerSalesController::class, 'showReservation']);
+
+            // Payout Requests (broker invoices)
+            Route::get('/payout-requests', [BrokerSalesController::class, 'listPayoutRequests']);
+            Route::post('/payout-requests', [BrokerSalesController::class, 'submitPayoutRequest']);
+
+            // Leaderboard
+            Route::get('/leaderboard', [BrokerSalesController::class, 'leaderboard']);
 
             // Dashboard
             Route::get('/dashboard', [BrokerSalesController::class, 'dashboard']);
@@ -161,6 +175,15 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             // Projects
             Route::get('/projects', [CompanySalesController::class, 'listProjects']);
             Route::get('/projects/{projectId}/payment-plans', [CompanySalesController::class, 'getProjectPaymentPlans']);
+
+            // Broker Request auditing (reservations & payout approvals)
+            Route::get('/reservations', [CompanySalesController::class, 'listBrokerReservations']);
+            Route::post('/reservations/{id}/approve', [CompanySalesController::class, 'approveBrokerReservation']);
+            Route::post('/reservations/{id}/cancel', [CompanySalesController::class, 'cancelBrokerReservation']);
+
+            Route::get('/payout-requests', [CompanySalesController::class, 'listPayoutRequests']);
+            Route::post('/payout-requests/{id}/approve', [CompanySalesController::class, 'approvePayoutRequest']);
+            Route::post('/payout-requests/{id}/reject', [CompanySalesController::class, 'rejectPayoutRequest']);
 
             // Dashboard
             Route::get('/dashboard', [CompanySalesController::class, 'dashboard']);
@@ -620,6 +643,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         $commCtrl = \App\Http\Controllers\Enterprise\CommissionController::class;
         Route::get('/commissions/rules', [$commCtrl, 'getRules']);
         Route::post('/commissions/rules', [$commCtrl, 'createRule']);
+        Route::put('/commissions/rules/{id}', [$commCtrl, 'updateRule']);
+        Route::delete('/commissions/rules/{id}', [$commCtrl, 'deleteRule']);
         Route::get('/commissions/calculations', [$commCtrl, 'getCalculations']);
         Route::get('/commissions/payouts', [$commCtrl, 'getPayouts']);
         Route::post('/commissions/payouts', [$commCtrl, 'createPayoutBatch']);

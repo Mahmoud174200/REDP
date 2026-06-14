@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Users, ClipboardList, Send, ShieldCheck, CheckCircle2, Milestone, DollarSign, ListFilter, AlertCircle, ShoppingCart } from 'lucide-react';
 import api from '../../services/api';
 import { ToastContainer } from '../../components/Toast';
 
@@ -21,37 +20,37 @@ const CompanySalesPortal: React.FC = () => {
     const items: { label: string; value: string; icon: string }[] = [];
 
     if (metadata.source) {
-      items.push({ label: 'Source', value: metadata.source, icon: '📍' });
+      items.push({ label: 'Source', value: metadata.source, icon: 'fa-solid fa-map-pin' });
     }
     if (metadata.interaction_type) {
-      items.push({ label: 'Interaction Channel', value: metadata.interaction_type, icon: '💬' });
+      items.push({ label: 'Interaction Channel', value: metadata.interaction_type, icon: 'fa-solid fa-comments' });
     }
     if (metadata.meeting_date) {
       const formattedDate = new Date(metadata.meeting_date).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short'
       });
-      items.push({ label: 'Meeting Date', value: formattedDate, icon: '📅' });
+      items.push({ label: 'Meeting Date', value: formattedDate, icon: 'fa-solid fa-calendar-days' });
     }
     if (metadata.location) {
-      items.push({ label: 'Location', value: metadata.location, icon: '🏢' });
+      items.push({ label: 'Location', value: metadata.location, icon: 'fa-solid fa-building' });
     }
     if (metadata.from_tier || metadata.to_tier) {
       const from = (metadata.from_tier || '').replace('tier_', 'Tier ');
       const to = (metadata.to_tier || '').replace('tier_', 'Tier ');
-      items.push({ label: 'Tier Escalation', value: `${from} ➔ ${to}`, icon: '⚡' });
+      items.push({ label: 'Tier Escalation', value: `${from} ➔ ${to}`, icon: 'fa-solid fa-angles-up' });
     }
     if (metadata.notes) {
-      items.push({ label: 'Notes', value: metadata.notes, icon: '📝' });
+      items.push({ label: 'Notes', value: metadata.notes, icon: 'fa-solid fa-pen-to-square' });
     }
     if (metadata.unit_number) {
-      items.push({ label: 'Unit Number', value: `#${metadata.unit_number}`, icon: '🔑' });
+      items.push({ label: 'Unit Number', value: `#${metadata.unit_number}`, icon: 'fa-solid fa-key' });
     }
     if (metadata.price) {
-      items.push({ label: 'Unit Price', value: `${parseFloat(metadata.price).toLocaleString()} EGP`, icon: '💰' });
+      items.push({ label: 'Unit Price', value: `${parseFloat(metadata.price).toLocaleString()} EGP`, icon: 'fa-solid fa-tags' });
     }
     if (metadata.eoi_amount) {
-      items.push({ label: 'EOI Amount', value: `${parseFloat(metadata.eoi_amount).toLocaleString()} EGP`, icon: '💵' });
+      items.push({ label: 'EOI Amount', value: `${parseFloat(metadata.eoi_amount).toLocaleString()} EGP`, icon: 'fa-solid fa-receipt' });
     }
 
     if (items.length > 0) {
@@ -59,7 +58,7 @@ const CompanySalesPortal: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '8px', padding: '10px 14px', background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(50, 71, 58, 0.08)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)' }}>
           {items.map((item, idx) => (
             <div key={idx} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.9rem' }}>{item.icon}</span>
+              <i className={item.icon} style={{ color: 'var(--color-primary)', fontSize: '0.82rem' }}></i>
               <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{item.label}:</span>
               <strong style={{ color: 'var(--text-main)' }}>{item.value}</strong>
             </div>
@@ -80,16 +79,33 @@ const CompanySalesPortal: React.FC = () => {
     bookings: { total_confirmed: 0 },
     revenue: { sold_value: 0, reserved_value: 0 }
   });
+  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'broker' | 'inventory' | 'transactions'>('overview');
   const [leads, setLeads] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  /* company sales commissions & team states */
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [commissionRules, setCommissionRules] = useState<any[]>([]);
+  const [subordinatesPerformance, setSubordinatesPerformance] = useState<any[]>([]);
+  const [commissionsHistory, setCommissionsHistory] = useState<any[]>([]);
 
   // Journey Log States
   const [journeyLead, setJourneyLead] = useState<any | null>(null);
   const [journeyLogs, setJourneyLogs] = useState<any[]>([]);
   const [journeyPresentations, setJourneyPresentations] = useState<any[]>([]);
   const [showJourneyModal, setShowJourneyModal] = useState(false);
+
+  // Broker Mediation States
+  const [brokerReservations, setBrokerReservations] = useState<any[]>([]);
+  const [brokerPayouts, setBrokerPayouts] = useState<any[]>([]);
+  const [rejectionModal, setRejectionModal] = useState<{ show: boolean; type: 'reservation' | 'payout'; id: string; reason: string }>({
+    show: false,
+    type: 'reservation',
+    id: '',
+    reason: ''
+  });
 
   // Custom Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -101,7 +117,7 @@ const CompanySalesPortal: React.FC = () => {
     show: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // Booking Modal States & Calculation parameters
@@ -124,31 +140,32 @@ const CompanySalesPortal: React.FC = () => {
   // New payment schedule and add-ons state
   const [discountPercent, setDiscountPercent] = useState('0');
   const [installmentStartMonth, setInstallmentStartMonth] = useState(1); // starting month
-  
+
   const [includeClub, setIncludeClub] = useState(false);
   const [clubCost, setClubCost] = useState('150000');
   const [clubPaymentMethod, setClubPaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [clubTerm, setClubTerm] = useState(5); // in years
   const [clubInstallmentStartYear, setClubInstallmentStartYear] = useState(1);
-  
+
   const [includeGarage, setIncludeGarage] = useState(false);
   const [garageCost, setGarageCost] = useState('100000');
   const [garagePaymentMethod, setGaragePaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [garageTerm, setGarageTerm] = useState(5); // in years
   const [garageInstallmentStartYear, setGarageInstallmentStartYear] = useState(1);
-  
+
   const [includeMaintenance, setIncludeMaintenance] = useState(false);
   const [maintenanceCost, setMaintenanceCost] = useState('');
   const [maintenancePaymentMethod, setMaintenancePaymentMethod] = useState<'cash' | 'installment'>('cash');
   const [maintenanceTerm, setMaintenanceTerm] = useState(5); // in years
   const [maintenanceDueMonth, setMaintenanceDueMonth] = useState(36); // if cash
   const [maintenanceInstallmentStartYear, setMaintenanceInstallmentStartYear] = useState(1);
-  
+
   const [enableAnnual, setEnableAnnual] = useState(false);
   const [annualInstallmentAmount, setAnnualInstallmentAmount] = useState('50000');
   const [yearPercentages, setYearPercentages] = useState<number[]>([]);
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
   const [isPlanSaved, setIsPlanSaved] = useState(false);
+  const [savedSchedule, setSavedSchedule] = useState<any[]>([]);
 
   // ── Standard Project Payment Plan States ──
   const [standardPlans, setStandardPlans] = useState<any[]>([]);
@@ -261,6 +278,101 @@ const CompanySalesPortal: React.FC = () => {
     const date = new Date();
     date.setDate(date.getDate() + cashGracePeriod);
     return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+  };
+
+  // Helper: Load existing contract data into modal form when reopening
+  const loadContractDataIntoModal = (txn: any) => {
+    setSelectedReservationForContract(txn);
+    setBookingUnitId(txn.unit_id);
+    setBookingEoi(txn.eoi_amount.toString());
+
+    const contract = txn.contract;
+    const payments = contract?.payments || [];
+    const uPrice = parseFloat(txn.unit?.price) || 0;
+
+    // Load notes from contract
+    if (contract?.notes && contract.notes !== 'Generated from reservation.') {
+      setBookingNotes(contract.notes);
+    } else {
+      setBookingNotes('');
+    }
+
+    // Load payment method from contract type
+    if (contract?.type === 'installment') {
+      setFinalPaymentMethod('installment');
+    } else if (contract?.type === 'sale' || contract?.type === 'cash') {
+      setFinalPaymentMethod('cash');
+    }
+
+    // Extract down payment from saved payments
+    const dpPayment = payments.find((p: any) => p.transaction_reference?.includes('Down Payment') || p.transaction_reference?.includes('دفعة مقدمة'));
+    if (dpPayment) {
+      setDownPayment(parseFloat(dpPayment.amount).toString());
+    } else {
+      setDownPayment((uPrice * 0.1).toString());
+    }
+
+    // Try to derive discount from saved data
+    const totalScheduledAmount = payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+    if (totalScheduledAmount > 0 && totalScheduledAmount < uPrice) {
+      const discountVal = ((uPrice - totalScheduledAmount) / uPrice) * 100;
+      if (discountVal > 0.5 && discountVal < 100) {
+        setDiscountPercent(Math.round(discountVal).toString());
+      } else {
+        setDiscountPercent('0');
+      }
+    } else {
+      setDiscountPercent('0');
+    }
+
+    // Extract maintenance from saved payments
+    const maintenancePayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Maintenance') || p.transaction_reference?.includes('صيانة')
+    );
+    if (maintenancePayments.length > 0) {
+      const maintenanceTotal = maintenancePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setMaintenanceCost(maintenanceTotal.toString());
+      setIncludeMaintenance(true);
+    } else {
+      setMaintenanceCost((uPrice * 0.08).toString());
+      setIncludeMaintenance(false);
+    }
+
+    // Extract club membership from saved payments
+    const clubPayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Club') || p.transaction_reference?.includes('نادي')
+    );
+    if (clubPayments.length > 0) {
+      const clubTotal = clubPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setClubCost(clubTotal.toString());
+      setIncludeClub(true);
+    } else {
+      setIncludeClub(false);
+    }
+
+    // Extract garage from saved payments
+    const garagePayments = payments.filter((p: any) =>
+      p.transaction_reference?.includes('Garage') || p.transaction_reference?.includes('جراج')
+    );
+    if (garagePayments.length > 0) {
+      const garageTotal = garagePayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      setGarageCost(garageTotal.toString());
+      setIncludeGarage(true);
+    } else {
+      setIncludeGarage(false);
+    }
+
+    // Build saved schedule for display
+    const schedule = payments.map((p: any) => ({
+      label: p.transaction_reference || `Payment #${p.installment_number}`,
+      amount: parseFloat(p.amount) || 0,
+      dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+      status: p.status,
+      installmentNumber: p.installment_number,
+    }));
+    setSavedSchedule(schedule);
+    setIsPlanSaved(true);
+    setShowContractModal(true);
   };
 
 
@@ -723,7 +835,7 @@ const CompanySalesPortal: React.FC = () => {
   const handlePrintSchedule = () => {
     const schedule = generatePaymentSchedule();
     const plan = calculatePlan();
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showToast('Popup blocker prevented printing. Please allow popups.', 'error');
@@ -749,9 +861,9 @@ const CompanySalesPortal: React.FC = () => {
       const items = groupedByMonth[mNum];
       const monthTotal = items.reduce((sum, item) => sum + item.amount, 0);
       const monthPct = totalOutlays > 0 ? (monthTotal / totalOutlays) * 100 : 0;
-      
-      const titleStr = mNum === 0 
-        ? 'Today (المقدم وجدية الحجز)' 
+
+      const titleStr = mNum === 0
+        ? 'Today (المقدم وجدية الحجز)'
         : `Month ${mNum} (الشهر ${mNum})`;
 
       return `
@@ -785,7 +897,7 @@ const CompanySalesPortal: React.FC = () => {
         </div>
       `;
     }).join('');
-    
+
     let html = `
       <html>
         <head>
@@ -905,15 +1017,15 @@ const CompanySalesPortal: React.FC = () => {
             <div class="section-title">Yearly Distribution / التوزيع السنوي للأقساط</div>
             <div class="years-grid">
               ${yearPercentages.map((pct, idx) => {
-                const amount = plan.remaining * (pct / 100);
-                return `
+      const amount = plan.remaining * (pct / 100);
+      return `
                   <div class="year-box">
                     <div class="year-box-title">Year ${idx + 1}</div>
                     <div class="year-box-val">${Math.round(amount).toLocaleString()} EGP</div>
                     <div class="year-box-pct">${pct}% of installments</div>
                   </div>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           ` : ''}
 
@@ -930,7 +1042,7 @@ const CompanySalesPortal: React.FC = () => {
         </body>
       </html>
     `;
-    
+
     printWindow.document.write(html);
     printWindow.document.close();
   };
@@ -941,7 +1053,7 @@ const CompanySalesPortal: React.FC = () => {
 
     let csvContent = "\ufeff"; // BOM for excel arabic support
     csvContent += "Month,Description,Due Date,Amount (EGP),% of Total\n";
-    
+
     schedule.forEach(item => {
       csvContent += `${item.month},"${item.label}",${item.dueDate},${item.amount},${(item.percentage || 0).toFixed(2)}%\n`;
     });
@@ -963,10 +1075,22 @@ const CompanySalesPortal: React.FC = () => {
   const fetchPortalData = async () => {
     setIsLoading(true);
     try {
+      const storedUser = localStorage.getItem('redp_user');
+      if (storedUser) {
+        try {
+          setCurrentUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       // 1. Fetch Dashboard Stats
       const statsRes = await api.get('/v1/sales/company/dashboard');
       if (statsRes.data && statsRes.data.success) {
         setStats(statsRes.data.stats);
+        setCommissionRules(statsRes.data.commission_rules || []);
+        setSubordinatesPerformance(statsRes.data.subordinates_performance || []);
+        setCommissionsHistory(statsRes.data.commissions_history || []);
       }
 
       // 2. Fetch Leads
@@ -985,6 +1109,18 @@ const CompanySalesPortal: React.FC = () => {
       const transRes = await api.get('/v1/sales/company/transactions');
       if (transRes.data && transRes.data.success) {
         setTransactions(transRes.data.data.data || []);
+      }
+
+      // 5. Fetch Broker Reservations
+      const bResRes = await api.get('/v1/sales/company/reservations');
+      if (bResRes.data && bResRes.data.success) {
+        setBrokerReservations(bResRes.data.data || []);
+      }
+
+      // 6. Fetch Broker Payouts
+      const bPayoutsRes = await api.get('/v1/sales/company/payout-requests');
+      if (bPayoutsRes.data && bPayoutsRes.data.success) {
+        setBrokerPayouts(bPayoutsRes.data.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch Company Sales portal data:', err);
@@ -1119,6 +1255,7 @@ const CompanySalesPortal: React.FC = () => {
           setIncludeGarage(false);
           setIncludeMaintenance(false);
           setCustomAddons([]);
+          setSavedSchedule([]);
           setIsPlanSaved(false);
           await fetchPortalData();
         } else {
@@ -1130,6 +1267,16 @@ const CompanySalesPortal: React.FC = () => {
               contract: generatedContract
             };
           });
+          // Update saved schedule from returned contract payments
+          const returnedPayments = generatedContract?.payments || [];
+          const newSavedSchedule = returnedPayments.map((p: any) => ({
+            label: p.transaction_reference || `Payment #${p.installment_number}`,
+            amount: parseFloat(p.amount) || 0,
+            dueDate: p.due_date ? new Date(p.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-',
+            status: p.status,
+            installmentNumber: p.installment_number,
+          }));
+          setSavedSchedule(newSavedSchedule);
           setIsPlanSaved(true);
           await fetchPortalData();
         }
@@ -1158,6 +1305,7 @@ const CompanySalesPortal: React.FC = () => {
         setIncludeGarage(false);
         setIncludeMaintenance(false);
         setCustomAddons([]);
+        setSavedSchedule([]);
         setIsPlanSaved(false);
         await fetchPortalData();
       }
@@ -1191,6 +1339,76 @@ const CompanySalesPortal: React.FC = () => {
       setIsLoading(false);
     }
   };
+ 
+  const handleApproveBrokerReservation = async (resId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/reservations/${resId}/approve`);
+      if (res.data && res.data.success) {
+        await fetchPortalData();
+        showToast('Broker reservation request approved successfully.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to approve reservation hold.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelBrokerReservationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectionModal.id || !rejectionModal.reason) return;
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/reservations/${rejectionModal.id}/cancel`, {
+        cancellation_reason: rejectionModal.reason
+      });
+      if (res.data && res.data.success) {
+        setRejectionModal({ show: false, type: 'reservation', id: '', reason: '' });
+        await fetchPortalData();
+        showToast('Broker reservation hold request cancelled.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to cancel hold request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApprovePayout = async (payoutId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/payout-requests/${payoutId}/approve`);
+      if (res.data && res.data.success) {
+        await fetchPortalData();
+        showToast('Commission payout request approved.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to approve payout request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectPayoutSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectionModal.id || !rejectionModal.reason) return;
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/sales/company/payout-requests/${rejectionModal.id}/reject`, {
+        rejection_reason: rejectionModal.reason
+      });
+      if (res.data && res.data.success) {
+        setRejectionModal({ show: false, type: 'payout', id: '', reason: '' });
+        await fetchPortalData();
+        showToast('Commission payout request rejected.', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to reject payout request.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading && leads.length === 0) {
     return (
@@ -1204,408 +1422,826 @@ const CompanySalesPortal: React.FC = () => {
   return (
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
-      
+
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🏢 Company Sales Portal (Tier 3)</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Oversee the complete lead lifecycle journey, execute reservations, and configure inventory status.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ padding: '14px', background: 'rgba(50, 71, 58, 0.08)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <i className="fa-solid fa-building-user" style={{ color: 'var(--color-primary)', fontSize: '1.8rem' }}></i>
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '6px', margin: 0 }}>Company Sales Portal (Tier 3)</h1>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Oversee the complete lead lifecycle journey, execute reservations, and configure inventory status.</p>
+          </div>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8b5cf6' }}>Sales Tier 3 Portal</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8b5cf6' }}>Tier 3 Enterprise</span>
         </div>
       </div>
 
-      {/* Stats Board */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)', borderRadius: 'var(--radius-sm)' }}>
-            <Users style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Lead Pipeline</h4>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '4px 0 0 0' }}>
-              {stats.pipeline.total_leads} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>(My: {stats.pipeline.my_leads})</span>
-            </h2>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', borderRadius: 'var(--radius-sm)' }}>
-            <Milestone style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Tiers Distribution</h4>
-            <h5 style={{ fontSize: '0.75rem', fontWeight: 700, margin: '4px 0 0 0' }}>
-              T1: {stats.pipeline.tier_1} | T2: {stats.pipeline.tier_2} | T3: {stats.pipeline.tier_3}
-            </h5>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)' }}>
-            <ShoppingCart style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Bookings Done</h4>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-success)' }}>
-              {stats.bookings.total_confirmed}
-            </h2>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 'var(--radius-sm)' }}>
-            <DollarSign style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Inventory Sold</h4>
-            <h5 style={{ fontSize: '0.72rem', fontWeight: 700, margin: '4px 0 0 0' }}>
-              Sold: {stats.revenue.sold_value.toLocaleString()} EGP
-            </h5>
-          </div>
-        </div>
+      {/* Tab Switcher */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {[
+          { key: 'overview' as const, label: 'Overview', icon: 'fa-solid fa-chart-line' },
+          { key: 'leads' as const, label: 'Leads Pipeline', icon: 'fa-solid fa-users' },
+          { key: 'broker' as const, label: 'Broker Mediate', icon: 'fa-solid fa-handshake' },
+          { key: 'inventory' as const, label: 'Inventory Config', icon: 'fa-solid fa-store' },
+          { key: 'transactions' as const, label: 'Transactions Log', icon: 'fa-solid fa-clipboard-list' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={activeTab === tab.key ? 'btn-primary' : 'btn-secondary'}
+            style={{ flex: 1, minWidth: '150px', justifyContent: 'center', padding: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className={tab.icon}></i> {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* ── OVERVIEW TAB ── */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+          {/* Stats Board */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-users" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Lead Pipeline</h4>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '4px 0 0 0' }}>
+                  {stats.pipeline.total_leads} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>(My: {stats.pipeline.my_leads})</span>
+                </h2>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-route" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Tiers Distribution</h4>
+                <h5 style={{ fontSize: '0.82rem', fontWeight: 800, margin: '4px 0 0 0', display: 'flex', gap: '8px' }}>
+                  <span className="badge badge-warning">T1: {stats.pipeline.tier_1}</span>
+                  <span className="badge badge-primary">T2: {stats.pipeline.tier_2}</span>
+                  <span className="badge badge-success">T3: {stats.pipeline.tier_3}</span>
+                </h5>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-boxes-stacked" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Bookings Done</h4>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-success)' }}>
+                  {stats.bookings.total_confirmed}
+                </h2>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-dollar-sign" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Inventory Sold</h4>
+                <h5 style={{ fontSize: '0.9rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-primary)' }}>
+                  {stats.revenue.sold_value.toLocaleString()} EGP
+                </h5>
+              </div>
+            </div>
+          </div>
+
+          {/* Commissions & Rates Widget */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px' }}>
+            {/* Left: Commission Earnings & History */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
+                Personal Commission Earnings
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pending</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-warning)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.pending_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Approved</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.approved_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(59, 130, 246, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Paid</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.paid_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Calculation History
+                </h4>
+                {commissionsHistory.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                    No calculations logged.
+                  </p>
+                ) : (
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {commissionsHistory.map((ch: any) => (
+                      <div key={ch.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)', fontSize: '0.8rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>Contract #{ch.contract?.contract_number || ch.contract_id?.substring(0, 8)}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Unit {ch.contract?.unit?.unit_number} • {ch.contract?.unit?.project?.name}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--color-success)' }}>+{parseFloat(ch.calculated_amount).toLocaleString()} EGP</div>
+                          <span className={`badge ${ch.status === 'paid' ? 'badge-success' : ch.status === 'approved' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px', marginTop: '2px', display: 'inline-block' }}>
+                            {ch.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Active Rates & Rules */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-percent" style={{ color: 'var(--color-success)' }}></i>
+                Company Commission Rules
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {commissionRules.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                    No active commission rules set.
+                  </p>
+                ) : (
+                  commissionRules.map((cr: any) => (
+                    <div key={cr.id} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px', width: '100%' }}>
+                        <strong style={{ fontSize: '0.85rem' }}>{cr.name}</strong>
+                        <span className="badge badge-success" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                          {parseFloat(cr.commission_rate).toFixed(2)}%
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {cr.description || `Rule applied to Tier 3.`}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Team Performance Panel */}
+          {subordinatesPerformance && subordinatesPerformance.length > 0 && (
+            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                  <i className="fa-solid fa-people-group" style={{ color: 'var(--color-primary)' }}></i>
+                  Sales Team Performance & Commissions
+                </h3>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Agent Name</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Total Leads</th>
+                      <th>New / Contacted</th>
+                      <th>Reserved Units</th>
+                      <th>Bookings Count</th>
+                      <th>Commissions Earned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subordinatesPerformance.map((sub: any) => (
+                      <tr key={sub.user_id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: sub.status === 'active' ? 'var(--color-success)' : '#9ca3af',
+                              display: 'inline-block'
+                            }}></span>
+                            <strong>{sub.name}</strong>
+                          </div>
+                        </td>
+                        <td>{sub.position}</td>
+                        <td>
+                          <span className={`badge ${sub.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                            {sub.status}
+                          </span>
+                        </td>
+                        <td>{sub.stats?.total_leads ?? 0}</td>
+                        <td>{sub.stats?.new ?? 0} / {sub.stats?.contacted ?? 0}</td>
+                        <td>{sub.stats?.reserved ?? 0} units</td>
+                        <td>{sub.stats?.reservations ?? 0} bookings</td>
+                        <td>
+                          <strong style={{ color: 'var(--color-success)' }}>
+                            {parseFloat(sub.stats?.commissions_earned ?? 0).toLocaleString()} EGP
+                          </strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Operations / Portal Intro */}
+          <div className="glass-panel" style={{ padding: '30px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)' }}></i>
+              Quick Guide to Company Sales Operations
+            </h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
+              Welcome back to the REDP Tier 3 Enterprise Portal. This workspace is designed for corporate sales agents to coordinate directly with clients and external brokerage teams.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginTop: '20px' }}>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)' }}></i> Leads Pipeline
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Claim incoming leads, review client history log, and initiate booking holds directly on specific project inventory.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-handshake" style={{ color: 'var(--color-warning)' }}></i> Broker Mediate
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Review units currently held by external broker partners and approve or reject commission payout invoice submissions.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-store" style={{ color: 'var(--color-success)' }}></i> Inventory Config
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Check real-time availability of units and manually update block list status or price references for sales.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-clipboard-list" style={{ color: '#8b5cf6' }}></i> Transactions Log
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Access booking histories, execute draft payment amortization plan structures, and apply corporate digital contract signatures.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid Panels */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
-        
+
         {/* Leads and Journeys */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Users style={{ color: 'var(--color-primary)' }} />
-            Leads Pipeline Operations
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Client Profile</th>
-                  <th>Tier & Owner</th>
-                  <th>Lifecycle Status</th>
-                  <th>Operations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.length === 0 ? (
+        {activeTab === 'leads' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)' }}></i>
+              Leads Pipeline Operations
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No leads in system.</td>
+                    <th>Client Profile</th>
+                    <th>Tier & Owner</th>
+                    <th>Lifecycle Status</th>
+                    <th>Operations</th>
                   </tr>
-                ) : (
-                  leads.map(lead => (
-                    <tr key={lead.id}>
-                      <td>
-                        <strong>{lead.first_name} {lead.last_name}</strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📞 {lead.phone} | {lead.email}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nat. ID: {lead.national_id || 'N/A'}</div>
-                        {(lead.interested_project || lead.interestedProject) && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '2px' }}>
-                            🏢 Project: {(lead.interested_project || lead.interestedProject).name}
-                          </div>
-                        )}
-                        {lead.budget && (
-                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)', marginTop: '2px' }}>
-                            💰 Budget: {parseFloat(lead.budget).toLocaleString()} EGP ({lead.payment_method})
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge badge-${lead.current_tier === 'tier_3' ? 'success' : lead.current_tier === 'tier_2' ? 'primary' : 'warning'}`} style={{ marginRight: '6px' }}>
-                          {lead.current_tier.toUpperCase()}
-                        </span>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Agent: {lead.company_sales_agent?.name || 'Unassigned'}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge badge-${lead.status === 'reserved' ? 'success' : lead.status === 'contracted' ? 'info' : 'warning'}`}>
-                          {lead.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleViewJourney(lead)}
-                            className="btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <Milestone style={{ width: '12px', height: '12px' }} /> View Journey
-                          </button>
-                          
-                          {!lead.company_sales_agent_id ? (
-                            <button
-                              onClick={() => handleAssignToSelf(lead.id)}
-                              className="btn-secondary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                            >
-                              Assign to Me
-                            </button>
-                          ) : lead.status !== 'reserved' && lead.status !== 'contracted' ? (
-                            <button
-                              onClick={() => { setSelectedLeadForBooking(lead); setShowBookingModal(true); }}
-                              className="btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                            >
-                              Execute Booking
-                            </button>
-                          ) : lead.status === 'reserved' ? (() => {
-                            const txn = transactions.find(t => 
-                              t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
-                              ((lead.email && t.client?.email === lead.email) || 
-                               (lead.phone && t.client?.phone === lead.phone))
-                            );
-                            if (txn) {
-                              return (
-                                <div style={{ display: 'flex', gap: '6px' }}>
-                                  {!txn.contract ? (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedReservationForContract(txn);
-                                        setBookingUnitId(txn.unit_id);
-                                        setBookingEoi(txn.eoi_amount.toString());
-                                        setDiscountPercent('0');
-                                        const uPrice = parseFloat(txn.unit?.price) || 0;
-                                        setDownPayment((uPrice * 0.1).toString());
-                                        setMaintenanceCost((uPrice * 0.08).toString());
-                                        setShowContractModal(true);
-                                      }}
-                                      className="btn-primary"
-                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
-                                    >
-                                      إتمام التعاقد / Finalize
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedReservationForContract(txn);
-                                        setBookingUnitId(txn.unit_id);
-                                        setBookingEoi(txn.eoi_amount.toString());
-                                        setDiscountPercent('0');
-                                        const uPrice = parseFloat(txn.unit?.price) || 0;
-                                        setDownPayment((uPrice * 0.1).toString());
-                                        setMaintenanceCost((uPrice * 0.08).toString());
-                                        setShowContractModal(true);
-                                      }}
-                                      className="btn-primary"
-                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                                    >
-                                      تعديل وتوقيع الخطة / Edit & Sign
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleCancelBooking(txn.id)}
-                                    className="btn-secondary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
-                                  >
-                                    إلغاء / Cancel
-                                  </button>
-                                </div>
-                              );
-                            }
-                            return (
-                              <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
-                                Booking Done
-                              </span>
-                            );
-                          })() : (
-                            <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
-                              Contracted
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                </thead>
+                <tbody>
+                  {leads.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No leads in system.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Units and Status Panel */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShoppingCart style={{ color: 'var(--color-warning)' }} />
-            Inventory Status Configuration
-          </h3>
-          <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }} className="sidebar-scroll-container">
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Unit ID</th>
-                  <th>Compound Project</th>
-                  <th>Floor & Type</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {units.map(unit => (
-                  <tr key={unit.id}>
-                    <td><strong>{unit.unit_number}</strong></td>
-                    <td>
-                      <div>{unit.project?.name}</div>
-                      {unit.project?.delivery_date && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          📅 Delivery: {unit.project.delivery_date.substring(0, 10)}
-                        </div>
-                      )}
-                    </td>
-                    <td>Floor {unit.floor} ({unit.type})</td>
-                    <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
-                    <td>
-                      <span className={`badge badge-${
-                        unit.status === 'available' ? 'success' :
-                        unit.status === 'reserved' ? 'warning' :
-                        unit.status === 'sold' ? 'info' : 'danger'
-                      }`}>
-                        {unit.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => { setSelectedUnit(unit); setUnitStatusInput(unit.status); setShowUnitModal(true); }}
-                        className="btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                      >
-                        Change Status
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Transactions & Audit Logs Panel */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ClipboardList style={{ color: 'var(--color-success)' }} />
-            Reservations and Contracts Transactions Log
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Reservation ID</th>
-                  <th>Client</th>
-                  <th>Unit Number</th>
-                  <th>EOI Amount</th>
-                  <th>Hold Time Remaining</th>
-                  <th>Status & Contract</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
-                  </tr>
-                ) : (
-                  transactions.map(txn => {
-                    const getHoldTimeRemaining = (expiresAtStr: string, status: string, hasContract: boolean) => {
-                      if (hasContract) return 'Contracted';
-                      if (status === 'expired') return 'Expired';
-                      if (status === 'cancelled') return 'Cancelled';
-                      if (!expiresAtStr) return 'N/A';
-                      const expiresAt = new Date(expiresAtStr);
-                      const diffMs = expiresAt.getTime() - Date.now();
-                      if (diffMs <= 0) return 'Expired';
-                      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                      const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                      if (diffDays > 0) {
-                        return `${diffDays}d ${diffHours}h left`;
-                      }
-                      return `${diffHours}h left`;
-                    };
-
-                    const isExpired = txn.status === 'expired' || (!txn.contract && new Date(txn.expires_at).getTime() < Date.now());
-
-                    return (
-                      <tr key={txn.id}>
-                        <td><span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{txn.id.substring(0, 18)}...</span></td>
-                        <td><strong>{txn.client?.name}</strong></td>
-                        <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
-                        <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
+                  ) : (
+                    leads.map(lead => (
+                      <tr key={lead.id}>
                         <td>
-                          <span style={{ fontWeight: 600, color: isExpired ? 'var(--color-danger)' : (txn.contract && txn.contract.status !== 'draft') ? 'var(--color-success)' : 'var(--color-warning)' }}>
-                            {getHoldTimeRemaining(txn.expires_at, txn.status, txn.contract && txn.contract.status !== 'draft')}
+                          <strong>{lead.first_name} {lead.last_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📞 {lead.phone} | {lead.email}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nat. ID: {lead.national_id || 'N/A'}</div>
+                          {(lead.interested_project || lead.interestedProject) && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '2px' }}>
+                              🏢 Project: {(lead.interested_project || lead.interestedProject).name}
+                            </div>
+                          )}
+                          {lead.budget && (
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)', marginTop: '2px' }}>
+                              💰 Budget: {parseFloat(lead.budget).toLocaleString()} EGP ({lead.payment_method})
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge badge-${lead.current_tier === 'tier_3' ? 'success' : lead.current_tier === 'tier_2' ? 'primary' : 'warning'}`} style={{ marginRight: '6px' }}>
+                            {lead.current_tier.toUpperCase()}
+                          </span>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            Agent: {lead.company_sales_agent?.name || 'Unassigned'}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge badge-${lead.status === 'reserved' ? 'success' : lead.status === 'contracted' ? 'info' : 'warning'}`}>
+                            {lead.status.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td>
-                          {txn.contract ? (
-                            <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : 'info'}`}>
-                              {txn.contract.status === 'active' ? `Signed: ${txn.contract.contract_number}` : `Draft: ${txn.contract.contract_number}`}
-                            </span>
-                          ) : isExpired ? (
-                            <span className="badge badge-danger">Expired (EOI Refunded)</span>
-                          ) : txn.status === 'cancelled' ? (
-                            <span className="badge badge-danger">Cancelled</span>
-                          ) : (
-                            <span className="badge badge-warning">Awaiting Contract (Hold)</span>
-                          )}
-                        </td>
-                        <td>
-                          {!isExpired && txn.status === 'confirmed' && (!txn.contract || txn.contract.status === 'draft') && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              {!txn.contract ? (
-                                <button
-                                  onClick={() => {
-                                    setSelectedReservationForContract(txn);
-                                    setBookingUnitId(txn.unit_id);
-                                    setBookingEoi(txn.eoi_amount.toString());
-                                    setDiscountPercent('0');
-                                    const uPrice = parseFloat(txn.unit?.price) || 0;
-                                    setDownPayment((uPrice * 0.1).toString());
-                                    setMaintenanceCost((uPrice * 0.08).toString());
-                                    setShowContractModal(true);
-                                  }}
-                                  className="btn-primary"
-                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
-                                >
-                                  Finalize Contract
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setSelectedReservationForContract(txn);
-                                    setBookingUnitId(txn.unit_id);
-                                    setBookingEoi(txn.eoi_amount.toString());
-                                    setDiscountPercent('0');
-                                    const uPrice = parseFloat(txn.unit?.price) || 0;
-                                    setDownPayment((uPrice * 0.1).toString());
-                                    setMaintenanceCost((uPrice * 0.08).toString());
-                                    setShowContractModal(true);
-                                  }}
-                                  className="btn-primary"
-                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                                >
-                                  Edit & Sign / تعديل وتوقيع الخطة
-                                </button>
-                              )}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <button
+                              onClick={() => handleViewJourney(lead)}
+                              className="btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <i className="fa-solid fa-route" style={{ fontSize: '0.75rem' }}></i> View Journey
+                            </button>
+
+                            {!lead.company_sales_agent_id ? (
                               <button
-                                onClick={() => handleCancelBooking(txn.id)}
+                                onClick={() => handleAssignToSelf(lead.id)}
                                 className="btn-secondary"
-                                style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
                               >
-                                Cancel Hold
+                                Assign to Me
                               </button>
-                            </div>
-                          )}
-                          {(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No action available</span>
-                          )}
+                            ) : lead.status !== 'reserved' && lead.status !== 'contracted' ? (
+                              <button
+                                onClick={() => { setSelectedLeadForBooking(lead); setShowBookingModal(true); }}
+                                className="btn-primary"
+                                style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                              >
+                                Execute Booking
+                              </button>
+                            ) : lead.status === 'reserved' ? (() => {
+                              const txn = transactions.find(t =>
+                                t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
+                                ((lead.email && t.client?.email === lead.email) ||
+                                  (lead.phone && t.client?.phone === lead.phone))
+                              );
+                              if (txn) {
+                                return (
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    {!txn.contract ? (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedReservationForContract(txn);
+                                          setBookingUnitId(txn.unit_id);
+                                          setBookingEoi(txn.eoi_amount.toString());
+                                          setDiscountPercent('0');
+                                          const uPrice = parseFloat(txn.unit?.price) || 0;
+                                          setDownPayment((uPrice * 0.1).toString());
+                                          setMaintenanceCost((uPrice * 0.08).toString());
+                                          setSavedSchedule([]);
+                                          setBookingNotes('');
+                                          setIncludeClub(false);
+                                          setIncludeGarage(false);
+                                          setIncludeMaintenance(false);
+                                          setIsPlanSaved(false);
+                                          setShowContractModal(true);
+                                        }}
+                                        className="btn-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                      >
+                                        إتمام التعاقد / Finalize
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => loadContractDataIntoModal(txn)}
+                                        className="btn-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                      >
+                                        تعديل وتوقيع الخطة / Edit & Sign
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleCancelBooking(txn.id)}
+                                      className="btn-secondary"
+                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                                    >
+                                      إلغاء / Cancel
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                  Booking Done
+                                </span>
+                              );
+                            })() : (
+                              <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                Contracted
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Broker Submissions (Reservations and Payout Requests) */}
+        {activeTab === 'broker' && (
+          <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            
+            {/* Section 1: Reservation hold requests */}
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-primary)' }}></i>
+                Broker Unit Reservation Holds (Awaiting Approval)
+              </h3>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Broker Agency</th>
+                      <th>Unit Details</th>
+                      <th>Customer Name</th>
+                      <th>EOI Deposit</th>
+                      <th>Audit Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokerReservations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No broker reservation requests in the system.</td>
+                      </tr>
+                    ) : (
+                      brokerReservations.map(res => (
+                        <tr key={res.id}>
+                          <td>
+                            <strong>{res.broker?.agency_name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agent: {res.broker?.agent_name}</div>
+                          </td>
+                          <td>
+                            <strong>{res.unit?.unit_number}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Project: {res.unit?.project?.name}</div>
+                          </td>
+                          <td>
+                            <strong>{res.client?.name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {res.client?.phone}</div>
+                          </td>
+                          <td>
+                            {parseFloat(res.eoi_amount) > 0 ? (
+                              <>
+                                <strong>{parseFloat(res.eoi_amount).toLocaleString()} EGP</strong>
+                                {res.payment_receipt_path && (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Receipt Slip</div>
+                                )}
+                              </>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Client Interest (No Deposit)</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge badge-${
+                              res.status === 'pending' ? 'warning' :
+                              res.status === 'confirmed' ? 'success' : 'danger'
+                            }`} style={{ textTransform: 'capitalize' }}>
+                              {res.status}
+                            </span>
+                          </td>
+                          <td>
+                            {res.status === 'pending' ? (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  onClick={() => handleApproveBrokerReservation(res.id)}
+                                  className="btn-primary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Approve Hold
+                                </button>
+                                <button 
+                                  onClick={() => setRejectionModal({ show: true, type: 'reservation', id: res.id, reason: '' })}
+                                  className="btn-secondary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                Processed ({res.status})
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <hr style={{ border: '0', borderTop: '1px solid var(--border-glass)', margin: '10px 0' }} />
+
+            {/* Section 2: Payout requests */}
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-dollar-sign" style={{ color: 'var(--color-success)' }}></i>
+                Broker Commission Invoice Auditing
+              </h3>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Broker Agency</th>
+                      <th>Requested Amount</th>
+                      <th>Invoice File</th>
+                      <th>Submission Date</th>
+                      <th>Fulfillment State</th>
+                      <th>Operations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokerPayouts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No payout request invoices submitted.</td>
+                      </tr>
+                    ) : (
+                      brokerPayouts.map(p => (
+                        <tr key={p.id}>
+                          <td>
+                            <strong>{p.broker?.agency_name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IBAN: {p.broker?.bank_iban || 'Not Provided'}</div>
+                          </td>
+                          <td>
+                            <strong style={{ color: 'var(--color-success)' }}>{parseFloat(p.amount).toLocaleString()} EGP</strong>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Invoice PDF</span>
+                          </td>
+                          <td>
+                            {new Date(p.created_at).toLocaleDateString()}
+                          </td>
+                          <td>
+                            <span className={`badge badge-${
+                              p.status === 'pending_review' ? 'warning' :
+                              p.status === 'paid' ? 'success' :
+                              p.status === 'rejected' ? 'danger' : 'info'
+                            }`} style={{ textTransform: 'capitalize' }}>
+                              {p.status.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td>
+                            {p.status === 'pending_review' ? (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  onClick={() => handleApprovePayout(p.id)}
+                                  className="btn-primary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Release Funds
+                                </button>
+                                <button 
+                                  onClick={() => setRejectionModal({ show: true, type: 'payout', id: p.id, reason: '' })}
+                                  className="btn-secondary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                Completed ({p.status})
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Units and Status Panel */}
+        {activeTab === 'inventory' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-store" style={{ color: 'var(--color-warning)' }}></i>
+              Inventory Status Configuration
+            </h3>
+            <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }} className="sidebar-scroll-container">
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Unit ID</th>
+                    <th>Compound Project</th>
+                    <th>Floor & Type</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {units.map(unit => (
+                    <tr key={unit.id}>
+                      <td><strong>{unit.unit_number}</strong></td>
+                      <td>
+                        <div>{unit.project?.name}</div>
+                        {unit.project?.delivery_date && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            📅 Delivery: {unit.project.delivery_date.substring(0, 10)}
+                          </div>
+                        )}
+                      </td>
+                      <td>Floor {unit.floor} ({unit.type})</td>
+                      <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
+                      <td>
+                        <span className={`badge badge-${unit.status === 'available' ? 'success' :
+                            unit.status === 'reserved' ? 'warning' :
+                              unit.status === 'sold' ? 'info' : 'danger'
+                          }`}>
+                          {unit.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => { setSelectedUnit(unit); setUnitStatusInput(unit.status); setShowUnitModal(true); }}
+                          className="btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                        >
+                          Change Status
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Transactions & Audit Logs Panel */}
+        {activeTab === 'transactions' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-success)' }}></i>
+              Reservations and Contracts Transactions Log
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Reservation ID</th>
+                    <th>Client</th>
+                    <th>Sales Channel</th>
+                    <th>Unit Number</th>
+                    <th>EOI Amount</th>
+                    <th>Hold Time Remaining</th>
+                    <th>Status & Contract</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
+                    </tr>
+                  ) : (
+                    transactions.map(txn => {
+                      const getHoldTimeRemaining = (expiresAtStr: string, status: string, hasContract: boolean) => {
+                        if (hasContract) return 'Contracted';
+                        if (status === 'expired') return 'Expired';
+                        if (status === 'cancelled') return 'Cancelled';
+                        if (!expiresAtStr) return 'N/A';
+                        const expiresAt = new Date(expiresAtStr);
+                        const diffMs = expiresAt.getTime() - Date.now();
+                        if (diffMs <= 0) return 'Expired';
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        if (diffDays > 0) {
+                          return `${diffDays}d ${diffHours}h left`;
+                        }
+                        return `${diffHours}h left`;
+                      };
+
+                      const isExpired = txn.status === 'expired' || (!txn.contract && new Date(txn.expires_at).getTime() < Date.now());
+
+                      return (
+                        <tr key={txn.id}>
+                          <td><span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{txn.id.substring(0, 18)}...</span></td>
+                          <td><strong>{txn.client?.name}</strong></td>
+                          <td>
+                            {txn.broker ? (
+                              <span style={{ color: 'var(--color-warning)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                🍊 Broker: {txn.broker.agency_name}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                🏢 Direct (Company Sales)
+                              </span>
+                            )}
+                          </td>
+                          <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
+                          <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: isExpired ? 'var(--color-danger)' : (txn.contract && txn.contract.status !== 'draft') ? 'var(--color-success)' : 'var(--color-warning)' }}>
+                              {getHoldTimeRemaining(txn.expires_at, txn.status, txn.contract && txn.contract.status !== 'draft')}
+                            </span>
+                          </td>
+                          <td>
+                            {txn.contract ? (
+                              <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : 'info'}`}>
+                                {txn.contract.status === 'active' ? `Signed: ${txn.contract.contract_number}` : `Draft: ${txn.contract.contract_number}`}
+                              </span>
+                            ) : isExpired ? (
+                              <span className="badge badge-danger">Expired (EOI Refunded)</span>
+                            ) : txn.status === 'cancelled' ? (
+                              <span className="badge badge-danger">Cancelled</span>
+                            ) : (
+                              <span className="badge badge-warning">Awaiting Contract (Hold)</span>
+                            )}
+                          </td>
+                          <td>
+                            {!isExpired && txn.status === 'confirmed' && (!txn.contract || txn.contract.status === 'draft') && (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {!txn.contract ? (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedReservationForContract(txn);
+                                      setBookingUnitId(txn.unit_id);
+                                      setBookingEoi(txn.eoi_amount.toString());
+                                      setDiscountPercent('0');
+                                      const uPrice = parseFloat(txn.unit?.price) || 0;
+                                      setDownPayment((uPrice * 0.1).toString());
+                                      setMaintenanceCost((uPrice * 0.08).toString());
+                                      setSavedSchedule([]);
+                                      setBookingNotes('');
+                                      setIncludeClub(false);
+                                      setIncludeGarage(false);
+                                      setIncludeMaintenance(false);
+                                      setIsPlanSaved(false);
+                                      setShowContractModal(true);
+                                    }}
+                                    className="btn-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                  >
+                                    Finalize Contract
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => loadContractDataIntoModal(txn)}
+                                    className="btn-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                  >
+                                    Edit & Sign / تعديل وتوقيع الخطة
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleCancelBooking(txn.id)}
+                                  className="btn-secondary"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                                >
+                                  Cancel Hold
+                                </button>
+                              </div>
+                            )}
+                            {(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No action available</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -1614,8 +2250,13 @@ const CompanySalesPortal: React.FC = () => {
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '600px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
-              <h3 style={{ fontWeight: 800 }}>Journey Timeline: {journeyLead.first_name} {journeyLead.last_name}</h3>
-              <span className="badge badge-info">{journeyLead.source} source</span>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Journey Timeline: {journeyLead.first_name} {journeyLead.last_name}</h3>
+                <span className="badge badge-info" style={{ marginTop: '4px' }}>{journeyLead.source} source</span>
+              </div>
+              <button onClick={() => { setShowJourneyModal(false); setJourneyLead(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
             </div>
 
             {/* Broker presentations */}
@@ -1661,10 +2302,17 @@ const CompanySalesPortal: React.FC = () => {
       {showBookingModal && selectedLeadForBooking && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '520px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Execute Booking Reservation Hold</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Reserve an inventory unit on hold for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Execute Booking Reservation Hold</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Reserve an inventory unit on hold for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
+                </p>
+              </div>
+              <button type="button" onClick={() => { setBookingUnitId(''); setBookingNotes(''); setBookingEoi('50000'); setBookingHoldingDays(7); setShowBookingModal(false); setSelectedLeadForBooking(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleCreateBooking} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {selectedLeadForBooking && (
                 <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1715,13 +2363,13 @@ const CompanySalesPortal: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" className="btn-secondary" onClick={() => { 
+                <button type="button" className="btn-secondary" onClick={() => {
                   setBookingUnitId('');
                   setBookingNotes('');
                   setBookingEoi('50000');
                   setBookingHoldingDays(7);
-                  setShowBookingModal(false); 
-                  setSelectedLeadForBooking(null); 
+                  setShowBookingModal(false);
+                  setSelectedLeadForBooking(null);
                 }}>Cancel</button>
                 <button type="submit" className="btn-primary" style={{ background: 'var(--color-success)', borderColor: 'var(--color-success)' }}>Confirm Reservation Hold</button>
               </div>
@@ -1734,12 +2382,19 @@ const CompanySalesPortal: React.FC = () => {
       {showContractModal && selectedReservationForContract && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '640px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Finalize Contract & Payment Plan</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Set up the payment plan schedule for unit <strong>{selectedReservationForContract.unit?.unit_number}</strong> ({selectedReservationForContract.unit?.project?.name}).
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Finalize Contract & Payment Plan</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Set up the payment plan schedule for unit <strong>{selectedReservationForContract.unit?.unit_number}</strong> ({selectedReservationForContract.unit?.project?.name}).
+                </p>
+              </div>
+              <button type="button" onClick={() => { setBookingUnitId(''); setBookingNotes(''); setDiscountPercent('0'); setDownPayment(''); setIncludeClub(false); setIncludeGarage(false); setIncludeMaintenance(false); setCustomAddons([]); setShowContractModal(false); setSelectedReservationForContract(null); setIsPlanSaved(false); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleFinalizeContract} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }} className="sidebar-scroll-container">
-              
+
               <div style={{ padding: '12px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Client:</span>
@@ -1754,6 +2409,54 @@ const CompanySalesPortal: React.FC = () => {
                   <strong style={{ color: 'var(--color-success)' }}>{parseFloat(selectedReservationForContract.eoi_amount || 0).toLocaleString()} EGP</strong>
                 </div>
               </div>
+
+              {/* Previously Saved Schedule */}
+              {savedSchedule.length > 0 && (
+                <div style={{ padding: '12px', background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16,185,129,0.2)', borderLeft: '4px solid var(--color-success)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-success)' }}>✅ خطة الدفع المحفوظة / Previously Saved Schedule ({savedSchedule.length} items)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Total: {savedSchedule.reduce((s, i) => s + i.amount, 0).toLocaleString()} EGP
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 'var(--radius-xs)' }} className="sidebar-scroll-container">
+                    <table className="premium-table" style={{ fontSize: '0.7rem', margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th>Description</th>
+                          <th>Due Date</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ textAlign: 'center' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {savedSchedule.map((item, idx) => (
+                          <tr key={idx} style={{ background: item.status === 'paid' ? 'rgba(16,185,129,0.05)' : 'transparent' }}>
+                            <td>{item.label}</td>
+                            <td>{item.dueDate}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{item.amount.toLocaleString()} EGP</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                background: item.status === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                color: item.status === 'paid' ? 'var(--color-success)' : 'var(--color-warning)',
+                              }}>
+                                {item.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0, fontStyle: 'italic' }}>
+                    ℹ️ هذه الخطة المحفوظة مسبقاً. يمكنك تعديل الإعدادات أدناه وحفظ خطة جديدة. / This is the previously saved plan. You can modify the settings below and save an updated plan.
+                  </p>
+                </div>
+              )}
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Standard Payment Plan (نظام سداد قياسي)</label>
@@ -1773,7 +2476,7 @@ const CompanySalesPortal: React.FC = () => {
               {/* Add-ons Section */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Add-ons / إضافات اختيارية</div>
-                
+
                 {/* Club Card */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: 'rgba(255,255,255,0.2)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -2070,12 +2773,12 @@ const CompanySalesPortal: React.FC = () => {
                 <>
                   <div className="form-group" style={{ marginBottom: '10px' }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>Cash Grace Period (Days) / مهلة سداد الكاش</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={cashGracePeriod} 
-                      onChange={e => setCashGracePeriod(parseInt(e.target.value) || 0)} 
-                      min="1" 
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={cashGracePeriod}
+                      onChange={e => setCashGracePeriod(parseInt(e.target.value) || 0)}
+                      min="1"
                       max="365"
                     />
                   </div>
@@ -2114,11 +2817,11 @@ const CompanySalesPortal: React.FC = () => {
 
                     <div className="form-group" style={{ marginBottom: '10px' }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>Interest Rate (% p.a.)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        value={installmentInterest} 
-                        onChange={e => setInstallmentInterest(parseFloat(e.target.value) || 0)} 
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={installmentInterest}
+                        onChange={e => setInstallmentInterest(parseFloat(e.target.value) || 0)}
                         min="0"
                         max="100"
                         step="0.1"
@@ -2137,11 +2840,11 @@ const CompanySalesPortal: React.FC = () => {
 
                   <div className="form-group" style={{ marginBottom: '10px' }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>Down Payment (EGP) / دفعة مقدمة</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={downPayment} 
-                      onChange={e => setDownPayment(e.target.value)} 
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={downPayment}
+                      onChange={e => setDownPayment(e.target.value)}
                       placeholder="e.g. 500000"
                       required
                     />
@@ -2157,15 +2860,15 @@ const CompanySalesPortal: React.FC = () => {
                         <>
                           <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>📅 Yearly Distribution / توزيع النسب السنوية</span>
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              fontWeight: 700, 
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
                               color: Math.abs(totalAllocated - 100) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)'
                             }}>
                               Total: {totalAllocated}% / 100%
                             </span>
                           </div>
-                          
+
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
                             {yearPercentages.map((pct, idx) => {
                               const yearlyAmount = remainingToAmortize * (pct / 100);
@@ -2173,7 +2876,7 @@ const CompanySalesPortal: React.FC = () => {
                                 <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                   <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Year {idx + 1}</label>
                                   <div style={{ position: 'relative' }}>
-                                    <input 
+                                    <input
                                       type="number"
                                       className="form-control"
                                       style={{ paddingRight: '16px', fontSize: '0.75rem', padding: '4px 6px', height: '28px' }}
@@ -2209,11 +2912,11 @@ const CompanySalesPortal: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', justifyItems: 'center', alignItems: 'center', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.8rem', fontWeight: 800, margin: 0, color: 'var(--color-primary)' }}>📅 جدول الدفعات المقترح (Chronological Schedule)</h4>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button type="button" onClick={handlePrintSchedule} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)' }}>
-                        🖨️ Print Plan
+                      <button type="button" onClick={handlePrintSchedule} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-print"></i> Print Plan
                       </button>
-                      <button type="button" onClick={handleDownloadCSV} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)' }}>
-                        📥 Download CSV
+                      <button type="button" onClick={handleDownloadCSV} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-download"></i> Download CSV
                       </button>
                     </div>
                   </div>
@@ -2252,7 +2955,7 @@ const CompanySalesPortal: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <button type="button" className="btn-secondary" onClick={() => { 
+                  <button type="button" className="btn-secondary" onClick={() => {
                     setBookingUnitId('');
                     setBookingNotes('');
                     setDiscountPercent('0');
@@ -2261,16 +2964,16 @@ const CompanySalesPortal: React.FC = () => {
                     setIncludeGarage(false);
                     setIncludeMaintenance(false);
                     setCustomAddons([]);
-                    setShowContractModal(false); 
-                    setSelectedReservationForContract(null); 
+                    setShowContractModal(false);
+                    setSelectedReservationForContract(null);
                     setIsPlanSaved(false);
                   }}>Cancel</button>
                   {selectedReservationForContract?.contract && (
-                    <button 
-                      type="button" 
-                      className="btn-primary" 
-                      style={{ 
-                        background: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.12)', 
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{
+                        background: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.12)',
                         color: isPlanSaved ? '#ffffff' : 'var(--text-muted)',
                         border: '1px solid',
                         borderColor: isPlanSaved ? 'var(--color-success)' : 'rgba(92, 112, 100, 0.2)',
@@ -2283,10 +2986,10 @@ const CompanySalesPortal: React.FC = () => {
                       توقيع وإرسال للحسابات / Sign & Send
                     </button>
                   )}
-                  <button 
-                    type="submit" 
-                    className="btn-primary" 
-                    style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }} 
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ background: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)', borderColor: selectedReservationForContract?.contract ? 'var(--color-primary)' : 'var(--color-success)' }}
                     disabled={finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01}
                   >
                     {selectedReservationForContract?.contract ? 'حفظ التعديلات / Save Plan' : 'حفظ الخطة كمسودة / Save Plan'}
@@ -2308,7 +3011,12 @@ const CompanySalesPortal: React.FC = () => {
       {showUnitModal && selectedUnit && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '400px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Configure Unit Status: {selectedUnit.unit_number}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <h3 style={{ fontWeight: 800, margin: 0 }}>Configure Unit Status: {selectedUnit.unit_number}</h3>
+              <button type="button" onClick={() => { setShowUnitModal(false); setSelectedUnit(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleUpdateUnitStatus} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
                 <label className="form-label">Unit Status</label>
@@ -2346,23 +3054,66 @@ const CompanySalesPortal: React.FC = () => {
               {confirmDialog.message}
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button 
-                type="button" 
-                className="btn-secondary" 
+              <button
+                type="button"
+                className="btn-secondary"
                 onClick={() => setConfirmDialog(prev => ({ ...prev, show: false }))}
                 style={{ minWidth: '80px' }}
               >
                 Cancel / تراجع
               </button>
-              <button 
-                type="button" 
-                className="btn-primary" 
+              <button
+                type="button"
+                className="btn-primary"
                 onClick={confirmDialog.onConfirm}
                 style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff', minWidth: '100px' }}
               >
                 Confirm / تأكيد إلغاء الحجز
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ REJECTION / CANCELLATION MODAL */}
+      {rejectionModal.show && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h3 style={{ fontWeight: 800, margin: 0, fontSize: '1.2rem' }}>
+              {rejectionModal.type === 'reservation' ? 'Reject Reservation Hold / رفض حجز الوحدة' : 'Reject Commission Payout / رفض طلب الصرف'}
+            </h3>
+            <form onSubmit={rejectionModal.type === 'reservation' ? handleCancelBrokerReservationSubmit : handleRejectPayoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  Reason for Rejection / سبب الرفض
+                </label>
+                <textarea
+                  className="form-control"
+                  value={rejectionModal.reason}
+                  onChange={e => setRejectionModal(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Provide a detailed rejection reason..."
+                  style={{ height: '100px', width: '100%', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setRejectionModal({ show: false, type: 'reservation', id: '', reason: '' })}
+                >
+                  Cancel / تراجع
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                >
+                  Confirm Rejection / تأكيد الرفض
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

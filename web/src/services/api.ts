@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Instantiate pre-configured communications client pointing to Laravel API
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'

@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->string('title');
             $table->uuid('project_id')->nullable();
             $table->string('unit_type')->nullable();
-            $table->enum('tier_type', ['broker', 'sales_agent', 'manager', 'director']);
+            $table->enum('tier_type', ['tier_1', 'tier_2', 'tier_3', 'broker', 'sales_agent', 'manager', 'director']);
             $table->decimal('min_deal_size', 15, 2)->default(0.00);
             $table->decimal('max_deal_size', 15, 2)->default(999999999.00);
             $table->decimal('commission_percentage', 5, 2);

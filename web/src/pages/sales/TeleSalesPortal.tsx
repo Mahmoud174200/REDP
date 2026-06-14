@@ -27,7 +27,7 @@ const TeleSalesPortal: React.FC = () => {
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const [view, setView] = useState<ViewMode>('dashboard');
-  const [activeTab, setActiveTab] = useState<'projects' | 'leads'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'leads' | 'team'>('projects');
   const [stats, setStats] = useState<any>({ total_leads: 0, new_leads: 0, contacted: 0, meetings_scheduled: 0, transferred: 0 });
   const [leads, setLeads] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -35,6 +35,26 @@ const TeleSalesPortal: React.FC = () => {
   const [projectDetail, setProjectDetail] = useState<any>(null);
   const [unitFilter, setUnitFilter] = useState<string>('all');
   const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
+
+  /* commissions & team states */
+  const [commissionsHistory, setCommissionsHistory] = useState<any[]>([]);
+  const [commissionRules, setCommissionRules] = useState<any[]>([]);
+  const [subordinatesPerformance, setSubordinatesPerformance] = useState<any[]>([]);
+
+  /* leads pagination & filtering */
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [perPage] = useState(10);
+  const [searchVal, setSearchVal] = useState('');
+  const [statusVal, setStatusVal] = useState('all');
+  const [isLeadsLoading, setIsLeadsLoading] = useState(false);
+
+  /* units pagination & filtering */
+  const [unitSearchQuery, setUnitSearchQuery] = useState('');
+  const [unitStatusFilter, setUnitStatusFilter] = useState('all');
+  const [unitPage, setUnitPage] = useState(1);
+  const unitsPerPage = 10;
 
   /* form */
   const [showForm, setShowForm] = useState(false);
@@ -50,7 +70,7 @@ const TeleSalesPortal: React.FC = () => {
 
   /* modals */
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
-  const [modalType, setModalType] = useState<'contact' | 'meeting' | 'transfer' | null>(null);
+  const [modalType, setModalType] = useState<'contact' | 'meeting' | 'transfer' | 'edit' | null>(null);
   const [contactType, setContactType] = useState('call');
   const [contactNotes, setContactNotes] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
@@ -58,16 +78,53 @@ const TeleSalesPortal: React.FC = () => {
   const [meetingNotes, setMeetingNotes] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
 
+  /* edit form states */
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editSource, setEditSource] = useState('direct');
+  const [editBudget, setEditBudget] = useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('installment');
+  const [editInterestedProjectId, setEditInterestedProjectId] = useState('');
+
+  const fetchLeads = async (pageToFetch = 1, search = '', status = 'all') => {
+    setIsLeadsLoading(true);
+    try {
+      const params: any = {
+        page: pageToFetch,
+        per_page: perPage,
+      };
+      if (search.trim()) params.search = search.trim();
+      if (status !== 'all') params.status = status;
+
+      const res = await api.get('/v1/sales/tele/leads', { params });
+      if (res.data?.success) {
+        setLeads(res.data.data.data || []);
+        setPage(res.data.data.current_page || 1);
+        setLastPage(res.data.data.last_page || 1);
+        setTotalLeads(res.data.data.total || 0);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLeadsLoading(false);
+    }
+  };
+
   const fetchPortalData = async () => {
     setIsLoading(true);
     try {
-      const [statsRes, leadsRes, projectsRes] = await Promise.all([
+      const [statsRes, projectsRes] = await Promise.all([
         api.get('/v1/sales/tele/dashboard'),
-        api.get('/v1/sales/tele/leads'),
         api.get('/v1/sales/tele/projects'),
       ]);
-      if (statsRes.data?.success) setStats(statsRes.data.stats);
-      if (leadsRes.data?.success) setLeads(leadsRes.data.data.data || []);
+      if (statsRes.data?.success) {
+        setStats(statsRes.data.stats);
+        setCommissionsHistory(statsRes.data.commissions_history || []);
+        setCommissionRules(statsRes.data.commission_rules || []);
+        setSubordinatesPerformance(statsRes.data.subordinates_performance || []);
+      }
       if (projectsRes.data?.success) setProjects(projectsRes.data.data || []);
     } catch (err) { console.error(err); } finally { setIsLoading(false); }
   };
@@ -83,6 +140,30 @@ const TeleSalesPortal: React.FC = () => {
 
   useEffect(() => { fetchPortalData(); }, []);
 
+  // Debounce search input and handle status updates for leads
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchLeads(1, searchVal, statusVal);
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchVal]);
+
+  // Refetch when status changes
+  useEffect(() => {
+    fetchLeads(1, searchVal, statusVal);
+  }, [statusVal]);
+
+  // Reset unit pagination when filters change
+  useEffect(() => {
+    setUnitPage(1);
+  }, [unitFilter, unitStatusFilter, unitSearchQuery]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= lastPage) {
+      fetchLeads(newPage, searchVal, statusVal);
+    }
+  };
+
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !phone) return;
@@ -96,7 +177,10 @@ const TeleSalesPortal: React.FC = () => {
       if (res.data?.success) {
         setFirstName(''); setLastName(''); setEmail(''); setPhone(''); setNotes('');
         setBudget(''); setPaymentMethod('installment'); setInterestedProjectId('');
-        setShowForm(false); await fetchPortalData(); showToast('Lead added!', 'success');
+        setShowForm(false);
+        await fetchPortalData();
+        await fetchLeads(1, searchVal, statusVal);
+        showToast('Lead added!', 'success');
       }
     } catch (err: any) { showToast(err.response?.data?.message || 'Failed.', 'error'); }
     finally { setIsLoading(false); }
@@ -105,25 +189,89 @@ const TeleSalesPortal: React.FC = () => {
   const handleLogContact = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLead || !contactNotes) return;
-    try { setIsLoading(true); await api.put(`/v1/sales/tele/leads/${selectedLead.id}/contact`, { type: contactType, notes: contactNotes }); setContactNotes(''); closeModal(); await fetchPortalData(); showToast('Contact logged.', 'success'); }
+    try {
+      setIsLoading(true);
+      await api.put(`/v1/sales/tele/leads/${selectedLead.id}/contact`, { type: contactType, notes: contactNotes });
+      setContactNotes('');
+      closeModal();
+      await fetchPortalData();
+      await fetchLeads(page, searchVal, statusVal);
+      showToast('Contact logged.', 'success');
+    }
     catch (err: any) { showToast(err.response?.data?.message || 'Failed.', 'error'); } finally { setIsLoading(false); }
   };
 
   const handleScheduleMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLead || !meetingDate) return;
-    try { setIsLoading(true); await api.put(`/v1/sales/tele/leads/${selectedLead.id}/schedule-meeting`, { meeting_date: meetingDate, location: meetingLocation, notes: meetingNotes }); setMeetingDate(''); setMeetingNotes(''); closeModal(); await fetchPortalData(); showToast('Meeting booked!', 'success'); }
+    try {
+      setIsLoading(true);
+      await api.put(`/v1/sales/tele/leads/${selectedLead.id}/schedule-meeting`, { meeting_date: meetingDate, location: meetingLocation, notes: meetingNotes });
+      setMeetingDate('');
+      setMeetingNotes('');
+      closeModal();
+      await fetchPortalData();
+      await fetchLeads(page, searchVal, statusVal);
+      showToast('Meeting booked!', 'success');
+    }
     catch (err: any) { showToast(err.response?.data?.message || 'Failed.', 'error'); } finally { setIsLoading(false); }
   };
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLead) return;
-    try { setIsLoading(true); await api.put(`/v1/sales/tele/leads/${selectedLead.id}/transfer`, { notes: transferNotes }); setTransferNotes(''); closeModal(); await fetchPortalData(); showToast('Lead transferred.', 'success'); }
+    try {
+      setIsLoading(true);
+      await api.put(`/v1/sales/tele/leads/${selectedLead.id}/transfer`, { notes: transferNotes });
+      setTransferNotes('');
+      closeModal();
+      await fetchPortalData();
+      await fetchLeads(page, searchVal, statusVal);
+      showToast('Lead transferred.', 'success');
+    }
     catch (err: any) { showToast(err.response?.data?.message || 'Failed.', 'error'); } finally { setIsLoading(false); }
   };
 
-  const closeModal = () => { setModalType(null); setSelectedLead(null); };
+  const handleUpdateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLead || !editFirstName || !editLastName || !editPhone) return;
+    try {
+      setIsLoading(true);
+      const res = await api.put(`/v1/sales/tele/leads/${selectedLead.id}`, {
+        first_name: editFirstName,
+        last_name: editLastName,
+        email: editEmail || undefined,
+        phone: editPhone,
+        source: editSource,
+        budget: editBudget ? parseFloat(editBudget) : undefined,
+        payment_method: editPaymentMethod,
+        interested_project_id: editInterestedProjectId || undefined,
+      });
+      if (res.data?.success) {
+        closeModal();
+        await fetchPortalData();
+        await fetchLeads(page, searchVal, statusVal);
+        showToast('Lead updated successfully!', 'success');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to update lead.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setModalType(null);
+    setSelectedLead(null);
+    setEditFirstName('');
+    setEditLastName('');
+    setEditEmail('');
+    setEditPhone('');
+    setEditSource('direct');
+    setEditBudget('');
+    setEditPaymentMethod('installment');
+    setEditInterestedProjectId('');
+  };
 
   if (isLoading && leads.length === 0 && projects.length === 0) {
     return (
@@ -140,8 +288,35 @@ const TeleSalesPortal: React.FC = () => {
     const units = projectDetail.units || [];
     const unitsSummary = projectDetail.units_summary || [];
     const paymentPlans = projectDetail.payment_plans || [];
-    const filteredUnits = unitFilter === 'all' ? units : units.filter((u: any) => u.type === unitFilter);
     const uniqueTypes = [...new Set(units.map((u: any) => u.type))] as string[];
+
+    // Client-side filtration for units
+    const processedUnits = units.filter((u: any) => {
+      // 1. Filter by unit type
+      if (unitFilter !== 'all' && u.type !== unitFilter) return false;
+
+      // 2. Filter by unit status
+      if (unitStatusFilter !== 'all' && u.status !== unitStatusFilter) return false;
+
+      // 3. Filter by search query (unit number, view type, building)
+      if (unitSearchQuery.trim()) {
+        const query = unitSearchQuery.toLowerCase().trim();
+        const numMatch = u.unit_number?.toString().toLowerCase().includes(query);
+        const viewMatch = u.view_type?.toLowerCase().includes(query);
+        const buildingMatch = u.building?.toLowerCase().includes(query);
+        if (!numMatch && !viewMatch && !buildingMatch) return false;
+      }
+
+      return true;
+    });
+
+    // Client-side pagination for units
+    const totalUnitsCount = processedUnits.length;
+    const totalUnitsPages = Math.ceil(totalUnitsCount / unitsPerPage) || 1;
+    const paginatedUnits = processedUnits.slice(
+      (unitPage - 1) * unitsPerPage,
+      unitPage * unitsPerPage
+    );
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -271,20 +446,58 @@ const TeleSalesPortal: React.FC = () => {
 
         {/* Units table */}
         <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
-              <i className="fa-solid fa-table-cells" style={{ color: 'var(--color-primary)' }}></i>
-              Units Inventory
-              {unitFilter !== 'all' && <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{unitFilter}</span>}
-            </h3>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {['all', ...uniqueTypes].map(t => (
-                <button key={t} onClick={() => setUnitFilter(t)}
-                  className={unitFilter === t ? 'btn-primary' : 'btn-secondary'}
-                  style={{ padding: '6px 14px', fontSize: '0.72rem', borderRadius: '9999px' }}>
-                  {t === 'all' ? 'All' : t}
-                </button>
-              ))}
+          <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: '1px solid var(--border-glass)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-table-cells" style={{ color: 'var(--color-primary)' }}></i>
+                Units Inventory
+                {unitFilter !== 'all' && <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{unitFilter}</span>}
+              </h3>
+              
+              {/* Type Filter Buttons */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {['all', ...uniqueTypes].map(t => (
+                  <button key={t} onClick={() => setUnitFilter(t)}
+                    className={unitFilter === t ? 'btn-primary' : 'btn-secondary'}
+                    style={{ padding: '6px 14px', fontSize: '0.72rem', borderRadius: '9999px' }}>
+                    {t === 'all' ? 'All Types' : t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sub-filtering bar for Units */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Search Units */}
+              <div style={{ position: 'relative', width: '220px' }}>
+                <input
+                  type="text"
+                  placeholder="Search unit #, view, building..."
+                  className="form-control"
+                  style={{ padding: '6px 12px 6px 32px', fontSize: '0.78rem', height: '32px', borderRadius: 'var(--radius-sm)' }}
+                  value={unitSearchQuery}
+                  onChange={e => setUnitSearchQuery(e.target.value)}
+                />
+                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.75rem' }}></i>
+              </div>
+
+              {/* Status Select for Units */}
+              <select
+                className="form-control"
+                style={{ width: '150px', padding: '6px 12px', fontSize: '0.78rem', height: '32px', borderRadius: 'var(--radius-sm)' }}
+                value={unitStatusFilter}
+                onChange={e => setUnitStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+                <option value="sold">Sold</option>
+                <option value="blocked">Blocked</option>
+              </select>
+
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Showing {totalUnitsCount} of {units.length} units
+              </span>
             </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -297,7 +510,13 @@ const TeleSalesPortal: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredUnits.map((u: any) => (
+                {paginatedUnits.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                      No units matching the filters.
+                    </td>
+                  </tr>
+                ) : paginatedUnits.map((u: any) => (
                   <tr key={u.id} onClick={() => setSelectedUnit(u)} style={{ cursor: 'pointer' }}>
                     <td><strong>{u.unit_number}</strong></td>
                     <td>{u.type}</td>
@@ -313,6 +532,62 @@ const TeleSalesPortal: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Local Pagination Controls for Units */}
+          {totalUnitsCount > 0 && totalUnitsPages > 1 && (
+            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Page <strong>{unitPage}</strong> of <strong>{totalUnitsPages}</strong>
+              </span>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: 'var(--radius-sm)', height: '28px' }}
+                  onClick={() => setUnitPage(prev => Math.max(prev - 1, 1))}
+                  disabled={unitPage === 1}
+                >
+                  <i className="fa-solid fa-angle-left"></i> Prev
+                </button>
+                
+                {Array.from({ length: totalUnitsPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalUnitsPages || Math.abs(p - unitPage) <= 1)
+                  .map((p, idx, arr) => {
+                    const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                    return (
+                      <React.Fragment key={p}>
+                        {showEllipsis && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>...</span>}
+                        <button
+                          className={unitPage === p ? 'btn-primary' : 'btn-secondary'}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.72rem',
+                            borderRadius: 'var(--radius-sm)',
+                            minWidth: '28px',
+                            height: '28px',
+                            justifyContent: 'center',
+                            boxShadow: 'none',
+                            background: unitPage === p ? 'var(--color-primary)' : undefined,
+                            color: unitPage === p ? '#ffffff' : undefined,
+                          }}
+                          onClick={() => setUnitPage(p)}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: 'var(--radius-sm)', height: '28px' }}
+                  onClick={() => setUnitPage(prev => Math.min(prev + 1, totalUnitsPages))}
+                  disabled={unitPage === totalUnitsPages}
+                >
+                  Next <i className="fa-solid fa-angle-right"></i>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -352,6 +627,98 @@ const TeleSalesPortal: React.FC = () => {
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Commissions & Rates Widget */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
+        {/* Left: Commissions Summary and History Ledger */}
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
+            My Commission Earnings
+          </h3>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pending</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-warning)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                {fmtPrice(stats.pending_commission ?? 0)}
+              </div>
+            </div>
+            <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Approved</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                {fmtPrice(stats.approved_commission ?? 0)}
+              </div>
+            </div>
+            <div style={{ background: 'rgba(59, 130, 246, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Paid</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                {fmtPrice(stats.paid_commission ?? 0)}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Recent Commission Calculations
+            </h4>
+            {commissionsHistory.length === 0 ? (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                No recent calculations logged.
+              </p>
+            ) : (
+              <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {commissionsHistory.map((ch: any) => (
+                  <div key={ch.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)', fontSize: '0.8rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>Contract #{ch.contract?.contract_number || ch.contract_id?.substring(0, 8)}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Unit {ch.contract?.unit?.unit_number} • {ch.contract?.unit?.project?.name}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--color-success)' }}>+{fmtPrice(ch.calculated_amount)}</div>
+                      <span className={`badge ${ch.status === 'paid' ? 'badge-success' : ch.status === 'approved' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px', marginTop: '2px', display: 'inline-block' }}>
+                        {ch.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Rates and Rules */}
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fa-solid fa-percent" style={{ color: 'var(--color-success)' }}></i>
+            My Commission Rules
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {commissionRules.length === 0 ? (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                No active commission rules set.
+              </p>
+            ) : (
+              commissionRules.map((cr: any) => (
+                <div key={cr.id} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    <strong style={{ fontSize: '0.85rem' }}>{cr.name}</strong>
+                    <span className="badge badge-success" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                      {parseFloat(cr.commission_rate).toFixed(2)}%
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {cr.description || `Rule applied to tier 1.`}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Add Lead Form (collapsible) */}
@@ -427,6 +794,9 @@ const TeleSalesPortal: React.FC = () => {
         {[
           { key: 'projects' as const, label: 'Compounds & Projects', icon: 'fa-solid fa-building' },
           { key: 'leads' as const, label: 'My Leads', icon: 'fa-solid fa-users' },
+          ...(subordinatesPerformance && subordinatesPerformance.length > 0 ? [
+            { key: 'team' as const, label: 'Team Performance', icon: 'fa-solid fa-people-group' }
+          ] : [])
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={activeTab === tab.key ? 'btn-primary' : 'btn-secondary'}
@@ -477,87 +847,280 @@ const TeleSalesPortal: React.FC = () => {
 
       {/* ── LEADS TAB ── */}
       {activeTab === 'leads' && (
-        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+          {/* Leads Header & Filtering Bar */}
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)', display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>📋 Leads Pipeline</h3>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{leads.length} lead{leads.length !== 1 ? 's' : ''}</span>
+            
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Search input */}
+              <div style={{ position: 'relative', width: '240px' }}>
+                <input
+                  type="text"
+                  placeholder="Search name, phone, email..."
+                  className="form-control"
+                  style={{ padding: '8px 14px 8px 36px', fontSize: '0.82rem', height: '36px', borderRadius: 'var(--radius-sm)' }}
+                  value={searchVal}
+                  onChange={e => setSearchVal(e.target.value)}
+                />
+                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.8rem' }}></i>
+              </div>
+
+              {/* Status filter dropdown */}
+              <select
+                className="form-control"
+                style={{ width: '160px', padding: '8px 12px', fontSize: '0.82rem', height: '36px', borderRadius: 'var(--radius-sm)' }}
+                value={statusVal}
+                onChange={e => setStatusVal(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="visit_scheduled">Visit Booked</option>
+                <option value="transferred">Transferred</option>
+              </select>
+              
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {totalLeads} total
+              </span>
+            </div>
           </div>
+
+          {/* Loading Indicator Overlay */}
+          {isLeadsLoading && (
+            <div style={{
+              position: 'absolute',
+              top: '72px',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(2px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10
+            }}>
+              <div className="animate-spin" style={{ width: '30px', height: '30px', border: '3px solid var(--color-secondary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
+            </div>
+          )}
+
           {leads.length === 0 ? (
             <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <i className="fa-solid fa-inbox" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', opacity: 0.3, display: 'block', margin: '0 auto 12px' }}></i>
-              <p style={{ fontWeight: 600, marginBottom: '4px' }}>No leads yet</p>
-              <p style={{ fontSize: '0.8rem' }}>Click "New Lead" to get started</p>
+              <p style={{ fontWeight: 600, marginBottom: '4px' }}>No leads found</p>
+              <p style={{ fontSize: '0.8rem' }}>Try clearing filters or search query</p>
             </div>
           ) : (
+            <>
+              <div style={{ overflowX: 'auto', opacity: isLeadsLoading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Contact</th>
+                      <th>Project</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map(lead => {
+                      const st = lead.status || 'new';
+                      const projName = (lead.interested_project || lead.interestedProject)?.name;
+                      const badge = st === 'new' ? 'badge-warning' : st === 'visit_scheduled' ? 'badge-success' : 'badge-info';
+                      return (
+                        <tr key={lead.id}>
+                          <td>
+                            <strong>{lead.first_name} {lead.last_name}</strong>
+                            {lead.budget && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                <i className="fa-solid fa-wallet" style={{ fontSize: '0.7rem' }}></i> {fmtPrice(lead.budget)}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div>{lead.phone}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lead.email || '—'}</div>
+                          </td>
+                          <td>
+                            {projName ? (
+                              <span style={{ fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <i className="fa-solid fa-building" style={{ fontSize: '0.75rem' }}></i> {projName}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td><span className={`badge ${badge}`}>{statusLabel[st] || st}</span></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.72rem' }}
+                                title="Edit Lead"
+                                onClick={() => {
+                                  setSelectedLead(lead);
+                                  setEditFirstName(lead.first_name || '');
+                                  setEditLastName(lead.last_name || '');
+                                  setEditEmail(lead.email || '');
+                                  setEditPhone(lead.phone || '');
+                                  setEditSource(lead.source || 'direct');
+                                  setEditBudget(lead.budget ? lead.budget.toString() : '');
+                                  setEditPaymentMethod(lead.payment_method || 'installment');
+                                  setEditInterestedProjectId(lead.interested_project_id || lead.interestedProject?.id || '');
+                                  setModalType('edit');
+                                }}>
+                                <i className="fa-solid fa-pen-to-square" style={{ fontSize: '0.75rem' }}></i>
+                              </button>
+                              <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                                onClick={() => { setSelectedLead(lead); setModalType('contact'); }}>
+                                <i className="fa-solid fa-phone" style={{ fontSize: '0.75rem' }}></i> Contact
+                              </button>
+                              <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                                onClick={() => { setSelectedLead(lead); setModalType('meeting'); }}
+                                disabled={st === 'visit_scheduled'}>
+                                <i className="fa-regular fa-calendar" style={{ fontSize: '0.75rem' }}></i> Meet
+                              </button>
+                              <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                                onClick={() => { setSelectedLead(lead); setModalType('transfer'); }}>
+                                <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.75rem' }}></i> Transfer
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalLeads > 0 && lastPage > 1 && (
+                <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    Showing page <strong>{page}</strong> of <strong>{lastPage}</strong> ({totalLeads} leads total)
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 14px', fontSize: '0.75rem', borderRadius: 'var(--radius-sm)', height: '32px' }}
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page === 1}
+                    >
+                      <i className="fa-solid fa-angle-left"></i> Previous
+                    </button>
+                    
+                    {/* Page numbers */}
+                    {Array.from({ length: lastPage }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
+                      .map((p, idx, arr) => {
+                        const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                        return (
+                          <React.Fragment key={p}>
+                            {showEllipsis && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>...</span>}
+                            <button
+                              className={page === p ? 'btn-primary' : 'btn-secondary'}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                minWidth: '32px',
+                                height: '32px',
+                                justifyContent: 'center',
+                                boxShadow: 'none',
+                                background: page === p ? 'var(--color-primary)' : undefined,
+                                color: page === p ? '#ffffff' : undefined,
+                              }}
+                              onClick={() => handlePageChange(p)}
+                            >
+                              {p}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '6px 14px', fontSize: '0.75rem', borderRadius: 'var(--radius-sm)', height: '32px' }}
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page === lastPage}
+                    >
+                      Next <i className="fa-solid fa-angle-right"></i>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── TEAM PERFORMANCE TAB ── */}
+      {activeTab === 'team' && subordinatesPerformance && subordinatesPerformance.length > 0 && (
+        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-people-group" style={{ color: 'var(--color-primary)' }}></i>
+              My Team's Performance & Commissions
+            </h3>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
             <table className="premium-table">
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Contact</th>
-                  <th>Project</th>
+                  <th>Agent Name</th>
+                  <th>Position</th>
+                  <th>Team</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th>Total Leads</th>
+                  <th>New / Contacted</th>
+                  <th>Meetings Booked</th>
+                  <th>Transferred</th>
+                  <th>Commissions Earned</th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map(lead => {
-                  const st = lead.status || 'new';
-                  const projName = (lead.interested_project || lead.interestedProject)?.name;
-                  const badge = st === 'new' ? 'badge-warning' : st === 'visit_scheduled' ? 'badge-success' : 'badge-info';
-                  return (
-                    <tr key={lead.id}>
-                      <td>
-                        <strong>{lead.first_name} {lead.last_name}</strong>
-                        {lead.budget && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <i className="fa-solid fa-wallet" style={{ fontSize: '0.7rem' }}></i> {fmtPrice(lead.budget)}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div>{lead.phone}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lead.email || '—'}</div>
-                      </td>
-                      <td>
-                        {projName ? (
-                          <span style={{ fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <i className="fa-solid fa-building" style={{ fontSize: '0.75rem' }}></i> {projName}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
-                        )}
-                      </td>
-                      <td><span className={`badge ${badge}`}>{statusLabel[st] || st}</span></td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                            onClick={() => { setSelectedLead(lead); setModalType('contact'); }}>
-                            <i className="fa-solid fa-phone" style={{ fontSize: '0.75rem' }}></i> Contact
-                          </button>
-                          <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                            onClick={() => { setSelectedLead(lead); setModalType('meeting'); }}
-                            disabled={st === 'visit_scheduled'}>
-                            <i className="fa-regular fa-calendar" style={{ fontSize: '0.75rem' }}></i> Meet
-                          </button>
-                          <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                            onClick={() => { setSelectedLead(lead); setModalType('transfer'); }}>
-                            <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.75rem' }}></i> Transfer
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {subordinatesPerformance.map((sub: any) => (
+                  <tr key={sub.user_id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: sub.status === 'active' ? 'var(--color-success)' : '#9ca3af',
+                          display: 'inline-block'
+                        }}></span>
+                        <strong>{sub.name}</strong>
+                      </div>
+                    </td>
+                    <td>{sub.position}</td>
+                    <td>{sub.team}</td>
+                    <td>
+                      <span className={`badge ${sub.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                        {sub.status}
+                      </span>
+                    </td>
+                    <td>{sub.stats?.total_leads ?? 0}</td>
+                    <td>{sub.stats?.new ?? 0} / {sub.stats?.contacted ?? 0}</td>
+                    <td>{sub.stats?.meetings ?? 0}</td>
+                    <td>{sub.stats?.transferred ?? 0}</td>
+                    <td>
+                      <strong style={{ color: 'var(--color-success)' }}>
+                        {fmtPrice(sub.stats?.commissions_earned ?? 0)}
+                      </strong>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
       )}
 
       {/* ═══════ MODALS ═══════ */}
       {modalType && selectedLead && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '460px', padding: '28px' }}
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: modalType === 'edit' ? '540px' : '460px', padding: '28px' }}
             onClick={e => e.stopPropagation()}>
 
             {modalType === 'contact' && (
@@ -620,6 +1183,64 @@ const TeleSalesPortal: React.FC = () => {
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                     <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
                     <button type="submit" className="btn-primary">Confirm Transfer</button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {modalType === 'edit' && (
+              <>
+                <h3 style={{ fontWeight: 800, marginBottom: '16px' }}>📝 Edit Lead Details</h3>
+                <form onSubmit={handleUpdateLead} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">First Name *</label>
+                    <input type="text" className="form-control" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Last Name *</label>
+                    <input type="text" className="form-control" value={editLastName} onChange={e => setEditLastName(e.target.value)} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Phone *</label>
+                    <input type="text" className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Email</label>
+                    <input type="email" className="form-control" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="optional" />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Source</label>
+                    <select className="form-control" value={editSource} onChange={e => setEditSource(e.target.value)}>
+                      <option value="direct">Direct Walk-In</option>
+                      <option value="facebook">Facebook Ads</option>
+                      <option value="google">Google Search</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="referral">Referral</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Payment Method</label>
+                    <select className="form-control" value={editPaymentMethod} onChange={e => setEditPaymentMethod(e.target.value)}>
+                      <option value="installment">Installment (أقساط)</option>
+                      <option value="cash">Cash (كاش)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Budget (EGP)</label>
+                    <input type="number" className="form-control" value={editBudget} onChange={e => setEditBudget(e.target.value)} placeholder="e.g. 5000000" />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Interested Project</label>
+                    <select className="form-control" value={editInterestedProjectId} onChange={e => setEditInterestedProjectId(e.target.value)}>
+                      <option value="">-- Choose Project --</option>
+                      {projects.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name} {p.delivery_date ? `[${p.delivery_date.substring(0, 10)}]` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                    <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
+                    <button type="submit" className="btn-primary">Save Changes</button>
                   </div>
                 </form>
               </>

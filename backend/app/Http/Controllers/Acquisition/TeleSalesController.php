@@ -12,6 +12,7 @@ use App\Services\TierAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Models\User;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -142,6 +143,59 @@ class TeleSalesController extends Controller
             'message' => 'Lead created and assigned to you.',
             'data'    => TierAccessService::filterLeadForRole($lead->toArray(), $user),
         ], 201);
+    }
+
+    /**
+     * PUT /api/v1/sales/tele/leads/{id}
+     * Update lead details (only if assigned to current agent).
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $lead = Lead::forTier($user)->findOrFail($id);
+
+        $fields = $request->validate([
+            'first_name'            => 'required|string|max:100',
+            'last_name'             => 'required|string|max:100',
+            'email'                 => 'nullable|email|max:255',
+            'phone'                 => 'required|string|max:20',
+            'source'                => 'nullable|string|in:facebook,google,tiktok,direct,referral',
+            'budget'                => 'nullable|numeric|min:0',
+            'payment_method'        => 'nullable|string|in:cash,installment',
+            'interested_project_id' => 'nullable|uuid|exists:projects,id',
+        ]);
+
+        if ($fields['phone'] !== $lead->phone) {
+            $existing = Lead::where('phone', $fields['phone'])->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A lead with this phone number already exists.',
+                ], 409);
+            }
+        }
+
+        $lead->update([
+            'first_name'            => $fields['first_name'],
+            'last_name'             => $fields['last_name'],
+            'email'                 => $fields['email'] ?? null,
+            'phone'                 => $fields['phone'],
+            'source'                => $fields['source'] ?? 'direct',
+            'budget'                => $fields['budget'] ?? null,
+            'payment_method'        => $fields['payment_method'] ?? 'installment',
+            'interested_project_id' => $fields['interested_project_id'] ?? null,
+        ]);
+
+        AuditLogService::log('LEAD_UPDATE', $user->id, [
+            'lead_id' => $lead->id,
+            'tier'    => 'tier_1',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead updated successfully.',
+            'data'    => TierAccessService::filterLeadForRole($lead->fresh()->toArray(), $user),
+        ]);
     }
 
     /**
@@ -490,6 +544,65 @@ class TeleSalesController extends Controller
                              ->where('current_tier', '!=', 'tier_1')
                              ->count();
 
+        // 1. Hierarchy / Subordinates Performance
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $subordinatesPerformance = [];
+
+        if (!empty($subordinateIds)) {
+            $subordinateUsers = User::whereIn('id', $subordinateIds)
+                ->with(['employeeHierarchy.position', 'employeeHierarchy.team'])
+                ->get();
+
+            foreach ($subordinateUsers as $subUser) {
+                $leadQuery = Lead::where('tele_sales_agent_id', $subUser->id);
+
+                $total = $leadQuery->count();
+                $new = (clone $leadQuery)->byStatus('new')->count();
+                $contacted = (clone $leadQuery)->byStatus('contacted')->count();
+                $scheduled = (clone $leadQuery)->byStatus('visit_scheduled')->count();
+                $subTransferred = Lead::where('tele_sales_agent_id', $subUser->id)
+                    ->where('current_tier', '!=', 'tier_1')
+                    ->count();
+
+                $commEarned = \App\Models\CommissionCalculation::where('user_id', $subUser->id)
+                    ->where('status', 'approved')
+                    ->sum('calculated_amount');
+
+                $subordinatesPerformance[] = [
+                    'user_id' => $subUser->id,
+                    'name' => $subUser->name,
+                    'role' => $subUser->role,
+                    'position' => $subUser->employeeHierarchy?->position?->title ?? 'TeleSales Agent',
+                    'team' => $subUser->employeeHierarchy?->team?->name ?? 'No Team',
+                    'status' => $subUser->status,
+                    'stats' => [
+                        'total_leads' => $total,
+                        'new' => $new,
+                        'contacted' => $contacted,
+                        'meetings' => $scheduled,
+                        'transferred' => $subTransferred,
+                        'commissions_earned' => (float) $commEarned,
+                    ]
+                ];
+            }
+        }
+
+        // 2. Personal Commissions ledger summary
+        $pendingComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'pending')->sum('calculated_amount');
+        $approvedComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'approved')->sum('calculated_amount');
+        $paidComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'paid')->sum('calculated_amount');
+
+        $commCalculations = \App\Models\CommissionCalculation::where('user_id', $user->id)
+            ->with(['contract.unit.project'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        // 3. Active Commission Rules for Tier 1
+        $commRules = \App\Models\CommissionRule::where('tier_type', 'tier_1')
+            ->where('status', 'active')
+            ->get();
+
         return response()->json([
             'success' => true,
             'stats'   => [
@@ -498,7 +611,14 @@ class TeleSalesController extends Controller
                 'contacted'         => $contacted,
                 'meetings_scheduled'=> $scheduled,
                 'transferred'       => $transferred,
+                'pending_commission'=> $pendingComm,
+                'approved_commission'=> $approvedComm,
+                'paid_commission'   => $paidComm,
+                'total_commission'  => $pendingComm + $approvedComm + $paidComm,
             ],
+            'subordinates_performance' => $subordinatesPerformance,
+            'commissions_history'       => $commCalculations,
+            'commission_rules'          => $commRules,
         ]);
     }
 }
