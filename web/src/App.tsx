@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/auth/Login';
 import DashboardLayout from './components/DashboardLayout';
+import LandingPage from './pages/public/LandingPage';
 
 // 🟠 Acquisition Pages
 import Leads from './pages/acquisition/Leads';
@@ -147,8 +148,11 @@ const App: React.FC = () => {
         {/* 🔓 Authentication Portal */}
         <Route path="/login" element={<Login />} />
 
+        {/* 🏠 Public Landing Page */}
+        <Route path="/" element={<LandingPage />} />
+
         {/* 🏠 Root landing routing logic */}
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/dashboard" element={<HomeRedirect />} />
 
         {/* 🟠 Acquisition routes */}
         <Route path="/acquisition/leads" element={<DashboardWrapper><Leads /></DashboardWrapper>} />

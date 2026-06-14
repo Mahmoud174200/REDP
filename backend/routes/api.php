@@ -55,6 +55,14 @@ Route::get('/v1/system-info', [\App\Http\Controllers\Admin\AdminController::clas
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
 
+// 🔓 Public Landing Page API Routes
+Route::prefix('v1/public')->group(function () {
+    Route::get('/projects', [\App\Http\Controllers\PublicLandingController::class, 'getProjects']);
+    Route::get('/projects/{projectId}/units', [\App\Http\Controllers\PublicLandingController::class, 'getProjectUnits']);
+    Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
+    Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
+});
+
 // ── 🟠 Public Webhooks (Acquisition) ──
 Route::prefix('v1/webhooks')->group(function () {
     // VoIP Provider Webhooks (Twilio)
