@@ -561,6 +561,68 @@ class CompanySalesController extends Controller
             ->limit(10)
             ->get(['id', 'first_name', 'last_name', 'phone', 'status', 'current_tier', 'updated_at']);
 
+        // Subordinates Performance
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $subordinatesPerformance = [];
+
+        if (!empty($subordinateIds)) {
+            $subordinateUsers = User::whereIn('id', $subordinateIds)
+                ->with(['employeeHierarchy.position', 'employeeHierarchy.team'])
+                ->get();
+
+            foreach ($subordinateUsers as $subUser) {
+                $leadQuery = Lead::where('company_sales_agent_id', $subUser->id);
+
+                $total = $leadQuery->count();
+                $new = (clone $leadQuery)->byStatus('new')->count();
+                $contacted = (clone $leadQuery)->byStatus('contacted')->count();
+                $reserved = (clone $leadQuery)->byStatus('reserved')->count();
+
+                $subReservationsCount = Reservation::whereIn('client_id', function ($q) use ($subUser) {
+                    $q->select('id')->from('users')->whereIn('phone', function ($q2) use ($subUser) {
+                        $q2->select('phone')->from('leads')->where('company_sales_agent_id', $subUser->id);
+                    });
+                })->count();
+
+                $commEarned = \App\Models\CommissionCalculation::where('user_id', $subUser->id)
+                    ->where('status', 'approved')
+                    ->sum('calculated_amount');
+
+                $subordinatesPerformance[] = [
+                    'user_id' => $subUser->id,
+                    'name' => $subUser->name,
+                    'role' => $subUser->role,
+                    'position' => $subUser->employeeHierarchy?->position?->title ?? 'Sales Agent',
+                    'team' => $subUser->employeeHierarchy?->team?->name ?? 'No Team',
+                    'status' => $subUser->status,
+                    'stats' => [
+                        'total_leads' => $total,
+                        'new' => $new,
+                        'contacted' => $contacted,
+                        'reserved' => $reserved,
+                        'reservations' => $subReservationsCount,
+                        'commissions_earned' => (float) $commEarned,
+                    ]
+                ];
+            }
+        }
+
+        // Personal Commissions
+        $pendingComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'pending')->sum('calculated_amount');
+        $approvedComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'approved')->sum('calculated_amount');
+        $paidComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'paid')->sum('calculated_amount');
+
+        $commCalculations = \App\Models\CommissionCalculation::where('user_id', $user->id)
+            ->with(['contract.unit.project'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        // Active Commission Rules for Tier 3
+        $commRules = \App\Models\CommissionRule::where('tier_type', 'tier_3')
+            ->where('status', 'active')
+            ->get();
+
         return response()->json([
             'success' => true,
             'stats'   => [
@@ -578,9 +640,16 @@ class CompanySalesController extends Controller
                     'sold_value'     => (float) $totalSoldValue,
                     'reserved_value' => (float) $totalReservedValue,
                 ],
+                'pending_commission' => $pendingComm,
+                'approved_commission'=> $approvedComm,
+                'paid_commission'    => $paidComm,
+                'total_commission'   => $pendingComm + $approvedComm + $paidComm,
             ],
             'recent_escalations' => $recentEscalations,
             'pending_actions'    => $pendingActions,
+            'subordinates_performance' => $subordinatesPerformance,
+            'commissions_history'       => $commCalculations,
+            'commission_rules'          => $commRules,
         ]);
     }
 

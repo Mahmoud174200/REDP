@@ -353,7 +353,13 @@ class AdminController extends Controller
             'floor' => 'required|integer',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
             'price' => 'required|numeric|min:0',
-            'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])]
+            'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])],
+            'area' => 'nullable|numeric|min:0',
+            'bedrooms' => 'nullable|integer|min:0',
+            'bathrooms' => 'nullable|integer|min:0',
+            'view_type' => 'nullable|string|max:100',
+            'building' => 'nullable|string|max:100',
+            'layout_description' => 'nullable|string'
         ]);
 
         $unit = Unit::create([
@@ -363,7 +369,13 @@ class AdminController extends Controller
             'floor' => $validated['floor'],
             'type' => $validated['type'],
             'price' => $validated['price'],
-            'status' => $validated['status']
+            'status' => $validated['status'],
+            'area' => $validated['area'] ?? null,
+            'bedrooms' => $validated['bedrooms'] ?? null,
+            'bathrooms' => $validated['bathrooms'] ?? null,
+            'view_type' => $validated['view_type'] ?? null,
+            'building' => $validated['building'] ?? null,
+            'layout_description' => $validated['layout_description'] ?? null
         ]);
 
         // Increment total_units on project
@@ -390,7 +402,13 @@ class AdminController extends Controller
             'floor' => 'required|integer',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
             'price' => 'required|numeric|min:0',
-            'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])]
+            'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])],
+            'area' => 'nullable|numeric|min:0',
+            'bedrooms' => 'nullable|integer|min:0',
+            'bathrooms' => 'nullable|integer|min:0',
+            'view_type' => 'nullable|string|max:100',
+            'building' => 'nullable|string|max:100',
+            'layout_description' => 'nullable|string'
         ]);
 
         $unit->update($validated);
@@ -688,6 +706,86 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'User session revoked successfully (forced logout).'
+        ]);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 💳 PROJECT PAYMENT PLANS CRUD
+    // ══════════════════════════════════════════════════════════
+
+    public function getProjectPaymentPlans()
+    {
+        $plans = \App\Models\ProjectPaymentPlan::with('project')->orderBy('created_at', 'desc')->get();
+        return response()->json([
+            'success' => true,
+            'data' => $plans
+        ]);
+    }
+
+    public function createProjectPaymentPlan(Request $request)
+    {
+        $validated = $request->validate([
+            'project_id' => 'required|exists:projects,id',
+            'name' => 'required|string|max:255',
+            'name_ar' => 'required|string|max:255',
+            'down_payment_pct' => 'required|numeric|min:0|max:100',
+            'installments' => 'required|integer|min:0',
+            'discount_pct' => 'required|numeric|min:0|max:100',
+            'description' => 'nullable|string',
+            'settings' => 'nullable|array'
+        ]);
+
+        $plan = \App\Models\ProjectPaymentPlan::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $validated['project_id'],
+            'name' => $validated['name'],
+            'name_ar' => $validated['name_ar'],
+            'down_payment_pct' => $validated['down_payment_pct'],
+            'installments' => $validated['installments'],
+            'discount_pct' => $validated['discount_pct'],
+            'description' => $validated['description'] ?? null,
+            'settings' => $validated['settings'] ?? null
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project payment plan created successfully.',
+            'data' => $plan->load('project')
+        ], 201);
+    }
+
+    public function updateProjectPaymentPlan(Request $request, $id)
+    {
+        $plan = \App\Models\ProjectPaymentPlan::findOrFail($id);
+
+        $validated = $request->validate([
+            'project_id' => 'required|exists:projects,id',
+            'name' => 'required|string|max:255',
+            'name_ar' => 'required|string|max:255',
+            'down_payment_pct' => 'required|numeric|min:0|max:100',
+            'installments' => 'required|integer|min:0',
+            'discount_pct' => 'required|numeric|min:0|max:100',
+            'description' => 'nullable|string',
+            'settings' => 'nullable|array'
+        ]);
+
+        $plan->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project payment plan updated successfully.',
+            'data' => $plan->load('project')
+        ]);
+    }
+
+    public function deleteProjectPaymentPlan($id)
+    {
+        $plan = \App\Models\ProjectPaymentPlan::findOrFail($id);
+        $plan->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project payment plan deleted successfully.'
         ]);
     }
 }

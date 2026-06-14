@@ -222,6 +222,17 @@ class PermissionSeeder extends Seeder
                 ]
             ],
             [
+                'name' => 'handover_officer',
+                'display_name' => 'Apartment Handover Officer',
+                'description' => 'Coordinates unit inspections, manages handover timelines, and logs defects',
+                'level' => 2,
+                'is_system' => true,
+                'perms' => [
+                    'unit.view', 'unit.change_status', 'ticket.view', 'ticket.edit', 'ticket.close',
+                    'project.view', 'report.view'
+                ]
+            ],
+            [
                 'name' => 'maintenance_manager',
                 'display_name' => 'Facilities Operations Manager',
                 'description' => 'Manages maintenance requests, contractors, and technician assignment',
@@ -276,6 +287,7 @@ class PermissionSeeder extends Seeder
             'sales_agent@redp.com' => 'sales_agent',
             'finance_officer@redp.com' => 'finance_officer',
             'delivery_engineer@redp.com' => 'delivery_engineer',
+            'handover@redp.com' => 'handover_officer',
             'broker@redp.com' => 'broker',
             'tele_sales@redp.com' => 'tele_sales',
             'maintenance_manager@redp.com' => 'maintenance_manager',

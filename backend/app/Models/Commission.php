@@ -56,6 +56,11 @@ class Commission extends Model
         return $this->belongsTo(Lead::class);
     }
 
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
+    }
+
     // ── Scopes ──
 
     public function scopePending($query)

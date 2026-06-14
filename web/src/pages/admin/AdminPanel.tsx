@@ -36,6 +36,12 @@ interface UnitItem {
   status: string;
   project?: ProjectItem;
   created_at: string;
+  area?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  view_type?: string;
+  building?: string;
+  layout_description?: string;
 }
 
 interface LeadItem {
@@ -113,6 +119,49 @@ const AdminPanel: React.FC = () => {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
 
+  // ── Project Payment Plan States ──
+  const [projectPlans, setProjectPlans] = useState<any[]>([]);
+  const [showPlansModal, setShowPlansModal] = useState(false);
+  const [selectedProjectForPlans, setSelectedProjectForPlans] = useState<any | null>(null);
+  
+  // Plans Form/Edit States
+  const [showPlanFormModal, setShowPlanFormModal] = useState(false);
+  const [planFormMode, setPlanFormMode] = useState<'add' | 'edit'>('add');
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
+  
+  const [formPlanName, setFormPlanName] = useState('');
+  const [formPlanNameAr, setFormPlanNameAr] = useState('');
+  const [formPlanDownPaymentPct, setFormPlanDownPaymentPct] = useState('0');
+  const [formPlanInstallments, setFormPlanInstallments] = useState('0');
+  const [formPlanDiscountPct, setFormPlanDiscountPct] = useState('0');
+  const [formPlanDescription, setFormPlanDescription] = useState('');
+
+  // Rich payment plan settings
+  const [formPlanFinalPaymentMethod, setFormPlanFinalPaymentMethod] = useState<'cash' | 'installment'>('installment');
+  const [formPlanInstallmentType, setFormPlanInstallmentType] = useState<'direct' | 'bank'>('direct');
+  const [formPlanInterestType, setFormPlanInterestType] = useState<'flat' | 'reducing'>('reducing');
+  const [formPlanInstallmentInterest, setFormPlanInstallmentInterest] = useState('0');
+  const [formPlanInstallmentStartMonth, setFormPlanInstallmentStartMonth] = useState('1');
+  const [formPlanCashGracePeriod, setFormPlanCashGracePeriod] = useState('14');
+  const [formPlanEnableAnnual, setFormPlanEnableAnnual] = useState(false);
+  const [formPlanAnnualInstallmentAmount, setFormPlanAnnualInstallmentAmount] = useState('50000');
+  const [formPlanIncludeClub, setFormPlanIncludeClub] = useState(false);
+  const [formPlanClubCost, setFormPlanClubCost] = useState('150000');
+  const [formPlanClubPaymentMethod, setFormPlanClubPaymentMethod] = useState<'cash' | 'installment'>('cash');
+  const [formPlanClubTerm, setFormPlanClubTerm] = useState('5');
+  const [formPlanClubInstallmentStartYear, setFormPlanClubInstallmentStartYear] = useState('1');
+  const [formPlanIncludeGarage, setFormPlanIncludeGarage] = useState(false);
+  const [formPlanGarageCost, setFormPlanGarageCost] = useState('100000');
+  const [formPlanGaragePaymentMethod, setFormPlanGaragePaymentMethod] = useState<'cash' | 'installment'>('cash');
+  const [formPlanGarageTerm, setFormPlanGarageTerm] = useState('5');
+  const [formPlanGarageInstallmentStartYear, setFormPlanGarageInstallmentStartYear] = useState('1');
+  const [formPlanIncludeMaintenance, setFormPlanIncludeMaintenance] = useState(false);
+  const [formPlanMaintenanceCost, setFormPlanMaintenanceCost] = useState('');
+  const [formPlanMaintenancePaymentMethod, setFormPlanMaintenancePaymentMethod] = useState<'cash' | 'installment'>('cash');
+  const [formPlanMaintenanceTerm, setFormPlanMaintenanceTerm] = useState('5');
+  const [formPlanMaintenanceDueMonth, setFormPlanMaintenanceDueMonth] = useState('36');
+  const [formPlanMaintenanceInstallmentStartYear, setFormPlanMaintenanceInstallmentStartYear] = useState('1');
+
   const [configs, setConfigs] = useState({
     kyc_auto_approve: 'false',
     lead_assignment_mode: 'manual',
@@ -181,6 +230,12 @@ const AdminPanel: React.FC = () => {
   const [formUnitType, setFormUnitType] = useState('apartment');
   const [formUnitPrice, setFormUnitPrice] = useState('0');
   const [formUnitStatus, setFormUnitStatus] = useState('available');
+  const [formUnitArea, setFormUnitArea] = useState('100');
+  const [formUnitBedrooms, setFormUnitBedrooms] = useState('3');
+  const [formUnitBathrooms, setFormUnitBathrooms] = useState('2');
+  const [formUnitViewType, setFormUnitViewType] = useState('garden');
+  const [formUnitBuilding, setFormUnitBuilding] = useState('');
+  const [formUnitLayoutDescription, setFormUnitLayoutDescription] = useState('');
 
   // Lead Form
   const [formLeadFirstName, setFormLeadFirstName] = useState('');
@@ -281,9 +336,19 @@ const AdminPanel: React.FC = () => {
       const sessionsRes = await api.get('/admin/active-sessions');
       if (sessionsRes.data?.success) setActiveSessions(sessionsRes.data.data);
 
+      // 10. Fetch Project Payment Plans
+      try {
+        const plansRes = await api.get('/admin/project-payment-plans');
+        if (plansRes.data?.success) setProjectPlans(plansRes.data.data);
+      } catch (errPlans) {
+        console.error('Failed to load project plans', errPlans);
+        setProjectPlans([]);
+      }
+
     } catch (err: any) {
       console.error('Failed to load admin panel data from API, using mock fallbacks:', err);
       // Fail-safes
+      setProjectPlans([]);
       setUsers([
         { id: 'u1', name: 'Platform Administrator', email: 'admin@redp.com', phone: '+201009999999', role: 'admin', status: 'active', created_at: '2026-06-01' },
         { id: 'u2', name: 'Ragab Sales', email: 'sales_agent@redp.com', phone: '+201001111111', role: 'sales_agent', status: 'active', created_at: '2026-06-01' },
@@ -452,6 +517,166 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  // ── Project Payment Plans CRUD Handlers ──
+  const openProjectPlansModal = (proj: ProjectItem) => {
+    setSelectedProjectForPlans(proj);
+    setShowPlansModal(true);
+  };
+
+  const openAddPlanModal = () => {
+    setFormPlanName('');
+    setFormPlanNameAr('');
+    setFormPlanDownPaymentPct('20');
+    setFormPlanInstallments('60');
+    setFormPlanDiscountPct('0');
+    setFormPlanDescription('');
+
+    // Reset advanced settings
+    setFormPlanFinalPaymentMethod('installment');
+    setFormPlanInstallmentType('direct');
+    setFormPlanInterestType('reducing');
+    setFormPlanInstallmentInterest('0');
+    setFormPlanInstallmentStartMonth('1');
+    setFormPlanCashGracePeriod('14');
+    setFormPlanEnableAnnual(false);
+    setFormPlanAnnualInstallmentAmount('50000');
+    setFormPlanIncludeClub(false);
+    setFormPlanClubCost('150000');
+    setFormPlanClubPaymentMethod('cash');
+    setFormPlanClubTerm('5');
+    setFormPlanClubInstallmentStartYear('1');
+    setFormPlanIncludeGarage(false);
+    setFormPlanGarageCost('100000');
+    setFormPlanGaragePaymentMethod('cash');
+    setFormPlanGarageTerm('5');
+    setFormPlanGarageInstallmentStartYear('1');
+    setFormPlanIncludeMaintenance(false);
+    setFormPlanMaintenanceCost('');
+    setFormPlanMaintenancePaymentMethod('cash');
+    setFormPlanMaintenanceTerm('5');
+    setFormPlanMaintenanceDueMonth('36');
+    setFormPlanMaintenanceInstallmentStartYear('1');
+
+    setPlanFormMode('add');
+    setShowPlanFormModal(true);
+  };
+
+  const openEditPlanModal = (plan: any) => {
+    setSelectedPlan(plan);
+    setFormPlanName(plan.name);
+    setFormPlanNameAr(plan.name_ar);
+    setFormPlanDownPaymentPct(plan.down_payment_pct.toString());
+    setFormPlanInstallments(plan.installments.toString());
+    setFormPlanDiscountPct(plan.discount_pct.toString());
+    setFormPlanDescription(plan.description || '');
+
+    // Load advanced settings
+    const settings = plan.settings || {};
+    setFormPlanFinalPaymentMethod(settings.finalPaymentMethod || 'installment');
+    setFormPlanInstallmentType(settings.installmentType || 'direct');
+    setFormPlanInterestType(settings.interestType || 'reducing');
+    setFormPlanInstallmentInterest((settings.installmentInterest ?? 0).toString());
+    setFormPlanInstallmentStartMonth((settings.installmentStartMonth ?? 1).toString());
+    setFormPlanCashGracePeriod((settings.cashGracePeriod ?? 14).toString());
+    setFormPlanEnableAnnual(settings.enableAnnual || false);
+    setFormPlanAnnualInstallmentAmount((settings.annualInstallmentAmount ?? '50000').toString());
+    
+    setFormPlanIncludeClub(settings.includeClub || false);
+    setFormPlanClubCost((settings.clubCost ?? '150000').toString());
+    setFormPlanClubPaymentMethod(settings.clubPaymentMethod || 'cash');
+    setFormPlanClubTerm((settings.clubTerm ?? 5).toString());
+    setFormPlanClubInstallmentStartYear((settings.clubInstallmentStartYear ?? 1).toString());
+    
+    setFormPlanIncludeGarage(settings.includeGarage || false);
+    setFormPlanGarageCost((settings.garageCost ?? '100000').toString());
+    setFormPlanGaragePaymentMethod(settings.garagePaymentMethod || 'cash');
+    setFormPlanGarageTerm((settings.garageTerm ?? 5).toString());
+    setFormPlanGarageInstallmentStartYear((settings.garageInstallmentStartYear ?? 1).toString());
+    
+    setFormPlanIncludeMaintenance(settings.includeMaintenance || false);
+    setFormPlanMaintenanceCost((settings.maintenanceCost ?? '').toString());
+    setFormPlanMaintenancePaymentMethod(settings.maintenancePaymentMethod || 'cash');
+    setFormPlanMaintenanceTerm((settings.maintenanceTerm ?? 5).toString());
+    setFormPlanMaintenanceDueMonth((settings.maintenanceDueMonth ?? 36).toString());
+    setFormPlanMaintenanceInstallmentStartYear((settings.maintenanceInstallmentStartYear ?? 1).toString());
+
+    setPlanFormMode('edit');
+    setShowPlanFormModal(true);
+  };
+
+  const handlePlanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectForPlans) return;
+    try {
+      const settings = {
+        finalPaymentMethod: formPlanFinalPaymentMethod,
+        installmentType: formPlanInstallmentType,
+        interestType: formPlanInterestType,
+        installmentInterest: parseFloat(formPlanInstallmentInterest) || 0,
+        installmentStartMonth: parseInt(formPlanInstallmentStartMonth) || 1,
+        cashGracePeriod: parseInt(formPlanCashGracePeriod) || 14,
+        enableAnnual: formPlanEnableAnnual,
+        annualInstallmentAmount: formPlanAnnualInstallmentAmount,
+        includeClub: formPlanIncludeClub,
+        clubCost: formPlanIncludeClub ? formPlanClubCost : '0',
+        clubPaymentMethod: formPlanClubPaymentMethod,
+        clubTerm: parseInt(formPlanClubTerm) || 5,
+        clubInstallmentStartYear: parseInt(formPlanClubInstallmentStartYear) || 1,
+        includeGarage: formPlanIncludeGarage,
+        garageCost: formPlanIncludeGarage ? formPlanGarageCost : '0',
+        garagePaymentMethod: formPlanGaragePaymentMethod,
+        garageTerm: parseInt(formPlanGarageTerm) || 5,
+        garageInstallmentStartYear: parseInt(formPlanGarageInstallmentStartYear) || 1,
+        includeMaintenance: formPlanIncludeMaintenance,
+        maintenanceCost: formPlanIncludeMaintenance ? formPlanMaintenanceCost : '0',
+        maintenancePaymentMethod: formPlanMaintenancePaymentMethod,
+        maintenanceTerm: parseInt(formPlanMaintenanceTerm) || 5,
+        maintenanceDueMonth: parseInt(formPlanMaintenanceDueMonth) || 36,
+        maintenanceInstallmentStartYear: parseInt(formPlanMaintenanceInstallmentStartYear) || 1
+      };
+
+      const payload = {
+        project_id: selectedProjectForPlans.id,
+        name: formPlanName,
+        name_ar: formPlanNameAr,
+        down_payment_pct: parseFloat(formPlanDownPaymentPct) || 0,
+        installments: parseInt(formPlanInstallments) || 0,
+        discount_pct: parseFloat(formPlanDiscountPct) || 0,
+        description: formPlanDescription,
+        settings: settings
+      };
+
+      if (planFormMode === 'add') {
+        await api.post('/admin/project-payment-plans', payload);
+        alert('Payment plan template created successfully!');
+      } else if (selectedPlan) {
+        await api.put(`/admin/project-payment-plans/${selectedPlan.id}`, payload);
+        alert('Payment plan template updated successfully!');
+      }
+      setShowPlanFormModal(false);
+      
+      // Refresh
+      const plansRes = await api.get('/admin/project-payment-plans');
+      if (plansRes.data?.success) setProjectPlans(plansRes.data.data);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit payment plan');
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this payment plan template?')) return;
+    try {
+      await api.delete(`/admin/project-payment-plans/${id}`);
+      alert('Payment plan template deleted successfully!');
+      
+      // Refresh
+      const plansRes = await api.get('/admin/project-payment-plans');
+      if (plansRes.data?.success) setProjectPlans(plansRes.data.data);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete payment plan');
+    }
+  };
+
   // ── Unit Handlers ──
   const openAddUnitModal = () => {
     setFormUnitProjId(projects[0]?.id || '');
@@ -460,6 +685,12 @@ const AdminPanel: React.FC = () => {
     setFormUnitType('apartment');
     setFormUnitPrice('1000000');
     setFormUnitStatus('available');
+    setFormUnitArea('100');
+    setFormUnitBedrooms('3');
+    setFormUnitBathrooms('2');
+    setFormUnitViewType('garden');
+    setFormUnitBuilding('');
+    setFormUnitLayoutDescription('');
     setUnitModalMode('add');
     setShowUnitModal(true);
   };
@@ -472,6 +703,12 @@ const AdminPanel: React.FC = () => {
     setFormUnitType(unit.type);
     setFormUnitPrice(unit.price.toString());
     setFormUnitStatus(unit.status);
+    setFormUnitArea(unit.area ? unit.area.toString() : '0');
+    setFormUnitBedrooms(unit.bedrooms ? unit.bedrooms.toString() : '0');
+    setFormUnitBathrooms(unit.bathrooms ? unit.bathrooms.toString() : '0');
+    setFormUnitViewType(unit.view_type || 'garden');
+    setFormUnitBuilding(unit.building || '');
+    setFormUnitLayoutDescription(unit.layout_description || '');
     setUnitModalMode('edit');
     setShowUnitModal(true);
   };
@@ -485,7 +722,13 @@ const AdminPanel: React.FC = () => {
         floor: parseInt(formUnitFloor),
         type: formUnitType,
         price: parseFloat(formUnitPrice),
-        status: formUnitStatus
+        status: formUnitStatus,
+        area: parseFloat(formUnitArea),
+        bedrooms: parseInt(formUnitBedrooms),
+        bathrooms: parseInt(formUnitBathrooms),
+        view_type: formUnitViewType,
+        building: formUnitBuilding,
+        layout_description: formUnitLayoutDescription
       };
 
       if (unitModalMode === 'add') {
@@ -962,6 +1205,9 @@ const AdminPanel: React.FC = () => {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={() => openEditProjectModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }}>
                           <Edit2 size={12} /> Edit
+                        </button>
+                        <button onClick={() => openProjectPlansModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-primary)', borderColor: 'rgba(50, 71, 58, 0.2)' }}>
+                          <ClipboardList size={12} /> Plans
                         </button>
                         <button onClick={() => handleDeleteProject(p.id)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
                           <Trash2 size={12} /> Delete
@@ -1945,7 +2191,7 @@ const AdminPanel: React.FC = () => {
       {/* 🔑 Unit CRUD Modal */}
       {showUnitModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
-          <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff' }}>
+          <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff' }}>
             <button onClick={() => setShowUnitModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <X size={18} />
             </button>
@@ -1967,12 +2213,34 @@ const AdminPanel: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Building / Block</label>
+                  <input type="text" className="form-control" value={formUnitBuilding} onChange={e => setFormUnitBuilding(e.target.value)} placeholder="e.g. Block A1" />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Unit Number</label>
                   <input type="text" className="form-control" value={formUnitNumber} onChange={e => setFormUnitNumber(e.target.value)} placeholder="e.g. 101" required />
                 </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Floor</label>
                   <input type="number" className="form-control" value={formUnitFloor} onChange={e => setFormUnitFloor(e.target.value)} required />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Total Area (m²)</label>
+                  <input type="number" className="form-control" value={formUnitArea} onChange={e => setFormUnitArea(e.target.value)} placeholder="e.g. 150" required />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Bedrooms</label>
+                  <input type="number" className="form-control" value={formUnitBedrooms} onChange={e => setFormUnitBedrooms(e.target.value)} min={0} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Bathrooms</label>
+                  <input type="number" className="form-control" value={formUnitBathrooms} onChange={e => setFormUnitBathrooms(e.target.value)} min={0} />
                 </div>
               </div>
 
@@ -1999,9 +2267,26 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">View Type</label>
+                  <select className="form-control" value={formUnitViewType} onChange={e => setFormUnitViewType(e.target.value)}>
+                    <option value="garden">Garden View</option>
+                    <option value="pool">Pool View</option>
+                    <option value="street">Street View</option>
+                    <option value="sea">Sea View</option>
+                    <option value="landmark">Landmark View</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Selling Price (EGP)</label>
+                  <input type="number" className="form-control" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} required />
+                </div>
+              </div>
+
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Selling Price (EGP)</label>
-                <input type="number" className="form-control" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} required />
+                <label className="form-label">Unit Layout & Division (تقسيمة الشقة وتوزيع الغرف)</label>
+                <textarea className="form-control" style={{ height: '70px', resize: 'none' }} value={formUnitLayoutDescription} onChange={e => setFormUnitLayoutDescription(e.target.value)} placeholder="e.g. 3 غرف، 2 حمام، ريسبشن قطعتين، مطبخ، تراس" />
               </div>
 
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>
@@ -2173,6 +2458,264 @@ const AdminPanel: React.FC = () => {
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>
                 {ticketModalMode === 'add' ? 'Log Ticket' : 'Save Changes'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 💳 Project Standard Payment Plans Modal */}
+      {showPlansModal && selectedProjectForPlans && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '750px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', maxHeight: '85vh', overflowY: 'auto' }}>
+            <button onClick={() => { setShowPlansModal(false); setSelectedProjectForPlans(null); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ClipboardList size={20} style={{ color: 'var(--color-primary)' }} />
+                Standard Payment Plans: {selectedProjectForPlans.name}
+              </h3>
+              <button onClick={openAddPlanModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
+                <Plus size={12} style={{ marginRight: '4px' }} /> Add Template
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Name (AR)</th>
+                    <th>Down Payment</th>
+                    <th>Term (Months)</th>
+                    <th>Discount</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectPlans.filter(p => p.project_id === selectedProjectForPlans.id).length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No standard payment plan templates configured.</td>
+                    </tr>
+                  ) : (
+                    projectPlans.filter(p => p.project_id === selectedProjectForPlans.id).map((plan) => (
+                      <tr key={plan.id}>
+                        <td><strong>{plan.name}</strong></td>
+                        <td>{plan.name_ar}</td>
+                        <td>{plan.down_payment_pct}%</td>
+                        <td>{plan.installments} months</td>
+                        <td>{plan.discount_pct}%</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.description || '—'}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button onClick={() => openEditPlanModal(plan)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.65rem' }}>
+                              <Edit2 size={10} /> Edit
+                            </button>
+                            <button onClick={() => handleDeletePlan(plan.id)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.65rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                              <Trash2 size={10} /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button onClick={() => { setShowPlansModal(false); setSelectedProjectForPlans(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💳 Payment Plan Form Modal */}
+      {showPlanFormModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 210, padding: '20px' }}>
+          <div className="glass-panel sidebar-scroll-container" style={{ maxWidth: '850px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowPlanFormModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ClipboardList size={18} style={{ color: 'var(--color-primary)' }} />
+              {planFormMode === 'add' ? 'Add Payment Plan Template' : 'Edit Payment Plan Template'}
+            </h3>
+
+            <form onSubmit={handlePlanSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                {/* Column 1: Basic Details */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,0,0,0.06)', paddingBottom: '6px', margin: 0 }}>
+                    Basic Details / البيانات الأساسية
+                  </h4>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Plan Name (English)</label>
+                    <input type="text" className="form-control" value={formPlanName} onChange={e => setFormPlanName(e.target.value)} placeholder="e.g. 5-Year Plan" required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Plan Name (Arabic)</label>
+                    <input type="text" className="form-control" value={formPlanNameAr} onChange={e => setFormPlanNameAr(e.target.value)} placeholder="e.g. خطة 5 سنوات" required />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Down Payment (%)</label>
+                      <input type="number" className="form-control" value={formPlanDownPaymentPct} onChange={e => setFormPlanDownPaymentPct(e.target.value)} min="0" max="100" required />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Discount (%)</label>
+                      <input type="number" className="form-control" value={formPlanDiscountPct} onChange={e => setFormPlanDiscountPct(e.target.value)} min="0" max="100" required />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Installments count (Months)</label>
+                    <input type="number" className="form-control" value={formPlanInstallments} onChange={e => setFormPlanInstallments(e.target.value)} min="0" placeholder="e.g. 60 for 5 years" required />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Description</label>
+                    <textarea className="form-control" style={{ minHeight: '80px', padding: '8px' }} value={formPlanDescription} onChange={e => setFormPlanDescription(e.target.value)} placeholder="Brief terms explanation..." />
+                  </div>
+                </div>
+
+                {/* Column 2: Advanced Settings */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,0,0,0.06)', paddingBottom: '6px', margin: 0 }}>
+                    Advanced Settings / التفاصيل المتقدمة
+                  </h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Payment Method</label>
+                      <select className="form-control" value={formPlanFinalPaymentMethod} onChange={e => setFormPlanFinalPaymentMethod(e.target.value as 'cash' | 'installment')}>
+                        <option value="installment">Installment / تقسيط</option>
+                        <option value="cash">Cash / كاش</option>
+                      </select>
+                    </div>
+                    {formPlanFinalPaymentMethod === 'cash' ? (
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Cash Grace Period (Days)</label>
+                        <input type="number" className="form-control" value={formPlanCashGracePeriod} onChange={e => setFormPlanCashGracePeriod(e.target.value)} min="0" />
+                      </div>
+                    ) : (
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Installment Type</label>
+                        <select className="form-control" value={formPlanInstallmentType} onChange={e => setFormPlanInstallmentType(e.target.value as 'direct' | 'bank')}>
+                          <option value="direct">Direct / مباشر</option>
+                          <option value="bank">Bank Finance / تمويل عقاري</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {formPlanFinalPaymentMethod === 'installment' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Interest Type</label>
+                          <select className="form-control" value={formPlanInterestType} onChange={e => setFormPlanInterestType(e.target.value as 'flat' | 'reducing')}>
+                            <option value="reducing">Reducing / متناقصة</option>
+                            <option value="flat">Flat / ثابته</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Interest Rate (%) p.a.</label>
+                          <input type="number" step="0.1" className="form-control" value={formPlanInstallmentInterest} onChange={e => setFormPlanInstallmentInterest(e.target.value)} min="0" />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Start Month</label>
+                          <input type="number" className="form-control" value={formPlanInstallmentStartMonth} onChange={e => setFormPlanInstallmentStartMonth(e.target.value)} min="1" />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', marginTop: '15px' }}>
+                            <input type="checkbox" checked={formPlanEnableAnnual} onChange={e => setFormPlanEnableAnnual(e.target.checked)} />
+                            <span>Annual Payments / دفعات سنوية</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {formPlanEnableAnnual && (
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Annual Installment Amount (EGP)</label>
+                          <input type="number" className="form-control" value={formPlanAnnualInstallmentAmount} onChange={e => setFormPlanAnnualInstallmentAmount(e.target.value)} />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Add-ons default config */}
+                  <div style={{ padding: '10px 14px', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid rgba(50, 71, 58, 0.08)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Default Included Add-ons</div>
+                    
+                    {/* Club Toggle */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={formPlanIncludeClub} onChange={e => setFormPlanIncludeClub(e.target.checked)} />
+                        <span>Club Membership / اشتراك نادي</span>
+                      </label>
+                      {formPlanIncludeClub && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                          <input type="number" className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} placeholder="Cost" value={formPlanClubCost} onChange={e => setFormPlanClubCost(e.target.value)} />
+                          <select className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} value={formPlanClubPaymentMethod} onChange={e => setFormPlanClubPaymentMethod(e.target.value as 'cash' | 'installment')}>
+                            <option value="cash">Cash / كاش</option>
+                            <option value="installment">Installment / تقسيط</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Garage Toggle */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={formPlanIncludeGarage} onChange={e => setFormPlanIncludeGarage(e.target.checked)} />
+                        <span>Garage Access / جراج</span>
+                      </label>
+                      {formPlanIncludeGarage && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                          <input type="number" className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} placeholder="Cost" value={formPlanGarageCost} onChange={e => setFormPlanGarageCost(e.target.value)} />
+                          <select className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} value={formPlanGaragePaymentMethod} onChange={e => setFormPlanGaragePaymentMethod(e.target.value as 'cash' | 'installment')}>
+                            <option value="cash">Cash / كاش</option>
+                            <option value="installment">Installment / تقسيط</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Maintenance Toggle */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={formPlanIncludeMaintenance} onChange={e => setFormPlanIncludeMaintenance(e.target.checked)} />
+                        <span>Maintenance Deposit / وديعة صيانة</span>
+                      </label>
+                      {formPlanIncludeMaintenance && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                          <input type="number" className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} placeholder="Cost" value={formPlanMaintenanceCost} onChange={e => setFormPlanMaintenanceCost(e.target.value)} />
+                          <select className="form-control" style={{ fontSize: '0.72rem', padding: '4px 6px', height: '26px' }} value={formPlanMaintenancePaymentMethod} onChange={e => setFormPlanMaintenancePaymentMethod(e.target.value as 'cash' | 'installment')}>
+                            <option value="cash">Cash / كاش</option>
+                            <option value="installment">Installment / تقسيط</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowPlanFormModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">
+                  {planFormMode === 'add' ? 'Create Template' : 'Save Changes'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

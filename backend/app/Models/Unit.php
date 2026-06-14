@@ -20,8 +20,10 @@ class Unit extends Model
         'bathrooms',
         'view_type', // 'garden', 'pool', 'street', 'sea', 'landmark'
         'building',
+        'layout_description',
         'price',
         'status', // 'available', 'reserved', 'sold', 'blocked'
+        'handover_date',
     ];
 
     protected $casts = [

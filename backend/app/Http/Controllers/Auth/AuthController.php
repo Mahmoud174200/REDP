@@ -70,6 +70,7 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $user->load(['company', 'department', 'team', 'position', 'employeeHierarchy.position', 'employeeHierarchy.team', 'broker']);
         $token = $user->createToken('redp_token')->plainTextToken;
 
         // Secure Audit Trails
@@ -91,6 +92,7 @@ class AuthController extends Controller
     public function profile(Request $request)
     {
         $user = $request->user();
+        $user->load(['company', 'department', 'team', 'position', 'employeeHierarchy.position', 'employeeHierarchy.team', 'broker']);
         return response()->json([
             'success' => true,
             'user' => $user,

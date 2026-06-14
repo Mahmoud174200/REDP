@@ -193,11 +193,32 @@ class Lead extends Model
      */
     public function scopeForTier(Builder $query, User $user): Builder
     {
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        // Get recursive subordinates user IDs
+        $subordinateIds = [];
+        if ($user->employeeHierarchy) {
+            $subordinateIds = $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray();
+        }
+        $agentIds = array_merge([$user->id], $subordinateIds);
+
         return match ($user->role) {
-            'tele_sales'    => $query->where('tele_sales_agent_id', $user->id),
-            'broker'        => $query->where('broker_id', $user->broker?->id),
-            'company_sales' => $query, // Full access
-            'admin'         => $query, // Full access
+            'tele_sales'    => $query->whereIn('tele_sales_agent_id', $agentIds),
+            'broker'        => $query->where(function ($q) use ($user, $subordinateIds) {
+                // If they are freelance or company broker agents, find their broker profiles
+                $userBrokerId = $user->broker?->id;
+                $subordinateBrokerIds = \App\Models\Broker::whereIn('user_id', $subordinateIds)->pluck('id')->toArray();
+                $allowedBrokerIds = array_filter(array_merge([$userBrokerId], $subordinateBrokerIds));
+                
+                $q->whereIn('broker_id', $allowedBrokerIds);
+            }),
+            'company_sales' => $query->where(function ($q) use ($agentIds) {
+                // Return leads assigned to this agent/subordinates OR unassigned leads
+                $q->whereIn('company_sales_agent_id', $agentIds)
+                  ->orWhereNull('company_sales_agent_id');
+            }),
             default         => $query->whereRaw('1 = 0'), // Deny by default
         };
     }

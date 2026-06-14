@@ -101,8 +101,35 @@ const Login: React.FC = () => {
   };
 
   const fillProfile = (selectedRole: string) => {
-    setRole(selectedRole);
-    setEmail(`${selectedRole}@redp.com`);
+    let emailVal = `${selectedRole}@redp.com`;
+    let roleValue = selectedRole === 'handover' ? 'handover_officer' : selectedRole;
+
+    // Custom hierarchy mappings
+    if (selectedRole === 'tele_sales_manager') {
+      emailVal = 'tele_sales_manager@redp.com';
+      roleValue = 'tele_sales';
+    } else if (selectedRole === 'tele_sales_head') {
+      emailVal = 'tele_sales_head@redp.com';
+      roleValue = 'tele_sales';
+    } else if (selectedRole === 'broker_team_leader') {
+      emailVal = 'broker_team_leader@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'broker_owner') {
+      emailVal = 'broker_owner@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'freelance_broker') {
+      emailVal = 'freelance_broker@redp.com';
+      roleValue = 'broker';
+    } else if (selectedRole === 'company_sales_agent') {
+      emailVal = 'company_sales_agent@redp.com';
+      roleValue = 'company_sales';
+    } else if (selectedRole === 'company_sales_leader') {
+      emailVal = 'company_sales_leader@redp.com';
+      roleValue = 'company_sales';
+    }
+
+    setRole(roleValue);
+    setEmail(emailVal);
     setPassword('password');
     setConfirmPassword('password');
   };

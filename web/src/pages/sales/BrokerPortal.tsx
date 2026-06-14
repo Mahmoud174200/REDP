@@ -1,11 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Plus, ClipboardList, MapPin, Sparkles, Send, CheckCircle, 
-  Download, DollarSign, AlertCircle, Calendar, ChevronRight, Search, 
-  Filter, Home, BookOpen, ShieldAlert, Award, Grid, List, AlertTriangle
-} from 'lucide-react';
 import api from '../../services/api';
 import { ToastContainer } from '../../components/Toast';
+
+/* Helpers */
+const statusLabel: Record<string, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  interested: 'Interested',
+  visit_scheduled: 'Visit Booked',
+  transferred: 'Transferred',
+  reserved: 'Reserved',
+  contracted: 'Contracted'
+};
+
+const unitStatusBadge: Record<string, string> = {
+  available: 'badge-success',
+  reserved: 'badge-warning',
+  sold: 'badge-danger',
+  blocked: 'badge-info',
+  pending_reservation: 'badge-warning'
+};
+
+const fmtPrice = (v: number | string | null) => {
+  if (!v) return '—';
+  return Number(v).toLocaleString('en-EG') + ' EGP';
+};
 
 const BrokerPortal: React.FC = () => {
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -43,6 +62,12 @@ const BrokerPortal: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  /* new broker states */
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [commissionRules, setCommissionRules] = useState<any[]>([]);
+  const [subordinatesPerformance, setSubordinatesPerformance] = useState<any[]>([]);
+  const [commissionsHistory, setCommissionsHistory] = useState<any[]>([]);
   
   // Filter States
   const [unitFilterStatus, setUnitFilterStatus] = useState<string>('all');
@@ -79,15 +104,29 @@ const BrokerPortal: React.FC = () => {
   });
 
   const [selectedUnitObj, setSelectedUnitObj] = useState<any | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<any | null>(null); // Premium specifications modal
 
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
+      const storedUser = localStorage.getItem('redp_user');
+      let userObj: any = null;
+      if (storedUser) {
+        try {
+          userObj = JSON.parse(storedUser);
+          setCurrentUser(userObj);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       // 1. Fetch Stats
       const statsRes = await api.get('/v1/sales/broker/dashboard');
-      let brokerId = '';
       if (statsRes.data && statsRes.data.success) {
         setStats((prev: any) => ({ ...prev, ...statsRes.data.stats }));
+        setCommissionRules(statsRes.data.commission_rules || []);
+        setSubordinatesPerformance(statsRes.data.subordinates_performance || []);
+        setCommissionsHistory(statsRes.data.commissions_history || []);
       }
 
       // 2. Fetch Projects
@@ -102,12 +141,7 @@ const BrokerPortal: React.FC = () => {
       // 3. Fetch Leads
       const leadsRes = await api.get('/v1/sales/broker/leads');
       if (leadsRes.data && leadsRes.data.success) {
-        const leadList = leadsRes.data.data.data || [];
-        setLeads(leadList);
-        if (leadList.length > 0) {
-          // Retrieve broker ID from lead object
-          brokerId = leadList[0].broker_id;
-        }
+        setLeads(leadsRes.data.data.data || []);
       }
 
       // 4. Fetch Reservations
@@ -129,6 +163,7 @@ const BrokerPortal: React.FC = () => {
       }
 
       // 7. Fetch Commissions
+      const brokerId = userObj?.broker?.id || (leadsRes.data?.data?.data?.length > 0 ? leadsRes.data.data.data[0].broker_id : '');
       if (brokerId) {
         const commsRes = await api.get(`/v1/acquisition/brokers/${brokerId}/commissions`);
         if (commsRes.data && commsRes.data.success) {
@@ -227,6 +262,7 @@ const BrokerPortal: React.FC = () => {
         setShowReserveModal(false);
         setReserveForm(prev => ({ ...prev, unit_id: '', client_id: '' }));
         setSelectedUnitObj(null);
+        setSelectedUnit(null); // Close details modal if open
         await fetchAllData();
       }
     } catch (err: any) {
@@ -259,98 +295,94 @@ const BrokerPortal: React.FC = () => {
     return unit.unit_number.toLowerCase().includes(unitSearchQuery.toLowerCase());
   });
 
+  if (isLoading && leads.length === 0 && projects.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-secondary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'var(--font-title)' }}>Loading dashboard…</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
       
       {/* Premium Header Panel */}
-      <div className="glass-panel" style={{ 
-        padding: '30px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        background: 'linear-gradient(135deg, rgba(50, 71, 58, 0.08) 0%, rgba(161, 183, 167, 0.18) 100%)', 
-        border: '1px solid var(--border-glass)' 
-      }}>
+      <div className="glass-panel" style={{ padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '2rem' }}>🍊</span> REDP Broker Mediation Dashboard
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <i className="fa-solid fa-handshake" style={{ color: 'var(--color-primary)' }}></i> Broker Mediation Dashboard
+            {currentUser?.company ? (
+              <span className="badge badge-info" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                🏢 {currentUser.company.name} Brokerage
+              </span>
+            ) : (
+              <span className="badge badge-secondary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                👤 Freelance Broker
+              </span>
+            )}
           </h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '6px' }}>Manage client locks, request unit reservation holds, download media assets, and track commission ledger.</p>
+          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Manage client locks, request unit reservation holds, download media assets, and track commission ledger</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => setShowLeadModal(true)} className="btn-primary" style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 750, cursor: 'pointer' }}>
-            <Plus style={{ width: '18px', height: '18px' }} /> Register Lead Lock
-          </button>
-        </div>
+        <button onClick={() => setShowLeadModal(true)} className="btn-primary" style={{ gap: '8px' }}>
+          <i className="fa-solid fa-plus" style={{ fontSize: '0.85rem' }}></i> Register Lead Lock
+        </button>
       </div>
 
-      {/* Tabs Navigation */}
-      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
-        <button onClick={() => setActiveTab('overview')} className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} style={tabStyle(activeTab === 'overview')}>
-          <Home style={{ width: '16px', height: '16px' }} /> Overview
-        </button>
-        <button onClick={() => setActiveTab('inventory')} className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} style={tabStyle(activeTab === 'inventory')}>
-          <Grid style={{ width: '16px', height: '16px' }} /> Visual Inventory
-        </button>
-        <button onClick={() => setActiveTab('leads')} className={`tab-btn ${activeTab === 'leads' ? 'active' : ''}`} style={tabStyle(activeTab === 'leads')}>
-          <Users style={{ width: '16px', height: '16px' }} /> Lead Protection Lock
-        </button>
-        <button onClick={() => setActiveTab('submissions')} className={`tab-btn ${activeTab === 'submissions' ? 'active' : ''}`} style={tabStyle(activeTab === 'submissions')}>
-          <ClipboardList style={{ width: '16px', height: '16px' }} /> Interest & Hold Requests
-        </button>
-        <button onClick={() => setActiveTab('commissions')} className={`tab-btn ${activeTab === 'commissions' ? 'active' : ''}`} style={tabStyle(activeTab === 'commissions')}>
-          <DollarSign style={{ width: '16px', height: '16px' }} /> Commissions Ledger
-        </button>
-        <button onClick={() => setActiveTab('marketing')} className={`tab-btn ${activeTab === 'marketing' ? 'active' : ''}`} style={tabStyle(activeTab === 'marketing')}>
-          <BookOpen style={{ width: '16px', height: '16px' }} /> Marketing Hub
-        </button>
+      {/* Tabs Navigation Switcher */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {[
+          { key: 'overview' as const, label: 'Overview', icon: 'fa-solid fa-chart-pie' },
+          { key: 'inventory' as const, label: 'Visual Inventory', icon: 'fa-solid fa-grip' },
+          { key: 'leads' as const, label: 'Lead Protection Lock', icon: 'fa-solid fa-user-shield' },
+          { key: 'submissions' as const, label: 'Interest & Hold Requests', icon: 'fa-solid fa-clipboard-list' },
+          { key: 'commissions' as const, label: 'Commissions Ledger', icon: 'fa-solid fa-sack-dollar' },
+          { key: 'marketing' as const, label: 'Marketing Hub', icon: 'fa-solid fa-folder-open' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={activeTab === tab.key ? 'btn-primary' : 'btn-secondary'}
+            style={{ flex: 1, minWidth: '155px', justifyContent: 'center', padding: '10px 14px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className={tab.icon}></i> {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* TAB CONTENT: OVERVIEW */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Stats Cards Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-            <div className="glass-panel" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.16) 0%, rgba(59, 130, 246, 0.04) 100%)', border: '1px solid rgba(59, 130, 246, 0.25)', borderLeft: '6px solid #2563eb', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '110px' }}>
-              <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#1e3a8a', fontWeight: 800, letterSpacing: '0.05em' }}>My Locked Clients</h4>
-              <h2 style={{ fontSize: '1.7rem', fontWeight: 800, marginTop: '6px', color: '#1d4ed8' }}>
-                {stats.total_leads} <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 550 }}>leads locked</span>
-              </h2>
-            </div>
-            
-            <div className="glass-panel" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.16) 0%, rgba(217, 119, 6, 0.04) 100%)', border: '1px solid rgba(217, 119, 6, 0.25)', borderLeft: '6px solid #d97706', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '110px' }}>
-              <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#78350f', fontWeight: 800, letterSpacing: '0.05em' }}>Pending Interest / Holds</h4>
-              <h2 style={{ fontSize: '1.7rem', fontWeight: 800, marginTop: '6px', color: '#b45309' }}>
-                {reservations.filter(r => r.status === 'pending').length} <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 550 }}>holds</span>
-              </h2>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(22, 163, 74, 0.16) 0%, rgba(22, 163, 74, 0.04) 100%)', border: '1px solid rgba(22, 163, 74, 0.25)', borderLeft: '6px solid #16a34a', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '110px' }}>
-              <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#14532d', fontWeight: 800, letterSpacing: '0.05em' }}>Approved Commissions</h4>
-              <h2 style={{ fontSize: '1.7rem', fontWeight: 800, marginTop: '6px', color: '#15803d' }}>
-                {(stats.approved_commission).toLocaleString()} <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 550 }}>EGP</span>
-              </h2>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.16) 0%, rgba(147, 51, 234, 0.04) 100%)', border: '1px solid rgba(147, 51, 234, 0.25)', borderLeft: '6px solid #9333ea', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '110px' }}>
-              <h4 style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#581c87', fontWeight: 800, letterSpacing: '0.05em' }}>Available Balance</h4>
-              <h2 style={{ fontSize: '1.7rem', fontWeight: 800, marginTop: '6px', color: '#7e22ce' }}>
-                {(stats.available_balance).toLocaleString()} <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 550 }}>EGP</span>
-              </h2>
-              <button onClick={() => setShowPayoutModal(true)} className="btn-secondary" style={{ marginTop: '10px', fontSize: '0.75rem', width: '100%', padding: '6px', background: '#ffffff', color: '#7e22ce', border: '1px solid rgba(147, 51, 234, 0.2)', fontWeight: 700 }}>Request Payout</button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            {[
+              { label: 'My Locked Clients', value: `${stats.total_leads} leads`, icon: <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}></i> },
+              { label: 'Pending Holds', value: `${reservations.filter(r => r.status === 'pending').length} holds`, icon: <i className="fa-solid fa-clock" style={{ color: 'var(--color-warning)', fontSize: '1.2rem' }}></i> },
+              { label: 'Approved Commissions', value: `${stats.approved_commission.toLocaleString()} EGP`, icon: <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '1.2rem' }}></i> },
+              { label: 'Available Balance', value: `${stats.available_balance.toLocaleString()} EGP`, icon: <i className="fa-solid fa-wallet" style={{ color: 'var(--color-info)', fontSize: '1.2rem' }}></i>, action: true },
+            ].map(s => (
+              <div key={s.label} className="glass-panel" style={{ padding: '18px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', minHeight: '130px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ marginBottom: '6px' }}>{s.icon}</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'var(--font-title)' }}>{s.value}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                </div>
+                {s.action && (
+                  <button onClick={() => setShowPayoutModal(true)} className="btn-secondary" style={{ width: '100%', padding: '6px', fontSize: '0.72rem', marginTop: '10px', fontWeight: 700 }}>
+                    <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '4px' }}></i> Request Payout
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '24px' }}>
             {/* Recent Holds & Activity */}
-            <div className="glass-panel" style={{ padding: '25px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ClipboardList style={{ color: 'var(--color-primary)' }} /> Recent Client Interest Submissions
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-primary)' }}></i> Recent Client Interest Submissions
               </h3>
               {reservations.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No interest or hold requests logged yet.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {reservations.slice(0, 4).map(res => (
                     <div key={res.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
                       <div>
@@ -369,10 +401,38 @@ const BrokerPortal: React.FC = () => {
               )}
             </div>
 
+            {/* My Rates Card */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-percent" style={{ color: 'var(--color-success)' }}></i> My Commission Rates
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {commissionRules.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                    No active commission rules set.
+                  </p>
+                ) : (
+                  commissionRules.map((cr: any) => (
+                    <div key={cr.id} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px', width: '100%' }}>
+                        <strong style={{ fontSize: '0.82rem' }}>{cr.name}</strong>
+                        <span className="badge badge-success" style={{ fontSize: '0.7rem', fontWeight: 800 }}>
+                          {parseFloat(cr.commission_rate).toFixed(2)}%
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {cr.description || `Rule applied to tier 2.`}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* Leaderboard standings */}
-            <div className="glass-panel" style={{ padding: '25px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Award style={{ color: '#f59e0b' }} /> Broker Leaderboard (Monthly)
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-trophy" style={{ color: '#f59e0b' }}></i> Broker Leaderboard (Monthly)
               </h3>
               {leaderboard.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading standings...</p>
@@ -394,6 +454,65 @@ const BrokerPortal: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Team Performance Section */}
+          {subordinatesPerformance && subordinatesPerformance.length > 0 && (
+            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                  <i className="fa-solid fa-people-group" style={{ color: 'var(--color-primary)' }}></i>
+                  Agency Team Performance & Commissions
+                </h3>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Agent Name</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Total Leads</th>
+                      <th>New / Contacted</th>
+                      <th>Hold Requests</th>
+                      <th>Earned Commissions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subordinatesPerformance.map((sub: any) => (
+                      <tr key={sub.user_id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: sub.status === 'active' ? 'var(--color-success)' : '#9ca3af',
+                              display: 'inline-block'
+                            }}></span>
+                            <strong>{sub.name}</strong>
+                          </div>
+                        </td>
+                        <td>{sub.position}</td>
+                        <td>
+                          <span className={`badge ${sub.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                            {sub.status}
+                          </span>
+                        </td>
+                        <td>{sub.stats?.total_leads ?? 0}</td>
+                        <td>{sub.stats?.new ?? 0} / {sub.stats?.contacted ?? 0}</td>
+                        <td>{sub.stats?.reservations ?? 0} holds</td>
+                        <td>
+                          <strong style={{ color: 'var(--color-success)' }}>
+                            {fmtPrice(sub.stats?.commissions_earned ?? 0)}
+                          </strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -403,20 +522,29 @@ const BrokerPortal: React.FC = () => {
           
           {/* Project Selector & Advanced Filters */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Project:</span>
                 <select className="form-control" value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} style={{ width: '250px' }}>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({p.location})</option>
                   ))}
                 </select>
+                {selectedProjectId && (() => {
+                  const proj = projects.find(p => p.id === selectedProjectId);
+                  return proj?.delivery_date ? (
+                    <div style={{ padding: '8px 12px', background: 'rgba(50, 71, 58, 0.04)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem' }}>
+                      <i className="fa-solid fa-calendar-day" style={{ color: 'var(--color-primary)', marginRight: '6px' }}></i>
+                      <strong>Project Delivery Date:</strong> {proj.delivery_date.substring(0, 10)}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Status Legend indicators */}
-              <div style={{ display: 'flex', gap: '15px', fontSize: '0.8rem' }}>
+              <div style={{ display: 'flex', gap: '15px', fontSize: '0.8rem', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981' }} /> Available</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#f59e0b' }} /> My Interest Requests (Pending/Conf)</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#f59e0b' }} /> My Holds (Pending/Conf)</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ef4444' }} /> Booked / Reserved by Others</span>
               </div>
             </div>
@@ -448,25 +576,21 @@ const BrokerPortal: React.FC = () => {
                 <label className="form-label">Search Unit Code</label>
                 <div style={{ position: 'relative' }}>
                   <input type="text" className="form-control" placeholder="Search by unit number..." value={unitSearchQuery} onChange={e => setUnitSearchQuery(e.target.value)} style={{ paddingLeft: '35px' }} />
-                  <Search style={{ position: 'absolute', left: '12px', top: '10px', width: '16px', height: '16px', color: '#64748b' }} />
+                  <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '12px', fontSize: '0.85rem', color: '#64748b' }}></i>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Unit Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
             {filteredUnits.length === 0 ? (
               <div className="glass-panel" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
-                <AlertTriangle style={{ width: '40px', height: '40px', color: 'var(--color-warning)', marginBottom: '15px' }} />
+                <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '2rem', color: 'var(--color-warning)', marginBottom: '15px' }}></i>
                 <h4>No units match the filter criteria.</h4>
               </div>
             ) : (
               filteredUnits.map(unit => {
-                // Determine color coding state
-                // Green: available
-                // Yellow: holds by this broker
-                // Red: holds by other brokers or sold
                 const brokerHold = reservations.find(r => r.unit_id === unit.id && (r.status === 'pending' || r.status === 'confirmed'));
                 let statusColor = '#10b981'; // Green
                 let statusText = 'Available';
@@ -480,18 +604,19 @@ const BrokerPortal: React.FC = () => {
                 }
 
                 return (
-                  <div key={unit.id} className="glass-panel" style={{ padding: '20px', borderLeft: `5px solid ${statusColor}`, display: 'flex', flexDirection: 'column', gap: '12px', transition: 'all 0.2s', transform: 'translateY(0)' }}>
+                  <div key={unit.id} className="glass-panel" onClick={() => setSelectedUnit(unit)}
+                    style={{ padding: '20px', borderLeft: `5px solid ${statusColor}`, display: 'flex', flexDirection: 'column', gap: '10px', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>{unit.unit_number}</span>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: statusColor, textTransform: 'uppercase' }}>{statusText}</span>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 800 }}>{unit.unit_number}</span>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: statusColor, textTransform: 'uppercase' }}>{statusText}</span>
                     </div>
 
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div>🏠 Type: {unit.type}</div>
-                      <div>📐 Area: {unit.area_sqm} sqm</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px', flexGrow: 1 }}>
+                      <div><i className="fa-solid fa-house" style={{ marginRight: '6px', color: 'var(--color-primary)', fontSize: '0.75rem' }}></i>Type: {unit.type}</div>
+                      <div><i className="fa-solid fa-ruler-combined" style={{ marginRight: '6px', color: 'var(--color-primary)', fontSize: '0.75rem' }}></i>Area: {unit.area || unit.area_sqm || '—'} sqm</div>
                       {statusColor !== '#ef4444' ? (
-                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
-                          💰 Price: {parseFloat(unit.price).toLocaleString()} EGP
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
+                          <i className="fa-solid fa-tag" style={{ marginRight: '6px', color: 'var(--color-success)', fontSize: '0.75rem' }}></i>Price: {fmtPrice(unit.price)}
                         </div>
                       ) : (
                         <div style={{ fontSize: '0.8rem', color: '#ef4444', fontStyle: 'italic', marginTop: '4px' }}>
@@ -500,35 +625,9 @@ const BrokerPortal: React.FC = () => {
                       )}
                     </div>
 
-                    {statusColor === '#10b981' && (
-                      <button 
-                        onClick={() => {
-                          if (leads.length === 0) {
-                            showToast('You must register at least one client lead lock first.', 'info');
-                            return;
-                          }
-                          setSelectedUnitObj(unit);
-                          setReserveForm(prev => ({ ...prev, unit_id: unit.id }));
-                          setShowReserveModal(true);
-                        }}
-                        className="btn-primary" 
-                        style={{ marginTop: 'auto', padding: '6px', fontSize: '0.75rem' }}
-                      >
-                        Submit Client Interest
-                      </button>
-                    )}
-
-                    {statusColor === '#f59e0b' && (
-                      <div style={{ marginTop: 'auto', padding: '6px', fontSize: '0.7rem', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '4px', textAlign: 'center', fontWeight: 700, color: '#f59e0b' }}>
-                        Locked under your account
-                      </div>
-                    )}
-
-                    {statusColor === '#ef4444' && (
-                      <div style={{ marginTop: 'auto', padding: '6px', fontSize: '0.7rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '4px', textAlign: 'center', color: '#ef4444', fontWeight: 700 }}>
-                        Blocked
-                      </div>
-                    )}
+                    <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>View Specifications</span> <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.6rem' }}></i>
+                    </div>
                   </div>
                 );
               })
@@ -539,27 +638,27 @@ const BrokerPortal: React.FC = () => {
 
       {/* TAB CONTENT: LEADS & ANTI-POACHING */}
       {activeTab === 'leads' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
           {/* Register Lead Panel */}
-          <div className="glass-panel" style={{ padding: '25px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Plus style={{ color: 'var(--color-primary)' }} /> Register Protected Client
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+              <i className="fa-solid fa-user-lock" style={{ color: 'var(--color-primary)' }}></i> Register Protected Client
             </h3>
             
             <form onSubmit={handleRegisterLead} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">First Name</label>
+                  <label className="form-label">First Name *</label>
                   <input type="text" className="form-control" value={leadForm.first_name} onChange={e => setLeadForm({...leadForm, first_name: e.target.value})} required />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Last Name</label>
+                  <label className="form-label">Last Name *</label>
                   <input type="text" className="form-control" value={leadForm.last_name} onChange={e => setLeadForm({...leadForm, last_name: e.target.value})} required />
                 </div>
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Phone Code</label>
+                <label className="form-label">Phone Code *</label>
                 <input type="tel" className="form-control" placeholder="+201..." value={leadForm.phone} onChange={e => setLeadForm({...leadForm, phone: e.target.value})} required />
               </div>
 
@@ -593,10 +692,12 @@ const BrokerPortal: React.FC = () => {
           </div>
 
           {/* Locked Leads List */}
-          <div className="glass-panel" style={{ padding: '25px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users style={{ color: 'var(--color-primary)' }} /> My Locked Leads (Anti-Poaching Lock List)
-            </h3>
+          <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-users-viewfinder" style={{ color: 'var(--color-primary)' }}></i> My Locked Leads (Anti-Poaching Lock List)
+              </h3>
+            </div>
             
             <div style={{ overflowX: 'auto' }}>
               <table className="premium-table">
@@ -611,7 +712,7 @@ const BrokerPortal: React.FC = () => {
                 <tbody>
                   {leads.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No leads registered. Use the panel on the left to lock a client.</td>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No leads registered. Use the panel on the left to lock a client.</td>
                     </tr>
                   ) : (
                     leads.map(l => {
@@ -619,23 +720,23 @@ const BrokerPortal: React.FC = () => {
                         <tr key={l.id}>
                           <td>
                             <strong>{l.first_name} {l.last_name}</strong>
-                            {l.national_id && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>NID: {l.national_id}</div>}
+                            {l.national_id && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>NID: {l.national_id}</div>}
                           </td>
                           <td>
                             <div>📞 {l.phone}</div>
-                            {l.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>✉️ {l.email}</div>}
+                            {l.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>✉️ {l.email}</div>}
                           </td>
                           <td>
                             <div style={{ color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
-                              <ShieldAlert style={{ width: '14px', height: '14px', color: '#10b981' }} /> Active Lock
+                              <i className="fa-solid fa-shield-halved" style={{ color: '#10b981' }}></i> Active Lock
                             </div>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Expires in 90 days from registry</span>
                           </td>
                           <td>
                             <span className={`badge badge-${
-                              l.status === 'new' ? 'primary' :
-                              l.status === 'reserved' ? 'warning' :
-                              l.status === 'contracted' ? 'success' : 'info'
+                              l.status === 'new' ? 'warning' :
+                              l.status === 'reserved' ? 'info' :
+                              l.status === 'contracted' ? 'success' : 'secondary'
                             }`} style={{ textTransform: 'capitalize' }}>
                               {l.status}
                             </span>
@@ -653,10 +754,12 @@ const BrokerPortal: React.FC = () => {
 
       {/* TAB CONTENT: SUBMISSIONS & RESERVATION HOLDS */}
       {activeTab === 'submissions' && (
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ClipboardList style={{ color: 'var(--color-primary)' }} /> My Client Interest & Hold Submissions
-          </h3>
+        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+              <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-primary)' }}></i> My Client Interest & Hold Submissions
+            </h3>
+          </div>
           
           <div style={{ overflowX: 'auto' }}>
             <table className="premium-table">
@@ -672,7 +775,7 @@ const BrokerPortal: React.FC = () => {
               <tbody>
                 {reservations.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No interest requests submitted yet. Go to the "Visual Inventory" tab to select a unit and submit customer interest.</td>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No interest requests submitted yet. Go to the "Visual Inventory" tab to select a unit and submit customer interest.</td>
                   </tr>
                 ) : (
                   reservations.map(res => {
@@ -680,18 +783,18 @@ const BrokerPortal: React.FC = () => {
                       <tr key={res.id}>
                         <td>
                           <strong>{res.unit?.unit_number}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Project: {res.unit?.project?.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Project: {res.unit?.project?.name}</div>
                         </td>
                         <td>
                           <strong>{res.client?.name}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {res.client?.phone}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Phone: {res.client?.phone}</div>
                         </td>
                         <td>
                           {parseFloat(res.eoi_amount) > 0 ? (
                             <>
                               <strong>{parseFloat(res.eoi_amount).toLocaleString()} EGP</strong>
                               {res.payment_receipt_path && (
-                                <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Receipt Slip</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer', marginTop: '2px' }}>View Receipt Slip</div>
                               )}
                             </>
                           ) : (
@@ -710,7 +813,7 @@ const BrokerPortal: React.FC = () => {
                           {res.status === 'pending' && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Awaiting Finance receipt clearance check</span>}
                           {res.status === 'confirmed' && <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>Approved hold! Expires {res.expires_at ? new Date(res.expires_at).toLocaleDateString() : 'N/A'}</span>}
                           {res.status === 'cancelled' && (
-                            <span style={{ color: '#ef4444' }}>
+                            <span style={{ color: 'var(--color-danger)' }}>
                               ❌ Rejection comment: {res.cancellation_reason || 'Unspecified'}
                             </span>
                           )}
@@ -727,41 +830,39 @@ const BrokerPortal: React.FC = () => {
 
       {/* TAB CONTENT: COMMISSIONS & PAYOUTS */}
       {activeTab === 'commissions' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Commissions Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '20px' }}>
-            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center' }}>
-              <h4 style={statLabelStyle}>Gross Commission Value</h4>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '8px' }}>{(stats.total_commissioned).toLocaleString()} EGP</h2>
-            </div>
-            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center' }}>
-              <h4 style={statLabelStyle}>Pending Payment (Draft)</h4>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-warning)', marginTop: '8px' }}>{(stats.pending_commission).toLocaleString()} EGP</h2>
-            </div>
-            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center' }}>
-              <h4 style={statLabelStyle}>Approved Balance</h4>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#10b981', marginTop: '8px' }}>{(stats.approved_commission).toLocaleString()} EGP</h2>
-            </div>
-            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center' }}>
-              <h4 style={statLabelStyle}>Accrued / Disbursed Payouts</h4>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#8b5cf6', marginTop: '8px' }}>{(stats.paid_commission).toLocaleString()} EGP</h2>
-            </div>
-            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <h4 style={statLabelStyle}>Available to Withdraw</h4>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#10b981', marginTop: '8px' }}>{(stats.available_balance).toLocaleString()} EGP</h2>
-              {stats.available_balance > 0 && (
-                <button onClick={() => setShowPayoutModal(true)} className="btn-primary" style={{ width: '100%', padding: '6px', fontSize: '0.7rem', marginTop: '8px' }}>Submit Invoice</button>
-              )}
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+            {[
+              { label: 'Gross Commission', value: stats.total_commissioned, color: 'var(--color-primary)' },
+              { label: 'Pending Payment', value: stats.pending_commission, color: 'var(--color-warning)' },
+              { label: 'Approved Balance', value: stats.approved_commission, color: 'var(--color-success)' },
+              { label: 'Accrued Payouts', value: stats.paid_commission, color: 'var(--color-secondary)' },
+              { label: 'Available to Withdraw', value: stats.available_balance, color: '#10b981', withdraw: true },
+            ].map(s => (
+              <div key={s.label} className="glass-panel" style={{ padding: '16px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
+                <div>
+                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.04em', marginBottom: '8px' }}>{s.label}</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: s.color, fontFamily: 'var(--font-title)' }}>{s.value.toLocaleString()} EGP</div>
+                </div>
+                {s.withdraw && stats.available_balance > 0 && (
+                  <button onClick={() => setShowPayoutModal(true)} className="btn-primary" style={{ width: '100%', padding: '6px', fontSize: '0.72rem', marginTop: '8px', fontWeight: 700 }}>
+                    <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: '4px' }}></i> Submit Invoice
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
             {/* Deals Ledger */}
-            <div className="glass-panel" style={{ padding: '25px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <DollarSign style={{ color: 'var(--color-primary)' }} /> Deals Ledger & Commission Calculations
-              </h3>
+            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                  <i className="fa-solid fa-sack-dollar" style={{ color: 'var(--color-primary)' }}></i> Deals Ledger & Commission Calculations
+                </h3>
+              </div>
               
               <div style={{ overflowX: 'auto' }}>
                 <table className="premium-table">
@@ -777,7 +878,7 @@ const BrokerPortal: React.FC = () => {
                   <tbody>
                     {commissions.length === 0 ? (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No commissions registered. Commissions are automatically calculated upon final client booking approval.</td>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No commissions registered. Commissions are automatically calculated upon final client booking approval.</td>
                       </tr>
                     ) : (
                       commissions.map(comm => {
@@ -785,7 +886,7 @@ const BrokerPortal: React.FC = () => {
                           <tr key={comm.id}>
                             <td>
                               <strong>{comm.lead?.first_name} {comm.lead?.last_name}</strong>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {comm.lead?.phone}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Phone: {comm.lead?.phone}</div>
                             </td>
                             <td>
                               <strong>Unit PK-{comm.unit_id.substring(0, 4).toUpperCase()}</strong>
@@ -800,7 +901,7 @@ const BrokerPortal: React.FC = () => {
                               <span className={`badge badge-${
                                 comm.status === 'pending' ? 'warning' :
                                 comm.status === 'approved' ? 'primary' : 'success'
-                              }`}>
+                              }`} style={{ textTransform: 'capitalize' }}>
                                 {comm.status}
                               </span>
                             </td>
@@ -814,25 +915,25 @@ const BrokerPortal: React.FC = () => {
             </div>
 
             {/* Payout requests log */}
-            <div className="glass-panel" style={{ padding: '25px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ClipboardList style={{ color: '#8b5cf6' }} /> Payout Invoices History
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-receipt" style={{ color: 'var(--color-secondary)' }}></i> Payout Invoices History
               </h3>
               
               {payouts.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No payout invoices uploaded.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {payouts.map(p => (
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
                       <div>
-                        <span style={{ fontWeight: 800, color: '#f8fafc' }}>{parseFloat(p.amount).toLocaleString()} EGP</span>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Uploaded: {new Date(p.created_at).toLocaleDateString()}</div>
-                        {p.rejection_reason && <div style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px' }}>Feedback: {p.rejection_reason}</div>}
+                        <span style={{ fontWeight: 800 }}>{parseFloat(p.amount).toLocaleString()} EGP</span>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>Uploaded: {new Date(p.created_at).toLocaleDateString()}</div>
+                        {p.rejection_reason && <div style={{ fontSize: '0.7rem', color: 'var(--color-danger)', marginTop: '4px' }}>Feedback: {p.rejection_reason}</div>}
                       </div>
                       <span className={`badge badge-${
                         p.status === 'pending_review' ? 'warning' :
-                        p.status === 'approved' ? 'primary' :
+                        p.status === 'approved' ? 'info' :
                         p.status === 'paid' ? 'success' : 'danger'
                       }`} style={{ alignSelf: 'center', fontSize: '0.65rem' }}>
                         {p.status.replace(/_/g, ' ')}
@@ -848,35 +949,106 @@ const BrokerPortal: React.FC = () => {
 
       {/* TAB CONTENT: MARKETING CENTER */}
       {activeTab === 'marketing' && (
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookOpen style={{ color: 'var(--color-primary)' }} /> Marketing Assets & Digital Center
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+            <i className="fa-solid fa-folder-open" style={{ color: 'var(--color-primary)' }}></i> Marketing Assets & Digital Center
           </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '25px' }}>Download high-resolution project layouts, official price sheets, logos, and promotional brochures to present to clients.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>Download high-resolution project layouts, official price sheets, logos, and promotional brochures to present to clients.</p>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h4 style={{ fontWeight: 800 }}>Nile Towers Layout Package</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Includes master plan drawings, duplex configurations, and specifications sheets.</p>
-              <button onClick={() => showToast('Brochure download triggered', 'success')} className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                <Download style={{ width: '14px', height: '14px' }} /> Download PDF (24MB)
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            {[
+              { title: 'Nile Towers Layout Package', desc: 'Includes master plan drawings, duplex configurations, and specifications sheets.', size: '24MB' },
+              { title: 'Dynamic Pricing Sheet', desc: 'Updated real-time EGP matrices including downpayment options and payment duration multipliers.', size: '1.2MB' },
+              { title: 'Developer Branding Logo kit', desc: 'Branded vector logotypes, icons, and colors to stamp your mediation agency banners.', size: '8.5MB' },
+            ].map(asset => (
+              <div key={asset.title} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h4 style={{ fontWeight: 800, margin: 0, fontSize: '0.92rem' }}>{asset.title}</h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, flexGrow: 1 }}>{asset.desc}</p>
+                <button onClick={() => showToast('Brochure download triggered', 'success')} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%', padding: '8px' }}>
+                  <i className="fa-solid fa-download"></i> Download PDF ({asset.size})
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* ======================= MODALS ========================= */}
+      {/* ======================================================== */}
+
+      {/* UNIT DETAILED SPECIFICATIONS MODAL */}
+      {selectedUnit && (
+        <div className="modal-backdrop" onClick={() => setSelectedUnit(null)}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '520px', padding: '28px' }} onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-house-chimney" style={{ color: 'var(--color-primary)' }}></i>
+                Unit #{selectedUnit.unit_number} {selectedUnit.building ? `(${selectedUnit.building})` : ''}
+              </h3>
+              <button onClick={() => setSelectedUnit(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
               </button>
             </div>
 
-            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h4 style={{ fontWeight: 800 }}>Dynamic Pricing Sheet</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Updated real-time EGP matrices including downpayment options and payment duration multipliers.</p>
-              <button onClick={() => showToast('Price list download triggered', 'success')} className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                <Download style={{ width: '14px', height: '14px' }} /> Download Excel (1.2MB)
-              </button>
+            {/* Specifications Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Unit Type', value: selectedUnit.type, icon: 'fa-solid fa-building' },
+                { label: 'Floor Level', value: selectedUnit.floor !== null ? `${selectedUnit.floor} Floor` : '—', icon: 'fa-solid fa-stairs' },
+                { label: 'Total Area', value: selectedUnit.area ? `${selectedUnit.area} m²` : selectedUnit.area_sqm ? `${selectedUnit.area_sqm} m²` : '—', icon: 'fa-solid fa-ruler-combined' },
+                { label: 'View Type', value: selectedUnit.view_type || '—', icon: 'fa-solid fa-eye' },
+                { label: 'Bedrooms', value: selectedUnit.bedrooms ?? '—', icon: 'fa-solid fa-bed' },
+                { label: 'Bathrooms', value: selectedUnit.bathrooms ?? '—', icon: 'fa-solid fa-bath' },
+                { label: 'Price', value: fmtPrice(selectedUnit.price), icon: 'fa-solid fa-tag', highlight: true },
+                { label: 'Status', value: selectedUnit.status, icon: 'fa-solid fa-circle-info', badge: true },
+              ].map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(50, 71, 58, 0.03)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+                  <i className={item.icon} style={{ color: 'var(--color-primary)', fontSize: '0.9rem', width: '16px', textAlign: 'center' }}></i>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{item.label}</div>
+                    {item.badge ? (
+                      <span className={`badge ${unitStatusBadge[item.value] || 'badge-info'}`} style={{ marginTop: '2px', display: 'inline-block' }}>{item.value}</span>
+                    ) : (
+                      <div style={{ fontSize: '0.85rem', fontWeight: item.highlight ? 800 : 700, color: item.highlight ? 'var(--color-success)' : 'var(--text-main)' }}>{item.value}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h4 style={{ fontWeight: 800 }}>Developer Branding Logo kit</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Branded vector logotypes, icons, and colors to stamp your mediation agency banners.</p>
-              <button onClick={() => showToast('Branding kit download triggered', 'success')} className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                <Download style={{ width: '14px', height: '14px' }} /> Download ZIP (8.5MB)
+            {/* Layout Arabic Description */}
+            <div className="glass-panel" style={{ padding: '16px 20px', background: 'rgba(50, 71, 58, 0.04)', borderColor: 'rgba(50, 71, 58, 0.1)', marginBottom: '24px' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i className="fa-solid fa-map-marked-alt" style={{ fontSize: '0.82rem' }}></i>
+                Unit Layout & Division — التقسيمة وتوزيع الغرف
+              </div>
+              <p style={{ margin: 0, fontSize: '0.88rem', lineHeight: '1.6', color: 'var(--text-main)', direction: 'rtl', textAlign: 'right', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                {selectedUnit.layout_description || 'تفاصيل التقسيمة غير متوفرة لهذا النموذج.'}
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button className="btn-secondary" onClick={() => setSelectedUnit(null)} style={{ padding: '10px 20px' }}>
+                Close
               </button>
+              {selectedUnit.status === 'available' && (
+                <button className="btn-primary" style={{ padding: '10px 20px' }}
+                  onClick={() => {
+                    if (leads.length === 0) {
+                      showToast('You must register at least one client lead lock first.', 'info');
+                      return;
+                    }
+                    setSelectedUnitObj(selectedUnit);
+                    setReserveForm(prev => ({ ...prev, unit_id: selectedUnit.id }));
+                    setShowReserveModal(true);
+                  }}>
+                  Submit Interest Request
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -884,44 +1056,54 @@ const BrokerPortal: React.FC = () => {
 
       {/* REGISTER LEAD LOCK MODAL */}
       {showLeadModal && (
-        <div className="modal-backdrop">
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '500px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Register Lead Lock (Anti-Poaching Protection)</h3>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Submit the customer contact details. If no active lock exists, the lead is exclusively locked to your brokerage profile for 90 days.</p>
+        <div className="modal-backdrop" onClick={() => setShowLeadModal(false)}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '500px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-user-lock" style={{ color: 'var(--color-primary)' }}></i> Register Lead Lock
+              </h3>
+              <button onClick={() => setShowLeadModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.4' }}>
+              Submit the customer contact details. If no active lock exists, the lead is exclusively locked to your brokerage profile for 90 days (Anti-Poaching Protection).
+            </p>
             
             <form onSubmit={handleRegisterLead} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="form-group">
-                  <label className="form-label">First Name</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">First Name *</label>
                   <input type="text" className="form-control" value={leadForm.first_name} onChange={e => setLeadForm({...leadForm, first_name: e.target.value})} required />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Last Name</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Last Name *</label>
                   <input type="text" className="form-control" value={leadForm.last_name} onChange={e => setLeadForm({...leadForm, last_name: e.target.value})} required />
                 </div>
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Phone</label>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Phone *</label>
                 <input type="tel" className="form-control" placeholder="+20..." value={leadForm.phone} onChange={e => setLeadForm({...leadForm, phone: e.target.value})} required />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Email</label>
                 <input type="email" className="form-control" value={leadForm.email} onChange={e => setLeadForm({...leadForm, email: e.target.value})} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Egyptian National ID</label>
-                <input type="text" className="form-control" value={leadForm.national_id} onChange={e => setLeadForm({...leadForm, national_id: e.target.value})} />
+                <input type="text" className="form-control" placeholder="14-digit Egyptian National ID" value={leadForm.national_id} onChange={e => setLeadForm({...leadForm, national_id: e.target.value})} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Budget (EGP)</label>
                 <input type="number" className="form-control" value={leadForm.budget} onChange={e => setLeadForm({...leadForm, budget: e.target.value})} />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Interested Project</label>
                 <select className="form-control" value={leadForm.interested_project_id} onChange={e => setLeadForm({...leadForm, interested_project_id: e.target.value})}>
                   <option value="">-- Choose Project --</option>
@@ -942,21 +1124,30 @@ const BrokerPortal: React.FC = () => {
 
       {/* REQUEST RESERVATION HOLD MODAL */}
       {showReserveModal && selectedUnitObj && (
-        <div className="modal-backdrop">
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '480px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Submit Client Interest / تسجيل اهتمام عميل</h3>
-            <p style={{ fontSize: '0.8rem', color: '#475569', marginTop: '-10px', marginBottom: '5px', lineHeight: '1.4' }}>
-              Select a client to indicate their interest in this unit. Submitting this request notifies the Company Sales Representative to follow up and coordinate booking procedures.
+        <div className="modal-backdrop" onClick={() => { setShowReserveModal(false); setSelectedUnitObj(null); }}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '480px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-primary)' }}></i> Client Interest Request
+              </h3>
+              <button onClick={() => { setShowReserveModal(false); setSelectedUnitObj(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.4' }}>
+              Select a client to indicate their interest in this unit. Submitting this request notifies the Company Sales Representative to coordinate booking procedures.
             </p>
-            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid var(--border-glass)' }}>
+
+            <div style={{ padding: '12px', background: 'rgba(50, 71, 58, 0.04)', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid var(--border-glass)' }}>
               <div>🏢 Unit Code: <strong>{selectedUnitObj.unit_number}</strong></div>
-              <div>📐 Area: {selectedUnitObj.area_sqm} sqm</div>
-              <div>💰 Price: {parseFloat(selectedUnitObj.price).toLocaleString()} EGP</div>
+              <div>📐 Area: {selectedUnitObj.area || selectedUnitObj.area_sqm || '—'} sqm</div>
+              <div>💰 Price: {fmtPrice(selectedUnitObj.price)}</div>
             </div>
 
             <form onSubmit={handleReserveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="form-group" style={{ marginBottom: '5px' }}>
-                <label className="form-label">Select Client (Must be locked under your profile)</label>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Select Client * (Locked under your profile)</label>
                 <select className="form-control" value={reserveForm.client_id} onChange={e => setReserveForm({...reserveForm, client_id: e.target.value})} required>
                   <option value="">-- Select Client --</option>
                   {leads.map(l => (
@@ -967,7 +1158,7 @@ const BrokerPortal: React.FC = () => {
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button type="button" className="btn-secondary" onClick={() => { setShowReserveModal(false); setSelectedUnitObj(null); }}>Cancel</button>
-                <button type="submit" className="btn-primary">Submit Interest Request</button>
+                <button type="submit" className="btn-primary">Submit Interest</button>
               </div>
             </form>
           </div>
@@ -976,29 +1167,38 @@ const BrokerPortal: React.FC = () => {
 
       {/* REQUEST COMMISSION PAYOUT MODAL */}
       {showPayoutModal && (
-        <div className="modal-backdrop">
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Submit Commission Invoice Payout</h3>
-            <div style={{ padding: '12px', background: 'rgba(16,185,129,0.05)', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', fontWeight: 700 }}>
+        <div className="modal-backdrop" onClick={() => setShowPayoutModal(false)}>
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '450px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-file-invoice-dollar" style={{ color: 'var(--color-success)' }}></i> Commission Invoice Payout
+              </h3>
+              <button onClick={() => setShowPayoutModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
+
+            <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#10b981', fontWeight: 700 }}>
               Available to request: {stats.available_balance.toLocaleString()} EGP
             </div>
 
             <form onSubmit={handlePayoutSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="form-group">
-                <label className="form-label">Request Amount (EGP)</label>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Request Amount (EGP) *</label>
                 <input type="number" className="form-control" max={stats.available_balance} value={payoutForm.amount} onChange={e => setPayoutForm({...payoutForm, amount: e.target.value})} required placeholder="Enter payout amount..." />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Upload Commercial Tax Invoice (PDF/Image)</label>
-                <div style={{ border: '2px dashed var(--border-glass)', padding: '15px', borderRadius: '6px', textAlign: 'center', cursor: 'pointer', fontSize: '0.75rem', color: '#94a3b8' }} onClick={() => showToast('Invoice PDF uploaded!', 'info')}>
+                <div style={{ border: '2px dashed var(--border-glass)', padding: '20px', borderRadius: '6px', textAlign: 'center', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-muted)' }} onClick={() => showToast('Invoice PDF uploaded!', 'info')}>
+                  <i className="fa-solid fa-file-pdf" style={{ fontSize: '1.5rem', marginBottom: '8px', display: 'block', color: 'var(--color-primary)' }}></i>
                   📄 Upload invoice document (Mock)
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowPayoutModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ background: '#10b981', border: 'none' }}>Submit Payout Request</button>
+                <button type="submit" className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981' }}>Submit Payout Request</button>
               </div>
             </form>
           </div>
@@ -1008,47 +1208,6 @@ const BrokerPortal: React.FC = () => {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
-};
-
-// Inline Layout Helper Styles
-const tabStyle = (isActive: boolean) => ({
-  padding: '10px 18px',
-  background: isActive ? 'rgba(92, 112, 100, 0.08)' : 'transparent', // Light primary green background tint for active
-  border: 'none',
-  borderBottom: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
-  color: isActive ? 'var(--color-primary)' : '#334155', // High-contrast text colors: primary for active, dark slate for inactive
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  fontSize: '0.85rem',
-  fontWeight: isActive ? 750 : 550,
-  transition: 'all 0.15s',
-  borderRadius: '6px 6px 0 0',
-});
-
-const statCardStyle = (bgColor: string, accentColor: string): React.CSSProperties => ({
-  padding: '20px',
-  background: bgColor,
-  borderLeft: `5px solid ${accentColor}`,
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  minHeight: '110px'
-});
-
-const statLabelStyle = {
-  fontSize: '0.75rem',
-  textTransform: 'uppercase' as const,
-  color: '#64748b',
-  fontWeight: 700,
-  letterSpacing: '0.05em'
-};
-
-const statValStyle = {
-  fontSize: '1.7rem',
-  fontWeight: 800,
-  marginTop: '6px'
 };
 
 export default BrokerPortal;

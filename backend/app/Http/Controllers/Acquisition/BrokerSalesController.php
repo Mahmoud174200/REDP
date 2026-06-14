@@ -439,10 +439,71 @@ class BrokerSalesController extends Controller
         $pendingPresentations = ClientPresentation::byBroker($user->id)->pending()->count();
         $escalatedCount    = ClientPresentation::byBroker($user->id)->escalated()->count();
 
-        $recentPresentations = ClientPresentation::byBroker($user->id)
-            ->with(['lead:id,first_name,last_name', 'project:id,name'])
-            ->orderBy('presented_at', 'desc')
-            ->limit(5)
+        // Subordinates Performance
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $subordinatesPerformance = [];
+
+        if (!empty($subordinateIds)) {
+            $subordinateUsers = User::whereIn('id', $subordinateIds)
+                ->with(['employeeHierarchy.position', 'employeeHierarchy.team'])
+                ->get();
+
+            foreach ($subordinateUsers as $subUser) {
+                $subBroker = Broker::where('user_id', $subUser->id)->first();
+                if ($subBroker) {
+                    $leadQuery = Lead::where('broker_id', $subBroker->id);
+
+                    $total = $leadQuery->count();
+                    $new = (clone $leadQuery)->byStatus('new')->count();
+                    $contacted = (clone $leadQuery)->byStatus('contacted')->count();
+                    $meetings = (clone $leadQuery)->byStatus('visit_scheduled')->count();
+                    $reservationsCount = Reservation::where('broker_id', $subBroker->id)->count();
+
+                    $commEarned = Commission::where('broker_id', $subBroker->id)
+                        ->where('status', 'approved')
+                        ->sum('gross_amount');
+
+                    $subordinatesPerformance[] = [
+                        'user_id' => $subUser->id,
+                        'name' => $subUser->name,
+                        'role' => $subUser->role,
+                        'position' => $subUser->employeeHierarchy?->position?->title ?? 'Broker Agent',
+                        'team' => $subUser->employeeHierarchy?->team?->name ?? 'No Team',
+                        'status' => $subUser->status,
+                        'stats' => [
+                            'total_leads' => $total,
+                            'new' => $new,
+                            'contacted' => $contacted,
+                            'meetings' => $meetings,
+                            'reservations' => $reservationsCount,
+                            'commissions_earned' => (float) $commEarned,
+                        ]
+                    ];
+                }
+            }
+        }
+
+        // Personal Commissions
+        $pendingComm = 0.0;
+        $approvedComm = 0.0;
+        $paidComm = 0.0;
+        $commCalculations = [];
+
+        if ($broker) {
+            $pendingComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'pending')->sum('gross_amount');
+            $approvedComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'approved')->sum('gross_amount');
+            $paidComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'paid')->sum('gross_amount');
+
+            $commCalculations = Commission::where('broker_id', $broker->id)
+                ->with(['lead', 'unit.project'])
+                ->latest()
+                ->limit(10)
+                ->get();
+        }
+
+        // Active Commission Rules for Tier 2
+        $commRules = \App\Models\CommissionRule::where('tier_type', 'tier_2')
+            ->where('status', 'active')
             ->get();
 
         return response()->json([
@@ -455,7 +516,14 @@ class BrokerSalesController extends Controller
                 'conversion_rate'      => $totalPresentations > 0
                     ? round(($escalatedCount / $totalPresentations) * 100, 1)
                     : 0,
+                'pending_commission'   => $pendingComm,
+                'approved_commission'  => $approvedComm,
+                'paid_commission'      => $paidComm,
+                'total_commission'     => $pendingComm + $approvedComm + $paidComm,
             ],
+            'subordinates_performance' => $subordinatesPerformance,
+            'commissions_history'       => $commCalculations,
+            'commission_rules'          => $commRules,
         ]);
     }
 

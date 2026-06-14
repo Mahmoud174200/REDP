@@ -3,7 +3,7 @@ import api from '../../services/api';
 import {
   Building2, Globe, MapPin, GitBranch, Users, Briefcase,
   Plus, Edit3, Trash2, ChevronDown, ChevronRight, Search,
-  ArrowRight, Shield, Network
+  ArrowRight, Shield, Network, Percent
 } from 'lucide-react';
 
 // ── Types ──
@@ -22,7 +22,7 @@ interface Position { id: string; title: string; code: string; company_id: string
 interface Hierarchy { id: string; user_id: string; company_id: string; branch_id: string; department_id: string; team_id: string; position_id: string; direct_manager_id: string; employee_number: string; status: string; user?: any; position?: any; department?: any; direct_manager?: any; }
 interface Delegation { id: string; delegator_id: string; delegate_id: string; type: string; reason: string; start_date: string; end_date: string; status: string; delegator?: any; delegate?: any; }
 
-type Tab = 'companies' | 'countries' | 'regions' | 'branches' | 'departments' | 'teams' | 'positions' | 'hierarchy' | 'delegations';
+type Tab = 'companies' | 'countries' | 'regions' | 'branches' | 'departments' | 'teams' | 'positions' | 'hierarchy' | 'delegations' | 'commissions';
 
 const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'companies', label: 'Companies', icon: Building2 },
@@ -34,6 +34,7 @@ const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'positions', label: 'Positions', icon: Briefcase },
   { key: 'hierarchy', label: 'Hierarchy', icon: ArrowRight },
   { key: 'delegations', label: 'Delegations', icon: Shield },
+  { key: 'commissions', label: 'Commissions', icon: Percent },
 ];
 
 // ── Generic Modal ──
@@ -80,6 +81,8 @@ const OrganizationManagement: React.FC = () => {
   const [hierarchy, setHierarchy] = useState<Hierarchy[]>([]);
   const [delegations, setDelegations] = useState<Delegation[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [commissions, setCommissions] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -92,6 +95,7 @@ const OrganizationManagement: React.FC = () => {
     { label: 'Branches', value: branches.length, icon: GitBranch, color: '#10b981' },
     { label: 'Departments', value: departments.length, icon: Network, color: '#f59e0b' },
     { label: 'Employees', value: hierarchy.length, icon: Users, color: '#8b5cf6' },
+    { label: 'Commission Rules', value: commissions.length, icon: Percent, color: '#10b981' },
   ];
 
   useEffect(() => {
@@ -101,7 +105,7 @@ const OrganizationManagement: React.FC = () => {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [comp, cntry, reg, br, dept, tm, pos, hier, del, usr] = await Promise.all([
+      const [comp, cntry, reg, br, dept, tm, pos, hier, del, usr, rules, projs] = await Promise.all([
         api.get('/v1/enterprise/companies'),
         api.get('/v1/enterprise/countries'),
         api.get('/v1/enterprise/regions'),
@@ -112,6 +116,8 @@ const OrganizationManagement: React.FC = () => {
         api.get('/v1/enterprise/hierarchy'),
         api.get('/v1/enterprise/delegations'),
         api.get('/v1/admin/users'),
+        api.get('/v1/enterprise/commissions/rules'),
+        api.get('/v1/admin/projects'),
       ]);
       setCompanies(comp.data?.data || []);
       setCountries(cntry.data?.data || []);
@@ -123,6 +129,8 @@ const OrganizationManagement: React.FC = () => {
       setHierarchy(hier.data?.data || []);
       setDelegations(del.data?.data || []);
       setUsers(usr.data?.data || []);
+      setCommissions(rules.data?.data || []);
+      setProjects(projs.data?.data || []);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -143,6 +151,7 @@ const OrganizationManagement: React.FC = () => {
         positions: '/v1/enterprise/positions',
         hierarchy: '/v1/enterprise/hierarchy/assign',
         delegations: '/v1/enterprise/delegations',
+        commissions: '/v1/enterprise/commissions/rules',
       };
       if (editItem?.id && activeTab !== 'hierarchy') {
         await api.put(`${endpoints[activeTab]}/${editItem.id}`, formData);
@@ -166,6 +175,7 @@ const OrganizationManagement: React.FC = () => {
       departments: '/v1/enterprise/departments',
       teams: '/v1/enterprise/teams',
       positions: '/v1/enterprise/positions',
+      commissions: '/v1/enterprise/commissions/rules',
     };
     if (!endpoints[activeTab]) return;
     try {
@@ -331,16 +341,29 @@ const OrganizationManagement: React.FC = () => {
         return (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>
-              <th style={headerStyle}>Employee</th><th style={headerStyle}>Number</th><th style={headerStyle}>Position</th><th style={headerStyle}>Department</th><th style={headerStyle}>Direct Manager</th><th style={headerStyle}>Status</th>
+              <th style={headerStyle}>Employee</th><th style={headerStyle}>Number</th><th style={headerStyle}>Position</th><th style={headerStyle}>Department</th><th style={headerStyle}>Direct Manager</th><th style={headerStyle}>Status</th><th style={headerStyle}>Actions</th>
             </tr></thead>
             <tbody>{hierarchy.filter(filterFn).map(h => (
-              <tr key={h.id}>
+              <tr key={h.id} style={{ transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.3)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 <td style={cellStyle}><strong>{h.user?.name || '—'}</strong><div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{h.user?.email}</div></td>
                 <td style={cellStyle}>{h.employee_number || '—'}</td>
                 <td style={cellStyle}>{h.position?.title || '—'}</td>
                 <td style={cellStyle}>{h.department?.name || '—'}</td>
-                <td style={cellStyle}>{h.direct_manager?.name || '—'}</td>
+                <td style={cellStyle}>
+                  {h.direct_manager ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(59, 130, 246, 0.1)', color: '#2563eb' }}>
+                      👤 {h.direct_manager.name}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>CEO Direct Report</span>
+                  )}
+                </td>
                 <td style={cellStyle}>{statusBadge(h.status)}</td>
+                <td style={cellStyle}>
+                  <button className="btn-ghost" onClick={() => openEdit(h)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '0.72rem', background: 'rgba(50, 71, 58, 0.05)', borderRadius: '4px', border: '1px solid var(--border-glass)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <Edit3 size={12} /> Edit Manager
+                  </button>
+                </td>
               </tr>
             ))}</tbody>
           </table>
@@ -360,6 +383,62 @@ const OrganizationManagement: React.FC = () => {
                 <td style={cellStyle}><div style={{ fontSize: '0.75rem' }}>{new Date(d.start_date).toLocaleDateString()} → {new Date(d.end_date).toLocaleDateString()}</div></td>
                 <td style={cellStyle}>{statusBadge(d.status)}</td>
                 <td style={cellStyle}>{d.status === 'active' && <button className="btn-ghost" onClick={async () => { await api.post(`/v1/enterprise/delegations/${d.id}/revoke`); loadAll(); }}>Revoke</button>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        );
+      case 'commissions':
+        return (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr>
+              <th style={headerStyle}>Rule Title</th>
+              <th style={headerStyle}>Percentage</th>
+              <th style={headerStyle}>Target Tier/Role</th>
+              <th style={headerStyle}>Project Target</th>
+              <th style={headerStyle}>Unit Type</th>
+              <th style={headerStyle}>Deal Size Range</th>
+              <th style={headerStyle}>Status</th>
+              <th style={headerStyle}>Actions</th>
+            </tr></thead>
+            <tbody>{commissions.filter(filterFn).map(c => (
+              <tr key={c.id} style={{ transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.3)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <td style={cellStyle}><strong>{c.title}</strong></td>
+                <td style={cellStyle}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                    {parseFloat(c.commission_percentage).toFixed(2)}%
+                  </span>
+                </td>
+                <td style={cellStyle}>
+                  {badge(c.tier_type.replace('_', ' '), c.tier_type.startsWith('tier') ? '#8b5cf6' : '#6366f1')}
+                </td>
+                <td style={cellStyle}>
+                  {c.project ? (
+                    <span style={{ fontWeight: 600 }}>🏢 {c.project.name}</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>🌍 Global (All Projects)</span>
+                  )}
+                </td>
+                <td style={cellStyle}>
+                  {c.unit_type ? (
+                    badge(c.unit_type, '#06b6d4')
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Any Type</span>
+                  )}
+                </td>
+                <td style={cellStyle}>
+                  {parseFloat(c.min_deal_size) === 0 && parseFloat(c.max_deal_size) >= 999999999 ? (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Any size</span>
+                  ) : (
+                    <div style={{ fontSize: '0.75rem' }}>
+                      {parseFloat(c.min_deal_size).toLocaleString()} - {parseFloat(c.max_deal_size).toLocaleString()} EGP
+                    </div>
+                  )}
+                </td>
+                <td style={cellStyle}>{statusBadge(c.status)}</td>
+                <td style={cellStyle}>
+                  <button className="btn-ghost" onClick={() => openEdit(c)} style={{ marginRight: 6 }}><Edit3 size={14} /></button>
+                  <button className="btn-ghost" onClick={() => handleDelete(c.id)}><Trash2 size={14} /></button>
+                </td>
               </tr>
             ))}</tbody>
           </table>
@@ -458,16 +537,76 @@ const OrganizationManagement: React.FC = () => {
         </>);
 
       case 'hierarchy':
+        const isEditing = !!editItem;
         return (<>
-          <Field label="Employee"><select style={selectStyle} value={formData.user_id || ''} onChange={e => set('user_id', e.target.value)}><option value="">— Select —</option>{users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}</select></Field>
-          <Field label="Company"><select style={selectStyle} value={formData.company_id || ''} onChange={e => set('company_id', e.target.value)}><option value="">— Select —</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
-          <Field label="Branch"><select style={selectStyle} value={formData.branch_id || ''} onChange={e => set('branch_id', e.target.value || null)}><option value="">— Select —</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
-          <Field label="Department"><select style={selectStyle} value={formData.department_id || ''} onChange={e => set('department_id', e.target.value || null)}><option value="">— Select —</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></Field>
-          <Field label="Team"><select style={selectStyle} value={formData.team_id || ''} onChange={e => set('team_id', e.target.value || null)}><option value="">— Select —</option>{teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
-          <Field label="Position"><select style={selectStyle} value={formData.position_id || ''} onChange={e => set('position_id', e.target.value || null)}><option value="">— Select —</option>{positions.map(p => <option key={p.id} value={p.id}>{p.title} (L{p.level})</option>)}</select></Field>
-          <Field label="Direct Manager"><select style={selectStyle} value={formData.direct_manager_id || ''} onChange={e => set('direct_manager_id', e.target.value || null)}><option value="">— None —</option>{users.filter(u => u.id !== formData.user_id).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
-          <Field label="Employee Number"><input style={inputStyle} value={formData.employee_number || ''} onChange={e => set('employee_number', e.target.value)} placeholder="EMP-001" /></Field>
-          <Field label="Hire Date"><input style={inputStyle} type="date" value={formData.hire_date || ''} onChange={e => set('hire_date', e.target.value)} /></Field>
+          {isEditing && (
+            <div style={{ padding: '10px 14px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md)', marginBottom: '18px', borderLeft: '4px solid #2563eb', fontSize: '0.82rem', color: '#1e3a8a', fontWeight: 600 }}>
+              👤 Modifying manager and reporting structure for: {editItem.user?.name}
+            </div>
+          )}
+          
+          <Field label="Employee">
+            <select style={selectStyle} value={formData.user_id || ''} onChange={e => set('user_id', e.target.value)} disabled={isEditing}>
+              <option value="">— Select Employee —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+            </select>
+          </Field>
+
+          <Field label="Direct Manager (Reporting Line)">
+            <select style={selectStyle} value={formData.direct_manager_id || ''} onChange={e => set('direct_manager_id', e.target.value || null)}>
+              <option value="">— No Direct Manager (Direct Report to CEO) —</option>
+              {users.filter(u => u.id !== formData.user_id).map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+            </select>
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Company">
+              <select style={selectStyle} value={formData.company_id || ''} onChange={e => set('company_id', e.target.value)} disabled={isEditing}>
+                <option value="">— Select Company —</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Branch">
+              <select style={selectStyle} value={formData.branch_id || ''} onChange={e => set('branch_id', e.target.value || null)}>
+                <option value="">— Select Branch —</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Department">
+              <select style={selectStyle} value={formData.department_id || ''} onChange={e => set('department_id', e.target.value || null)}>
+                <option value="">— Select Department —</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Team">
+              <select style={selectStyle} value={formData.team_id || ''} onChange={e => set('team_id', e.target.value || null)}>
+                <option value="">— Select Team —</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <Field label="Position">
+            <select style={selectStyle} value={formData.position_id || ''} onChange={e => set('position_id', e.target.value || null)}>
+              <option value="">— Select Position —</option>
+              {positions.map(p => <option key={p.id} value={p.id}>{p.title} (Level {p.level})</option>)}
+            </select>
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Employee Number">
+              <input style={inputStyle} value={formData.employee_number || ''} onChange={e => set('employee_number', e.target.value)} placeholder="EMP-001" />
+            </Field>
+
+            <Field label="Hire Date">
+              <input style={inputStyle} type="date" value={formData.hire_date || ''} onChange={e => set('hire_date', e.target.value)} />
+            </Field>
+          </div>
         </>);
 
       case 'delegations':
@@ -481,6 +620,64 @@ const OrganizationManagement: React.FC = () => {
             <Field label="End Date"><input style={inputStyle} type="date" value={formData.end_date?.split('T')[0] || ''} onChange={e => set('end_date', e.target.value)} /></Field>
           </div>
           <Field label="Reason"><textarea style={{ ...inputStyle, minHeight: 60 }} value={formData.reason || ''} onChange={e => set('reason', e.target.value)} placeholder="Annual leave coverage..." /></Field>
+        </>);
+
+      case 'commissions':
+        return (<>
+          <Field label="Rule Title *">
+            <input style={inputStyle} value={formData.title || ''} onChange={e => set('title', e.target.value)} placeholder="e.g. TeleSales Standard Rate" required />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Commission Percentage (%) *">
+              <input style={inputStyle} type="number" step="0.01" value={formData.commission_percentage !== undefined ? formData.commission_percentage : ''} onChange={e => set('commission_percentage', parseFloat(e.target.value))} placeholder="e.g. 2.50" required />
+            </Field>
+            <Field label="Target Tier/Role *">
+              <select style={selectStyle} value={formData.tier_type || 'sales_agent'} onChange={e => set('tier_type', e.target.value)}>
+                <option value="tier_1">Tier 1: Tele-Sales Agent</option>
+                <option value="tier_2">Tier 2: External Broker</option>
+                <option value="tier_3">Tier 3: Company Sales Agent</option>
+                <option value="sales_agent">Sales Agent (Standard)</option>
+                <option value="broker">Broker (Standard)</option>
+                <option value="manager">Manager</option>
+                <option value="director">Director</option>
+              </select>
+            </Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Project Target">
+              <select style={selectStyle} value={formData.project_id || ''} onChange={e => set('project_id', e.target.value || null)}>
+                <option value="">— Global (All Projects) —</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Unit Type Target">
+              <select style={selectStyle} value={formData.unit_type || ''} onChange={e => set('unit_type', e.target.value || null)}>
+                <option value="">— All Unit Types —</option>
+                <option value="Apartment">Apartment</option>
+                <option value="Duplex">Duplex</option>
+                <option value="Villa">Villa</option>
+                <option value="Penthouse">Penthouse</option>
+                <option value="Commercial">Commercial</option>
+                <option value="Administrative">Administrative</option>
+              </select>
+            </Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Min Deal Size (EGP)">
+              <input style={inputStyle} type="number" value={formData.min_deal_size !== undefined ? formData.min_deal_size : ''} onChange={e => set('min_deal_size', e.target.value ? parseFloat(e.target.value) : 0)} placeholder="0" />
+            </Field>
+            <Field label="Max Deal Size (EGP)">
+              <input style={inputStyle} type="number" value={formData.max_deal_size !== undefined ? formData.max_deal_size : ''} onChange={e => set('max_deal_size', e.target.value ? parseFloat(e.target.value) : 999999999)} placeholder="999,999,999" />
+            </Field>
+          </div>
+          {editItem && (
+            <Field label="Status *">
+              <select style={selectStyle} value={formData.status || 'active'} onChange={e => set('status', e.target.value)}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </Field>
+          )}
         </>);
 
       default: return null;

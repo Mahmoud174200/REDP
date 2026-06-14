@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Acquisition;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Project;
+use App\Models\Unit;
 use App\Models\ClientJourneyLog;
 use App\Services\AuditLogService;
 use App\Services\TierAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Models\User;
 
 /**
  * ─────────────────────────────────────────────────────────
@@ -141,6 +143,59 @@ class TeleSalesController extends Controller
             'message' => 'Lead created and assigned to you.',
             'data'    => TierAccessService::filterLeadForRole($lead->toArray(), $user),
         ], 201);
+    }
+
+    /**
+     * PUT /api/v1/sales/tele/leads/{id}
+     * Update lead details (only if assigned to current agent).
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $lead = Lead::forTier($user)->findOrFail($id);
+
+        $fields = $request->validate([
+            'first_name'            => 'required|string|max:100',
+            'last_name'             => 'required|string|max:100',
+            'email'                 => 'nullable|email|max:255',
+            'phone'                 => 'required|string|max:20',
+            'source'                => 'nullable|string|in:facebook,google,tiktok,direct,referral',
+            'budget'                => 'nullable|numeric|min:0',
+            'payment_method'        => 'nullable|string|in:cash,installment',
+            'interested_project_id' => 'nullable|uuid|exists:projects,id',
+        ]);
+
+        if ($fields['phone'] !== $lead->phone) {
+            $existing = Lead::where('phone', $fields['phone'])->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A lead with this phone number already exists.',
+                ], 409);
+            }
+        }
+
+        $lead->update([
+            'first_name'            => $fields['first_name'],
+            'last_name'             => $fields['last_name'],
+            'email'                 => $fields['email'] ?? null,
+            'phone'                 => $fields['phone'],
+            'source'                => $fields['source'] ?? 'direct',
+            'budget'                => $fields['budget'] ?? null,
+            'payment_method'        => $fields['payment_method'] ?? 'installment',
+            'interested_project_id' => $fields['interested_project_id'] ?? null,
+        ]);
+
+        AuditLogService::log('LEAD_UPDATE', $user->id, [
+            'lead_id' => $lead->id,
+            'tier'    => 'tier_1',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead updated successfully.',
+            'data'    => TierAccessService::filterLeadForRole($lead->fresh()->toArray(), $user),
+        ]);
     }
 
     /**
@@ -311,30 +366,161 @@ class TeleSalesController extends Controller
     }
 
     // ════════════════════════════════════════════════
-    // PROJECT BROWSING (READ-ONLY, BASIC INFO)
+    // PROJECT & INVENTORY BROWSING
     // ════════════════════════════════════════════════
 
     /**
      * GET /api/v1/sales/tele/projects
-     * Returns project names and basic categories only.
-     * NO pricing, NO unit details, NO payment plans.
+     * Returns projects with summary stats (unit counts, price range, types).
      */
     public function listProjects(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $projects = Project::orderBy('name')->get();
 
-        $projects = Project::select('id', 'name', 'location', 'status')
-            ->orderBy('name')
-            ->get();
+        $data = $projects->map(function ($project) {
+            $units = Unit::where('project_id', $project->id)->get();
+            $availableUnits = $units->where('status', 'available');
 
-        // Extra safety: run through tier filter
-        $filtered = $projects->map(fn($p) =>
-            TierAccessService::filterProjectForRole($p->toArray(), $user)
-        );
+            return [
+                'id'             => $project->id,
+                'name'           => $project->name,
+                'location'       => $project->location,
+                'status'         => $project->status,
+                'delivery_date'  => $project->delivery_date,
+                'total_units'    => $units->count(),
+                'available_units'=> $availableUnits->count(),
+                'sold_units'     => $units->whereIn('status', ['sold', 'reserved'])->count(),
+                'price_min'      => $units->min('price'),
+                'price_max'      => $units->max('price'),
+                'unit_types'     => $units->pluck('type')->unique()->values()->toArray(),
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data'    => $filtered,
+            'data'    => $data,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/tele/projects/{projectId}
+     * Returns full project details with all units.
+     */
+    public function showProject(Request $request, string $projectId): JsonResponse
+    {
+        $project = Project::findOrFail($projectId);
+        $units = Unit::where('project_id', $projectId)
+            ->orderBy('floor')
+            ->orderBy('unit_number')
+            ->get();
+
+        // Group units by type for summary
+        $unitsByType = $units->groupBy('type')->map(function ($group, $type) {
+            return [
+                'type'           => $type,
+                'count'          => $group->count(),
+                'available'      => $group->where('status', 'available')->count(),
+                'price_min'      => $group->min('price'),
+                'price_max'      => $group->max('price'),
+                'area_min'       => $group->min('area'),
+                'area_max'       => $group->max('area'),
+                'bedrooms_range' => $group->pluck('bedrooms')->filter()->unique()->sort()->values()->toArray(),
+            ];
+        })->values();
+
+        // Generate standard payment plan templates based on unit prices
+        $avgPrice = $units->avg('price') ?? 0;
+        
+        $dbPlans = \App\Models\ProjectPaymentPlan::where('project_id', $projectId)->get();
+        if ($dbPlans->isNotEmpty()) {
+            $paymentPlans = $dbPlans->map(function ($pp) use ($avgPrice) {
+                $remPct = 1 - ($pp->down_payment_pct / 100);
+                return [
+                    'name'              => $pp->name,
+                    'name_ar'           => $pp->name_ar,
+                    'down_payment_pct'  => (float) $pp->down_payment_pct,
+                    'installments'      => (int) $pp->installments,
+                    'duration_months'   => (int) $pp->installments,
+                    'monthly_amount'    => $pp->installments > 0 ? round($avgPrice * $remPct / $pp->installments, 2) : 0,
+                    'discount_pct'      => (float) $pp->discount_pct,
+                    'description'       => $pp->description,
+                ];
+            })->toArray();
+        } else {
+            $paymentPlans = [
+                [
+                    'name'              => 'Cash Payment',
+                    'name_ar'           => 'كاش',
+                    'down_payment_pct'  => 100,
+                    'installments'      => 0,
+                    'duration_months'   => 0,
+                    'monthly_amount'    => 0,
+                    'discount_pct'      => 10,
+                    'description'       => 'Full cash payment with 10% discount',
+                ],
+                [
+                    'name'              => '5-Year Plan',
+                    'name_ar'           => 'خطة 5 سنوات',
+                    'down_payment_pct'  => 20,
+                    'installments'      => 60,
+                    'duration_months'   => 60,
+                    'monthly_amount'    => round($avgPrice * 0.80 / 60, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '20% down payment + 60 monthly installments',
+                ],
+                [
+                    'name'              => '7-Year Plan',
+                    'name_ar'           => 'خطة 7 سنوات',
+                    'down_payment_pct'  => 15,
+                    'installments'      => 84,
+                    'duration_months'   => 84,
+                    'monthly_amount'    => round($avgPrice * 0.85 / 84, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '15% down payment + 84 monthly installments',
+                ],
+                [
+                    'name'              => '10-Year Plan',
+                    'name_ar'           => 'خطة 10 سنوات',
+                    'down_payment_pct'  => 10,
+                    'installments'      => 120,
+                    'duration_months'   => 120,
+                    'monthly_amount'    => round($avgPrice * 0.90 / 120, 2),
+                    'discount_pct'      => 0,
+                    'description'       => '10% down payment + 120 monthly installments',
+                ],
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'project'        => [
+                    'id'            => $project->id,
+                    'name'          => $project->name,
+                    'location'      => $project->location,
+                    'status'        => $project->status,
+                    'delivery_date' => $project->delivery_date,
+                    'total_units'   => $units->count(),
+                    'available_units' => $units->where('status', 'available')->count(),
+                ],
+                'units_summary'  => $unitsByType,
+                'units'          => $units->map(fn($u) => [
+                    'id'           => $u->id,
+                    'unit_number'  => $u->unit_number,
+                    'floor'        => $u->floor,
+                    'type'         => $u->type,
+                    'area'         => $u->area,
+                    'bedrooms'     => $u->bedrooms,
+                    'bathrooms'    => $u->bathrooms,
+                    'view_type'    => $u->view_type,
+                    'building'     => $u->building,
+                    'layout_description' => $u->layout_description,
+                    'price'        => $u->price,
+                    'status'       => $u->status,
+                    'handover_date'=> $u->handover_date,
+                ])->values(),
+                'payment_plans'  => $paymentPlans,
+            ],
         ]);
     }
 
@@ -358,6 +544,65 @@ class TeleSalesController extends Controller
                              ->where('current_tier', '!=', 'tier_1')
                              ->count();
 
+        // 1. Hierarchy / Subordinates Performance
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $subordinatesPerformance = [];
+
+        if (!empty($subordinateIds)) {
+            $subordinateUsers = User::whereIn('id', $subordinateIds)
+                ->with(['employeeHierarchy.position', 'employeeHierarchy.team'])
+                ->get();
+
+            foreach ($subordinateUsers as $subUser) {
+                $leadQuery = Lead::where('tele_sales_agent_id', $subUser->id);
+
+                $total = $leadQuery->count();
+                $new = (clone $leadQuery)->byStatus('new')->count();
+                $contacted = (clone $leadQuery)->byStatus('contacted')->count();
+                $scheduled = (clone $leadQuery)->byStatus('visit_scheduled')->count();
+                $subTransferred = Lead::where('tele_sales_agent_id', $subUser->id)
+                    ->where('current_tier', '!=', 'tier_1')
+                    ->count();
+
+                $commEarned = \App\Models\CommissionCalculation::where('user_id', $subUser->id)
+                    ->where('status', 'approved')
+                    ->sum('calculated_amount');
+
+                $subordinatesPerformance[] = [
+                    'user_id' => $subUser->id,
+                    'name' => $subUser->name,
+                    'role' => $subUser->role,
+                    'position' => $subUser->employeeHierarchy?->position?->title ?? 'TeleSales Agent',
+                    'team' => $subUser->employeeHierarchy?->team?->name ?? 'No Team',
+                    'status' => $subUser->status,
+                    'stats' => [
+                        'total_leads' => $total,
+                        'new' => $new,
+                        'contacted' => $contacted,
+                        'meetings' => $scheduled,
+                        'transferred' => $subTransferred,
+                        'commissions_earned' => (float) $commEarned,
+                    ]
+                ];
+            }
+        }
+
+        // 2. Personal Commissions ledger summary
+        $pendingComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'pending')->sum('calculated_amount');
+        $approvedComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'approved')->sum('calculated_amount');
+        $paidComm = (float) \App\Models\CommissionCalculation::where('user_id', $user->id)->where('status', 'paid')->sum('calculated_amount');
+
+        $commCalculations = \App\Models\CommissionCalculation::where('user_id', $user->id)
+            ->with(['contract.unit.project'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        // 3. Active Commission Rules for Tier 1
+        $commRules = \App\Models\CommissionRule::where('tier_type', 'tier_1')
+            ->where('status', 'active')
+            ->get();
+
         return response()->json([
             'success' => true,
             'stats'   => [
@@ -366,7 +611,14 @@ class TeleSalesController extends Controller
                 'contacted'         => $contacted,
                 'meetings_scheduled'=> $scheduled,
                 'transferred'       => $transferred,
+                'pending_commission'=> $pendingComm,
+                'approved_commission'=> $approvedComm,
+                'paid_commission'   => $paidComm,
+                'total_commission'  => $pendingComm + $approvedComm + $paidComm,
             ],
+            'subordinates_performance' => $subordinatesPerformance,
+            'commissions_history'       => $commCalculations,
+            'commission_rules'          => $commRules,
         ]);
     }
 }

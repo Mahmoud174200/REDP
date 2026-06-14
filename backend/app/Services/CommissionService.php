@@ -91,12 +91,21 @@ class CommissionService
 
                 switch ($rule->tier_type) {
                     case 'broker':
+                    case 'tier_2':
                         if ($brokerId) {
                             $recipientId = $brokerId;
                             $recipientType = 'broker';
                         }
                         break;
                     case 'sales_agent':
+                    case 'tier_3':
+                        if ($salesRepId) {
+                            $recipientId = $salesRepId;
+                            $recipientType = 'user';
+                            $isUser = true;
+                        }
+                        break;
+                    case 'tier_1':
                         if ($salesRepId) {
                             $recipientId = $salesRepId;
                             $recipientType = 'user';

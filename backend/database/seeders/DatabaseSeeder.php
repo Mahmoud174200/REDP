@@ -189,6 +189,30 @@ class DatabaseSeeder extends Seeder
             'status' => 'active'
         ]);
 
+        $remaxCompany = Company::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'RE/MAX Real Estate Brokerage',
+            'legal_name' => 'RE/MAX SAE',
+            'registration_number' => 'REG-999999',
+            'tax_id' => 'TAX-999999',
+            'type' => 'subsidiary',
+            'parent_company_id' => $holdingCompany->id,
+            'address' => 'Zamalek',
+            'city' => 'Cairo',
+            'country_id' => $egypt->id,
+            'phone' => '+20288887777',
+            'email' => 'remax@redp-broker.com',
+            'status' => 'active'
+        ]);
+
+        $remaxTeam = Team::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'RE/MAX Alpha Team',
+            'department_id' => $salesDept->id,
+            'company_id' => $remaxCompany->id,
+            'status' => 'active'
+        ]);
+
         // Positions
         $ceoPos = Position::create([
             'id' => (string) Str::uuid(),
@@ -329,19 +353,41 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        $brokerUser = User::create([
+        // Tier 1: TeleSales Head, Team Leader & Agent
+        $teleSalesHead = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ahmed Broker',
-            'email' => 'broker@redp.com',
+            'name' => 'Tarek TeleSales Head',
+            'email' => 'tele_sales_head@redp.com',
             'password' => bcrypt('password'),
-            'phone' => '+201005555555',
-            'role' => 'broker',
+            'phone' => '+201005555513',
+            'role' => 'tele_sales',
             'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'position_id' => $deptHeadPos->id,
+            'employee_number' => 'EMP-0016'
+        ]);
+
+        $teleSalesManager = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Mariam TeleSales Manager',
+            'email' => 'tele_sales_manager@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555512',
+            'role' => 'tele_sales',
+            'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $teleSalesTeam->id,
+            'position_id' => $teamLeaderPos->id,
+            'employee_number' => 'EMP-0013'
         ]);
 
         $teleSalesUser = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Sara TeleSales',
+            'name' => 'Sara TeleSales Agent',
             'email' => 'tele_sales@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201005555511',
@@ -355,9 +401,62 @@ class DatabaseSeeder extends Seeder
             'employee_number' => 'EMP-0005'
         ]);
 
+        // Tier 2: Broker Owner, Team Leader, Agent & Freelancer
+        $brokerOwner = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'John Broker Owner',
+            'email' => 'broker_owner@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555577',
+            'role' => 'broker',
+            'status' => 'active',
+            'company_id' => $remaxCompany->id,
+            'position_id' => $deptHeadPos->id,
+            'employee_number' => 'EMP-BR01'
+        ]);
+
+        $brokerTeamLeader = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Hany Broker Leader',
+            'email' => 'broker_team_leader@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555578',
+            'role' => 'broker',
+            'status' => 'active',
+            'company_id' => $remaxCompany->id,
+            'team_id' => $remaxTeam->id,
+            'position_id' => $teamLeaderPos->id,
+            'employee_number' => 'EMP-BR02'
+        ]);
+
+        $brokerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Ahmed Broker Agent',
+            'email' => 'broker@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555555',
+            'role' => 'broker',
+            'status' => 'active',
+            'company_id' => $remaxCompany->id,
+            'team_id' => $remaxTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-BR03'
+        ]);
+
+        $freelanceBrokerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Youssef Freelance Broker',
+            'email' => 'freelance_broker@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555579',
+            'role' => 'broker',
+            'status' => 'active',
+        ]);
+
+        // Tier 3: Company Sales Manager, Team Leader & Agent
         $companySalesUser = User::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Karim CompanySales',
+            'name' => 'Karim CompanySales Head',
             'email' => 'company_sales@redp.com',
             'password' => bcrypt('password'),
             'phone' => '+201005555522',
@@ -368,6 +467,38 @@ class DatabaseSeeder extends Seeder
             'department_id' => $salesDept->id,
             'position_id' => $deptHeadPos->id,
             'employee_number' => 'EMP-0003'
+        ]);
+
+        $companySalesLeader = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Noha CompanySales Leader',
+            'email' => 'company_sales_leader@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555523',
+            'role' => 'company_sales',
+            'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $teamLeaderPos->id,
+            'employee_number' => 'EMP-0014'
+        ]);
+
+        $companySalesAgent = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Yasser CompanySales Agent',
+            'email' => 'company_sales_agent@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201005555524',
+            'role' => 'company_sales',
+            'status' => 'active',
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0015'
         ]);
 
         $brokerManagerUser = User::create([
@@ -475,6 +606,22 @@ class DatabaseSeeder extends Seeder
             'employee_number' => 'EMP-0011'
         ]);
 
+        $handoverOfficerUser = User::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Apartment Handover Specialist',
+            'email' => 'handover@redp.com',
+            'password' => bcrypt('password'),
+            'phone' => '+201003333344',
+            'role' => 'handover_officer',
+            'status' => 'active',
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'employee_number' => 'EMP-0012'
+        ]);
+
         // ── 1.1 Create Employee Hierarchy Map (CEO down to Officer) ──
         // CEO
         EmployeeHierarchy::create([
@@ -517,7 +664,23 @@ class DatabaseSeeder extends Seeder
             'status' => 'active'
         ]);
 
-        // Sales Agent (reports to Commercial Sales Division Head)
+        // Company Sales Leader (reports to Karim)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $companySalesLeader->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $teamLeaderPos->id,
+            'direct_manager_id' => $companySalesUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0014',
+            'hire_date' => '2024-01-10',
+            'status' => 'active'
+        ]);
+
+        // Sales Agent (reports to Noha)
         EmployeeHierarchy::create([
             'id' => (string) Str::uuid(),
             'user_id' => $salesAgent->id,
@@ -526,14 +689,61 @@ class DatabaseSeeder extends Seeder
             'department_id' => $salesDept->id,
             'team_id' => $directSalesTeam->id,
             'position_id' => $officerPos->id,
-            'direct_manager_id' => $companySalesUser->id,
-            'indirect_manager_id' => $executiveUser->id,
+            'direct_manager_id' => $companySalesLeader->id,
+            'indirect_manager_id' => $companySalesUser->id,
             'employee_number' => 'EMP-0004',
             'hire_date' => '2024-01-10',
             'status' => 'active'
         ]);
 
-        // TeleSales (reports to Commercial Sales Division Head)
+        // Company Sales Agent (reports to Noha)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $companySalesAgent->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $directSalesTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $companySalesLeader->id,
+            'indirect_manager_id' => $companySalesUser->id,
+            'employee_number' => 'EMP-0015',
+            'hire_date' => '2024-01-10',
+            'status' => 'active'
+        ]);
+
+        // TeleSales Head (reports to Karim)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $teleSalesHead->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'position_id' => $deptHeadPos->id,
+            'direct_manager_id' => $companySalesUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0016',
+            'hire_date' => '2024-03-01',
+            'status' => 'active'
+        ]);
+
+        // TeleSales Manager (reports to Tarek)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $teleSalesManager->id,
+            'company_id' => $holdingCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $salesDept->id,
+            'team_id' => $teleSalesTeam->id,
+            'position_id' => $teamLeaderPos->id,
+            'direct_manager_id' => $teleSalesHead->id,
+            'indirect_manager_id' => $companySalesUser->id,
+            'employee_number' => 'EMP-0013',
+            'hire_date' => '2024-03-01',
+            'status' => 'active'
+        ]);
+
+        // TeleSales Agent (reports to Mariam)
         EmployeeHierarchy::create([
             'id' => (string) Str::uuid(),
             'user_id' => $teleSalesUser->id,
@@ -542,10 +752,46 @@ class DatabaseSeeder extends Seeder
             'department_id' => $salesDept->id,
             'team_id' => $teleSalesTeam->id,
             'position_id' => $officerPos->id,
-            'direct_manager_id' => $companySalesUser->id,
-            'indirect_manager_id' => $executiveUser->id,
+            'direct_manager_id' => $teleSalesManager->id,
+            'indirect_manager_id' => $teleSalesHead->id,
             'employee_number' => 'EMP-0005',
             'hire_date' => '2024-03-01',
+            'status' => 'active'
+        ]);
+
+        // Broker Owner (reports to CEO/Admin)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $brokerOwner->id,
+            'company_id' => $remaxCompany->id,
+            'position_id' => $deptHeadPos->id,
+            'direct_manager_id' => $admin->id,
+            'employee_number' => 'EMP-BR01',
+            'hire_date' => '2024-01-01',
+            'status' => 'active'
+        ]);
+
+        // Broker Team Leader (reports to Broker Owner)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $brokerTeamLeader->id,
+            'company_id' => $remaxCompany->id,
+            'position_id' => $teamLeaderPos->id,
+            'direct_manager_id' => $brokerOwner->id,
+            'employee_number' => 'EMP-BR02',
+            'hire_date' => '2024-01-01',
+            'status' => 'active'
+        ]);
+
+        // Broker Agent (reports to Broker Team Leader)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $brokerUser->id,
+            'company_id' => $remaxCompany->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $brokerTeamLeader->id,
+            'employee_number' => 'EMP-BR03',
+            'hire_date' => '2024-01-01',
             'status' => 'active'
         ]);
 
@@ -637,6 +883,22 @@ class DatabaseSeeder extends Seeder
             'status' => 'active'
         ]);
 
+        // Handover Officer (reports to Project Manager)
+        EmployeeHierarchy::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $handoverOfficerUser->id,
+            'company_id' => $devCompany->id,
+            'branch_id' => $mainBranch->id,
+            'department_id' => $opsDept->id,
+            'team_id' => $inspectionsTeam->id,
+            'position_id' => $officerPos->id,
+            'direct_manager_id' => $projectManagerUser->id,
+            'indirect_manager_id' => $executiveUser->id,
+            'employee_number' => 'EMP-0012',
+            'hire_date' => '2024-05-01',
+            'status' => 'active'
+        ]);
+
         // ── 2. Create Real Estate Projects ──
         $patio = Project::create([
             'id' => (string) Str::uuid(),
@@ -644,6 +906,7 @@ class DatabaseSeeder extends Seeder
             'location' => 'New Cairo, Egypt',
             'total_units' => 45,
             'status' => 'construction',
+            'delivery_date' => '2027-12-31',
         ]);
 
         $uptown = Project::create([
@@ -652,7 +915,97 @@ class DatabaseSeeder extends Seeder
             'location' => '6th of October City, Egypt',
             'total_units' => 80,
             'status' => 'planning',
+            'delivery_date' => '2028-06-30',
         ]);
+
+        // Seed standard project payment plan templates
+        foreach ([$patio, $uptown] as $proj) {
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => 'Cash Payment',
+                'name_ar' => 'كاش',
+                'down_payment_pct' => 100.00,
+                'installments' => 0,
+                'discount_pct' => 10.00,
+                'description' => 'Full cash payment with 10% discount',
+                'settings' => [
+                    'finalPaymentMethod' => 'cash',
+                    'cashGracePeriod' => 14,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '5-Year Plan',
+                'name_ar' => 'خطة 5 سنوات',
+                'down_payment_pct' => 20.00,
+                'installments' => 60,
+                'discount_pct' => 0.00,
+                'description' => '20% down payment + 60 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 5,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '7-Year Plan',
+                'name_ar' => 'خطة 7 سنوات',
+                'down_payment_pct' => 15.00,
+                'installments' => 84,
+                'discount_pct' => 0.00,
+                'description' => '15% down payment + 84 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 7,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                ]
+            ]);
+            \App\Models\ProjectPaymentPlan::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $proj->id,
+                'name' => '10-Year Plan',
+                'name_ar' => 'خطة 10 سنوات',
+                'down_payment_pct' => 10.00,
+                'installments' => 120,
+                'discount_pct' => 0.00,
+                'description' => '10% down payment + 120 monthly installments',
+                'settings' => [
+                    'finalPaymentMethod' => 'installment',
+                    'installmentType' => 'direct',
+                    'interestType' => 'reducing',
+                    'installmentTerm' => 10,
+                    'installmentInterest' => 0,
+                    'installmentStartMonth' => 1,
+                    'enableAnnual' => true,
+                    'annualInstallmentAmount' => '50000',
+                    'includeClub' => true,
+                    'clubCost' => '150000',
+                    'clubPaymentMethod' => 'installment',
+                    'clubTerm' => 10,
+                    'clubInstallmentStartYear' => 1,
+                    'includeGarage' => true,
+                    'garageCost' => '100000',
+                    'garagePaymentMethod' => 'installment',
+                    'garageTerm' => 10,
+                    'garageInstallmentStartYear' => 1,
+                    'includeMaintenance' => true,
+                    'maintenanceCost' => '200000',
+                    'maintenancePaymentMethod' => 'installment',
+                    'maintenanceTerm' => 10,
+                    'maintenanceInstallmentStartYear' => 1,
+                ]
+            ]);
+        }
 
         // ── 3. Create Units for Projects ──
         $unitA = Unit::create([
@@ -661,8 +1014,15 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '101-A',
             'floor' => 1,
             'type' => 'Apartment',
+            'area' => 150.00,
+            'bedrooms' => 3,
+            'bathrooms' => 2,
+            'view_type' => 'sea',
+            'building' => 'Block A1',
+            'layout_description' => '3 غرف، 2 حمام، ريسبشن 3 قطع، مطبخ، تراس كبير بإطلالة بحرية مميزة',
             'price' => 4500000.00,
             'status' => 'available',
+            'handover_date' => '2027-05-15',
         ]);
 
         $unitB = Unit::create([
@@ -671,8 +1031,15 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '201-B',
             'floor' => 2,
             'type' => 'Penthouse',
+            'area' => 260.00,
+            'bedrooms' => 4,
+            'bathrooms' => 3,
+            'view_type' => 'pool',
+            'building' => 'Block A1',
+            'layout_description' => 'الدور السفلي: ريسبشن 3 قطع، مطبخ، حمام ضيوف. الدور العلوي: 4 غرف نوم (منهم غرفتان ماستر)، 2 حمام، ليفينج، روف تراس واسع يطل على حمام السباحة',
             'price' => 8900000.00,
             'status' => 'reserved',
+            'handover_date' => '2027-08-20',
         ]);
 
         $unitC = Unit::create([
@@ -681,31 +1048,58 @@ class DatabaseSeeder extends Seeder
             'unit_number' => '12-C',
             'floor' => 3,
             'type' => 'Duplex',
+            'area' => 210.00,
+            'bedrooms' => 3,
+            'bathrooms' => 3,
+            'view_type' => 'garden',
+            'building' => 'Building 12',
+            'layout_description' => 'الدور الأرضي: ريسبشن قطعتين، مطبخ، حمام ضيوف، حديقة خاصة 50م. الدور الأول: 3 غرف نوم (منهم غرفة ماستر بدريسنج وحمام)، ليفينج، حمام رئيسي',
             'price' => 6200000.00,
             'status' => 'available',
+            'handover_date' => '2028-02-10',
         ]);
 
         // Additional units to enrich inventory
         for ($i = 2; $i <= 8; $i++) {
+            $isApartment = ($i % 2 === 0);
             Unit::create([
                 'id' => (string) Str::uuid(),
                 'project_id' => $patio->id,
                 'unit_number' => "{$i}02-A",
                 'floor' => $i,
-                'type' => $i % 2 === 0 ? 'Apartment' : 'Townhouse',
+                'type' => $isApartment ? 'Apartment' : 'Townhouse',
+                'area' => $isApartment ? (120.00 + ($i * 5)) : (180.00 + ($i * 10)),
+                'bedrooms' => 3,
+                'bathrooms' => $isApartment ? 2 : 3,
+                'view_type' => $isApartment ? 'garden' : 'pool',
+                'building' => $isApartment ? "Block B{$i}" : "Phase 2 Townhouses",
+                'layout_description' => $isApartment 
+                    ? "شقة فاخرة: 3 غرف نوم، 2 حمام، ريسبشن قطعتين، مطبخ، تراس يطل على اللاندسكيب"
+                    : "تاون هاوس مستقل: الأرضي (ريسبشن 3 قطع، مطبخ، حمام، تراس وحديقة)، الأول (3 غرف نوم منهم ماستر، ليفينج، حمام إضافي)",
                 'price' => 3000000.00 + ($i * 500000),
                 'status' => 'available',
+                'handover_date' => '2027-' . str_pad((string)($i + 2), 2, '0', STR_PAD_LEFT) . '-15',
             ]);
         }
         for ($i = 1; $i <= 5; $i++) {
+            $isVilla = ($i % 2 === 0);
             Unit::create([
                 'id' => (string) Str::uuid(),
                 'project_id' => $uptown->id,
                 'unit_number' => "{$i}4-C",
                 'floor' => $i,
-                'type' => $i % 2 === 0 ? 'Villa' : 'Studio',
+                'type' => $isVilla ? 'Villa' : 'Studio',
+                'area' => $isVilla ? (300.00 + ($i * 15)) : (55.00 + ($i * 5)),
+                'bedrooms' => $isVilla ? 5 : 1,
+                'bathrooms' => $isVilla ? 4 : 1,
+                'view_type' => $isVilla ? 'sea' : 'street',
+                'building' => $isVilla ? "Villas Zone C" : "Residences Bldg G",
+                'layout_description' => $isVilla 
+                    ? "فيلا مستقلة: الأرضي (ريسبشن واسع 4 قطع، مطبخ كبير، غرفة مربية بحمام، حمام ضيوف)، الأول (5 غرف نوم منهم جناح رئيسي، ليفينج، 3 حمامات)، روف بالكامل"
+                    : "استوديو مميز: غرفة نوم مفتوحة، ريسبشن قطعة واحدة، مطبخ أمريكي مفتوح، حمام، تراس بإطلالة مفتوحة",
                 'price' => 5000000.00 + ($i * 750000),
                 'status' => 'available',
+                'handover_date' => '2028-' . str_pad((string)$i, 2, '0', STR_PAD_LEFT) . '-20',
             ]);
         }
 
@@ -733,16 +1127,48 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // ── 5. Create Brokers ──
+        $brokerOwnerProfile = Broker::create([
+            'user_id' => $brokerOwner->id,
+            'agency_name' => 'RE/MAX Real Estate Brokerage',
+            'agent_name' => 'John Owner',
+            'email' => 'broker_owner@redp.com',
+            'phone' => '+201005555577',
+            'license_no' => 'LIC-99001',
+            'status' => 'active',
+            'referral_code' => 'REMAXOWN',
+        ]);
+
+        $brokerLeaderProfile = Broker::create([
+            'user_id' => $brokerTeamLeader->id,
+            'agency_name' => 'RE/MAX Real Estate Brokerage',
+            'agent_name' => 'Hany Leader',
+            'email' => 'broker_team_leader@redp.com',
+            'phone' => '+201005555578',
+            'license_no' => 'LIC-99002',
+            'status' => 'active',
+            'referral_code' => 'REMAXLEAD',
+        ]);
+
         $brokerRemax = Broker::create([
             'user_id' => $brokerUser->id,
-            'agency_name' => 'RE/MAX Egypt',
-            'agent_name' => 'Ahmed Ali',
-            'email' => 'remax@redp.com',
-            'phone' => '+201001234567',
+            'agency_name' => 'RE/MAX Real Estate Brokerage',
+            'agent_name' => 'Ahmed Agent',
+            'email' => 'broker@redp.com',
+            'phone' => '+201005555555',
             'license_no' => 'LIC-88291',
             'status' => 'active',
             'referral_code' => 'REMAX2026',
-            'user_id' => $brokerUser->id,
+        ]);
+
+        $freelanceBroker = Broker::create([
+            'user_id' => $freelanceBrokerUser->id,
+            'agency_name' => 'Freelance Brokerage',
+            'agent_name' => 'Youssef Freelancer',
+            'email' => 'freelance_broker@redp.com',
+            'phone' => '+201005555579',
+            'license_no' => 'LIC-77766',
+            'status' => 'active',
+            'referral_code' => 'FREE2026',
         ]);
 
         $brokerColdwell = Broker::create([
@@ -1039,6 +1465,119 @@ class DatabaseSeeder extends Seeder
             'notes' => 'Awaiting client digital signature.',
         ]);
 
+        // ── 10.5 Create Commission Rules and Calculations ──
+        $ruleTier1 = \App\Models\CommissionRule::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'title' => 'TeleSales Standard Commission Rule',
+            'tier_type' => 'tier_1',
+            'commission_percentage' => 0.50,
+            'status' => 'active',
+        ]);
+
+        $ruleTier2 = \App\Models\CommissionRule::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'title' => 'Broker Standard Commission Rule',
+            'tier_type' => 'tier_2',
+            'commission_percentage' => 2.50,
+            'status' => 'active',
+        ]);
+
+        $ruleTier3 = \App\Models\CommissionRule::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'title' => 'Company Sales Standard Commission Rule',
+            'tier_type' => 'tier_3',
+            'commission_percentage' => 1.50,
+            'status' => 'active',
+        ]);
+
+        // Query payment records to associate with commission calculations
+        $paymentContract1 = \App\Models\Payment::where('contract_id', $contract1->id)->first();
+        $paymentContract2 = \App\Models\Payment::where('contract_id', $contract2->id)->first();
+
+        // Seeding calculations for TeleSales Sara
+        \App\Models\CommissionCalculation::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'payment_id' => $paymentContract1->id,
+            'contract_id' => $contract1->id,
+            'rule_id' => $ruleTier1->id,
+            'user_id' => $teleSalesUser->id,
+            'deal_amount' => $contract1->total_amount,
+            'calculated_percentage' => 0.50,
+            'calculated_amount' => $contract1->total_amount * 0.005,
+            'status' => 'approved',
+        ]);
+
+        // Seeding calculations for TeleSales Manager Mariam
+        \App\Models\CommissionCalculation::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'payment_id' => $paymentContract2->id,
+            'contract_id' => $contract2->id,
+            'rule_id' => $ruleTier1->id,
+            'user_id' => $teleSalesManager->id,
+            'deal_amount' => $contract2->total_amount,
+            'calculated_percentage' => 0.20,
+            'calculated_amount' => $contract2->total_amount * 0.002,
+            'status' => 'pending',
+        ]);
+
+        // Seeding calculations for TeleSales Head Tarek
+        \App\Models\CommissionCalculation::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'payment_id' => $paymentContract2->id,
+            'contract_id' => $contract2->id,
+            'rule_id' => $ruleTier1->id,
+            'user_id' => $teleSalesHead->id,
+            'deal_amount' => $contract2->total_amount,
+            'calculated_percentage' => 0.10,
+            'calculated_amount' => $contract2->total_amount * 0.001,
+            'status' => 'approved',
+        ]);
+
+        // Seeding calculations for Company Sales Agent Yasser
+        \App\Models\CommissionCalculation::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'payment_id' => $paymentContract2->id,
+            'contract_id' => $contract2->id,
+            'rule_id' => $ruleTier3->id,
+            'user_id' => $companySalesAgent->id,
+            'deal_amount' => $contract2->total_amount,
+            'calculated_percentage' => 1.50,
+            'calculated_amount' => $contract2->total_amount * 0.015,
+            'status' => 'approved',
+        ]);
+
+        // Seeding calculations for Company Sales Leader Noha
+        \App\Models\CommissionCalculation::create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $holdingCompany->id,
+            'payment_id' => $paymentContract1->id,
+            'contract_id' => $contract1->id,
+            'rule_id' => $ruleTier3->id,
+            'user_id' => $companySalesLeader->id,
+            'deal_amount' => $contract1->total_amount,
+            'calculated_percentage' => 0.50,
+            'calculated_amount' => $contract1->total_amount * 0.005,
+            'status' => 'paid',
+        ]);
+
+        // Also add a commission for the freelance broker
+        Commission::create([
+            'id' => (string) Str::uuid(),
+            'broker_id' => $freelanceBroker->id,
+            'lead_id' => $lead3->id,
+            'unit_id' => $unitC->id,
+            'rate_percent' => 3.50,
+            'gross_amount' => 217000.00,
+            'status' => 'approved',
+        ]);
+
         // ── 11. Create Collections Queue & Rescheduling Requests ──
         CollectionsQueue::create([
             'id' => (string) Str::uuid(),
@@ -1169,5 +1708,7 @@ class DatabaseSeeder extends Seeder
             'rules_payload' => ['payload' => 'Timeline PDF generation.'],
             'active' => false,
         ]);
+
+        $this->call(PermissionSeeder::class);
     }
 }

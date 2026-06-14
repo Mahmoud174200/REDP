@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Users, ClipboardList, Send, ShieldCheck, CheckCircle2, Milestone, DollarSign, ListFilter, AlertCircle, ShoppingCart } from 'lucide-react';
 import api from '../../services/api';
 import { ToastContainer } from '../../components/Toast';
 
@@ -21,37 +20,37 @@ const CompanySalesPortal: React.FC = () => {
     const items: { label: string; value: string; icon: string }[] = [];
 
     if (metadata.source) {
-      items.push({ label: 'Source', value: metadata.source, icon: '📍' });
+      items.push({ label: 'Source', value: metadata.source, icon: 'fa-solid fa-map-pin' });
     }
     if (metadata.interaction_type) {
-      items.push({ label: 'Interaction Channel', value: metadata.interaction_type, icon: '💬' });
+      items.push({ label: 'Interaction Channel', value: metadata.interaction_type, icon: 'fa-solid fa-comments' });
     }
     if (metadata.meeting_date) {
       const formattedDate = new Date(metadata.meeting_date).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short'
       });
-      items.push({ label: 'Meeting Date', value: formattedDate, icon: '📅' });
+      items.push({ label: 'Meeting Date', value: formattedDate, icon: 'fa-solid fa-calendar-days' });
     }
     if (metadata.location) {
-      items.push({ label: 'Location', value: metadata.location, icon: '🏢' });
+      items.push({ label: 'Location', value: metadata.location, icon: 'fa-solid fa-building' });
     }
     if (metadata.from_tier || metadata.to_tier) {
       const from = (metadata.from_tier || '').replace('tier_', 'Tier ');
       const to = (metadata.to_tier || '').replace('tier_', 'Tier ');
-      items.push({ label: 'Tier Escalation', value: `${from} ➔ ${to}`, icon: '⚡' });
+      items.push({ label: 'Tier Escalation', value: `${from} ➔ ${to}`, icon: 'fa-solid fa-angles-up' });
     }
     if (metadata.notes) {
-      items.push({ label: 'Notes', value: metadata.notes, icon: '📝' });
+      items.push({ label: 'Notes', value: metadata.notes, icon: 'fa-solid fa-pen-to-square' });
     }
     if (metadata.unit_number) {
-      items.push({ label: 'Unit Number', value: `#${metadata.unit_number}`, icon: '🔑' });
+      items.push({ label: 'Unit Number', value: `#${metadata.unit_number}`, icon: 'fa-solid fa-key' });
     }
     if (metadata.price) {
-      items.push({ label: 'Unit Price', value: `${parseFloat(metadata.price).toLocaleString()} EGP`, icon: '💰' });
+      items.push({ label: 'Unit Price', value: `${parseFloat(metadata.price).toLocaleString()} EGP`, icon: 'fa-solid fa-tags' });
     }
     if (metadata.eoi_amount) {
-      items.push({ label: 'EOI Amount', value: `${parseFloat(metadata.eoi_amount).toLocaleString()} EGP`, icon: '💵' });
+      items.push({ label: 'EOI Amount', value: `${parseFloat(metadata.eoi_amount).toLocaleString()} EGP`, icon: 'fa-solid fa-receipt' });
     }
 
     if (items.length > 0) {
@@ -59,7 +58,7 @@ const CompanySalesPortal: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '8px', padding: '10px 14px', background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(50, 71, 58, 0.08)', borderLeft: '4px solid var(--color-primary)', borderRadius: 'var(--radius-sm)' }}>
           {items.map((item, idx) => (
             <div key={idx} style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.9rem' }}>{item.icon}</span>
+              <i className={item.icon} style={{ color: 'var(--color-primary)', fontSize: '0.82rem' }}></i>
               <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{item.label}:</span>
               <strong style={{ color: 'var(--text-main)' }}>{item.value}</strong>
             </div>
@@ -80,10 +79,17 @@ const CompanySalesPortal: React.FC = () => {
     bookings: { total_confirmed: 0 },
     revenue: { sold_value: 0, reserved_value: 0 }
   });
+  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'broker' | 'inventory' | 'transactions'>('overview');
   const [leads, setLeads] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  /* company sales commissions & team states */
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [commissionRules, setCommissionRules] = useState<any[]>([]);
+  const [subordinatesPerformance, setSubordinatesPerformance] = useState<any[]>([]);
+  const [commissionsHistory, setCommissionsHistory] = useState<any[]>([]);
 
   // Journey Log States
   const [journeyLead, setJourneyLead] = useState<any | null>(null);
@@ -160,6 +166,113 @@ const CompanySalesPortal: React.FC = () => {
   const [customAddons, setCustomAddons] = useState<{ id: string; name: string; cost: string; paymentMethod: 'cash' | 'installment'; term: number; startYear: number }[]>([]);
   const [isPlanSaved, setIsPlanSaved] = useState(false);
   const [savedSchedule, setSavedSchedule] = useState<any[]>([]);
+
+  // ── Standard Project Payment Plan States ──
+  const [standardPlans, setStandardPlans] = useState<any[]>([]);
+  const [selectedStandardPlanId, setSelectedStandardPlanId] = useState('');
+
+  useEffect(() => {
+    if (selectedReservationForContract && selectedReservationForContract.unit?.project_id) {
+      const projId = selectedReservationForContract.unit.project_id;
+      api.get(`/v1/sales/company/projects/${projId}/payment-plans`)
+        .then(res => {
+          if (res.data && res.data.success) {
+            setStandardPlans(res.data.data || []);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch standard plans for project:", err);
+          setStandardPlans([]);
+        });
+    } else {
+      setStandardPlans([]);
+      setSelectedStandardPlanId('');
+    }
+  }, [selectedReservationForContract]);
+
+  const handleStandardPlanChange = (planId: string) => {
+    setSelectedStandardPlanId(planId);
+    if (!planId) return;
+
+    const plan = standardPlans.find(p => p.id === planId);
+    if (!plan) return;
+
+    const dpPct = parseFloat(plan.down_payment_pct) || 0;
+    const discPct = parseFloat(plan.discount_pct) || 0;
+    const installmentsCount = parseInt(plan.installments) || 0;
+
+    setDiscountPercent(discPct.toString());
+    
+    const price = unitPrice;
+    const netPrice = price - (price * (discPct / 100));
+    const dpAmount = Math.round(netPrice * (dpPct / 100));
+    setDownPayment(dpAmount.toString());
+
+    const settings = plan.settings || {};
+
+    if (plan.settings) {
+      setFinalPaymentMethod(settings.finalPaymentMethod || (installmentsCount > 0 ? 'installment' : 'cash'));
+      setInstallmentType(settings.installmentType || 'direct');
+      setInterestType(settings.interestType || 'reducing');
+      setInstallmentTerm(settings.installmentTerm || Math.max(1, Math.round(installmentsCount / 12)));
+      setInstallmentInterest(settings.installmentInterest ?? 0);
+      setInstallmentStartMonth(settings.installmentStartMonth ?? 1);
+      setCashGracePeriod(settings.cashGracePeriod ?? 14);
+      
+      setEnableAnnual(settings.enableAnnual || false);
+      setAnnualInstallmentAmount((settings.annualInstallmentAmount ?? '50000').toString());
+      
+      setIncludeClub(settings.includeClub || false);
+      setClubCost((settings.clubCost ?? '150000').toString());
+      setClubPaymentMethod(settings.clubPaymentMethod || 'cash');
+      setClubTerm(settings.clubTerm ?? 5);
+      setClubInstallmentStartYear(settings.clubInstallmentStartYear ?? 1);
+      
+      setIncludeGarage(settings.includeGarage || false);
+      setGarageCost((settings.garageCost ?? '100000').toString());
+      setGaragePaymentMethod(settings.garagePaymentMethod || 'cash');
+      setGarageTerm(settings.garageTerm ?? 5);
+      setGarageInstallmentStartYear(settings.garageInstallmentStartYear ?? 1);
+      
+      setIncludeMaintenance(settings.includeMaintenance || false);
+      setMaintenanceCost((settings.maintenanceCost ?? '').toString());
+      setMaintenancePaymentMethod(settings.maintenancePaymentMethod || 'cash');
+      setMaintenanceTerm(settings.maintenanceTerm ?? 5);
+      setMaintenanceDueMonth(settings.maintenanceDueMonth ?? 36);
+      setMaintenanceInstallmentStartYear(settings.maintenanceInstallmentStartYear ?? 1);
+
+      const termYears = settings.installmentTerm || Math.max(1, Math.round(installmentsCount / 12));
+      const basePct = Math.floor(100 / termYears);
+      const remainder = 100 - (basePct * termYears);
+      const newPercentages = Array.from({ length: termYears }, (_, i) => {
+        return basePct + (i === termYears - 1 ? remainder : 0);
+      });
+      setYearPercentages(newPercentages);
+    } else {
+      setFinalPaymentMethod(installmentsCount > 0 ? 'installment' : 'cash');
+      setInstallmentType('direct');
+      setInterestType('reducing');
+      setInstallmentInterest(0);
+      setInstallmentStartMonth(1);
+      setCashGracePeriod(14);
+      setEnableAnnual(false);
+      setAnnualInstallmentAmount('50000');
+      setIncludeClub(false);
+      setIncludeGarage(false);
+      setIncludeMaintenance(false);
+
+      if (installmentsCount > 0) {
+        const termYears = Math.max(1, Math.round(installmentsCount / 12));
+        setInstallmentTerm(termYears);
+        const basePct = Math.floor(100 / termYears);
+        const remainder = 100 - (basePct * termYears);
+        const newPercentages = Array.from({ length: termYears }, (_, i) => {
+          return basePct + (i === termYears - 1 ? remainder : 0);
+        });
+        setYearPercentages(newPercentages);
+      }
+    }
+  };
 
   const getCashDueDate = () => {
     const date = new Date();
@@ -962,10 +1075,22 @@ const CompanySalesPortal: React.FC = () => {
   const fetchPortalData = async () => {
     setIsLoading(true);
     try {
+      const storedUser = localStorage.getItem('redp_user');
+      if (storedUser) {
+        try {
+          setCurrentUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       // 1. Fetch Dashboard Stats
       const statsRes = await api.get('/v1/sales/company/dashboard');
       if (statsRes.data && statsRes.data.success) {
         setStats(statsRes.data.stats);
+        setCommissionRules(statsRes.data.commission_rules || []);
+        setSubordinatesPerformance(statsRes.data.subordinates_performance || []);
+        setCommissionsHistory(statsRes.data.commissions_history || []);
       }
 
       // 2. Fetch Leads
@@ -1300,386 +1425,437 @@ const CompanySalesPortal: React.FC = () => {
 
       {/* Header Panel */}
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🏢 Company Sales Portal (Tier 3)</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Oversee the complete lead lifecycle journey, execute reservations, and configure inventory status.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ padding: '14px', background: 'rgba(50, 71, 58, 0.08)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <i className="fa-solid fa-building-user" style={{ color: 'var(--color-primary)', fontSize: '1.8rem' }}></i>
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '6px', margin: 0 }}>Company Sales Portal (Tier 3)</h1>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Oversee the complete lead lifecycle journey, execute reservations, and configure inventory status.</p>
+          </div>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8b5cf6' }}>Sales Tier 3 Portal</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8b5cf6' }}>Tier 3 Enterprise</span>
         </div>
       </div>
 
-      {/* Stats Board */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)', borderRadius: 'var(--radius-sm)' }}>
-            <Users style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Lead Pipeline</h4>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '4px 0 0 0' }}>
-              {stats.pipeline.total_leads} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>(My: {stats.pipeline.my_leads})</span>
-            </h2>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', borderRadius: 'var(--radius-sm)' }}>
-            <Milestone style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Tiers Distribution</h4>
-            <h5 style={{ fontSize: '0.75rem', fontWeight: 700, margin: '4px 0 0 0' }}>
-              T1: {stats.pipeline.tier_1} | T2: {stats.pipeline.tier_2} | T3: {stats.pipeline.tier_3}
-            </h5>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)' }}>
-            <ShoppingCart style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Bookings Done</h4>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-success)' }}>
-              {stats.bookings.total_confirmed}
-            </h2>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ padding: '12px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 'var(--radius-sm)' }}>
-            <DollarSign style={{ width: '24px', height: '24px' }} />
-          </div>
-          <div>
-            <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Inventory Sold</h4>
-            <h5 style={{ fontSize: '0.72rem', fontWeight: 700, margin: '4px 0 0 0' }}>
-              Sold: {stats.revenue.sold_value.toLocaleString()} EGP
-            </h5>
-          </div>
-        </div>
+      {/* Tab Switcher */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {[
+          { key: 'overview' as const, label: 'Overview', icon: 'fa-solid fa-chart-line' },
+          { key: 'leads' as const, label: 'Leads Pipeline', icon: 'fa-solid fa-users' },
+          { key: 'broker' as const, label: 'Broker Mediate', icon: 'fa-solid fa-handshake' },
+          { key: 'inventory' as const, label: 'Inventory Config', icon: 'fa-solid fa-store' },
+          { key: 'transactions' as const, label: 'Transactions Log', icon: 'fa-solid fa-clipboard-list' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={activeTab === tab.key ? 'btn-primary' : 'btn-secondary'}
+            style={{ flex: 1, minWidth: '150px', justifyContent: 'center', padding: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className={tab.icon}></i> {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* ── OVERVIEW TAB ── */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+          {/* Stats Board */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-users" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Lead Pipeline</h4>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '4px 0 0 0' }}>
+                  {stats.pipeline.total_leads} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>(My: {stats.pipeline.my_leads})</span>
+                </h2>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-route" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Tiers Distribution</h4>
+                <h5 style={{ fontSize: '0.82rem', fontWeight: 800, margin: '4px 0 0 0', display: 'flex', gap: '8px' }}>
+                  <span className="badge badge-warning">T1: {stats.pipeline.tier_1}</span>
+                  <span className="badge badge-primary">T2: {stats.pipeline.tier_2}</span>
+                  <span className="badge badge-success">T3: {stats.pipeline.tier_3}</span>
+                </h5>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-boxes-stacked" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Bookings Done</h4>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-success)' }}>
+                  {stats.bookings.total_confirmed}
+                </h2>
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ padding: '16px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 'var(--radius-sm)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <i className="fa-solid fa-dollar-sign" style={{ fontSize: '1.4rem' }}></i>
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0, fontWeight: 700 }}>Inventory Sold</h4>
+                <h5 style={{ fontSize: '0.9rem', fontWeight: 800, margin: '4px 0 0 0', color: 'var(--color-primary)' }}>
+                  {stats.revenue.sold_value.toLocaleString()} EGP
+                </h5>
+              </div>
+            </div>
+          </div>
+
+          {/* Commissions & Rates Widget */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px' }}>
+            {/* Left: Commission Earnings & History */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-coins" style={{ color: 'var(--color-primary)' }}></i>
+                Personal Commission Earnings
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pending</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-warning)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.pending_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Approved</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.approved_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(59, 130, 246, 0.08)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Paid</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                    {parseFloat(stats.paid_commission || 0).toLocaleString()} EGP
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Calculation History
+                </h4>
+                {commissionsHistory.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                    No calculations logged.
+                  </p>
+                ) : (
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {commissionsHistory.map((ch: any) => (
+                      <div key={ch.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)', fontSize: '0.8rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>Contract #{ch.contract?.contract_number || ch.contract_id?.substring(0, 8)}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Unit {ch.contract?.unit?.unit_number} • {ch.contract?.unit?.project?.name}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--color-success)' }}>+{parseFloat(ch.calculated_amount).toLocaleString()} EGP</div>
+                          <span className={`badge ${ch.status === 'paid' ? 'badge-success' : ch.status === 'approved' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '2px 6px', marginTop: '2px', display: 'inline-block' }}>
+                            {ch.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Active Rates & Rules */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                <i className="fa-solid fa-percent" style={{ color: 'var(--color-success)' }}></i>
+                Company Commission Rules
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {commissionRules.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, padding: '12px', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                    No active commission rules set.
+                  </p>
+                ) : (
+                  commissionRules.map((cr: any) => (
+                    <div key={cr.id} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.03)', border: '1px solid var(--border-glass)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px', width: '100%' }}>
+                        <strong style={{ fontSize: '0.85rem' }}>{cr.name}</strong>
+                        <span className="badge badge-success" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                          {parseFloat(cr.commission_rate).toFixed(2)}%
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {cr.description || `Rule applied to Tier 3.`}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Team Performance Panel */}
+          {subordinatesPerformance && subordinatesPerformance.length > 0 && (
+            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
+                  <i className="fa-solid fa-people-group" style={{ color: 'var(--color-primary)' }}></i>
+                  Sales Team Performance & Commissions
+                </h3>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Agent Name</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Total Leads</th>
+                      <th>New / Contacted</th>
+                      <th>Reserved Units</th>
+                      <th>Bookings Count</th>
+                      <th>Commissions Earned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subordinatesPerformance.map((sub: any) => (
+                      <tr key={sub.user_id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: sub.status === 'active' ? 'var(--color-success)' : '#9ca3af',
+                              display: 'inline-block'
+                            }}></span>
+                            <strong>{sub.name}</strong>
+                          </div>
+                        </td>
+                        <td>{sub.position}</td>
+                        <td>
+                          <span className={`badge ${sub.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                            {sub.status}
+                          </span>
+                        </td>
+                        <td>{sub.stats?.total_leads ?? 0}</td>
+                        <td>{sub.stats?.new ?? 0} / {sub.stats?.contacted ?? 0}</td>
+                        <td>{sub.stats?.reserved ?? 0} units</td>
+                        <td>{sub.stats?.reservations ?? 0} bookings</td>
+                        <td>
+                          <strong style={{ color: 'var(--color-success)' }}>
+                            {parseFloat(sub.stats?.commissions_earned ?? 0).toLocaleString()} EGP
+                          </strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Operations / Portal Intro */}
+          <div className="glass-panel" style={{ padding: '30px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)' }}></i>
+              Quick Guide to Company Sales Operations
+            </h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
+              Welcome back to the REDP Tier 3 Enterprise Portal. This workspace is designed for corporate sales agents to coordinate directly with clients and external brokerage teams.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginTop: '20px' }}>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)' }}></i> Leads Pipeline
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Claim incoming leads, review client history log, and initiate booking holds directly on specific project inventory.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-handshake" style={{ color: 'var(--color-warning)' }}></i> Broker Mediate
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Review units currently held by external broker partners and approve or reject commission payout invoice submissions.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-store" style={{ color: 'var(--color-success)' }}></i> Inventory Config
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Check real-time availability of units and manually update block list status or price references for sales.
+                </p>
+              </div>
+              <div style={{ padding: '15px', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <i className="fa-solid fa-clipboard-list" style={{ color: '#8b5cf6' }}></i> Transactions Log
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Access booking histories, execute draft payment amortization plan structures, and apply corporate digital contract signatures.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid Panels */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
 
         {/* Leads and Journeys */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Users style={{ color: 'var(--color-primary)' }} />
-            Leads Pipeline Operations
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Client Profile</th>
-                  <th>Tier & Owner</th>
-                  <th>Lifecycle Status</th>
-                  <th>Operations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No leads in system.</td>
-                  </tr>
-                ) : (
-                  leads.map(lead => (
-                    <tr key={lead.id}>
-                      <td>
-                        <strong>{lead.first_name} {lead.last_name}</strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📞 {lead.phone} | {lead.email}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nat. ID: {lead.national_id || 'N/A'}</div>
-                        {(lead.interested_project || lead.interestedProject) && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '2px' }}>
-                            🏢 Project: {(lead.interested_project || lead.interestedProject).name}
-                          </div>
-                        )}
-                        {lead.budget && (
-                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)', marginTop: '2px' }}>
-                            💰 Budget: {parseFloat(lead.budget).toLocaleString()} EGP ({lead.payment_method})
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge badge-${lead.current_tier === 'tier_3' ? 'success' : lead.current_tier === 'tier_2' ? 'primary' : 'warning'}`} style={{ marginRight: '6px' }}>
-                          {lead.current_tier.toUpperCase()}
-                        </span>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Agent: {lead.company_sales_agent?.name || 'Unassigned'}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge badge-${lead.status === 'reserved' ? 'success' : lead.status === 'contracted' ? 'info' : 'warning'}`}>
-                          {lead.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleViewJourney(lead)}
-                            className="btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <Milestone style={{ width: '12px', height: '12px' }} /> View Journey
-                          </button>
-
-                          {!lead.company_sales_agent_id ? (
-                            <button
-                              onClick={() => handleAssignToSelf(lead.id)}
-                              className="btn-secondary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                            >
-                              Assign to Me
-                            </button>
-                          ) : lead.status !== 'reserved' && lead.status !== 'contracted' ? (
-                            <button
-                              onClick={() => { setSelectedLeadForBooking(lead); setShowBookingModal(true); }}
-                              className="btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                            >
-                              Execute Booking
-                            </button>
-                          ) : lead.status === 'reserved' ? (() => {
-                            const txn = transactions.find(t =>
-                              t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
-                              ((lead.email && t.client?.email === lead.email) ||
-                                (lead.phone && t.client?.phone === lead.phone))
-                            );
-                            if (txn) {
-                              return (
-                                <div style={{ display: 'flex', gap: '6px' }}>
-                                  {!txn.contract ? (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedReservationForContract(txn);
-                                        setBookingUnitId(txn.unit_id);
-                                        setBookingEoi(txn.eoi_amount.toString());
-                                        setDiscountPercent('0');
-                                        const uPrice = parseFloat(txn.unit?.price) || 0;
-                                        setDownPayment((uPrice * 0.1).toString());
-                                        setMaintenanceCost((uPrice * 0.08).toString());
-                                        setSavedSchedule([]);
-                                        setBookingNotes('');
-                                        setIncludeClub(false);
-                                        setIncludeGarage(false);
-                                        setIncludeMaintenance(false);
-                                        setIsPlanSaved(false);
-                                        setShowContractModal(true);
-                                      }}
-                                      className="btn-primary"
-                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
-                                    >
-                                      إتمام التعاقد / Finalize
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => loadContractDataIntoModal(txn)}
-                                      className="btn-primary"
-                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                                    >
-                                      تعديل وتوقيع الخطة / Edit & Sign
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleCancelBooking(txn.id)}
-                                    className="btn-secondary"
-                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
-                                  >
-                                    إلغاء / Cancel
-                                  </button>
-                                </div>
-                              );
-                            }
-                            return (
-                              <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
-                                Booking Done
-                              </span>
-                            );
-                          })() : (
-                            <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
-                              Contracted
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Broker Submissions (Reservations and Payout Requests) */}
-        <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          
-          {/* Section 1: Reservation hold requests */}
-          <div>
+        {activeTab === 'leads' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ClipboardList style={{ color: 'var(--color-primary)' }} />
-              Broker Unit Reservation Holds (Awaiting Approval)
+              <i className="fa-solid fa-users" style={{ color: 'var(--color-primary)' }}></i>
+              Leads Pipeline Operations
             </h3>
-            
             <div style={{ overflowX: 'auto' }}>
               <table className="premium-table">
                 <thead>
                   <tr>
-                    <th>Broker Agency</th>
-                    <th>Unit Details</th>
-                    <th>Customer Name</th>
-                    <th>EOI Deposit</th>
-                    <th>Audit Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {brokerReservations.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No broker reservation requests in the system.</td>
-                    </tr>
-                  ) : (
-                    brokerReservations.map(res => (
-                      <tr key={res.id}>
-                        <td>
-                          <strong>{res.broker?.agency_name}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agent: {res.broker?.agent_name}</div>
-                        </td>
-                        <td>
-                          <strong>{res.unit?.unit_number}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Project: {res.unit?.project?.name}</div>
-                        </td>
-                        <td>
-                          <strong>{res.client?.name}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {res.client?.phone}</div>
-                        </td>
-                        <td>
-                          {parseFloat(res.eoi_amount) > 0 ? (
-                            <>
-                              <strong>{parseFloat(res.eoi_amount).toLocaleString()} EGP</strong>
-                              {res.payment_receipt_path && (
-                                <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Receipt Slip</div>
-                              )}
-                            </>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Client Interest (No Deposit)</span>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`badge badge-${
-                            res.status === 'pending' ? 'warning' :
-                            res.status === 'confirmed' ? 'success' : 'danger'
-                          }`} style={{ textTransform: 'capitalize' }}>
-                            {res.status}
-                          </span>
-                        </td>
-                        <td>
-                          {res.status === 'pending' ? (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button 
-                                onClick={() => handleApproveBrokerReservation(res.id)}
-                                className="btn-primary" 
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                Approve Hold
-                              </button>
-                              <button 
-                                onClick={() => setRejectionModal({ show: true, type: 'reservation', id: res.id, reason: '' })}
-                                className="btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                              Processed ({res.status})
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <hr style={{ border: '0', borderTop: '1px solid var(--border-glass)', margin: '10px 0' }} />
-
-          {/* Section 2: Payout requests */}
-          <div>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <DollarSign style={{ color: 'var(--color-success)' }} />
-              Broker Commission Invoice Auditing
-            </h3>
-            
-            <div style={{ overflowX: 'auto' }}>
-              <table className="premium-table">
-                <thead>
-                  <tr>
-                    <th>Broker Agency</th>
-                    <th>Requested Amount</th>
-                    <th>Invoice File</th>
-                    <th>Submission Date</th>
-                    <th>Fulfillment State</th>
+                    <th>Client Profile</th>
+                    <th>Tier & Owner</th>
+                    <th>Lifecycle Status</th>
                     <th>Operations</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {brokerPayouts.length === 0 ? (
+                  {leads.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No payout request invoices submitted.</td>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No leads in system.</td>
                     </tr>
                   ) : (
-                    brokerPayouts.map(p => (
-                      <tr key={p.id}>
+                    leads.map(lead => (
+                      <tr key={lead.id}>
                         <td>
-                          <strong>{p.broker?.agency_name}</strong>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IBAN: {p.broker?.bank_iban || 'Not Provided'}</div>
+                          <strong>{lead.first_name} {lead.last_name}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📞 {lead.phone} | {lead.email}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nat. ID: {lead.national_id || 'N/A'}</div>
+                          {(lead.interested_project || lead.interestedProject) && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '2px' }}>
+                              🏢 Project: {(lead.interested_project || lead.interestedProject).name}
+                            </div>
+                          )}
+                          {lead.budget && (
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)', marginTop: '2px' }}>
+                              💰 Budget: {parseFloat(lead.budget).toLocaleString()} EGP ({lead.payment_method})
+                            </div>
+                          )}
                         </td>
                         <td>
-                          <strong style={{ color: 'var(--color-success)' }}>{parseFloat(p.amount).toLocaleString()} EGP</strong>
+                          <span className={`badge badge-${lead.current_tier === 'tier_3' ? 'success' : lead.current_tier === 'tier_2' ? 'primary' : 'warning'}`} style={{ marginRight: '6px' }}>
+                            {lead.current_tier.toUpperCase()}
+                          </span>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            Agent: {lead.company_sales_agent?.name || 'Unassigned'}
+                          </div>
                         </td>
                         <td>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Invoice PDF</span>
-                        </td>
-                        <td>
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </td>
-                        <td>
-                          <span className={`badge badge-${
-                            p.status === 'pending_review' ? 'warning' :
-                            p.status === 'paid' ? 'success' :
-                            p.status === 'rejected' ? 'danger' : 'info'
-                          }`} style={{ textTransform: 'capitalize' }}>
-                            {p.status.replace(/_/g, ' ')}
+                          <span className={`badge badge-${lead.status === 'reserved' ? 'success' : lead.status === 'contracted' ? 'info' : 'warning'}`}>
+                            {lead.status.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td>
-                          {p.status === 'pending_review' ? (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button 
-                                onClick={() => handleApprovePayout(p.id)}
-                                className="btn-primary" 
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <button
+                              onClick={() => handleViewJourney(lead)}
+                              className="btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <i className="fa-solid fa-route" style={{ fontSize: '0.75rem' }}></i> View Journey
+                            </button>
+
+                            {!lead.company_sales_agent_id ? (
+                              <button
+                                onClick={() => handleAssignToSelf(lead.id)}
+                                className="btn-secondary"
+                                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
                               >
-                                Release Funds
+                                Assign to Me
                               </button>
-                              <button 
-                                onClick={() => setRejectionModal({ show: true, type: 'payout', id: p.id, reason: '' })}
-                                className="btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            ) : lead.status !== 'reserved' && lead.status !== 'contracted' ? (
+                              <button
+                                onClick={() => { setSelectedLeadForBooking(lead); setShowBookingModal(true); }}
+                                className="btn-primary"
+                                style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                               >
-                                Reject
+                                Execute Booking
                               </button>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                              Completed ({p.status})
-                            </span>
-                          )}
+                            ) : lead.status === 'reserved' ? (() => {
+                              const txn = transactions.find(t =>
+                                t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
+                                ((lead.email && t.client?.email === lead.email) ||
+                                  (lead.phone && t.client?.phone === lead.phone))
+                              );
+                              if (txn) {
+                                return (
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    {!txn.contract ? (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedReservationForContract(txn);
+                                          setBookingUnitId(txn.unit_id);
+                                          setBookingEoi(txn.eoi_amount.toString());
+                                          setDiscountPercent('0');
+                                          const uPrice = parseFloat(txn.unit?.price) || 0;
+                                          setDownPayment((uPrice * 0.1).toString());
+                                          setMaintenanceCost((uPrice * 0.08).toString());
+                                          setSavedSchedule([]);
+                                          setBookingNotes('');
+                                          setIncludeClub(false);
+                                          setIncludeGarage(false);
+                                          setIncludeMaintenance(false);
+                                          setIsPlanSaved(false);
+                                          setShowContractModal(true);
+                                        }}
+                                        className="btn-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                      >
+                                        إتمام التعاقد / Finalize
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => loadContractDataIntoModal(txn)}
+                                        className="btn-primary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                      >
+                                        تعديل وتوقيع الخطة / Edit & Sign
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => handleCancelBooking(txn.id)}
+                                      className="btn-secondary"
+                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
+                                    >
+                                      إلغاء / Cancel
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                  Booking Done
+                                </span>
+                              );
+                            })() : (
+                              <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                Contracted
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1688,193 +1864,384 @@ const CompanySalesPortal: React.FC = () => {
               </table>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Broker Submissions (Reservations and Payout Requests) */}
+        {activeTab === 'broker' && (
+          <div className="glass-panel" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            
+            {/* Section 1: Reservation hold requests */}
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-primary)' }}></i>
+                Broker Unit Reservation Holds (Awaiting Approval)
+              </h3>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Broker Agency</th>
+                      <th>Unit Details</th>
+                      <th>Customer Name</th>
+                      <th>EOI Deposit</th>
+                      <th>Audit Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokerReservations.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No broker reservation requests in the system.</td>
+                      </tr>
+                    ) : (
+                      brokerReservations.map(res => (
+                        <tr key={res.id}>
+                          <td>
+                            <strong>{res.broker?.agency_name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Agent: {res.broker?.agent_name}</div>
+                          </td>
+                          <td>
+                            <strong>{res.unit?.unit_number}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Project: {res.unit?.project?.name}</div>
+                          </td>
+                          <td>
+                            <strong>{res.client?.name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone: {res.client?.phone}</div>
+                          </td>
+                          <td>
+                            {parseFloat(res.eoi_amount) > 0 ? (
+                              <>
+                                <strong>{parseFloat(res.eoi_amount).toLocaleString()} EGP</strong>
+                                {res.payment_receipt_path && (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Receipt Slip</div>
+                                )}
+                              </>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Client Interest (No Deposit)</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge badge-${
+                              res.status === 'pending' ? 'warning' :
+                              res.status === 'confirmed' ? 'success' : 'danger'
+                            }`} style={{ textTransform: 'capitalize' }}>
+                              {res.status}
+                            </span>
+                          </td>
+                          <td>
+                            {res.status === 'pending' ? (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  onClick={() => handleApproveBrokerReservation(res.id)}
+                                  className="btn-primary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Approve Hold
+                                </button>
+                                <button 
+                                  onClick={() => setRejectionModal({ show: true, type: 'reservation', id: res.id, reason: '' })}
+                                  className="btn-secondary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                Processed ({res.status})
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <hr style={{ border: '0', borderTop: '1px solid var(--border-glass)', margin: '10px 0' }} />
+
+            {/* Section 2: Payout requests */}
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-dollar-sign" style={{ color: 'var(--color-success)' }}></i>
+                Broker Commission Invoice Auditing
+              </h3>
+              
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Broker Agency</th>
+                      <th>Requested Amount</th>
+                      <th>Invoice File</th>
+                      <th>Submission Date</th>
+                      <th>Fulfillment State</th>
+                      <th>Operations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokerPayouts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No payout request invoices submitted.</td>
+                      </tr>
+                    ) : (
+                      brokerPayouts.map(p => (
+                        <tr key={p.id}>
+                          <td>
+                            <strong>{p.broker?.agency_name}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IBAN: {p.broker?.bank_iban || 'Not Provided'}</div>
+                          </td>
+                          <td>
+                            <strong style={{ color: 'var(--color-success)' }}>{parseFloat(p.amount).toLocaleString()} EGP</strong>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', textDecoration: 'underline', cursor: 'pointer' }}>View Invoice PDF</span>
+                          </td>
+                          <td>
+                            {new Date(p.created_at).toLocaleDateString()}
+                          </td>
+                          <td>
+                            <span className={`badge badge-${
+                              p.status === 'pending_review' ? 'warning' :
+                              p.status === 'paid' ? 'success' :
+                              p.status === 'rejected' ? 'danger' : 'info'
+                            }`} style={{ textTransform: 'capitalize' }}>
+                              {p.status.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td>
+                            {p.status === 'pending_review' ? (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  onClick={() => handleApprovePayout(p.id)}
+                                  className="btn-primary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#10b981', borderColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Release Funds
+                                </button>
+                                <button 
+                                  onClick={() => setRejectionModal({ show: true, type: 'payout', id: p.id, reason: '' })}
+                                  className="btn-secondary" 
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#ef4444', borderColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                Completed ({p.status})
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Units and Status Panel */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShoppingCart style={{ color: 'var(--color-warning)' }} />
-            Inventory Status Configuration
-          </h3>
-          <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }} className="sidebar-scroll-container">
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Unit ID</th>
-                  <th>Compound Project</th>
-                  <th>Floor & Type</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {units.map(unit => (
-                  <tr key={unit.id}>
-                    <td><strong>{unit.unit_number}</strong></td>
-                    <td>{unit.project?.name}</td>
-                    <td>Floor {unit.floor} ({unit.type})</td>
-                    <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
-                    <td>
-                      <span className={`badge badge-${unit.status === 'available' ? 'success' :
-                          unit.status === 'reserved' ? 'warning' :
-                            unit.status === 'sold' ? 'info' : 'danger'
-                        }`}>
-                        {unit.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => { setSelectedUnit(unit); setUnitStatusInput(unit.status); setShowUnitModal(true); }}
-                        className="btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                      >
-                        Change Status
-                      </button>
-                    </td>
+        {activeTab === 'inventory' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-store" style={{ color: 'var(--color-warning)' }}></i>
+              Inventory Status Configuration
+            </h3>
+            <div style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }} className="sidebar-scroll-container">
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th>Unit ID</th>
+                    <th>Compound Project</th>
+                    <th>Floor & Type</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {units.map(unit => (
+                    <tr key={unit.id}>
+                      <td><strong>{unit.unit_number}</strong></td>
+                      <td>
+                        <div>{unit.project?.name}</div>
+                        {unit.project?.delivery_date && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            📅 Delivery: {unit.project.delivery_date.substring(0, 10)}
+                          </div>
+                        )}
+                      </td>
+                      <td>Floor {unit.floor} ({unit.type})</td>
+                      <td><strong>{unit.price?.toLocaleString()} EGP</strong></td>
+                      <td>
+                        <span className={`badge badge-${unit.status === 'available' ? 'success' :
+                            unit.status === 'reserved' ? 'warning' :
+                              unit.status === 'sold' ? 'info' : 'danger'
+                          }`}>
+                          {unit.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => { setSelectedUnit(unit); setUnitStatusInput(unit.status); setShowUnitModal(true); }}
+                          className="btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                        >
+                          Change Status
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Transactions & Audit Logs Panel */}
-        <div className="glass-panel" style={{ padding: '25px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ClipboardList style={{ color: 'var(--color-success)' }} />
-            Reservations and Contracts Transactions Log
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Reservation ID</th>
-                  <th>Client</th>
-                  <th>Sales Channel</th>
-                  <th>Unit Number</th>
-                  <th>EOI Amount</th>
-                  <th>Hold Time Remaining</th>
-                  <th>Status & Contract</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.length === 0 ? (
+        {activeTab === 'transactions' && (
+          <div className="glass-panel" style={{ padding: '25px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--color-success)' }}></i>
+              Reservations and Contracts Transactions Log
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
+                    <th>Reservation ID</th>
+                    <th>Client</th>
+                    <th>Sales Channel</th>
+                    <th>Unit Number</th>
+                    <th>EOI Amount</th>
+                    <th>Hold Time Remaining</th>
+                    <th>Status & Contract</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  transactions.map(txn => {
-                    const getHoldTimeRemaining = (expiresAtStr: string, status: string, hasContract: boolean) => {
-                      if (hasContract) return 'Contracted';
-                      if (status === 'expired') return 'Expired';
-                      if (status === 'cancelled') return 'Cancelled';
-                      if (!expiresAtStr) return 'N/A';
-                      const expiresAt = new Date(expiresAtStr);
-                      const diffMs = expiresAt.getTime() - Date.now();
-                      if (diffMs <= 0) return 'Expired';
-                      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                      const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                      if (diffDays > 0) {
-                        return `${diffDays}d ${diffHours}h left`;
-                      }
-                      return `${diffHours}h left`;
-                    };
+                </thead>
+                <tbody>
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
+                    </tr>
+                  ) : (
+                    transactions.map(txn => {
+                      const getHoldTimeRemaining = (expiresAtStr: string, status: string, hasContract: boolean) => {
+                        if (hasContract) return 'Contracted';
+                        if (status === 'expired') return 'Expired';
+                        if (status === 'cancelled') return 'Cancelled';
+                        if (!expiresAtStr) return 'N/A';
+                        const expiresAt = new Date(expiresAtStr);
+                        const diffMs = expiresAt.getTime() - Date.now();
+                        if (diffMs <= 0) return 'Expired';
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        if (diffDays > 0) {
+                          return `${diffDays}d ${diffHours}h left`;
+                        }
+                        return `${diffHours}h left`;
+                      };
 
-                    const isExpired = txn.status === 'expired' || (!txn.contract && new Date(txn.expires_at).getTime() < Date.now());
+                      const isExpired = txn.status === 'expired' || (!txn.contract && new Date(txn.expires_at).getTime() < Date.now());
 
-                    return (
-                      <tr key={txn.id}>
-                        <td><span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{txn.id.substring(0, 18)}...</span></td>
-                        <td><strong>{txn.client?.name}</strong></td>
-                        <td>
-                          {txn.broker ? (
-                            <span style={{ color: 'var(--color-warning)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              🍊 Broker: {txn.broker.agency_name}
+                      return (
+                        <tr key={txn.id}>
+                          <td><span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{txn.id.substring(0, 18)}...</span></td>
+                          <td><strong>{txn.client?.name}</strong></td>
+                          <td>
+                            {txn.broker ? (
+                              <span style={{ color: 'var(--color-warning)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                🍊 Broker: {txn.broker.agency_name}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                🏢 Direct (Company Sales)
+                              </span>
+                            )}
+                          </td>
+                          <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
+                          <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: isExpired ? 'var(--color-danger)' : (txn.contract && txn.contract.status !== 'draft') ? 'var(--color-success)' : 'var(--color-warning)' }}>
+                              {getHoldTimeRemaining(txn.expires_at, txn.status, txn.contract && txn.contract.status !== 'draft')}
                             </span>
-                          ) : (
-                            <span style={{ color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              🏢 Direct (Company Sales)
-                            </span>
-                          )}
-                        </td>
-                        <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
-                        <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
-                        <td>
-                          <span style={{ fontWeight: 600, color: isExpired ? 'var(--color-danger)' : (txn.contract && txn.contract.status !== 'draft') ? 'var(--color-success)' : 'var(--color-warning)' }}>
-                            {getHoldTimeRemaining(txn.expires_at, txn.status, txn.contract && txn.contract.status !== 'draft')}
-                          </span>
-                        </td>
-                        <td>
-                          {txn.contract ? (
-                            <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : 'info'}`}>
-                              {txn.contract.status === 'active' ? `Signed: ${txn.contract.contract_number}` : `Draft: ${txn.contract.contract_number}`}
-                            </span>
-                          ) : isExpired ? (
-                            <span className="badge badge-danger">Expired (EOI Refunded)</span>
-                          ) : txn.status === 'cancelled' ? (
-                            <span className="badge badge-danger">Cancelled</span>
-                          ) : (
-                            <span className="badge badge-warning">Awaiting Contract (Hold)</span>
-                          )}
-                        </td>
-                        <td>
-                          {!isExpired && txn.status === 'confirmed' && (!txn.contract || txn.contract.status === 'draft') && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              {!txn.contract ? (
+                          </td>
+                          <td>
+                            {txn.contract ? (
+                              <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : 'info'}`}>
+                                {txn.contract.status === 'active' ? `Signed: ${txn.contract.contract_number}` : `Draft: ${txn.contract.contract_number}`}
+                              </span>
+                            ) : isExpired ? (
+                              <span className="badge badge-danger">Expired (EOI Refunded)</span>
+                            ) : txn.status === 'cancelled' ? (
+                              <span className="badge badge-danger">Cancelled</span>
+                            ) : (
+                              <span className="badge badge-warning">Awaiting Contract (Hold)</span>
+                            )}
+                          </td>
+                          <td>
+                            {!isExpired && txn.status === 'confirmed' && (!txn.contract || txn.contract.status === 'draft') && (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {!txn.contract ? (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedReservationForContract(txn);
+                                      setBookingUnitId(txn.unit_id);
+                                      setBookingEoi(txn.eoi_amount.toString());
+                                      setDiscountPercent('0');
+                                      const uPrice = parseFloat(txn.unit?.price) || 0;
+                                      setDownPayment((uPrice * 0.1).toString());
+                                      setMaintenanceCost((uPrice * 0.08).toString());
+                                      setSavedSchedule([]);
+                                      setBookingNotes('');
+                                      setIncludeClub(false);
+                                      setIncludeGarage(false);
+                                      setIncludeMaintenance(false);
+                                      setIsPlanSaved(false);
+                                      setShowContractModal(true);
+                                    }}
+                                    className="btn-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                  >
+                                    Finalize Contract
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => loadContractDataIntoModal(txn)}
+                                    className="btn-primary"
+                                    style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                  >
+                                    Edit & Sign / تعديل وتوقيع الخطة
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => {
-                                    setSelectedReservationForContract(txn);
-                                    setBookingUnitId(txn.unit_id);
-                                    setBookingEoi(txn.eoi_amount.toString());
-                                    setDiscountPercent('0');
-                                    const uPrice = parseFloat(txn.unit?.price) || 0;
-                                    setDownPayment((uPrice * 0.1).toString());
-                                    setMaintenanceCost((uPrice * 0.08).toString());
-                                    setSavedSchedule([]);
-                                    setBookingNotes('');
-                                    setIncludeClub(false);
-                                    setIncludeGarage(false);
-                                    setIncludeMaintenance(false);
-                                    setIsPlanSaved(false);
-                                    setShowContractModal(true);
-                                  }}
-                                  className="btn-primary"
-                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                  onClick={() => handleCancelBooking(txn.id)}
+                                  className="btn-secondary"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
                                 >
-                                  Finalize Contract
+                                  Cancel Hold
                                 </button>
-                              ) : (
-                                <button
-                                  onClick={() => loadContractDataIntoModal(txn)}
-                                  className="btn-primary"
-                                  style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
-                                >
-                                  Edit & Sign / تعديل وتوقيع الخطة
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleCancelBooking(txn.id)}
-                                className="btn-secondary"
-                                style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
-                              >
-                                Cancel Hold
-                              </button>
-                            </div>
-                          )}
-{(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No action available</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                              </div>
+                            )}
+                            {(isExpired || txn.status === 'cancelled' || (txn.contract && txn.contract.status !== 'draft')) && (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No action available</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
 
@@ -1883,8 +2250,13 @@ const CompanySalesPortal: React.FC = () => {
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '600px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
-              <h3 style={{ fontWeight: 800 }}>Journey Timeline: {journeyLead.first_name} {journeyLead.last_name}</h3>
-              <span className="badge badge-info">{journeyLead.source} source</span>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Journey Timeline: {journeyLead.first_name} {journeyLead.last_name}</h3>
+                <span className="badge badge-info" style={{ marginTop: '4px' }}>{journeyLead.source} source</span>
+              </div>
+              <button onClick={() => { setShowJourneyModal(false); setJourneyLead(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
             </div>
 
             {/* Broker presentations */}
@@ -1930,10 +2302,17 @@ const CompanySalesPortal: React.FC = () => {
       {showBookingModal && selectedLeadForBooking && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '520px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Execute Booking Reservation Hold</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Reserve an inventory unit on hold for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Execute Booking Reservation Hold</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Reserve an inventory unit on hold for <strong>{selectedLeadForBooking.first_name} {selectedLeadForBooking.last_name}</strong>.
+                </p>
+              </div>
+              <button type="button" onClick={() => { setBookingUnitId(''); setBookingNotes(''); setBookingEoi('50000'); setBookingHoldingDays(7); setShowBookingModal(false); setSelectedLeadForBooking(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleCreateBooking} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {selectedLeadForBooking && (
                 <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1956,10 +2335,16 @@ const CompanySalesPortal: React.FC = () => {
                   <option value="">-- Choose Unit --</option>
                   {units.filter(u => u.status === 'available').map(unit => (
                     <option key={unit.id} value={unit.id}>
-                      {unit.unit_number} - {unit.price?.toLocaleString()} EGP ({unit.project?.name} / {unit.type})
+                      {unit.unit_number} - {unit.price?.toLocaleString()} EGP ({unit.project?.name} {unit.project?.delivery_date ? `[Deliv: ${unit.project.delivery_date.substring(0, 10)}]` : ''} / {unit.type})
                     </option>
                   ))}
                 </select>
+                {selectedUnitForBookingObj && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderLeft: '4px solid var(--color-success)', borderRadius: 'var(--radius-xs)', fontSize: '0.78rem', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div>🏢 <strong>Project:</strong> {selectedUnitForBookingObj.project?.name}</div>
+                    <div>📅 <strong>Project Delivery Date:</strong> {selectedUnitForBookingObj.project?.delivery_date ? selectedUnitForBookingObj.project.delivery_date.substring(0, 10) : 'Not specified'}</div>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
@@ -1997,10 +2382,17 @@ const CompanySalesPortal: React.FC = () => {
       {showContractModal && selectedReservationForContract && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '640px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Finalize Contract & Payment Plan</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Set up the payment plan schedule for unit <strong>{selectedReservationForContract.unit?.unit_number}</strong> ({selectedReservationForContract.unit?.project?.name}).
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Finalize Contract & Payment Plan</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Set up the payment plan schedule for unit <strong>{selectedReservationForContract.unit?.unit_number}</strong> ({selectedReservationForContract.unit?.project?.name}).
+                </p>
+              </div>
+              <button type="button" onClick={() => { setBookingUnitId(''); setBookingNotes(''); setDiscountPercent('0'); setDownPayment(''); setIncludeClub(false); setIncludeGarage(false); setIncludeMaintenance(false); setCustomAddons([]); setShowContractModal(false); setSelectedReservationForContract(null); setIsPlanSaved(false); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleFinalizeContract} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }} className="sidebar-scroll-container">
 
               <div style={{ padding: '12px', background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2065,6 +2457,16 @@ const CompanySalesPortal: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              <div className="form-group" style={{ marginBottom: '10px' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Standard Payment Plan (نظام سداد قياسي)</label>
+                <select className="form-control" value={selectedStandardPlanId} onChange={e => handleStandardPlanChange(e.target.value)}>
+                  <option value="">-- Customize / نظام سداد مخصص --</option>
+                  {standardPlans.map(plan => (
+                    <option key={plan.id} value={plan.id}>{plan.name} / {plan.name_ar} (DP: {plan.down_payment_pct}%, Term: {plan.installments} mo, Disc: {plan.discount_pct}%)</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
                 <label className="form-label" style={{ fontWeight: 700 }}>Discount Percent (%) / نسبة الخصم</label>
@@ -2510,11 +2912,11 @@ const CompanySalesPortal: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', justifyItems: 'center', alignItems: 'center', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.8rem', fontWeight: 800, margin: 0, color: 'var(--color-primary)' }}>📅 جدول الدفعات المقترح (Chronological Schedule)</h4>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button type="button" onClick={handlePrintSchedule} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)' }}>
-                        🖨️ Print Plan
+                      <button type="button" onClick={handlePrintSchedule} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-print"></i> Print Plan
                       </button>
-                      <button type="button" onClick={handleDownloadCSV} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)' }}>
-                        📥 Download CSV
+                      <button type="button" onClick={handleDownloadCSV} className="btn-secondary" style={{ padding: '3px 8px', fontSize: '0.68rem', borderRadius: 'var(--radius-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-download"></i> Download CSV
                       </button>
                     </div>
                   </div>
@@ -2609,7 +3011,12 @@ const CompanySalesPortal: React.FC = () => {
       {showUnitModal && selectedUnit && (
         <div className="modal-backdrop">
           <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: '400px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontWeight: 800 }}>Configure Unit Status: {selectedUnit.unit_number}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '10px' }}>
+              <h3 style={{ fontWeight: 800, margin: 0 }}>Configure Unit Status: {selectedUnit.unit_number}</h3>
+              <button type="button" onClick={() => { setShowUnitModal(false); setSelectedUnit(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
+                <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+              </button>
+            </div>
             <form onSubmit={handleUpdateUnitStatus} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
                 <label className="form-label">Unit Status</label>
