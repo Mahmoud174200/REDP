@@ -108,8 +108,16 @@ class EoiReservationController extends Controller
             });
         }
 
-        $reservations = $query->orderBy('created_at', 'desc')
-            ->paginate($request->input('per_page', 20));
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortDir = $request->input('sort_dir', 'desc');
+
+        if ($sortBy === 'queue_number') {
+            $query->orderByRaw('queue_number IS NULL, queue_number ASC');
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
+
+        $reservations = $query->paginate($request->input('per_page', 20));
 
         return response()->json([
             'success' => true,
@@ -240,12 +248,11 @@ class EoiReservationController extends Controller
 
         $reservation = DB::transaction(function () use ($reservation, $request) {
             $orderNumber = EoiReservation::generateOrderNumber();
-            $queueNumber = EoiReservation::getNextQueueNumber($reservation->project_id);
 
             $reservation->update([
                 'status'       => EoiReservation::STATUS_APPROVED,
                 'order_number' => $orderNumber,
-                'queue_number' => $queueNumber,
+                'queue_number' => null,
                 'reviewer_id'  => $request->user()?->id,
                 'review_notes' => $request->input('notes'),
                 'reviewed_at'  => now(),
@@ -253,6 +260,14 @@ class EoiReservationController extends Controller
 
             return $reservation->fresh();
         });
+
+        // Recalculate queue numbers for the project
+        try {
+            EoiReservation::recalculateQueueNumbers($reservation->project_id);
+            $reservation = $reservation->fresh();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to recalculate queue numbers on approval: " . $e->getMessage());
+        }
 
         // Send confirmation email
         try {

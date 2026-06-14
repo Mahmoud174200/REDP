@@ -170,4 +170,185 @@ class EoiReservation extends Model
     {
         return in_array($method, self::PAYMENT_METHODS[$location] ?? []);
     }
+
+    /**
+     * Check if the client is a past client.
+     */
+    public function isPastClient(): bool
+    {
+        $lead = $this->lead;
+        if (!$lead) {
+            return false;
+        }
+
+        if ($lead->status === Lead::STATUS_CONTRACTED) {
+            return true;
+        }
+
+        // Match by email or phone to users, then check contracts or reservations
+        $user = User::where(function($q) use ($lead) {
+            if ($lead->email) {
+                $q->where('email', $lead->email);
+            }
+            if ($lead->phone) {
+                $q->orWhere('phone', $lead->phone);
+            }
+        })->first();
+
+        if ($user) {
+            $hasContract = DB::table('contracts')->where('client_id', $user->id)->exists();
+            $hasReservation = DB::table('reservations')->where('client_id', $user->id)->exists();
+            if ($hasContract || $hasReservation) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if client is Egyptian.
+     */
+    public function isEgyptian(): bool
+    {
+        if ($this->client_location === self::LOCATION_INSIDE_EGYPT) {
+            return true;
+        }
+        $lead = $this->lead;
+        if ($lead && $lead->national_id) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if client is Foreigner.
+     */
+    public function isForeigner(): bool
+    {
+        if ($this->client_location === self::LOCATION_OUTSIDE_EGYPT) {
+            return true;
+        }
+        $lead = $this->lead;
+        if ($lead && $lead->passport_no && !$lead->national_id) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Evaluate custom admin rule on this reservation.
+     */
+    public function evaluateCustomRule(array $rule): bool
+    {
+        $field = $rule['field'] ?? '';
+        $operator = $rule['operator'] ?? '';
+        $value = $rule['value'] ?? '';
+
+        $fieldValue = null;
+        if (in_array($field, ['payment_amount', 'payment_method', 'client_location', 'status'])) {
+            $fieldValue = $this->{$field};
+        } else {
+            $lead = $this->lead;
+            if ($lead && in_array($field, ['lead_score', 'source', 'status'])) {
+                $fieldValue = $lead->{$field};
+            }
+        }
+
+        if (is_null($fieldValue)) {
+            return false;
+        }
+
+        switch ($operator) {
+            case '>':  return floatval($fieldValue) > floatval($value);
+            case '<':  return floatval($fieldValue) < floatval($value);
+            case '>=': return floatval($fieldValue) >= floatval($value);
+            case '<=': return floatval($fieldValue) <= floatval($value);
+            case '=':  return strtolower((string)$fieldValue) == strtolower((string)$value);
+            case '!=': return strtolower((string)$fieldValue) != strtolower((string)$value);
+            default:   return false;
+        }
+    }
+
+    /**
+     * Recalculate queue numbers for all approved reservations of a project.
+     */
+    public static function recalculateQueueNumbers(string $projectId): void
+    {
+        $reservations = self::where('project_id', $projectId)
+            ->where('status', self::STATUS_APPROVED)
+            ->with('lead')
+            ->get();
+
+        $queueMode = DB::table('system_configs')->where('key', 'eoi_queue_mode')->value('value') ?: 'normal';
+
+        if ($queueMode === 'smart') {
+            $weightPastClient = (int) (DB::table('system_configs')->where('key', 'eoi_queue_weight_past_client')->value('value') ?: 100);
+            $weightCash = (int) (DB::table('system_configs')->where('key', 'eoi_queue_weight_cash')->value('value') ?: 50);
+            $weightVip = (int) (DB::table('system_configs')->where('key', 'eoi_queue_weight_vip')->value('value') ?: 150);
+            $nationalityPriority = DB::table('system_configs')->where('key', 'eoi_queue_nationality_priority')->value('value') ?: 'none';
+            $weightNationality = (int) (DB::table('system_configs')->where('key', 'eoi_queue_weight_nationality')->value('value') ?: 40);
+            $customRulesJson = DB::table('system_configs')->where('key', 'eoi_queue_custom_rules')->value('value') ?: '[]';
+            $customRules = json_decode($customRulesJson, true) ?: [];
+
+            foreach ($reservations as $res) {
+                $score = 0;
+
+                if ($res->isPastClient()) {
+                    $score += $weightPastClient;
+                }
+
+                if ($res->payment_method === self::PAYMENT_CASH) {
+                    $score += $weightCash;
+                }
+
+                if ($res->lead && $res->lead->is_vip) {
+                    $score += $weightVip;
+                }
+
+                if ($nationalityPriority !== 'none') {
+                    $isEgyptian = $res->isEgyptian();
+                    $isForeigner = $res->isForeigner();
+                    if (($nationalityPriority === 'egyptian' && $isEgyptian) ||
+                        ($nationalityPriority === 'foreigner' && $isForeigner)) {
+                        $score += $weightNationality;
+                    }
+                }
+
+                foreach ($customRules as $rule) {
+                    if ($res->evaluateCustomRule($rule)) {
+                        $score += (int) ($rule['weight'] ?? 0);
+                    }
+                }
+
+                $res->calculated_score = $score;
+            }
+
+            // Sort: highest score first, then FIFO by reviewed_at (or created_at)
+            $sorted = $reservations->sort(function ($a, $b) {
+                if ($a->calculated_score != $b->calculated_score) {
+                    return $b->calculated_score <=> $a->calculated_score;
+                }
+                $timeA = $a->reviewed_at ? $a->reviewed_at->timestamp : $a->created_at->timestamp;
+                $timeB = $b->reviewed_at ? $b->reviewed_at->timestamp : $b->created_at->timestamp;
+                return $timeA <=> $timeB;
+            });
+        } else {
+            // Normal Queue: strictly FIFO by approval time
+            $sorted = $reservations->sort(function ($a, $b) {
+                $timeA = $a->reviewed_at ? $a->reviewed_at->timestamp : $a->created_at->timestamp;
+                $timeB = $b->reviewed_at ? $b->reviewed_at->timestamp : $b->created_at->timestamp;
+                return $timeA <=> $timeB;
+            });
+        }
+
+        // Update queue numbers in database
+        $queueIndex = 1;
+        foreach ($sorted as $res) {
+            DB::table('eoi_reservations')
+                ->where('id', $res->id)
+                ->update(['queue_number' => $queueIndex]);
+            $queueIndex++;
+        }
+    }
 }

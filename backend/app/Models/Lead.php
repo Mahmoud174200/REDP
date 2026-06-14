@@ -73,11 +73,13 @@ class Lead extends Model
         'budget',
         'payment_method',
         'interested_project_id',
+        'is_vip',
     ];
 
     protected $casts = [
         'lead_score'         => 'integer',
         'facial_match_score' => 'decimal:2',
+        'is_vip'             => 'boolean',
         'created_at'         => 'datetime',
         'updated_at'         => 'datetime',
         'deleted_at'         => 'datetime',

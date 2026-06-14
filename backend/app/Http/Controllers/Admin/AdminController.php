@@ -147,7 +147,14 @@ class AdminController extends Controller
             'notify_ticket_creation_recipient' => 'delivery_engineer',
             'notify_payment_collection_recipient' => 'finance_officer',
             'enable_email_notifications' => 'true',
-            'enable_app_notifications' => 'true'
+            'enable_app_notifications' => 'true',
+            'eoi_queue_mode' => 'normal',
+            'eoi_queue_weight_past_client' => '100',
+            'eoi_queue_weight_cash' => '50',
+            'eoi_queue_weight_vip' => '150',
+            'eoi_queue_nationality_priority' => 'none',
+            'eoi_queue_weight_nationality' => '40',
+            'eoi_queue_custom_rules' => '[]'
         ];
 
         foreach ($defaults as $key => $value) {
@@ -236,6 +243,18 @@ class AdminController extends Controller
                 ['key' => $key],
                 ['value' => (string) $value]
             );
+        }
+
+        // Recalculate queue numbers for all projects when configurations change
+        try {
+            $projectIds = \App\Models\EoiReservation::where('status', \App\Models\EoiReservation::STATUS_APPROVED)
+                ->distinct()
+                ->pluck('project_id');
+            foreach ($projectIds as $projectId) {
+                \App\Models\EoiReservation::recalculateQueueNumbers($projectId);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to recalculate queue numbers after config update: " . $e->getMessage());
         }
 
         $allConfigs = SystemConfig::all()->pluck('value', 'key');

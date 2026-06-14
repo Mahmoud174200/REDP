@@ -198,6 +198,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             ->middleware('antifraud');
         Route::get('/leads/{id}', [LeadController::class, 'show']);
         Route::put('/leads/{id}/status', [LeadController::class, 'updateStatus']);
+        Route::put('/leads/{id}/toggle-vip', [LeadController::class, 'toggleVip']);
 
         // ── CRM Pipeline (Kanban Board) ──
         Route::get('/crm/pipeline', [CrmPipelineController::class, 'pipeline']);

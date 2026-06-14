@@ -46,7 +46,8 @@ const Leads: React.FC = () => {
           email: lead.email || 'n/a',
           phone: lead.phone,
           stage: lead.status || 'new',
-          kyc: lead.kyc_status || 'none'
+          kyc: lead.kyc_status || 'none',
+          is_vip: !!lead.is_vip
         }));
         setLeads(mappedLeads);
       }
@@ -297,7 +298,12 @@ const Leads: React.FC = () => {
               <tbody>
                 {leads.map((lead) => (
                   <tr key={lead.id}>
-                    <td><strong>{lead.name}</strong></td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong>{lead.name}</strong>
+                        {lead.is_vip && <span title="VIP Client" style={{ color: '#f59e0b', fontSize: '1.2rem' }}>★</span>}
+                      </div>
+                    </td>
                     <td>{lead.phone}</td>
                     <td>
                       {lead.kyc === 'verified' && <span className="badge badge-success">Verified (94.2%)</span>}
@@ -306,18 +312,43 @@ const Leads: React.FC = () => {
                       {lead.kyc === 'rejected' && <span className="badge badge-danger">Rejected</span>}
                     </td>
                     <td>
-                      {lead.kyc === 'none' && (userRole === 'admin' || userRole === 'sales_agent') ? (
-                        <button 
-                          onClick={() => handleKycApprove(lead.id)}
-                          className="btn-secondary" 
-                          style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                        >
-                          Run KYC Verification
-                        </button>
-                      ) : lead.kyc === 'none' ? (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pending</span>
-                      ) : null}
-                      {lead.kyc !== 'none' && <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>Checked</span>}
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        {lead.kyc === 'none' && (userRole === 'admin' || userRole === 'sales_agent') ? (
+                          <button 
+                            onClick={() => handleKycApprove(lead.id)}
+                            className="btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                          >
+                            Run KYC Verification
+                          </button>
+                        ) : lead.kyc === 'none' ? (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pending</span>
+                        ) : null}
+                        {lead.kyc !== 'none' && <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>Checked</span>}
+
+                        {(userRole === 'admin' || userRole === 'sales_agent' || userRole === 'company_sales') && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await api.put(`/acquisition/leads/${lead.id}/toggle-vip`);
+                                if (res.data.success) {
+                                  await fetchLeads();
+                                }
+                              } catch (err) {
+                                alert('Failed to toggle VIP status');
+                              }
+                            }}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: lead.is_vip ? '#f59e0b' : '#d1d5db',
+                              fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center'
+                            }}
+                            title={lead.is_vip ? "Remove VIP status" : "Make VIP"}
+                          >
+                            ★
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

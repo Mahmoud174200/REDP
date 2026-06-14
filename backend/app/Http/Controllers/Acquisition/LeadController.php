@@ -93,6 +93,7 @@ class LeadController extends Controller
             'source'      => 'nullable|string|in:facebook,google,tiktok,direct,referral,broker',
             'campaign_id' => 'nullable|uuid',
             'lead_score'  => 'nullable|integer|min:0|max:100',
+            'is_vip'      => 'nullable|boolean',
         ]);
 
         $lead = Lead::create([
@@ -108,6 +109,7 @@ class LeadController extends Controller
             'source'      => $fields['source'] ?? 'direct',
             'campaign_id' => $fields['campaign_id'] ?? null,
             'kyc_status'  => 'none',
+            'is_vip'      => $fields['is_vip'] ?? false,
         ]);
 
         // Auto-assign via Round-Robin
@@ -195,6 +197,28 @@ class LeadController extends Controller
             'message'         => "Lead status updated from '{$previousStatus}' to '{$fields['status']}'.",
             'data'            => $lead->fresh(),
             'event_dispatched' => $fields['status'] === Lead::STATUS_RESERVED ? 'ReservationConfirmed' : null,
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/acquisition/leads/{id}/toggle-vip
+     * Toggle VIP status of a lead.
+     */
+    public function toggleVip(Request $request, string $id): JsonResponse
+    {
+        $lead = Lead::findOrFail($id);
+        $lead->is_vip = !$lead->is_vip;
+        $lead->save();
+
+        AuditLogService::log('LEAD_VIP_TOGGLE', $request->user()?->id, [
+            'lead_id' => $lead->id,
+            'is_vip'  => $lead->is_vip,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead VIP status updated successfully.',
+            'data'    => $lead,
         ]);
     }
 }

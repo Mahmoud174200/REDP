@@ -51,7 +51,7 @@ interface Stats {
   recent_activity: EoiReservation[];
 }
 
-type TabId = 'dashboard' | 'submit' | 'pending' | 'all';
+type TabId = 'dashboard' | 'submit' | 'pending' | 'all' | 'queue' | 'rules';
 
 const TABS: { id: TabId; label: string; icon: React.FC<any> }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
@@ -124,6 +124,26 @@ const EoiReservations: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // User details
+  const [userRole, setUserRole] = useState<string>('agent');
+
+  // Queue Board states
+  const [selectedQueueProject, setSelectedQueueProject] = useState<string>('');
+  const [queueList, setQueueList] = useState<EoiReservation[]>([]);
+  const [loadingQueue, setLoadingQueue] = useState<boolean>(false);
+
+  // Queue Rules states
+  const [queueConfigs, setQueueConfigs] = useState({
+    eoi_queue_mode: 'normal',
+    eoi_queue_weight_past_client: '100',
+    eoi_queue_weight_cash: '50',
+    eoi_queue_weight_vip: '150',
+    eoi_queue_nationality_priority: 'none',
+    eoi_queue_weight_nationality: '40',
+  });
+  const [customRules, setCustomRules] = useState<any[]>([]);
+  const [loadingConfigs, setLoadingConfigs] = useState<boolean>(false);
 
   // Modal states
   const [receiptModal, setReceiptModal] = useState<string | null>(null);
@@ -203,12 +223,111 @@ const EoiReservations: React.FC = () => {
     } catch (err) { console.error('Failed to fetch leads/projects:', err); }
   }, []);
 
+  const fetchConfigs = async () => {
+    setLoadingConfigs(true);
+    try {
+      const res = await api.get('/admin/configs');
+      if (res.data && res.data.success) {
+        const data = res.data.data;
+        setQueueConfigs({
+          eoi_queue_mode: data.eoi_queue_mode || 'normal',
+          eoi_queue_weight_past_client: data.eoi_queue_weight_past_client || '100',
+          eoi_queue_weight_cash: data.eoi_queue_weight_cash || '50',
+          eoi_queue_weight_vip: data.eoi_queue_weight_vip || '150',
+          eoi_queue_nationality_priority: data.eoi_queue_nationality_priority || 'none',
+          eoi_queue_weight_nationality: data.eoi_queue_weight_nationality || '40',
+        });
+        try {
+          setCustomRules(JSON.parse(data.eoi_queue_custom_rules || '[]'));
+        } catch (e) {
+          setCustomRules([]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch configs:', err);
+    }
+    setLoadingConfigs(false);
+  };
+
+  const saveConfigs = async () => {
+    try {
+      const payload = {
+        configs: {
+          ...queueConfigs,
+          eoi_queue_custom_rules: JSON.stringify(customRules)
+        }
+      };
+      const res = await api.post('/admin/configs', payload);
+      if (res.data && res.data.success) {
+        addToast('Queue configurations updated & queue recalculated!', 'success');
+        fetchConfigs();
+      }
+    } catch (err: any) {
+      addToast(err.response?.data?.message || 'Failed to update configurations.', 'error');
+    }
+  };
+
+  const fetchQueue = async (projectId: string) => {
+    if (!projectId) {
+      setQueueList([]);
+      return;
+    }
+    setLoadingQueue(true);
+    try {
+      const res = await api.get('/acquisition/eoi-reservations', {
+        params: {
+          project_id: projectId,
+          status: 'approved',
+          sort_by: 'queue_number',
+          sort_dir: 'asc',
+          per_page: 100
+        }
+      });
+      if (res.data.success) {
+        setQueueList(res.data.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch queue:', err);
+    }
+    setLoadingQueue(false);
+  };
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('redp_user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        setUserRole(u.role || 'agent');
+      } catch (e) { console.error(e); }
+    }
+  }, []);
+
+  const isAdminOrFinance = userRole === 'admin' || userRole === 'finance_officer';
+
+  const visibleTabs = [
+    { id: 'dashboard' as const, label: 'Dashboard', icon: TrendingUp },
+    { id: 'submit' as const, label: 'Submit EOI', icon: Upload },
+    { id: 'pending' as const, label: 'Pending Review', icon: Clock },
+    { id: 'all' as const, label: 'All Reservations', icon: FileText },
+    ...(isAdminOrFinance ? [
+      { id: 'queue' as const, label: 'Queue Board', icon: Users },
+      { id: 'rules' as const, label: 'Queue Rules', icon: Filter }
+    ] : [])
+  ];
+
   useEffect(() => {
     fetchStats();
     if (activeTab === 'submit') fetchLeadsAndProjects();
     if (activeTab === 'pending') fetchPending();
     if (activeTab === 'all') fetchReservations();
-  }, [activeTab, fetchStats, fetchLeadsAndProjects, fetchPending, fetchReservations]);
+    if (activeTab === 'queue') {
+      fetchLeadsAndProjects();
+      if (selectedQueueProject) {
+        fetchQueue(selectedQueueProject);
+      }
+    }
+    if (activeTab === 'rules') fetchConfigs();
+  }, [activeTab, fetchStats, fetchLeadsAndProjects, fetchPending, fetchReservations, selectedQueueProject]);
 
   // ── Submit EOI ──
   const handleSubmit = async () => {
@@ -355,7 +474,7 @@ const EoiReservations: React.FC = () => {
 
       {/* Tab Navigation */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        {TABS.map(tab => {
+        {visibleTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           const pendingCount = tab.id === 'pending' && stats?.pending ? stats.pending : 0;
@@ -943,6 +1062,354 @@ const EoiReservations: React.FC = () => {
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* TAB 5: Queue Board */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'queue' && (
+        <div style={{ animation: 'modal-fade-in 0.3s ease-out' }}>
+          <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', fontWeight: 700, marginBottom: '16px' }}>Project Queue Position Board</h3>
+            <div className="form-group" style={{ marginBottom: 0, maxWidth: '400px' }}>
+              <label className="form-label">Select Project *</label>
+              <select
+                className="form-control"
+                value={selectedQueueProject}
+                onChange={e => {
+                  setSelectedQueueProject(e.target.value);
+                  fetchQueue(e.target.value);
+                }}
+              >
+                <option value="">Select a project...</option>
+                {projects.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.location})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {!selectedQueueProject ? (
+            <div className="glass-panel" style={{ padding: '48px', textAlign: 'center' }}>
+              <Users style={{ width: '48px', height: '48px', color: 'var(--color-secondary)', marginBottom: '16px' }} />
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Select a Project</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Select a project from the dropdown above to view its live queue.</p>
+            </div>
+          ) : loadingQueue ? (
+            <div className="glass-panel" style={{ padding: '48px', textAlign: 'center' }}>
+              <RefreshCw style={{ width: '32px', height: '32px', color: 'var(--color-primary)', animation: 'spin 1s linear infinite' }} />
+              <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '0.85rem' }}>Loading project queue...</p>
+            </div>
+          ) : queueList.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '48px', textAlign: 'center' }}>
+              <FileText style={{ width: '48px', height: '48px', color: 'var(--color-secondary)', marginBottom: '16px' }} />
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>No Approved EOI Reservations</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>There are currently no approved EOI reservations in the queue for this project.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="premium-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '80px' }}>Position</th>
+                    <th>Client</th>
+                    <th>Payment</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Approved Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queueList.map((item, index) => {
+                    const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending_review;
+                    const isVip = item.lead && (item.lead as any).is_vip;
+                    return (
+                      <tr key={item.id} style={{ background: isVip ? 'rgba(245, 158, 11, 0.03)' : undefined }}>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: index === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : index === 1 ? 'linear-gradient(135deg, #9ca3af, #4b5563)' : index === 2 ? 'linear-gradient(135deg, #b45309, #78350f)' : 'rgba(255,255,255,0.6)',
+                            color: index < 3 ? '#fff' : 'var(--text-main)',
+                            fontWeight: 700,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.85rem',
+                            border: '1.5px solid var(--border-glass)',
+                            boxShadow: index < 3 ? '0 4px 10px rgba(0,0,0,0.1)' : 'none'
+                          }}>
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-main)' }}>{item.client_name}</span>
+                            {isVip && <span title="VIP" style={{ color: '#f59e0b', fontSize: '0.9rem' }}>★</span>}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.client_email}</div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {React.createElement(PAYMENT_METHODS[item.payment_method]?.icon || CreditCard, { style: { width: '14px', height: '14px', color: 'var(--text-muted)' } })}
+                            <span style={{ fontSize: '0.8rem' }}>{PAYMENT_METHODS[item.payment_method]?.label || item.payment_method}</span>
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '0.9rem' }}>{formatCurrency(item.payment_amount)}</td>
+                        <td><span className="badge" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span></td>
+                        <td>
+                          <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.4)', color: 'var(--text-muted)' }}>
+                            {item.client_location === 'inside_egypt' ? '🇪🇬 Egypt' : '🌍 International'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {item.reviewed_at ? formatDate(item.reviewed_at) : formatDate(item.created_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* TAB 6: Queue Rules */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'rules' && (
+        <div style={{ animation: 'modal-fade-in 0.3s ease-out', maxWidth: '850px' }}>
+          {userRole !== 'admin' && (
+            <div style={{ padding: '12px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(208, 148, 30, 0.08)', border: '1px solid rgba(208, 148, 30, 0.2)', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle style={{ width: '16px', height: '16px', color: 'var(--color-warning)' }} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-warning)', fontWeight: 600 }}>Read-only: Only administrators are authorized to modify smart queue configurations.</span>
+              </div>
+            </div>
+          )}
+
+          <div className="glass-panel" style={{ padding: '30px', marginBottom: '24px' }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>Queue Prioritization Engine</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>Configure how EOI priority is computed for new launches.</p>
+
+            {/* Queue Mode selection */}
+            <div className="form-group">
+              <label className="form-label">Active Queue Mode</label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {[
+                  { value: 'normal', label: 'Normal Queue', desc: 'Strict FIFO by payment clearance timestamp.' },
+                  { value: 'smart', label: 'Smart Queue', desc: 'Prioritized queue sorted by customizable rule scores.' }
+                ].map(mode => {
+                  const isSelected = queueConfigs.eoi_queue_mode === mode.value;
+                  return (
+                    <button
+                      key={mode.value}
+                      disabled={userRole !== 'admin'}
+                      onClick={() => setQueueConfigs(prev => ({ ...prev, eoi_queue_mode: mode.value }))}
+                      style={{
+                        flex: 1, padding: '18px', borderRadius: 'var(--radius-sm)',
+                        border: isSelected ? '2px solid var(--color-primary)' : '1.5px solid var(--border-glass)',
+                        background: isSelected ? 'rgba(50, 71, 58, 0.05)' : 'rgba(255,255,255,0.4)',
+                        cursor: userRole === 'admin' ? 'pointer' : 'not-allowed', textAlign: 'left',
+                        transition: 'var(--transition-smooth)',
+                        opacity: userRole !== 'admin' && !isSelected ? 0.5 : 1
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '4px' }}>{mode.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{mode.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Smart configs weights */}
+            {queueConfigs.eoi_queue_mode === 'smart' && (
+              <div style={{ animation: 'modal-fade-in 0.25s ease-out', marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>Standard Rule Weights</h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Past Client Priority Points</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      disabled={userRole !== 'admin'}
+                      value={queueConfigs.eoi_queue_weight_past_client}
+                      onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_weight_past_client: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Cash Method Priority Points</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      disabled={userRole !== 'admin'}
+                      value={queueConfigs.eoi_queue_weight_cash}
+                      onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_weight_cash: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">VIP Client Priority Points</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      disabled={userRole !== 'admin'}
+                      value={queueConfigs.eoi_queue_weight_vip}
+                      onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_weight_vip: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', alignItems: 'end' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Nationality Priority Target</label>
+                    <select
+                      className="form-control"
+                      disabled={userRole !== 'admin'}
+                      value={queueConfigs.eoi_queue_nationality_priority}
+                      onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_nationality_priority: e.target.value }))}
+                    >
+                      <option value="none">No nationality priority (Equal)</option>
+                      <option value="egyptian">🇪🇬 Egyptians (Inside Egypt or National ID)</option>
+                      <option value="foreigner">🌍 Foreigners (Outside Egypt or Passport Holder)</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Nationality Points</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      disabled={userRole !== 'admin' || queueConfigs.eoi_queue_nationality_priority === 'none'}
+                      value={queueConfigs.eoi_queue_weight_nationality}
+                      onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_weight_nationality: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Rules Editor */}
+          {queueConfigs.eoi_queue_mode === 'smart' && (
+            <div className="glass-panel" style={{ padding: '30px', marginBottom: '24px', animation: 'modal-fade-in 0.25s ease-out' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>Custom Administrative Rules</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '20px' }}>Add administrative filters and conditions to fine-tune booking priority.</p>
+
+              {customRules.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                  {customRules.map((rule, index) => (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.4)', border: '1px solid var(--border-glass)' }}>
+                      <div>
+                        <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{rule.label}</span>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          If <code>{rule.field}</code> {rule.operator} <code>{rule.value}</code> → Add <strong>+{rule.weight} points</strong>
+                        </p>
+                      </div>
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={() => setCustomRules(prev => prev.filter((_, idx) => idx !== index))}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-danger)', fontSize: '0.75rem', fontWeight: 600 }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', textAlign: 'center', padding: '20px 0', border: '1px dashed var(--border-glass)', borderRadius: 'var(--radius-sm)', marginBottom: '24px' }}>No custom rules defined yet.</p>
+              )}
+
+              {userRole === 'admin' && (
+                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+                  <h4 style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '14px' }}>Add Custom Prioritization Rule</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', alignItems: 'end' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Rule Title / Label</label>
+                      <input type="text" id="custom-rule-label" placeholder="e.g. Premium Payment" className="form-control" style={{ fontSize: '0.8rem' }} />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Evaluate Field</label>
+                      <select id="custom-rule-field" className="form-control" style={{ fontSize: '0.8rem' }}>
+                        <option value="payment_amount">payment_amount</option>
+                        <option value="lead_score">lead_score</option>
+                        <option value="source">lead_source</option>
+                        <option value="payment_method">payment_method</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Operator</label>
+                      <select id="custom-rule-operator" className="form-control" style={{ fontSize: '0.8rem' }}>
+                        <option value=">">&gt;</option>
+                        <option value="<">&lt;</option>
+                        <option value="=">=</option>
+                        <option value="!=">!=</option>
+                        <option value=">=">&gt;=</option>
+                        <option value="<=">&lt;=</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Compare Value</label>
+                      <input type="text" id="custom-rule-value" placeholder="e.g. 1000000" className="form-control" style={{ fontSize: '0.8rem' }} />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Priority Points</label>
+                      <input type="number" id="custom-rule-weight" placeholder="e.g. 50" className="form-control" style={{ fontSize: '0.8rem' }} />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ marginTop: '16px', width: '100%', justifyContent: 'center' }}
+                    onClick={() => {
+                      const lbl = (document.getElementById('custom-rule-label') as HTMLInputElement)?.value;
+                      const fld = (document.getElementById('custom-rule-field') as HTMLSelectElement)?.value;
+                      const opr = (document.getElementById('custom-rule-operator') as HTMLSelectElement)?.value;
+                      const val = (document.getElementById('custom-rule-value') as HTMLInputElement)?.value;
+                      const wgt = (document.getElementById('custom-rule-weight') as HTMLInputElement)?.value;
+
+                      if (!lbl || !val || !wgt) {
+                        addToast('Please fill all fields to add a custom rule.', 'error');
+                        return;
+                      }
+
+                      const newRule = {
+                        label: lbl,
+                        field: fld,
+                        operator: opr,
+                        value: val,
+                        weight: parseInt(wgt)
+                      };
+
+                      setCustomRules(prev => [...prev, newRule]);
+
+                      // Clear form inputs
+                      (document.getElementById('custom-rule-label') as HTMLInputElement).value = '';
+                      (document.getElementById('custom-rule-value') as HTMLInputElement).value = '';
+                      (document.getElementById('custom-rule-weight') as HTMLInputElement).value = '';
+                    }}
+                  >
+                    Add Prioritization Rule
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {userRole === 'admin' && (
+            <button
+              className="btn-primary"
+              onClick={saveConfigs}
+              style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '0.9rem', fontWeight: 700 }}
+            >
+              Save Configurations & Recalculate Project Queues
+            </button>
           )}
         </div>
       )}
