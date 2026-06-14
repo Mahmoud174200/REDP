@@ -82,6 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
         { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
         { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },
         { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: 'fa-solid fa-bullhorn' },
+        { name: 'EOI Reservations', path: '/acquisition/eoi-reservations', icon: FileText },
       ]
     },
     {

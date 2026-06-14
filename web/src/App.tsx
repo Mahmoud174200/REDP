@@ -10,6 +10,7 @@ import CrmKanban from './pages/acquisition/CrmKanban';
 import Brokers from './pages/acquisition/Brokers';
 import KycApprovals from './pages/acquisition/KycApprovals';
 import Campaigns from './pages/acquisition/Campaigns';
+import EoiReservations from './pages/acquisition/EoiReservations';
 
 // 🔶 Tiered Sales Portals
 import TeleSalesPortal from './pages/sales/TeleSalesPortal';
@@ -160,6 +161,7 @@ const App: React.FC = () => {
         <Route path="/acquisition/brokers" element={<DashboardWrapper><Brokers /></DashboardWrapper>} />
         <Route path="/acquisition/kyc" element={<DashboardWrapper><KycApprovals /></DashboardWrapper>} />
         <Route path="/acquisition/campaigns" element={<DashboardWrapper><Campaigns /></DashboardWrapper>} />
+        <Route path="/acquisition/eoi-reservations" element={<DashboardWrapper><EoiReservations /></DashboardWrapper>} />
 
         {/* 🔶 Tiered Sales Portals */}
         <Route path="/sales/tele/dashboard" element={<DashboardWrapper><TeleSalesPortal /></DashboardWrapper>} />

@@ -8,6 +8,7 @@ use App\Http\Controllers\Acquisition\LeadController;
 use App\Http\Controllers\Acquisition\BrokerController;
 use App\Http\Controllers\Acquisition\RegistrationController;
 use App\Http\Controllers\Acquisition\EOIQueueController;
+use App\Http\Controllers\Acquisition\EoiReservationController;
 use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
@@ -231,6 +232,14 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi/queue/{projectId}', [EOIQueueController::class, 'getQueue']);
         Route::put('/eoi/{id}/confirm', [EOIQueueController::class, 'confirm']);
         Route::put('/eoi/{id}/cancel', [EOIQueueController::class, 'cancel']);
+
+        // ── EOI Reservation System (Payment Upload & Review Workflow) ──
+        Route::get('/eoi-reservations/stats', [EoiReservationController::class, 'stats']);
+        Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
+        Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
+        Route::get('/eoi-reservations/{id}', [EoiReservationController::class, 'show']);
+        Route::post('/eoi-reservations/{id}/approve', [EoiReservationController::class, 'approve']);
+        Route::post('/eoi-reservations/{id}/reject', [EoiReservationController::class, 'reject']);
 
         // ── Broker Portal ──
         Route::get('/brokers', [BrokerController::class, 'index']);
