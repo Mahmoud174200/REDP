@@ -401,7 +401,7 @@ const Login: React.FC = () => {
             fontFamily: 'var(--font-title)',
             textShadow: '0 4px 24px rgba(0,0,0,0.3)'
           }}>
-            Elegance <span style={{ color: '#38bdf8', fontStyle: 'italic', fontWeight: 400 }}>Defined</span> by Majestic Views.
+            Elegance <span style={{ color: '#003DA6', fontStyle: 'italic', fontWeight: 400 }}>Defined</span> by Majestic Views.
           </h1>
           <p style={{ fontSize: '1rem', color: 'rgba(255, 255, 255, 0.8)', marginTop: '16px', lineHeight: '1.6', fontWeight: 400 }}>
             Step inside our digital ecosystem. Manage high-end acquisition pipelines, client reservation logs, and premium collections through our custom designed, glassmorphic real estate operators portal.
