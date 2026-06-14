@@ -4,7 +4,7 @@ import api from '../../services/api';
 import {
   Globe, Building, MapPin, Calendar, Compass, Layers, CheckCircle,
   Phone, Mail, ArrowRight, ArrowLeft, Star, CreditCard, Lock, ChevronDown,
-  Info, AlertCircle, Play
+  Info, AlertCircle, Play, Menu, X
 } from 'lucide-react';
 
 const translations = {
@@ -255,6 +255,7 @@ const LandingPage: React.FC = () => {
 
   // Is logged in checked
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Set direction based on language
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -418,7 +419,7 @@ const LandingPage: React.FC = () => {
         .landing-hero-overlay {
           position: absolute;
           top: 0; left: 0; width: 100%; height: 100%;
-          background: linear-gradient(135deg, rgba(0, 15, 61, 0.78) 0%, rgba(0, 15, 61, 0.5) 60%, rgba(0, 15, 61, 0.85) 100%);
+          background: linear-gradient(135deg, rgba(0, 15, 61, 0.8) 0%, rgba(0, 15, 61, 0.5) 60%, rgba(0, 15, 61, 0.88) 100%);
           z-index: 2;
         }
         .landing-hero-content {
@@ -430,9 +431,9 @@ const LandingPage: React.FC = () => {
           color: #ffffff;
         }
         .btn-luxury-blue {
-          background: linear-gradient(135deg, #003DA6 0%, #00205b 100%);
+          background: linear-gradient(135deg, #003DA6 0%, #001A4E 100%);
           color: #ffffff !important;
-          border: 1px solid rgba(0, 61, 166, 0.15);
+          border: 1px solid rgba(197, 168, 128, 0.3);
           box-shadow: 0 4px 14px rgba(0, 61, 166, 0.25);
           font-family: var(--font-title);
           font-weight: 700;
@@ -447,7 +448,8 @@ const LandingPage: React.FC = () => {
         .btn-luxury-blue:hover {
           transform: translateY(-2px);
           background: linear-gradient(135deg, #004cce 0%, #002d7a 100%);
-          box-shadow: 0 6px 20px rgba(0, 61, 166, 0.45);
+          border-color: rgba(197, 168, 128, 0.8);
+          box-shadow: 0 8px 25px rgba(0, 61, 166, 0.4);
         }
         .btn-luxury-outline {
           background: rgba(255, 255, 255, 0.1);
@@ -472,12 +474,16 @@ const LandingPage: React.FC = () => {
         }
         .mv-navbar {
           position: sticky; top: 0; z-index: 100;
-          background: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(14px);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
           border-bottom: 1px solid rgba(0, 61, 166, 0.08);
           padding: 16px 40px;
-          display: flex; justifyContent: space-between; alignItems: center;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
           transition: all 0.3s ease;
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
         }
         .mv-nav-link {
           color: #475569 !important;
@@ -485,21 +491,62 @@ const LandingPage: React.FC = () => {
           font-size: 0.82rem;
           font-weight: 700;
           transition: all 0.3s ease;
+          position: relative;
+        }
+        .mv-nav-link::after {
+          content: '';
+          position: absolute;
+          width: 0; height: 2px;
+          bottom: -4px; left: 0;
+          background-color: #003DA6;
+          transition: width 0.3s ease;
         }
         .mv-nav-link:hover {
           color: #003DA6 !important;
         }
+        .mv-nav-link:hover::after {
+          width: 100%;
+        }
         .mv-card {
-          background: #ffffff;
-          border: 1px solid rgba(0, 61, 166, 0.08);
-          border-radius: 20px;
-          box-shadow: 0 4px 20px rgba(0, 61, 166, 0.02);
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(0, 61, 166, 0.06);
+          border-radius: 24px;
+          box-shadow: 0 10px 30px -15px rgba(0, 20, 90, 0.05);
+          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        .mv-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 4px;
+          background: linear-gradient(90deg, #003DA6 0%, #C5A880 100%);
+          opacity: 0;
+          transition: opacity 0.4s ease;
         }
         .mv-card:hover {
-          transform: translateY(-4px);
-          border-color: #003DA6;
-          box-shadow: 0 12px 30px rgba(0, 61, 166, 0.07);
+          transform: translateY(-6px);
+          border-color: rgba(197, 168, 128, 0.3);
+          box-shadow: 0 20px 40px -20px rgba(0, 20, 90, 0.12);
+        }
+        .mv-card:hover::before {
+          opacity: 1;
+        }
+        .gallery-image-container {
+          position: relative;
+          overflow: hidden;
+          border-radius: 14px;
+          height: 220px;
+        }
+        .gallery-image-container img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .mv-card:hover .gallery-image-container img {
+          transform: scale(1.08);
         }
         .mv-table th {
           background: rgba(0, 61, 166, 0.02);
@@ -524,7 +571,7 @@ const LandingPage: React.FC = () => {
           width: 100%;
           padding: 11px 16px;
           background: #ffffff;
-          border: 1px solid rgba(0, 61, 166, 0.15);
+          border: 1px solid rgba(0, 61, 166, 0.12);
           border-radius: 12px;
           color: #0f172a;
           font-size: 0.85rem;
@@ -536,13 +583,61 @@ const LandingPage: React.FC = () => {
           box-shadow: 0 0 12px rgba(0, 61, 166, 0.15);
         }
         .faq-accordion {
-          border: 1px solid rgba(0, 61, 166, 0.08);
-          border-radius: 14px;
-          background: #ffffff;
-          transition: all 0.3s ease;
+          border: 1px solid rgba(0, 61, 166, 0.06);
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(10px);
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
         }
         .faq-accordion:hover {
-          border-color: #003DA6;
+          border-color: rgba(197, 168, 128, 0.4);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+        .contact-grid {
+          grid-template-columns: 1fr 1.2fr;
+        }
+        .spinning-logo {
+          transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        div:hover > .spinning-logo,
+        .spinning-logo:hover {
+          transform: rotate(180deg);
+        }
+        @keyframes drawer-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes drawer-slide-in-ltr {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        @keyframes drawer-slide-in-rtl {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+        @media (max-width: 991px) {
+          .mv-navbar {
+            padding: 14px 24px;
+          }
+        }
+        @media (max-width: 768px) {
+          .topbar-links {
+            display: none !important;
+          }
+          .desktop-actions {
+            display: none !important;
+          }
+          .mobile-menu-toggle {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+          }
+          .contact-grid {
+            grid-template-columns: 1fr;
+            padding: 24px !important;
+          }
         }
       `}} />
 
@@ -660,12 +755,15 @@ const LandingPage: React.FC = () => {
          Projects Catalog Section
          ─────────────────────────────────────────────────── */}
       <section id="projects" style={{ padding: '80px 24px 60px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          {/* Explicit color override to deep blue */}
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#00205b', marginBottom: 12, fontFamily: 'Cinzel, var(--font-title)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 48 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+            {lang === 'en' ? 'EXCLUSIVE CATALOG' : 'كتالوج حصري'}
+          </span>
+          <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
             {t.projectsTitle}
           </h2>
-          <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: 540, margin: '0 auto', fontWeight: 500 }}>
+          <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
+          <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: 540, margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
             {t.projectsSubtitle}
           </p>
         </div>
@@ -757,13 +855,16 @@ const LandingPage: React.FC = () => {
            Units Catalog Detail Browser
            ─────────────────────────────────────────────────── */}
         <div id="units-catalog" className="mv-card" style={{ padding: 32, background: '#ffffff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 28, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 20 }}>
             <div>
-              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, color: '#00205b', fontFamily: 'Cinzel, var(--font-title)' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                {lang === 'en' ? 'LIVE AVAILABILITY' : 'متاح حالياً'}
+              </span>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, color: '#00205b', fontFamily: 'Cinzel, var(--font-title)', margin: 0 }}>
                 <Building size={22} color="#003DA6" />
                 {t.unitsTitle} {selectedProjectObj ? ` - ${selectedProjectObj.name}` : ''}
               </h3>
-              <p style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500, marginTop: 2 }}>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginTop: 4, marginBottom: 0 }}>
                 {t.unitsSubtitle}
               </p>
             </div>
@@ -809,11 +910,11 @@ const LandingPage: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(0, 61, 166, 0.02)' }}>
-                    <th style={{ textAlign: 'left', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitNo}</th>
-                    <th style={{ textAlign: 'left', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitType}</th>
-                    <th style={{ textAlign: 'left', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitArea}</th>
-                    <th style={{ textAlign: 'left', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitBedrooms}/{t.unitBathrooms}</th>
-                    <th style={{ textAlign: 'right', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitPrice}</th>
+                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitNo}</th>
+                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitType}</th>
+                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitArea}</th>
+                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitBedrooms}/{t.unitBathrooms}</th>
+                    <th style={{ textAlign: 'end', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitPrice}</th>
                     <th style={{ padding: '14px 20px', width: 140 }}></th>
                   </tr>
                 </thead>
@@ -828,7 +929,7 @@ const LandingPage: React.FC = () => {
                       <td style={{ padding: '16px 20px', fontSize: '0.82rem', fontWeight: 500, color: '#334155' }}>
                         {unit.bedrooms} <span style={{ opacity: 0.6 }}>Beds</span> / {unit.bathrooms} <span style={{ opacity: 0.6 }}>Baths</span>
                       </td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.88rem', fontWeight: 800, textAlign: 'right', color: '#003DA6' }}>
+                      <td style={{ padding: '16px 20px', fontSize: '0.88rem', fontWeight: 800, textAlign: 'end', color: '#003DA6' }}>
                         EGP {parseFloat(unit.price).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </td>
                       <td style={{ padding: '16px 20px', textAlign: 'center' }}>
@@ -852,11 +953,15 @@ const LandingPage: React.FC = () => {
          ─────────────────────────────────────────────────── */}
       <section id="gallery" style={{ padding: '80px 24px', background: '#f1f5f9', borderTop: '1px solid rgba(0, 61, 166, 0.06)', borderBottom: '1px solid rgba(0, 61, 166, 0.06)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#00205b', marginBottom: 12, fontFamily: 'Cinzel, var(--font-title)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 40 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+              {lang === 'en' ? 'VIRTUAL SHOWCASE' : 'عرض مرئي'}
+            </span>
+            <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
               {t.galleryTitle}
             </h2>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: 520, margin: '0 auto', fontWeight: 500 }}>
+            <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
+            <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: 520, margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
               {t.gallerySubtitle}
             </p>
           </div>
@@ -885,21 +990,20 @@ const LandingPage: React.FC = () => {
           <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 24 }}>
             {filteredGallery.map((img, idx) => (
               <div key={idx} className="mv-card" style={{
-                padding: 12, overflow: 'hidden', background: '#ffffff',
+                padding: 12, overflow: 'hidden',
                 display: 'flex', flexDirection: 'column'
               }}>
-                <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '14px', height: 220 }}>
+                <div className="gallery-image-container">
                   <img
                     src={img.url}
                     alt={img.title[lang]}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {idx % 3 === 1 && (
                     <div style={{
                       position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                       width: 48, height: 48, borderRadius: '50%', background: 'rgba(0, 61, 166, 0.85)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 3
                     }}>
                       <Play size={18} fill="#ffffff" />
                     </div>
@@ -907,7 +1011,7 @@ const LandingPage: React.FC = () => {
                   <div style={{
                     position: 'absolute', bottom: 12, left: 12, background: 'rgba(255,255,255,0.95)',
                     padding: '4px 10px', borderRadius: 999, fontSize: '0.65rem', fontWeight: 800, color: '#003DA6',
-                    border: '1px solid rgba(0, 61, 166, 0.1)'
+                    border: '1px solid rgba(0, 61, 166, 0.1)', zIndex: 3
                   }}>
                     {img.category.toUpperCase()}
                   </div>
@@ -925,11 +1029,15 @@ const LandingPage: React.FC = () => {
          FAQ Section
          ─────────────────────────────────────────────────── */}
       <section id="faq" style={{ padding: '80px 24px', maxWidth: 850, margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#00205b', marginBottom: 12, fontFamily: 'Cinzel, var(--font-title)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 40 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+            {lang === 'en' ? 'COMMON QUESTIONS' : 'الأسئلة الشائعة'}
+          </span>
+          <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
             {t.faqTitle}
           </h2>
-          <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+          <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
+          <p style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 500, lineHeight: 1.6 }}>
             {t.faqSubtitle}
           </p>
         </div>
@@ -939,7 +1047,10 @@ const LandingPage: React.FC = () => {
             const isOpen = activeFaq === idx;
             return (
               <div key={idx} className="faq-accordion" style={{
-                padding: 20, cursor: 'pointer', border: isOpen ? '1px solid #003DA6' : '1px solid rgba(0, 61, 166, 0.08)'
+                padding: 20, cursor: 'pointer',
+                borderColor: isOpen ? '#C5A880' : 'rgba(0, 61, 166, 0.06)',
+                background: isOpen ? '#ffffff' : 'rgba(255, 255, 255, 0.8)',
+                boxShadow: isOpen ? '0 10px 25px -10px rgba(0, 61, 166, 0.08)' : 'none'
               }} onClick={() => setActiveFaq(isOpen ? null : idx)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: isOpen ? '#003DA6' : '#0f172a' }}>
@@ -1312,6 +1423,86 @@ const LandingPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────
+         Mobile Drawer Navigation Overlay
+         ─────────────────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 15, 61, 0.4)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: dir === 'ltr' ? 'flex-end' : 'flex-start',
+          animation: 'drawer-fade-in 0.3s ease-out'
+        }} onClick={() => setMobileMenuOpen(false)}>
+          <div style={{
+            width: '300px',
+            height: '100%',
+            background: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(20px)',
+            borderLeft: dir === 'ltr' ? '1px solid rgba(0, 61, 166, 0.1)' : 'none',
+            borderRight: dir === 'rtl' ? '1px solid rgba(0, 61, 166, 0.1)' : 'none',
+            boxShadow: '-10px 0 30px rgba(0, 15, 61, 0.1)',
+            padding: '32px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 24,
+            animation: dir === 'ltr' ? 'drawer-slide-in-ltr 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'drawer-slide-in-rtl 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Compass size={20} className="spinning-logo" style={{ color: '#003DA6' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#00205b', fontFamily: 'Cinzel, var(--font-title)' }}>
+                  {lang === 'en' ? 'MOUNTAIN VIEW' : 'ماونتن فيو'}
+                </span>
+              </div>
+              <button onClick={() => setMobileMenuOpen(false)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', color: '#64748b'
+              }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <a href="#projects" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navProjects}</a>
+              <a href="#gallery" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navGallery}</a>
+              <a href="#faq" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navFaq}</a>
+              <a href="#contact" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navContact}</a>
+            </div>
+
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <button onClick={() => { toggleLanguage(); setMobileMenuOpen(false); }} style={{
+                background: '#ffffff', border: '1px solid rgba(0, 61, 166, 0.15)',
+                borderRadius: '12px', padding: '10px 16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.88rem', fontWeight: 750,
+                color: '#003DA6', width: '100%'
+              }}>
+                <Globe size={16} />
+                {lang === 'en' ? 'العربية' : 'English'}
+              </button>
+
+              {isLoggedIn ? (
+                <button className="btn-luxury-blue" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }} style={{ width: '100%', justifyContent: 'center', borderRadius: '12px' }}>
+                  {t.navDashboard}
+                  {lang === 'en' ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+                </button>
+              ) : (
+                <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} style={{
+                  width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #003DA6', color: '#003DA6', background: 'transparent', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center'
+                }}>
+                  {t.navLogin}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
