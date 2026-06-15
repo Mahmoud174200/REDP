@@ -12,3 +12,5 @@ Artisan::command('inspire', function () {
 Schedule::call(function () {
     Reservation::checkAndReleaseExpired();
 })->everyMinute();
+
+Schedule::command('appointments:send-reminders')->hourly();

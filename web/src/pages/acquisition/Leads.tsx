@@ -19,6 +19,14 @@ const Leads: React.FC = () => {
   const [meetingNotes, setMeetingNotes] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
 
+  // Appointment & Reminder States
+  const [bookingType, setBookingType] = useState('online');
+  const [appointmentType, setAppointmentType] = useState('Consultation');
+  const [remindEmail, setRemindEmail] = useState(true);
+  const [remindSms, setRemindSms] = useState(false);
+  const [remindWhatsapp, setRemindWhatsapp] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
@@ -58,6 +66,17 @@ const Leads: React.FC = () => {
     }
   };
 
+  const fetchAppointments = async () => {
+    try {
+      const response = await api.get('/v1/acquisition/appointments');
+      if (response.data && response.data.success) {
+        setAppointments(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch appointments:', err);
+    }
+  };
+
   useEffect(() => {
     const userStr = localStorage.getItem('redp_user');
     const user = userStr ? JSON.parse(userStr) : null;
@@ -65,6 +84,7 @@ const Leads: React.FC = () => {
       setUserRole(user.role);
     }
     fetchLeads();
+    fetchAppointments();
   }, []);
 
   const handleAddLead = async (e: React.FormEvent) => {
@@ -128,22 +148,51 @@ const Leads: React.FC = () => {
   const handleScheduleMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!actionLeadId || !meetingDate) return;
+
+    const [booking_date, booking_time] = meetingDate.split('T');
+
     try {
       setIsLoading(true);
-      const response = await api.put(`/v1/sales/tele/leads/${actionLeadId}/schedule-meeting`, {
-        meeting_date: meetingDate,
-        location: meetingLocation,
-        notes: meetingNotes
+      const response = await api.post('/v1/acquisition/appointments', {
+        lead_id: actionLeadId,
+        booking_date,
+        booking_time,
+        booking_type: bookingType,
+        type: appointmentType,
+        remind_email: remindEmail,
+        remind_sms: remindSms,
+        remind_whatsapp: remindWhatsapp
       });
       if (response.data && response.data.success) {
-        alert('Meeting scheduled successfully!');
+        alert('Appointment scheduled successfully!');
         setShowMeetingModal(false);
         setMeetingDate('');
-        setMeetingNotes('');
+        setBookingType('online');
+        setAppointmentType('Consultation');
+        setRemindSms(false);
+        setRemindWhatsapp(false);
+        await fetchLeads();
+        await fetchAppointments();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to schedule appointment.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelAppointment = async (id: string) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+      setIsLoading(true);
+      const response = await api.delete(`/v1/acquisition/appointments/${id}`);
+      if (response.data && response.data.success) {
+        alert('Appointment cancelled successfully.');
+        await fetchAppointments();
         await fetchLeads();
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to schedule meeting.');
+      alert(err.response?.data?.message || 'Failed to cancel appointment.');
     } finally {
       setIsLoading(false);
     }
@@ -358,6 +407,113 @@ const Leads: React.FC = () => {
         </div>
       </div>
 
+      {/* 📅 Upcoming Appointments Dashboard Section */}
+      <div className="glass-panel" style={{ padding: '30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>📅</span> Scheduled Appointments & Reminders
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Manage appointments with automated notifications running 48 hours before the schedule.
+            </p>
+          </div>
+          <span className="badge badge-info" style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: 700 }}>
+            {appointments.length} Total
+          </span>
+        </div>
+
+        {appointments.length === 0 ? (
+          <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', border: '1px dashed var(--border-glass)', borderRadius: 'var(--radius-md)' }}>
+            No appointments scheduled yet. Schedule one from a lead's action buttons.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Client / Lead Name</th>
+                  <th>Appointment Details</th>
+                  <th>Booking Mode</th>
+                  <th>Notification Channels (48h Pre-Reminder)</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appointments.map((apt) => {
+                  const clientName = apt.lead 
+                    ? `${apt.lead.first_name || ''} ${apt.lead.last_name || ''}`.trim() 
+                    : (apt.user ? apt.user.name : 'Unknown Client');
+                  
+                  const phone = apt.lead ? apt.lead.phone : (apt.user ? apt.user.phone : 'N/A');
+
+                  return (
+                    <tr key={apt.id}>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <strong style={{ fontSize: '0.9rem' }}>{clientName}</strong>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{phone}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 600 }}>{apt.type}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {apt.booking_date} @ {apt.booking_time}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${apt.booking_type === 'online' ? 'badge-info' : 'badge-success'}`}>
+                          {apt.booking_type === 'online' ? '🌐 Online' : '🏢 In Company'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {apt.remind_email && (
+                            <span className={`badge ${apt.email_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              📧 Email {apt.email_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {apt.remind_sms && (
+                            <span className={`badge ${apt.sms_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              💬 SMS {apt.sms_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {apt.remind_whatsapp && (
+                            <span className={`badge ${apt.whatsapp_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              🟢 WhatsApp {apt.whatsapp_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {!apt.remind_email && !apt.remind_sms && !apt.remind_whatsapp && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>None configured</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${apt.status === 'confirmed' ? 'badge-success' : apt.status === 'cancelled' ? 'badge-danger' : 'badge-warning'}`}>
+                          {apt.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => handleCancelAppointment(apt.id)}
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', color: '#dc2626', borderColor: 'rgba(220, 38, 38, 0.2)' }}
+                        >
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* 7-Stage Kanban Board */}
       <div className="glass-panel" style={{ padding: '30px' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px' }}>CRM Pipeline Stages</h2>
@@ -430,14 +586,14 @@ const Leads: React.FC = () => {
       {/* 📅 Schedule Meeting Modal */}
       {showMeetingModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
-          <div className="glass-panel" style={{ maxWidth: '400px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+          <div className="glass-panel" style={{ maxWidth: '450px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
             <button onClick={() => setShowMeetingModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               X
             </button>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>📅 Schedule Client Meeting</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>📅 Schedule Appointment & Reminders</h3>
             <form onSubmit={handleScheduleMeeting} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Meeting Date & Time</label>
+                <label className="form-label">Appointment Date & Time</label>
                 <input 
                   type="datetime-local" 
                   className="form-control" 
@@ -446,25 +602,50 @@ const Leads: React.FC = () => {
                   required 
                 />
               </div>
+              
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Location</label>
+                <label className="form-label">Appointment Title/Type</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  value={meetingLocation} 
-                  onChange={e => setMeetingLocation(e.target.value)} 
+                  value={appointmentType} 
+                  onChange={e => setAppointmentType(e.target.value)} 
+                  placeholder="e.g. Sales Consultation, Site Viewing"
+                  required
                 />
               </div>
+
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Meeting Notes</label>
-                <textarea 
+                <label className="form-label">Booking Mode</label>
+                <select 
                   className="form-control" 
-                  style={{ minHeight: '80px', resize: 'vertical' }}
-                  value={meetingNotes} 
-                  onChange={e => setMeetingNotes(e.target.value)} 
-                  placeholder="e.g. Client interested in 3-bedroom unit..."
-                />
+                  value={bookingType} 
+                  onChange={e => setBookingType(e.target.value)}
+                  style={{ width: '100%', background: '#fff', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <option value="online">🌐 Online Meeting</option>
+                  <option value="in_company">🏢 In Company (HQ Office)</option>
+                </select>
               </div>
+
+              <div style={{ background: 'rgba(0,0,0,0.02)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+                <label className="form-label" style={{ fontWeight: 700, marginBottom: '8px' }}>Pre-Appointment Reminders (48 Hours Prior)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindEmail} readOnly disabled />
+                    <span>📧 Email Reminder <strong style={{ color: 'var(--color-primary)' }}>(Mandatory)</strong></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindSms} onChange={e => setRemindSms(e.target.checked)} />
+                    <span>💬 SMS Notification <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(Optional)</span></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindWhatsapp} onChange={e => setRemindWhatsapp(e.target.checked)} />
+                    <span>🟢 WhatsApp Notification <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(Optional)</span></span>
+                  </label>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setShowMeetingModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
                 <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Schedule</button>

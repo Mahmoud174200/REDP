@@ -4,7 +4,7 @@ import api from '../../services/api';
 import {
   Globe, Building, MapPin, Calendar, Compass, Layers, CheckCircle,
   Phone, Mail, ArrowRight, ArrowLeft, Star, CreditCard, Lock, ChevronDown,
-  Info, AlertCircle, Play, Menu, X
+  Info, AlertCircle, Play, Menu, X, Shield, ArrowUpRight
 } from 'lucide-react';
 
 const translations = {
@@ -218,7 +218,7 @@ const galleryImages = [
   {
     url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
     category: 'amenities',
-    title: { en: 'Community Workspace Hub Lounge', ar: 'قاعة مركز الأعمال المشرك ومساحات العمل' }
+    title: { en: 'Community Workspace Hub Lounge', ar: 'قاعة مركز الأعمال المشترك ومساحات العمل' }
   }
 ];
 
@@ -388,23 +388,27 @@ const LandingPage: React.FC = () => {
 
   return (
     <div dir={dir} style={{
-      minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      background: '#f8fafc', fontFamily: 'var(--font-body)', overflowX: 'hidden'
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'radial-gradient(circle at 10% 20%, rgba(0, 61, 166, 0.04) 0%, rgba(248, 250, 252, 0.96) 60%, rgba(197, 168, 128, 0.06) 100%), #f8fafc',
+      fontFamily: 'var(--font-body)',
+      overflowX: 'hidden'
     }}>
       
       {/* ───────────────────────────────────────────────────
-         CSS Styles injection matching Login Style and Layout
+         CSS Styles injection matching Mountain View Egypt Branding
          ─────────────────────────────────────────────────── */}
       <style dangerouslySetInnerHTML={{__html: `
         .luxury-text-gradient {
-          background: linear-gradient(135deg, #003DA6 0%, #00205b 100%);
+          background: linear-gradient(135deg, #003DA6 0%, #001A70 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
         .landing-hero-video-container {
           position: relative;
           width: 100%;
-          min-height: 85vh;
+          min-height: 90vh;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -419,87 +423,63 @@ const LandingPage: React.FC = () => {
         .landing-hero-overlay {
           position: absolute;
           top: 0; left: 0; width: 100%; height: 100%;
-          background: linear-gradient(135deg, rgba(0, 15, 61, 0.8) 0%, rgba(0, 15, 61, 0.5) 60%, rgba(0, 15, 61, 0.88) 100%);
+          background: linear-gradient(135deg, rgba(0, 15, 61, 0.85) 0%, rgba(0, 45, 140, 0.55) 60%, rgba(0, 15, 61, 0.92) 100%);
           z-index: 2;
         }
         .landing-hero-content {
           position: relative;
           z-index: 3;
-          max-width: 900px;
-          padding: 40px 24px;
-          text-align: center;
-          color: #ffffff;
+          max-width: 1250px;
+          margin: 0 auto;
+          padding: 60px 24px;
+          width: 100%;
         }
-        .btn-luxury-blue {
-          background: linear-gradient(135deg, #003DA6 0%, #001A4E 100%);
-          color: #ffffff !important;
-          border: 1px solid rgba(197, 168, 128, 0.3);
-          box-shadow: 0 4px 14px rgba(0, 61, 166, 0.25);
-          font-family: var(--font-title);
-          font-weight: 700;
-          padding: 12px 28px;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
+        .hero-booking-card {
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(28px);
+          -webkit-backdrop-filter: blur(28px);
+          border: 1.5px solid rgba(255, 255, 255, 0.8);
+          border-radius: 24px;
+          box-shadow: 0 15px 35px -10px rgba(0, 15, 61, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
-        .btn-luxury-blue:hover {
+        .hero-booking-card:hover {
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 0 25px rgba(0, 61, 166, 0.15), 0 15px 35px -10px rgba(0, 15, 61, 0.08);
           transform: translateY(-2px);
-          background: linear-gradient(135deg, #004cce 0%, #002d7a 100%);
-          border-color: rgba(197, 168, 128, 0.8);
-          box-shadow: 0 8px 25px rgba(0, 61, 166, 0.4);
-        }
-        .btn-luxury-outline {
-          background: rgba(255, 255, 255, 0.1);
-          color: #ffffff !important;
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          backdrop-filter: blur(8px);
-          font-family: var(--font-title);
-          font-weight: 600;
-          padding: 12px 24px;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .btn-luxury-outline:hover {
-          background: #ffffff;
-          color: #00205b !important;
-          border-color: #ffffff;
-          transform: translateY(-1px);
         }
         .mv-navbar {
-          position: sticky; top: 0; z-index: 100;
-          background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-bottom: 1px solid rgba(0, 61, 166, 0.08);
+          position: sticky; 
+          top: 0; 
+          z-index: 100;
+          background: rgba(255, 255, 255, 0.82);
+          backdrop-filter: blur(28px);
+          -webkit-backdrop-filter: blur(28px);
+          border-bottom: 1.5px solid rgba(0, 61, 166, 0.08);
           padding: 16px 40px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.015);
         }
         .mv-nav-link {
-          color: #475569 !important;
+          color: #5c6c7f !important;
           text-decoration: none;
-          font-size: 0.82rem;
+          font-size: 0.85rem;
           font-weight: 700;
-          transition: all 0.3s ease;
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
           position: relative;
+          padding: 4px 0;
         }
         .mv-nav-link::after {
           content: '';
           position: absolute;
-          width: 0; height: 2px;
-          bottom: -4px; left: 0;
+          width: 0; height: 2.5px;
+          bottom: -4px; 
+          left: 0;
           background-color: #003DA6;
-          transition: width 0.3s ease;
+          transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
         .mv-nav-link:hover {
           color: #003DA6 !important;
@@ -507,28 +487,68 @@ const LandingPage: React.FC = () => {
         .mv-nav-link:hover::after {
           width: 100%;
         }
+        .btn-luxury-primary {
+          background: linear-gradient(135deg, #003DA6 0%, #001A70 100%);
+          color: #ffffff !important;
+          border: none;
+          font-family: var(--font-title);
+          font-weight: 700;
+          padding: 12px 28px;
+          border-radius: 9999px;
+          cursor: pointer;
+          box-shadow: 0 4px 15px rgba(0, 61, 166, 0.2);
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-luxury-primary:hover {
+          background: linear-gradient(135deg, #004ce6 0%, #002699 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0, 61, 166, 0.3);
+        }
+        .btn-luxury-secondary {
+          background: rgba(255, 255, 255, 0.7);
+          color: #003DA6 !important;
+          border: 1.5px solid rgba(0, 61, 166, 0.25);
+          font-family: var(--font-title);
+          font-weight: 700;
+          padding: 11px 24px;
+          border-radius: 9999px;
+          cursor: pointer;
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-luxury-secondary:hover {
+          background: #ffffff;
+          border-color: #003DA6;
+          transform: translateY(-1px);
+        }
         .mv-card {
           background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(0, 61, 166, 0.06);
+          backdrop-filter: blur(28px);
+          -webkit-backdrop-filter: blur(28px);
+          border: 1.5px solid rgba(0, 61, 166, 0.08);
           border-radius: 24px;
-          box-shadow: 0 10px 30px -15px rgba(0, 20, 90, 0.05);
-          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 15px 35px -10px rgba(0, 15, 61, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
           position: relative;
           overflow: hidden;
         }
         .mv-card::before {
           content: '';
           position: absolute;
-          top: 0; left: 0; width: 100%; height: 4px;
+          top: 0; left: 0; width: 100%; height: 4.5px;
           background: linear-gradient(90deg, #003DA6 0%, #C5A880 100%);
           opacity: 0;
           transition: opacity 0.4s ease;
         }
         .mv-card:hover {
           transform: translateY(-6px);
-          border-color: rgba(197, 168, 128, 0.3);
-          box-shadow: 0 20px 40px -20px rgba(0, 20, 90, 0.12);
+          border-color: rgba(197, 168, 128, 0.4);
+          box-shadow: 0 0 25px rgba(0, 61, 166, 0.08), 0 20px 40px -20px rgba(0, 15, 61, 0.12);
         }
         .mv-card:hover::before {
           opacity: 1;
@@ -537,66 +557,89 @@ const LandingPage: React.FC = () => {
           position: relative;
           overflow: hidden;
           border-radius: 14px;
-          height: 220px;
+          height: 240px;
+          border: 1px solid rgba(255, 255, 255, 0.8);
         }
         .gallery-image-container img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .mv-card:hover .gallery-image-container img {
           transform: scale(1.08);
         }
+        .mv-table-container {
+          background: rgba(255, 255, 255, 0.55);
+          border: 1.5px solid rgba(0, 61, 166, 0.08);
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 10px 30px -10px rgba(0, 15, 61, 0.02);
+        }
+        .mv-table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+        }
         .mv-table th {
-          background: rgba(0, 61, 166, 0.02);
+          background: rgba(0, 61, 166, 0.04);
           color: #003DA6 !important;
           font-weight: 800;
-          font-size: 0.72rem;
+          font-size: 0.75rem;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
-          padding: 14px 20px;
+          letter-spacing: 0.08em;
+          padding: 16px 20px;
           border-bottom: 2px solid rgba(0, 61, 166, 0.08);
+          font-family: var(--font-title);
         }
         .mv-table td {
           padding: 18px 20px;
-          border-bottom: 1px solid rgba(0, 61, 166, 0.04);
-          font-size: 0.82rem;
-          color: #334155;
+          border-bottom: 1px solid rgba(0, 61, 166, 0.05);
+          font-size: 0.85rem;
+          color: #1e293b;
+          font-weight: 500;
+          transition: all 0.3s ease;
         }
         .mv-table tr:hover td {
-          background: rgba(0, 61, 166, 0.01);
+          background: rgba(255, 255, 255, 0.7);
+        }
+        .mv-table tr:last-child td {
+          border-bottom: none;
         }
         .mv-input {
           width: 100%;
-          padding: 11px 16px;
-          background: #ffffff;
-          border: 1px solid rgba(0, 61, 166, 0.12);
+          padding: 12px 18px;
+          background: rgba(255, 255, 255, 0.75);
+          border: 1.5px solid rgba(0, 61, 166, 0.12);
           border-radius: 12px;
           color: #0f172a;
-          font-size: 0.85rem;
+          font-size: 0.88rem;
           transition: all 0.3s ease;
+          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.01);
         }
         .mv-input:focus {
           outline: none;
+          background: #ffffff;
           border-color: #003DA6;
-          box-shadow: 0 0 12px rgba(0, 61, 166, 0.15);
+          box-shadow: 0 0 0 3px rgba(0, 61, 166, 0.1);
         }
         .faq-accordion {
-          border: 1px solid rgba(0, 61, 166, 0.06);
+          border: 1.5px solid rgba(0, 61, 166, 0.08);
           border-radius: 16px;
-          background: rgba(255, 255, 255, 0.8);
-          backdrop-filter: blur(10px);
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(20px);
+          transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
           overflow: hidden;
         }
         .faq-accordion:hover {
-          border-color: rgba(197, 168, 128, 0.4);
+          border-color: #003DA6;
           transform: translateY(-1px);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+          box-shadow: 0 8px 20px -8px rgba(0, 61, 166, 0.08);
         }
         .contact-grid {
-          grid-template-columns: 1fr 1.2fr;
+          display: grid;
+          grid-template-columns: 1fr 1.3fr;
+          gap: 40px;
         }
         .spinning-logo {
           transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -619,7 +662,11 @@ const LandingPage: React.FC = () => {
         }
         @media (max-width: 991px) {
           .mv-navbar {
-            padding: 14px 24px;
+            padding: 16px 24px;
+          }
+          .contact-grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
           }
         }
         @media (max-width: 768px) {
@@ -634,9 +681,16 @@ const LandingPage: React.FC = () => {
             align-items: center;
             justify-content: center;
           }
-          .contact-grid {
-            grid-template-columns: 1fr;
-            padding: 24px !important;
+          .hero-grid-container {
+            grid-template-columns: 1fr !important;
+            gap: 40px !important;
+            text-align: center;
+          }
+          .hero-stats-row {
+            justify-content: center !important;
+          }
+          .hero-title-header {
+            font-size: 2.6rem !important;
           }
         }
       `}} />
@@ -645,45 +699,81 @@ const LandingPage: React.FC = () => {
          Navbar Section
          ─────────────────────────────────────────────────── */}
       <nav className="mv-navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <img
             src="/mountain_view_logo.png"
             alt="Mountain View Logo"
-            style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
+            style={{ 
+              height: '36px', 
+              width: 'auto', 
+              objectFit: 'contain',
+              filter: 'brightness(0) saturate(100%) invert(16%) sepia(61%) saturate(5185%) hue-rotate(217deg) brightness(92%) contrast(109%)'
+            }}
           />
         </div>
 
-        <div className="topbar-links" style={{ display: 'flex', gap: 28 }}>
+        <div className="topbar-links" style={{ display: 'flex', gap: 32 }}>
           <a href="#projects" className="mv-nav-link">{t.navProjects}</a>
           <a href="#gallery" className="mv-nav-link">{t.navGallery}</a>
           <a href="#faq" className="mv-nav-link">{t.navFaq}</a>
           <a href="#contact" className="mv-nav-link">{t.navContact}</a>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={toggleLanguage} style={{
-            background: '#ffffff', border: '1px solid rgba(0, 61, 166, 0.15)',
-            borderRadius: '999px', padding: '6px 14px', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 750,
-            color: '#003DA6', transition: 'all 0.3s ease'
+            background: 'rgba(255, 255, 255, 0.75)',
+            border: '1.5px solid rgba(0, 61, 166, 0.15)',
+            borderRadius: '999px',
+            padding: '8px 16px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: '#003DA6',
+            transition: 'all 0.3s ease'
           }}>
-            <Globe size={14} />
+            <Globe size={15} />
             {lang === 'en' ? 'العربية' : 'English'}
           </button>
 
           {isLoggedIn ? (
-            <button className="btn-luxury-blue" onClick={() => navigate('/dashboard')} style={{ fontSize: '0.78rem', padding: '8px 20px', borderRadius: 999 }}>
+            <button className="btn-luxury-primary" onClick={() => navigate('/dashboard')} style={{ fontSize: '0.8rem', padding: '10px 24px' }}>
               {t.navDashboard}
-              {lang === 'en' ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
+              {lang === 'en' ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
             </button>
           ) : (
             <button onClick={() => navigate('/login')} style={{
-              fontSize: '0.78rem', padding: '8px 20px', borderRadius: 999, border: '1px solid #003DA6', color: '#003DA6', background: 'transparent', cursor: 'pointer', fontWeight: 700
+              fontSize: '0.8rem',
+              padding: '10px 24px',
+              borderRadius: '999px',
+              border: '1.5px solid #003DA6',
+              color: '#003DA6',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontWeight: 700,
+              transition: 'all 0.3s ease'
             }}>
               {t.navLogin}
             </button>
           )}
         </div>
+
+        <button
+          className="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen(true)}
+          style={{
+            display: 'none',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#003DA6',
+            padding: 6
+          }}
+        >
+          <Menu size={24} />
+        </button>
       </nav>
 
       {/* ───────────────────────────────────────────────────
@@ -700,53 +790,160 @@ const LandingPage: React.FC = () => {
         />
         <div className="landing-hero-overlay" />
         
-        <div className="landing-hero-content animate-fade-in">
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.25)',
-            color: '#ffffff', borderRadius: 999, padding: '6px 18px', fontSize: '0.75rem', fontWeight: 800,
-            marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.05em'
-          }}>
-            <Star size={12} fill="#ffffff" />
-            <span style={{ color: '#ffffff' }}>
-              {lang === 'en' ? 'Mountain View Luxury Living' : 'ماونتن فيو للحياة الراقية'}
-            </span>
-          </div>
-          
-          {/* Explicit color override to pure white and shadow to avoid dark text inheriting from index.css */}
-          <h1 style={{
-            fontSize: '3.6rem', lineHeight: 1.1, fontWeight: 800,
-            marginBottom: 20, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.03em',
-            color: '#ffffff', textShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
-          }}>
-            {t.heroTitle}
-          </h1>
-          
-          <p style={{
-            fontSize: '1.05rem', color: '#f8fafc', lineHeight: 1.6,
-            marginBottom: 36, maxWidth: 720, margin: '0 auto 36px auto', fontWeight: 400,
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
-          }}>
-            {t.heroSubtitle}
-          </p>
+        {/* Glow Bubbles */}
+        <div style={{ top: '15%', left: '8%', width: '350px', height: '350px', background: 'rgba(0, 61, 166, 0.12)', filter: 'blur(120px)', position: 'absolute', borderRadius: '50%', zIndex: 2 }} />
+        <div style={{ bottom: '10%', right: '10%', width: '300px', height: '300px', background: 'rgba(197, 168, 128, 0.08)', filter: 'blur(100px)', position: 'absolute', borderRadius: '50%', zIndex: 2 }} />
+        
+        <div className="landing-hero-content">
+          <div className="hero-grid-container" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'center' }}>
+            
+            <div style={{ textAlign: dir === 'ltr' ? 'left' : 'right', color: '#ffffff' }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#ffffff',
+                borderRadius: '999px',
+                padding: '8px 18px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                marginBottom: 24,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em'
+              }}>
+                <Star size={13} fill="#ffffff" />
+                <span>
+                  {lang === 'en' ? 'Mountain View Luxury Living' : 'ماونتن فيو للحياة الراقية'}
+                </span>
+              </div>
+              
+              <h1 className="hero-title-header" style={{
+                fontSize: '3.6rem',
+                lineHeight: 1.15,
+                fontWeight: 800,
+                marginBottom: 24,
+                fontFamily: 'var(--font-title)',
+                color: '#ffffff',
+                textShadow: '0 4px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                {t.heroTitle}
+              </h1>
+              
+              <p style={{
+                fontSize: '1.1rem',
+                color: 'rgba(255, 255, 255, 0.85)',
+                lineHeight: 1.65,
+                marginBottom: 40,
+                maxWidth: 620,
+                fontWeight: 400,
+                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+              }}>
+                {t.heroSubtitle}
+              </p>
 
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {projects.length > 0 ? (
-              <button className="btn-luxury-blue" onClick={() => openEoiModal(projects[0])} style={{ padding: '14px 34px', fontSize: '0.88rem' }}>
-                <CreditCard size={18} />
-                {t.heroCta}
-              </button>
-            ) : (
-              <button className="btn-luxury-blue" onClick={() => {
-                const el = document.getElementById('contact');
-                el?.scrollIntoView({ behavior: 'smooth' });
-              }} style={{ padding: '14px 34px', fontSize: '0.88rem' }}>
-                {t.navContact}
-              </button>
-            )}
-            <a href="#projects" className="btn-luxury-outline" style={{ padding: '14px 30px', fontSize: '0.88rem', textDecoration: 'none' }}>
-              {t.heroSecondary}
-            </a>
+              <div className="hero-stats-row" style={{ display: 'flex', gap: 36, marginTop: 40, borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: 30, flexWrap: 'wrap' }}>
+                <div>
+                  <strong style={{ fontSize: '2rem', color: '#C5A880', fontFamily: 'var(--font-title)', display: 'block', fontWeight: 800 }}>14+</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    {lang === 'en' ? 'Active Phases' : 'مرحلة نشطة'}
+                  </span>
+                </div>
+                <div>
+                  <strong style={{ fontSize: '2rem', color: '#C5A880', fontFamily: 'var(--font-title)', display: 'block', fontWeight: 800 }}>0.01s</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    {lang === 'en' ? 'Precision Queue' : 'دقة حجز لحظية'}
+                  </span>
+                </div>
+                <div>
+                  <strong style={{ fontSize: '2rem', color: '#C5A880', fontFamily: 'var(--font-title)', display: 'block', fontWeight: 800 }}>100%</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    {lang === 'en' ? 'Refundable EOI' : 'مسترد بالكامل'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-booking-card" style={{
+              padding: 36,
+              textAlign: dir === 'ltr' ? 'left' : 'right'
+            }}>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#001A70', marginBottom: 8, fontFamily: 'var(--font-title)' }}>
+                {lang === 'en' ? 'FAST-TRACK RESERVATION' : 'حجز الأولوية السريع'}
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: '#475569', marginBottom: 24, lineHeight: 1.5 }}>
+                {lang === 'en' ? 'Skip long searches. Secure a general queue reservation for premium launch priorities instantly.' : 'تخط خطوات البحث الطويلة، وسجل دفعة جدية حجز عامة لضمان أسبقيتك في الطرح.'}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#003DA6', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                    {lang === 'en' ? 'Choose Target Compound' : 'اختر الكمبوند المستهدف'}
+                  </label>
+                  <select
+                    style={{
+                      width: '100%',
+                      padding: '14px 18px',
+                      borderRadius: '14px',
+                      border: '1.5px solid rgba(0, 61, 166, 0.15)',
+                      background: '#ffffff',
+                      color: '#003DA6',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      outline: 'none',
+                      boxShadow: '0 4px 10px rgba(0, 61, 166, 0.02)'
+                    }}
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                  >
+                    {projects.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{
+                  background: 'rgba(0, 61, 166, 0.03)',
+                  border: '1px solid rgba(0, 61, 166, 0.08)',
+                  borderRadius: '14px',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#5c6c7f', display: 'block', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                      {lang === 'en' ? 'REFUNDABLE DEPOSIT' : 'جدية حجز مستردة'}
+                    </span>
+                    <strong style={{ fontSize: '1.3rem', color: '#001A70', fontFamily: 'var(--font-title)', fontWeight: 800 }}>EGP 50,000.00</strong>
+                  </div>
+                  <span style={{
+                    fontSize: '0.65rem',
+                    background: '#16a34a',
+                    color: '#ffffff',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em'
+                  }}>
+                    {lang === 'en' ? 'SECURE LEDGER' : 'سجل آمن'}
+                  </span>
+                </div>
+
+                {projects.length > 0 ? (
+                  <button className="btn-luxury-primary" onClick={() => openEoiModal(projects.find(p => p.id === selectedProjectId) || projects[0])} style={{ padding: '16px', justifyContent: 'center', width: '100%', fontSize: '0.92rem' }}>
+                    <CreditCard size={18} />
+                    {t.heroCta}
+                  </button>
+                ) : (
+                  <a href="#contact" className="btn-luxury-secondary" style={{ padding: '16px', justifyContent: 'center', width: '100%', fontSize: '0.92rem', textDecoration: 'none', textAlign: 'center' }}>
+                    {t.navContact}
+                  </a>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       </header>
@@ -754,72 +951,75 @@ const LandingPage: React.FC = () => {
       {/* ───────────────────────────────────────────────────
          Projects Catalog Section
          ─────────────────────────────────────────────────── */}
-      <section id="projects" style={{ padding: '80px 24px 60px 24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 48 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+      <section id="projects" style={{ padding: '100px 24px 80px 24px', maxWidth: 1250, margin: '0 auto', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 54 }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 12 }}>
             {lang === 'en' ? 'EXCLUSIVE CATALOG' : 'كتالوج حصري'}
           </span>
-          <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#001A70', marginBottom: 18, fontFamily: 'var(--font-title)', letterSpacing: '-0.02em' }}>
             {t.projectsTitle}
           </h2>
-          <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
-          <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: 540, margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
+          <div style={{ width: 50, height: 4, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 99, marginBottom: 18 }} />
+          <p style={{ fontSize: '0.95rem', color: '#5c6c7f', maxWidth: 580, margin: '0 auto', fontWeight: 500, lineHeight: 1.65 }}>
             {t.projectsSubtitle}
           </p>
         </div>
 
         {loadingProjects ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
             <div className="animate-spin" style={{
-              width: 32, height: 32, border: '4px solid rgba(0, 61, 166, 0.15)',
+              width: 38, height: 38, border: '4px solid rgba(0, 61, 166, 0.15)',
               borderTopColor: '#003DA6', borderRadius: '50%'
             }} />
           </div>
         ) : (
-          <div className="grid-cards" style={{ gap: 28, marginBottom: 48 }}>
+          <div className="grid-cards" style={{ gap: 32, marginBottom: 54 }}>
             {projects.map((project: any) => {
               const hasUnits = project.units_count > 0;
               return (
                 <div key={project.id} className="mv-card" style={{
-                  padding: 28, display: 'flex', flexDirection: 'column',
-                  justifyContent: 'space-between', background: '#ffffff'
+                  padding: 32, display: 'flex', flexDirection: 'column',
+                  justifyContent: 'space-between'
                 }}>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#00205b' }}>{project.name}</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                      <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#001A70', fontFamily: 'var(--font-title)' }}>{project.name}</h3>
                       <span className="badge" style={{
-                        fontSize: '0.65rem', background: 'rgba(0, 61, 166, 0.05)', color: '#003DA6', border: '1px solid rgba(0, 61, 166, 0.1)',
-                        padding: '4px 10px', borderRadius: '999px', fontWeight: 700
+                        fontSize: '0.68rem',
+                        background: project.status === 'active' ? 'rgba(22, 163, 74, 0.08)' : 'rgba(0, 61, 166, 0.05)',
+                        color: project.status === 'active' ? '#16a34a' : '#003DA6',
+                        border: project.status === 'active' ? '1px solid rgba(22, 163, 74, 0.2)' : '1px solid rgba(0, 61, 166, 0.2)',
+                        padding: '6px 12px', borderRadius: '999px', fontWeight: 700
                       }}>
                         {project.status.toUpperCase()}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: '#475569' }}>
-                        <MapPin size={15} color="#003DA6" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
+                        <MapPin size={16} color="#003DA6" />
                         <span>{t.projectLocation}: <strong style={{ color: '#0f172a' }}>{project.location}</strong></span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: '#475569' }}>
-                        <Calendar size={15} color="#003DA6" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
+                        <Calendar size={16} color="#003DA6" />
                         <span>{t.projectDelivery}: <strong style={{ color: '#0f172a' }}>{project.delivery_date}</strong></span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: '#475569' }}>
-                        <Compass size={15} color="#003DA6" />
-                        <span>{t.projectAvailable}: <strong style={{ color: hasUnits ? 'var(--color-success)' : '#ef4444' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
+                        <Compass size={16} color="#003DA6" />
+                        <span>{t.projectAvailable}: <strong style={{ color: hasUnits ? '#16a34a' : '#ef4444' }}>
                           {hasUnits ? `${project.units_count} ${lang === 'en' ? 'Units' : 'وحدة'}` : t.projectNoUnits}
                         </strong></span>
                       </div>
                     </div>
 
                     {project.payment_plans && project.payment_plans.length > 0 && (
-                      <div style={{ borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 16, marginBottom: 24 }}>
-                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#003DA6', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                      <div style={{ borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 20, marginBottom: 28 }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 12 }}>
                           {t.projectPlans}
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {project.payment_plans.slice(0, 3).map((plan: any) => (
-                            <div key={plan.id} style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', color: '#334155' }}>
+                            <div key={plan.id} style={{ fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', color: '#5c6c7f' }}>
                               <span>• {lang === 'ar' ? (plan.name_ar || plan.name) : plan.name}</span>
                               <strong style={{ color: '#0f172a' }}>{plan.down_payment_pct}% DP / {plan.installments}m</strong>
                             </div>
@@ -829,18 +1029,18 @@ const LandingPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                    <button className="btn-luxury-outline" onClick={() => {
+                  <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                    <button className="btn-luxury-secondary" onClick={() => {
                       setSelectedProjectId(project.id);
                       document.getElementById('units-catalog')?.scrollIntoView({ behavior: 'smooth' });
                     }} style={{
-                      flex: 1, fontSize: '0.75rem', padding: '10px 14px', justifyContent: 'center', color: '#003DA6 !important', border: '1px solid rgba(0, 61, 166, 0.25)'
+                      flex: 1, fontSize: '0.8rem', padding: '12px 14px', justifyContent: 'center'
                     }}>
-                      <Layers size={14} color="#003DA6" />
+                      <Layers size={15} color="#003DA6" />
                       {t.viewUnits}
                     </button>
-                    <button className="btn-luxury-blue" onClick={() => openEoiModal(project)} style={{
-                      fontSize: '0.75rem', padding: '10px 20px'
+                    <button className="btn-luxury-primary" onClick={() => openEoiModal(project)} style={{
+                      fontSize: '0.8rem', padding: '12px 24px'
                     }}>
                       {t.heroCta}
                     </button>
@@ -854,29 +1054,30 @@ const LandingPage: React.FC = () => {
         {/* ───────────────────────────────────────────────────
            Units Catalog Detail Browser
            ─────────────────────────────────────────────────── */}
-        <div id="units-catalog" className="mv-card" style={{ padding: 32, background: '#ffffff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 28, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 20 }}>
+        <div id="units-catalog" className="mv-card" style={{ padding: 40, background: 'rgba(255, 255, 255, 0.82)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, alignItems: 'center', marginBottom: 32, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 24 }}>
             <div>
-              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.18em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
                 {lang === 'en' ? 'LIVE AVAILABILITY' : 'متاح حالياً'}
               </span>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10, color: '#00205b', fontFamily: 'Cinzel, var(--font-title)', margin: 0 }}>
-                <Building size={22} color="#003DA6" />
+              <h3 style={{ fontSize: '1.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 12, color: '#001A70', fontFamily: 'var(--font-title)', margin: 0 }}>
+                <Building size={24} color="#003DA6" />
                 {t.unitsTitle} {selectedProjectObj ? ` - ${selectedProjectObj.name}` : ''}
               </h3>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginTop: 4, marginBottom: 0 }}>
+              <p style={{ fontSize: '0.85rem', color: '#5c6c7f', fontWeight: 500, marginTop: 6, marginBottom: 0 }}>
                 {t.unitsSubtitle}
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 750, color: '#64748b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#5c6c7f' }}>
                 {lang === 'en' ? 'Select Compound' : 'اختر الكمبوند'}:
               </span>
               <select
                 style={{
-                  padding: '9px 18px', borderRadius: '12px', border: '1px solid rgba(0, 61, 166, 0.15)',
-                  background: '#mv-navbar', fontSize: '0.8rem', fontWeight: 700, color: '#003DA6', outline: 'none'
+                  padding: '10px 20px', borderRadius: '12px', border: '1.5px solid rgba(0, 61, 166, 0.15)',
+                  background: '#ffffff', fontSize: '0.85rem', fontWeight: 700, color: '#003DA6', outline: 'none',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.01)', transition: 'all 0.3s ease'
                 }}
                 value={selectedProjectId}
                 onChange={e => setSelectedProjectId(e.target.value)}
@@ -889,52 +1090,52 @@ const LandingPage: React.FC = () => {
           </div>
 
           {loadingUnits ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
               <div className="animate-spin" style={{
-                width: 24, height: 24, border: '3px solid rgba(0, 61, 166, 0.15)',
+                width: 32, height: 32, border: '3.5px solid rgba(0, 61, 166, 0.15)',
                 borderTopColor: '#003DA6', borderRadius: '50%'
               }} />
             </div>
           ) : !selectedProjectId ? (
-            <div style={{ padding: '30px 0', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-              <Info size={16} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#5c6c7f', fontSize: '0.88rem' }}>
+              <Info size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
               {t.unitPlaceholder}
             </div>
           ) : units.length === 0 ? (
-            <div style={{ padding: '30px 0', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-              <AlertCircle size={16} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#5c6c7f', fontSize: '0.88rem' }}>
+              <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
               {t.unitEmpty}
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="mv-table-container" style={{ overflowX: 'auto' }}>
+              <table className="mv-table">
                 <thead>
-                  <tr style={{ background: 'rgba(0, 61, 166, 0.02)' }}>
-                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitNo}</th>
-                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitType}</th>
-                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitArea}</th>
-                    <th style={{ textAlign: 'start', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitBedrooms}/{t.unitBathrooms}</th>
-                    <th style={{ textAlign: 'end', padding: '14px 20px', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800 }}>{t.unitPrice}</th>
-                    <th style={{ padding: '14px 20px', width: 140 }}></th>
+                  <tr>
+                    <th style={{ textAlign: 'start' }}>{t.unitNo}</th>
+                    <th style={{ textAlign: 'start' }}>{t.unitType}</th>
+                    <th style={{ textAlign: 'start' }}>{t.unitArea}</th>
+                    <th style={{ textAlign: 'start' }}>{t.unitBedrooms}/{t.unitBathrooms}</th>
+                    <th style={{ textAlign: 'end' }}>{t.unitPrice}</th>
+                    <th style={{ width: 150 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {units.map((unit: any) => (
-                    <tr key={unit.id} style={{ borderBottom: '1px solid rgba(0, 61, 166, 0.06)' }}>
-                      <td style={{ padding: '16px 20px', fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>
+                    <tr key={unit.id}>
+                      <td style={{ fontWeight: 800, fontSize: '0.88rem', color: '#003DA6' }}>
                         {unit.building} - {unit.unit_number}
                       </td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.82rem', fontWeight: 600, color: '#334155' }}>{unit.type}</td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.82rem', fontWeight: 500, color: '#334155' }}>{parseFloat(unit.area).toFixed(0)} m²</td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.82rem', fontWeight: 500, color: '#334155' }}>
-                        {unit.bedrooms} <span style={{ opacity: 0.6 }}>Beds</span> / {unit.bathrooms} <span style={{ opacity: 0.6 }}>Baths</span>
+                      <td style={{ fontWeight: 600, color: '#0f172a' }}>{unit.type}</td>
+                      <td style={{ color: '#5c6c7f' }}>{parseFloat(unit.area).toFixed(0)} m²</td>
+                      <td style={{ color: '#5c6c7f' }}>
+                        {unit.bedrooms} <span style={{ opacity: 0.65 }}>Beds</span> / {unit.bathrooms} <span style={{ opacity: 0.65 }}>Baths</span>
                       </td>
-                      <td style={{ padding: '16px 20px', fontSize: '0.88rem', fontWeight: 800, textAlign: 'end', color: '#003DA6' }}>
+                      <td style={{ fontSize: '0.92rem', fontWeight: 800, textAlign: 'end', color: '#003DA6' }}>
                         EGP {parseFloat(unit.price).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </td>
-                      <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                        <button className="btn-luxury-blue" onClick={() => openEoiModal(selectedProjectObj, unit)} style={{
-                          fontSize: '0.7rem', padding: '8px 14px', borderRadius: '8px'
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="btn-luxury-primary" onClick={() => openEoiModal(selectedProjectObj, unit)} style={{
+                          fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px'
                         }}>
                           {t.unitAction}
                         </button>
@@ -951,32 +1152,37 @@ const LandingPage: React.FC = () => {
       {/* ───────────────────────────────────────────────────
          Media Showcase Gallery
          ─────────────────────────────────────────────────── */}
-      <section id="gallery" style={{ padding: '80px 24px', background: '#f1f5f9', borderTop: '1px solid rgba(0, 61, 166, 0.06)', borderBottom: '1px solid rgba(0, 61, 166, 0.06)' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 40 }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+      <section id="gallery" style={{ padding: '100px 24px', background: 'rgba(0, 61, 166, 0.02)', borderTop: '1px solid rgba(0, 61, 166, 0.06)', borderBottom: '1px solid rgba(0, 61, 166, 0.06)' }}>
+        <div style={{ maxWidth: 1250, margin: '0 auto', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 48 }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 12 }}>
               {lang === 'en' ? 'VIRTUAL SHOWCASE' : 'عرض مرئي'}
             </span>
-            <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#001A70', marginBottom: 18, fontFamily: 'var(--font-title)', letterSpacing: '-0.02em' }}>
               {t.galleryTitle}
             </h2>
-            <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
-            <p style={{ fontSize: '0.88rem', color: '#64748b', maxWidth: 520, margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
+            <div style={{ width: 50, height: 4, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 99, marginBottom: 18 }} />
+            <p style={{ fontSize: '0.95rem', color: '#5c6c7f', maxWidth: 560, margin: '0 auto', fontWeight: 500, lineHeight: 1.65 }}>
               {t.gallerySubtitle}
             </p>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 40, flexWrap: 'wrap' }}>
             {['all', 'exterior', 'interior', 'amenities'].map(cat => (
               <button
                 key={cat}
                 onClick={() => setGalleryTab(cat)}
                 style={{
-                  padding: '8px 20px', borderRadius: 999, border: '1px solid rgba(0, 61, 166, 0.15)',
-                  background: galleryTab === cat ? 'linear-gradient(135deg, #003DA6 0%, #00205b 100%)' : '#ffffff',
+                  padding: '10px 24px',
+                  borderRadius: '999px',
+                  border: '1.5px solid rgba(0, 61, 166, 0.15)',
+                  background: galleryTab === cat ? 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)' : '#ffffff',
                   color: galleryTab === cat ? '#ffffff' : '#003DA6',
-                  fontSize: '0.78rem', fontWeight: 750, cursor: 'pointer', transition: 'all 0.3s ease',
-                  boxShadow: galleryTab === cat ? '0 4px 10px rgba(0, 61, 166, 0.15)' : 'none'
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: galleryTab === cat ? '0 4px 12px rgba(0, 61, 166, 0.15)' : '0 4px 10px rgba(0, 0, 0, 0.01)'
                 }}
               >
                 {cat === 'all' && t.galleryAll}
@@ -987,11 +1193,12 @@ const LandingPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 32 }}>
             {filteredGallery.map((img, idx) => (
               <div key={idx} className="mv-card" style={{
-                padding: 12, overflow: 'hidden',
-                display: 'flex', flexDirection: 'column'
+                padding: 14,
+                display: 'flex',
+                flexDirection: 'column'
               }}>
                 <div className="gallery-image-container">
                   <img
@@ -1001,23 +1208,23 @@ const LandingPage: React.FC = () => {
                   {idx % 3 === 1 && (
                     <div style={{
                       position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                      width: 48, height: 48, borderRadius: '50%', background: 'rgba(0, 61, 166, 0.85)',
+                      width: 52, height: 52, borderRadius: '50%', background: 'rgba(0, 61, 166, 0.9)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 3
+                      boxShadow: '0 6px 16px rgba(0,0,0,0.2)', zIndex: 3
                     }}>
-                      <Play size={18} fill="#ffffff" />
+                      <Play size={20} fill="#ffffff" style={{ marginLeft: lang === 'en' ? 3 : 0 }} />
                     </div>
                   )}
                   <div style={{
-                    position: 'absolute', bottom: 12, left: 12, background: 'rgba(255,255,255,0.95)',
-                    padding: '4px 10px', borderRadius: 999, fontSize: '0.65rem', fontWeight: 800, color: '#003DA6',
-                    border: '1px solid rgba(0, 61, 166, 0.1)', zIndex: 3
+                    position: 'absolute', bottom: 14, left: 14, background: 'rgba(255,255,255,0.92)',
+                    padding: '6px 14px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 800, color: '#003DA6',
+                    border: '1px solid rgba(0, 61, 166, 0.15)', zIndex: 3
                   }}>
                     {img.category.toUpperCase()}
                   </div>
                 </div>
-                <div style={{ padding: '12px 6px 4px 6px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: 800, color: '#00205b' }}>{img.title[lang]}</h4>
+                <div style={{ padding: '16px 8px 4px 8px' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#001A70', fontFamily: 'var(--font-title)' }}>{img.title[lang]}</h4>
                 </div>
               </div>
             ))}
@@ -1028,43 +1235,43 @@ const LandingPage: React.FC = () => {
       {/* ───────────────────────────────────────────────────
          FAQ Section
          ─────────────────────────────────────────────────── */}
-      <section id="faq" style={{ padding: '80px 24px', maxWidth: 850, margin: '0 auto', width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 40 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+      <section id="faq" style={{ padding: '100px 24px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 48 }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 12 }}>
             {lang === 'en' ? 'COMMON QUESTIONS' : 'الأسئلة الشائعة'}
           </span>
-          <h2 style={{ fontSize: '2.4rem', fontWeight: 800, color: '#00205b', marginBottom: 16, fontFamily: 'Cinzel, var(--font-title)', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#001A70', marginBottom: 18, fontFamily: 'var(--font-title)', letterSpacing: '-0.02em' }}>
             {t.faqTitle}
           </h2>
-          <div style={{ width: 40, height: 3, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 2, marginBottom: 16 }} />
-          <p style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 500, lineHeight: 1.6 }}>
+          <div style={{ width: 50, height: 4, background: 'linear-gradient(90deg, #003DA6, #C5A880)', borderRadius: 99, marginBottom: 18 }} />
+          <p style={{ fontSize: '0.95rem', color: '#5c6c7f', fontWeight: 500, lineHeight: 1.65 }}>
             {t.faqSubtitle}
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {faqItems.map((item, idx) => {
             const isOpen = activeFaq === idx;
             return (
               <div key={idx} className="faq-accordion" style={{
-                padding: 20, cursor: 'pointer',
-                borderColor: isOpen ? '#C5A880' : 'rgba(0, 61, 166, 0.06)',
-                background: isOpen ? '#ffffff' : 'rgba(255, 255, 255, 0.8)',
-                boxShadow: isOpen ? '0 10px 25px -10px rgba(0, 61, 166, 0.08)' : 'none'
+                padding: 24, cursor: 'pointer',
+                borderColor: isOpen ? '#003DA6' : 'rgba(0, 61, 166, 0.08)',
+                background: isOpen ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
+                boxShadow: isOpen ? '0 10px 30px rgba(0, 61, 166, 0.04)' : 'none'
               }} onClick={() => setActiveFaq(isOpen ? null : idx)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: isOpen ? '#003DA6' : '#0f172a' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: isOpen ? '#003DA6' : '#1e293b', fontFamily: 'var(--font-title)' }}>
                     {item.q[lang]}
                   </h4>
                   <ChevronDown
-                    size={16}
-                    color="#64748b"
+                    size={18}
+                    color="#5c6c7f"
                     style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
                   />
                 </div>
                 {isOpen && (
-                  <div style={{ marginTop: 14, borderTop: '1px solid rgba(0, 61, 166, 0.06)', paddingTop: 14 }}>
-                    <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.6, fontWeight: 500 }}>
+                  <div style={{ marginTop: 18, borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 18 }}>
+                    <p style={{ fontSize: '0.88rem', color: '#5c6c7f', lineHeight: 1.65, fontWeight: 500 }}>
                       {item.a[lang]}
                     </p>
                   </div>
@@ -1078,110 +1285,117 @@ const LandingPage: React.FC = () => {
       {/* ───────────────────────────────────────────────────
          Contact Us Section
          ─────────────────────────────────────────────────── */}
-      <section id="contact" style={{ padding: '40px 24px 80px 24px', maxWidth: 950, margin: '0 auto', width: '100%' }}>
-        <div className="mv-card" style={{
-          display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 32, padding: 36, background: '#ffffff'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #003DA6 0%, #00205b 100%)', borderRadius: '16px', padding: 36,
-            color: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            position: 'relative', overflow: 'hidden'
-          }}>
-            <div style={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
-            <div>
-              <h3 style={{ fontSize: '1.5rem', color: '#ffffff', fontWeight: 850, marginBottom: 14, fontFamily: 'Cinzel, var(--font-title)' }}>{t.contactTitle}</h3>
-              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', lineHeight: 1.5 }}>{t.contactSubtitle}</p>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 40 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem' }}>
-                <Phone size={16} />
-                <span>+20 2 2345 678</span>
+      <section id="contact" style={{ padding: '40px 24px 100px 24px', maxWidth: 1050, margin: '0 auto', width: '100%' }}>
+        <div className="mv-card" style={{ padding: 48, background: '#ffffff' }}>
+          <div className="contact-grid">
+            <div style={{
+              background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+              borderRadius: '20px',
+              padding: 40,
+              color: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0, 61, 166, 0.15)'
+            }}>
+              <div style={{ position: 'absolute', top: -30, right: -30, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+              <div>
+                <h3 style={{ fontSize: '1.65rem', color: '#ffffff', fontWeight: 800, marginBottom: 14, fontFamily: 'var(--font-title)' }}>{t.contactTitle}</h3>
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem', lineHeight: 1.6 }}>{t.contactSubtitle}</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem' }}>
-                <Mail size={16} />
-                <span>desk.sales@mv.com</span>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 40 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '0.88rem' }}>
+                  <Phone size={18} />
+                  <span>+20 2 2345 678</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '0.88rem' }}>
+                  <Mail size={18} />
+                  <span>desk.sales@mv.com</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '0.88rem' }}>
+                  <MapPin size={18} />
+                  <span>Mountain View HQ, New Cairo, Egypt</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem' }}>
-                <MapPin size={16} />
-                <span>Mountain View HQ, New Cairo, Egypt</span>
+
+              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 20, marginTop: 40 }}>
+                Mountain View Real Estate Development SAE. License No. LIC-333333
               </div>
             </div>
 
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 40 }}>
-              Mountain View Real Estate Development SAE. License No. LIC-333333
-            </div>
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {contactSuccessMsg ? (
+                <div style={{ textAlign: 'center', padding: '40px 10px' }}>
+                  <CheckCircle size={52} color="#16a34a" style={{ marginBottom: 20 }} />
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#001A70', marginBottom: 12, fontFamily: 'var(--font-title)' }}>{lang === 'en' ? 'Thank You!' : 'شكراً لك!'}</h4>
+                  <p style={{ fontSize: '0.9rem', color: '#5c6c7f' }}>{contactSuccessMsg}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleContactSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactFirstName} *</label>
+                      <input
+                        className="mv-input"
+                        type="text" required value={contactForm.first_name}
+                        onChange={e => setContactForm({ ...contactForm, first_name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactLastName} *</label>
+                      <input
+                        className="mv-input"
+                        type="text" required value={contactForm.last_name}
+                        onChange={e => setContactForm({ ...contactForm, last_name: e.target.value })}
+                      />
+                    </div>
+                  </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {contactSuccessMsg ? (
-              <div style={{ textAlign: 'center', padding: '40px 10px' }}>
-                <CheckCircle size={48} color="var(--color-success)" style={{ marginBottom: 16 }} />
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#00205b', marginBottom: 10 }}>{lang === 'en' ? 'Thank You!' : 'شكراً لك!'}</h4>
-                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>{contactSuccessMsg}</p>
-              </div>
-            ) : (
-              <form onSubmit={handleContactSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                  <div>
-                    <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactFirstName} *</label>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactEmail} *</label>
                     <input
                       className="mv-input"
-                      type="text" required value={contactForm.first_name}
-                      onChange={e => setContactForm({ ...contactForm, first_name: e.target.value })}
+                      type="email" required value={contactForm.email}
+                      onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactLastName} *</label>
+
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactPhone} *</label>
                     <input
                       className="mv-input"
-                      type="text" required value={contactForm.last_name}
-                      onChange={e => setContactForm({ ...contactForm, last_name: e.target.value })}
+                      type="text" required placeholder="+201..." value={contactForm.phone}
+                      onChange={e => setContactForm({ ...contactForm, phone: e.target.value })}
                     />
                   </div>
-                </div>
 
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactEmail} *</label>
-                  <input
-                    className="mv-input"
-                    type="email" required value={contactForm.email}
-                    onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                  />
-                </div>
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactMessage} *</label>
+                    <textarea
+                      rows={4}
+                      className="mv-input"
+                      style={{ outline: 'none', resize: 'none' }}
+                      required value={contactForm.message}
+                      onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                    />
+                  </div>
 
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactPhone} *</label>
-                  <input
-                    className="mv-input"
-                    type="text" required placeholder="+201..." value={contactForm.phone}
-                    onChange={e => setContactForm({ ...contactForm, phone: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactMessage} *</label>
-                  <textarea
-                    rows={4}
-                    className="mv-input"
-                    style={{ outline: 'none', resize: 'none' }}
-                    required value={contactForm.message}
-                    onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
-                  />
-                </div>
-
-                <button type="submit" className="btn-luxury-blue" style={{ width: '100%', justifyContent: 'center' }} disabled={sendingContact}>
-                  {sendingContact ? (lang === 'en' ? 'Sending...' : 'جاري الإرسال...') : t.contactSubmit}
-                </button>
-              </form>
-            )}
+                  <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} disabled={sendingContact}>
+                    {sendingContact ? (lang === 'en' ? 'Sending...' : 'جاري الإرسال...') : t.contactSubmit}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ marginTop: 'auto', padding: 28, textAlign: 'center', borderTop: '1px solid rgba(0, 61, 166, 0.08)', background: '#ffffff' }}>
-        <p style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
+      <footer style={{ marginTop: 'auto', padding: 40, textAlign: 'center', borderTop: '1px solid rgba(0, 61, 166, 0.08)', background: 'rgba(255, 255, 255, 0.65)' }}>
+        <p style={{ fontSize: '0.82rem', color: '#5c6c7f', fontWeight: 600 }}>
           © {new Date().getFullYear()} {t.footerRights}
         </p>
       </footer>
@@ -1192,37 +1406,36 @@ const LandingPage: React.FC = () => {
       {showEoiModal && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{
-            maxWidth: 550, width: 'calc(100% - 32px)', padding: 32, borderRadius: '20px',
-            maxHeight: '92vh', overflowY: 'auto', position: 'relative', border: '1px solid rgba(0, 61, 166, 0.15)'
+            maxWidth: 580, width: 'calc(100% - 32px)', padding: 36, borderRadius: '24px',
+            maxHeight: '92vh', overflowY: 'auto', position: 'relative', border: '1.5px solid rgba(0, 61, 166, 0.15)'
           }}>
-            {/* Positioned absolutely at top right so it stays clean and doesn't overlap titles */}
             <button
               onClick={() => setShowEoiModal(false)}
               style={{
-                position: 'absolute', top: 20, right: 20,
-                background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: '#64748b',
+                position: 'absolute', top: 24, right: 24,
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#5c6c7f',
                 fontWeight: 'bold', padding: 4
               }}
             >
               ✕
             </button>
 
-            <div style={{ marginBottom: 20, paddingRight: 24 }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#00205b', marginBottom: 6, fontFamily: 'Cinzel, var(--font-title)' }}>
+            <div style={{ marginBottom: 24, paddingRight: 24 }}>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#001A70', marginBottom: 8, fontFamily: 'var(--font-title)' }}>
                 {t.eoiModalTitle}
               </h3>
-              <p style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>
+              <p style={{ fontSize: '0.78rem', color: '#5c6c7f', fontWeight: 500 }}>
                 {t.eoiModalSubtitle}
               </p>
             </div>
 
             {errorMessage && (
               <div style={{
-                background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', padding: '12px 16px',
-                borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, display: 'flex',
-                alignItems: 'center', gap: 8, marginBottom: 16, border: '1px solid rgba(239, 68, 68, 0.12)'
+                background: 'rgba(239, 68, 68, 0.05)', color: '#ef4444', padding: '14px 18px',
+                borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, display: 'flex',
+                alignItems: 'center', gap: 10, marginBottom: 20, border: '1px solid rgba(239, 68, 68, 0.15)'
               }}>
-                <AlertCircle size={14} />
+                <AlertCircle size={16} />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -1230,24 +1443,24 @@ const LandingPage: React.FC = () => {
             {eoiStep < 3 ? (
               <form onSubmit={handleEoiSubmit}>
                 <div style={{
-                  padding: 16, background: 'rgba(0, 61, 166, 0.02)', marginBottom: 20, borderRadius: '12px',
+                  padding: 20, background: 'rgba(0, 61, 166, 0.02)', marginBottom: 24, borderRadius: '16px',
                   border: '1px solid rgba(0, 61, 166, 0.08)'
                 }}>
-                  <div style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ color: '#64748b' }}>{t.eoiSelectedProject}:</span>
-                    <strong style={{ color: '#00205b' }}>{eoiProject?.name}</strong>
+                  <div style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ color: '#5c6c7f' }}>{t.eoiSelectedProject}:</span>
+                    <strong style={{ color: '#001A70' }}>{eoiProject?.name}</strong>
                   </div>
                   {eoiUnit && (
-                    <div style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ color: '#64748b' }}>{t.eoiSelectedUnit}:</span>
-                      <strong style={{ color: '#00205b' }}>{eoiUnit.building} - {eoiUnit.unit_number}</strong>
+                    <div style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ color: '#5c6c7f' }}>{t.eoiSelectedUnit}:</span>
+                      <strong style={{ color: '#001A70' }}>{eoiUnit.building} - {eoiUnit.unit_number}</strong>
                     </div>
                   )}
-                  <div style={{ fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 8, marginTop: 8 }}>
+                  <div style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 10, marginTop: 10 }}>
                     <span style={{ color: '#003DA6', fontWeight: 800 }}>{t.eoiAmountLabel}:</span>
-                    <strong style={{ color: '#00205b', fontWeight: 900 }}>EGP 50,000.00</strong>
+                    <strong style={{ color: '#001A70', fontWeight: 900 }}>EGP 50,000.00</strong>
                   </div>
-                  <span style={{ fontSize: '0.62rem', color: '#64748b', display: 'block', textAlign: 'right', marginTop: 4 }}>
+                  <span style={{ fontSize: '0.68rem', color: '#5c6c7f', display: 'block', textAlign: 'right', marginTop: 6 }}>
                     * {t.eoiAmountDesc}
                   </span>
                 </div>
@@ -1255,13 +1468,13 @@ const LandingPage: React.FC = () => {
                 {/* STEP 1: Personal Info */}
                 {eoiStep === 1 && (
                   <div>
-                    <h4 style={{ fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.04em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 8, marginBottom: 16 }}>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
                       {t.eoiFormPersonal}
                     </h4>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                       <div>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactFirstName} *</label>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactFirstName} *</label>
                         <input
                           className="mv-input"
                           type="text" required value={eoiForm.first_name}
@@ -1269,7 +1482,7 @@ const LandingPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactLastName} *</label>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactLastName} *</label>
                         <input
                           className="mv-input"
                           type="text" required value={eoiForm.last_name}
@@ -1278,8 +1491,8 @@ const LandingPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactEmail} *</label>
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactEmail} *</label>
                       <input
                         className="mv-input"
                         type="email" required value={eoiForm.email}
@@ -1287,8 +1500,8 @@ const LandingPage: React.FC = () => {
                       />
                     </div>
 
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.contactPhone} *</label>
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.contactPhone} *</label>
                       <input
                         className="mv-input"
                         type="text" required placeholder="+201..." value={eoiForm.phone}
@@ -1296,8 +1509,8 @@ const LandingPage: React.FC = () => {
                       />
                     </div>
 
-                    <div style={{ marginBottom: 20 }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.eoiNationalId}</label>
+                    <div style={{ marginBottom: 24 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiNationalId}</label>
                       <input
                         className="mv-input"
                         type="text" placeholder="29001011234567" value={eoiForm.national_id}
@@ -1305,9 +1518,9 @@ const LandingPage: React.FC = () => {
                       />
                     </div>
 
-                    <button type="submit" className="btn-luxury-blue" style={{ width: '100%', justifyContent: 'center' }}>
+                    <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
                       {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
-                      {lang === 'en' ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
+                      {lang === 'en' ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
                     </button>
                   </div>
                 )}
@@ -1315,24 +1528,24 @@ const LandingPage: React.FC = () => {
                 {/* STEP 2: Credit Card Simulated Details */}
                 {eoiStep === 2 && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 8 }}>
-                      <h4 style={{ fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.04em' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10 }}>
+                      <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', fontFamily: 'var(--font-title)' }}>
                         {t.eoiFormPayment}
                       </h4>
-                      <button type="button" onClick={() => setEoiStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}>
+                      <button type="button" onClick={() => setEoiStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
                         {lang === 'en' ? '← Back' : '← رجوع'}
                       </button>
                     </div>
 
-                    <div style={{ background: 'rgba(0, 61, 166, 0.02)', padding: 14, borderRadius: '12px', border: '1px solid rgba(0, 61, 166, 0.08)', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                      <Lock size={16} color="var(--color-success)" />
-                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                    <div style={{ background: 'rgba(22, 163, 74, 0.06)', padding: 16, borderRadius: '12px', border: '1px solid rgba(22, 163, 74, 0.15)', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                      <Lock size={18} color="#16a34a" />
+                      <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>
                         {lang === 'en' ? 'SSL Secure checkout. Card values will be authorized on our merchant gateway.' : 'بوابة دفع مشفرة آمنة. سيتم حجز وتأكيد المعاملة مالياً.'}
                       </span>
                     </div>
 
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.eoiCardName} *</label>
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardName} *</label>
                       <input
                         className="mv-input"
                         type="text" required placeholder="John Doe" value={eoiForm.card_name}
@@ -1340,22 +1553,22 @@ const LandingPage: React.FC = () => {
                       />
                     </div>
 
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.eoiCardNo} *</label>
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardNo} *</label>
                       <div style={{ position: 'relative' }}>
                         <input
                           className="mv-input"
-                          style={{ paddingLeft: '38px' }}
+                          style={{ paddingLeft: '44px', paddingRight: '44px' }}
                           type="text" required placeholder="4000 1234 5678 9010" value={eoiForm.card_no}
                           onChange={e => setEoiForm({ ...eoiForm, card_no: e.target.value })}
                         />
-                        <CreditCard size={14} style={{ position: 'absolute', left: 14, top: 14 }} color="#64748b" />
+                        <CreditCard size={16} style={{ position: 'absolute', left: 16, top: 15 }} color="#5c6c7f" />
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
                       <div>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.eoiCardExp} *</label>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardExp} *</label>
                         <input
                           className="mv-input"
                           type="text" required placeholder="12/28" value={eoiForm.card_exp}
@@ -1363,7 +1576,7 @@ const LandingPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#334155', display: 'block', marginBottom: 6 }}>{t.eoiCardCvv} *</label>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardCvv} *</label>
                         <input
                           className="mv-input"
                           type="password" required maxLength={3} placeholder="•••" value={eoiForm.card_cvv}
@@ -1372,10 +1585,10 @@ const LandingPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <button type="submit" className="btn-luxury-blue" style={{ width: '100%', justifyContent: 'center' }} disabled={eoiProcessing}>
+                    <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} disabled={eoiProcessing}>
                       {eoiProcessing ? (
                         <>
-                          <div className="animate-spin" style={{ width: 12, height: 12, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', marginRight: 6 }} />
+                          <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', marginRight: 8 }} />
                           {t.eoiProcessing}
                         </>
                       ) : t.eoiPaySubmit}
@@ -1385,40 +1598,44 @@ const LandingPage: React.FC = () => {
               </form>
             ) : (
               /* STEP 3: Booking Success Ticket */
-              <div style={{ textAlign: 'center', padding: '16px 0 10px 0' }}>
-                <CheckCircle size={52} color="var(--color-success)" style={{ marginBottom: 16 }} />
-                <h4 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#00205b', marginBottom: 8, fontFamily: 'Cinzel, var(--font-title)' }}>
+              <div style={{ textAlign: 'center', padding: '20px 0 10px 0' }}>
+                <CheckCircle size={56} color="#16a34a" style={{ marginBottom: 20 }} />
+                <h4 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#001A70', marginBottom: 10, fontFamily: 'var(--font-title)' }}>
                   {t.eoiSuccessTitle}
                 </h4>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: 24, maxWidth: 420, margin: '0 auto 24px auto' }}>
+                <p style={{ fontSize: '0.85rem', color: '#5c6c7f', marginBottom: 28, maxWidth: 440, margin: '0 auto 28px auto', lineHeight: 1.6 }}>
                   {t.eoiSuccessDesc}
                 </p>
 
                 <div style={{
-                  background: 'radial-gradient(circle, rgba(0,61,166,0.05) 0%, rgba(255,255,255,0.7) 100%)',
-                  border: '2px dashed #003DA6', borderRadius: '16px',
-                  padding: '24px 28px', maxWidth: 340, margin: '0 auto 28px auto'
+                  background: 'radial-gradient(circle, rgba(0, 61, 166, 0.05) 0%, rgba(255,255,255,0.8) 100%)',
+                  border: '2px dashed #003DA6',
+                  borderRadius: '20px',
+                  padding: '28px 32px',
+                  maxWidth: 380,
+                  margin: '0 auto 32px auto',
+                  boxShadow: '0 8px 30px rgba(0, 61, 166, 0.04)'
                 }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#003DA6', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#003DA6', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
                     {t.eoiTicketNo}
                   </span>
-                  <strong style={{ fontSize: '2.8rem', color: '#00205b', fontFamily: 'Cinzel, var(--font-title)', display: 'block', lineHeight: 1 }}>
+                  <strong style={{ fontSize: '3rem', color: '#001A70', fontFamily: 'var(--font-title)', display: 'block', lineHeight: 1, fontWeight: 900 }}>
                     #{eoiResult?.queue_number || '1'}
                   </strong>
-                  <span style={{ fontSize: '0.65rem', color: '#64748b', display: 'block', marginTop: 10 }}>
+                  <span style={{ fontSize: '0.72rem', color: '#5c6c7f', display: 'block', marginTop: 12, fontWeight: 700 }}>
                     Compound: {eoiProject?.name}
                   </span>
                   {eoiUnit && (
-                    <span style={{ fontSize: '0.65rem', color: '#64748b', display: 'block' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#5c6c7f', display: 'block', fontWeight: 700 }}>
                       Allocated Unit: {eoiUnit.building} - {eoiUnit.unit_number}
                     </span>
                   )}
-                  <span style={{ fontSize: '0.62rem', color: '#64748b', display: 'block', opacity: 0.8, marginTop: 6, fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: '0.68rem', color: '#5c6c7f', display: 'block', opacity: 0.8, marginTop: 8, fontFamily: 'monospace' }}>
                     Reference: {eoiResult?.data?.id}
                   </span>
                 </div>
 
-                <button className="btn-luxury-blue" onClick={() => setShowEoiModal(false)} style={{ padding: '10px 32px', fontSize: '0.82rem' }}>
+                <button className="btn-luxury-primary" onClick={() => setShowEoiModal(false)} style={{ padding: '12px 36px', fontSize: '0.85rem' }}>
                   {t.eoiClose}
                 </button>
               </div>
@@ -1437,7 +1654,7 @@ const LandingPage: React.FC = () => {
           left: 0,
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(0, 15, 61, 0.4)',
+          backgroundColor: 'rgba(0, 15, 61, 0.35)',
           backdropFilter: 'blur(8px)',
           zIndex: 1000,
           display: 'flex',
@@ -1447,57 +1664,61 @@ const LandingPage: React.FC = () => {
           <div style={{
             width: '300px',
             height: '100%',
-            background: 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(20px)',
-            borderLeft: dir === 'ltr' ? '1px solid rgba(0, 61, 166, 0.1)' : 'none',
-            borderRight: dir === 'rtl' ? '1px solid rgba(0, 61, 166, 0.1)' : 'none',
+            background: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(28px)',
+            borderLeft: dir === 'ltr' ? '1.5px solid rgba(0, 61, 166, 0.1)' : 'none',
+            borderRight: dir === 'rtl' ? '1.5px solid rgba(0, 61, 166, 0.1)' : 'none',
             boxShadow: '-10px 0 30px rgba(0, 15, 61, 0.1)',
             padding: '32px 24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 24,
+            gap: 28,
             animation: dir === 'ltr' ? 'drawer-slide-in-ltr 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'drawer-slide-in-rtl 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Compass size={20} className="spinning-logo" style={{ color: '#003DA6' }} />
-                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#00205b', fontFamily: 'Cinzel, var(--font-title)' }}>
-                  {lang === 'en' ? 'MOUNTAIN VIEW' : 'ماونتن فيو'}
-                </span>
-              </div>
+              <img
+                src="/mountain_view_logo.png"
+                alt="Mountain View Logo"
+                style={{ 
+                  height: '32px', 
+                  width: 'auto', 
+                  objectFit: 'contain',
+                  filter: 'brightness(0) saturate(100%) invert(16%) sepia(61%) saturate(5185%) hue-rotate(217deg) brightness(92%) contrast(109%)'
+                }}
+              />
               <button onClick={() => setMobileMenuOpen(false)} style={{
-                background: 'none', border: 'none', cursor: 'pointer', color: '#64748b'
+                background: 'none', border: 'none', cursor: 'pointer', color: '#5c6c7f'
               }}>
                 <X size={24} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <a href="#projects" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navProjects}</a>
-              <a href="#gallery" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navGallery}</a>
-              <a href="#faq" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navFaq}</a>
-              <a href="#contact" className="mv-nav-link" style={{ fontSize: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(0, 61, 166, 0.05)' }} onClick={() => setMobileMenuOpen(false)}>{t.navContact}</a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <a href="#projects" className="mv-nav-link" style={{ fontSize: '1.05rem', paddingBottom: '10px', borderBottom: '1px solid rgba(0, 61, 166, 0.08)' }} onClick={() => setMobileMenuOpen(false)}>{t.navProjects}</a>
+              <a href="#gallery" className="mv-nav-link" style={{ fontSize: '1.05rem', paddingBottom: '10px', borderBottom: '1px solid rgba(0, 61, 166, 0.08)' }} onClick={() => setMobileMenuOpen(false)}>{t.navGallery}</a>
+              <a href="#faq" className="mv-nav-link" style={{ fontSize: '1.05rem', paddingBottom: '10px', borderBottom: '1px solid rgba(0, 61, 166, 0.08)' }} onClick={() => setMobileMenuOpen(false)}>{t.navFaq}</a>
+              <a href="#contact" className="mv-nav-link" style={{ fontSize: '1.05rem', paddingBottom: '10px', borderBottom: '1px solid rgba(0, 61, 166, 0.08)' }} onClick={() => setMobileMenuOpen(false)}>{t.navContact}</a>
             </div>
 
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <button onClick={() => { toggleLanguage(); setMobileMenuOpen(false); }} style={{
-                background: '#ffffff', border: '1px solid rgba(0, 61, 166, 0.15)',
-                borderRadius: '12px', padding: '10px 16px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.88rem', fontWeight: 750,
-                color: '#003DA6', width: '100%'
+                background: '#ffffff', border: '1.5px solid rgba(0, 61, 166, 0.15)',
+                borderRadius: '12px', padding: '12px 16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: '0.92rem', fontWeight: 700,
+                color: '#003DA6', width: '100%', transition: 'all 0.3s ease'
               }}>
-                <Globe size={16} />
+                <Globe size={18} />
                 {lang === 'en' ? 'العربية' : 'English'}
               </button>
 
               {isLoggedIn ? (
-                <button className="btn-luxury-blue" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }} style={{ width: '100%', justifyContent: 'center', borderRadius: '12px' }}>
+                <button className="btn-luxury-primary" onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }} style={{ width: '100%', justifyContent: 'center', borderRadius: '12px', padding: '12px' }}>
                   {t.navDashboard}
-                  {lang === 'en' ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+                  {lang === 'en' ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
                 </button>
               ) : (
                 <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} style={{
-                  width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #003DA6', color: '#003DA6', background: 'transparent', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', textAlign: 'center'
+                  width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px solid #003DA6', color: '#003DA6', background: 'transparent', cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', textAlign: 'center', transition: 'all 0.3s ease'
                 }}>
                   {t.navLogin}
                 </button>

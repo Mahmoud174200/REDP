@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const navigate = useNavigate();
 
   const [systemName, setSystemName] = useState(localStorage.getItem('system_name') || 'Ether REDP');
@@ -135,9 +135,9 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
       background: '#f8fafc', // Clean light background
       fontFamily: 'var(--font-body)',
       overflow: 'hidden',
@@ -147,7 +147,8 @@ const Login: React.FC = () => {
       <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* CSS Injected Styles for Layout and Advanced Micro-interactions */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(15px); }
           to { opacity: 1; transform: translateY(0); }
@@ -313,44 +314,44 @@ const Login: React.FC = () => {
       `}} />
 
       {/* Background image for mobile (underneath form container) */}
-      <div 
+      <div
         className="mobile-bg-overlay"
-        style={{ 
+        style={{
           display: 'none',
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
           zIndex: 1,
           overflow: 'hidden'
-        }} 
+        }}
       >
-        <video 
+        <video
           src="/mountain_view_video.mp4"
-          autoPlay 
-          loop 
-          muted 
+          autoPlay
+          loop
+          muted
           playsInline
-          style={{ 
+          style={{
             width: '100%',
             height: '100%',
             objectFit: 'cover'
-          }} 
+          }}
         />
       </div>
-      <div 
+      <div
         className="mobile-bg-overlay"
-        style={{ 
+        style={{
           display: 'none',
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
           background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.9) 50%, rgba(248, 250, 252, 0.98) 100%)',
           zIndex: 2
-        }} 
+        }}
       />
 
       {/* LEFT PANEL: Breathtaking Mountain View Image Showcase */}
-      <div 
+      <div
         className="split-left-panel"
-        style={{ 
+        style={{
           flex: '1.2',
           position: 'relative',
           display: 'flex',
@@ -362,34 +363,34 @@ const Login: React.FC = () => {
         }}
       >
         {/* Background Video Container */}
-        <div style={{ 
+        <div style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
           overflow: 'hidden',
           zIndex: 1
         }}>
-          <video 
+          <video
             src="/mountain_view_video.mp4"
-            autoPlay 
-            loop 
-            muted 
+            autoPlay
+            loop
+            muted
             playsInline
-            style={{ 
+            style={{
               width: '100%',
               height: '100%',
               objectFit: 'cover'
-            }} 
+            }}
           />
         </div>
 
         {/* Breathtaking Dark Blue Mountain View Overlay */}
-        <div 
+        <div
           className="luxury-overlay"
-          style={{ 
+          style={{
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
             zIndex: 2
-          }} 
+          }}
         />
 
         {/* Ambient top light */}
@@ -406,10 +407,10 @@ const Login: React.FC = () => {
 
         {/* Top Logo / Official Mountain View Logo Image downloaded from their site */}
         <div className="animate-fade-in" style={{ display: 'flex', alignItems: 'center', zIndex: 4 }}>
-          <img 
-            src="/mountain_view_logo.png" 
-            alt="Mountain View Logo" 
-            style={{ height: '36px', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} 
+          <img
+            src="/mountain_view_logo.png"
+            alt="Mountain View Logo"
+            style={{ height: '36px', width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
           />
         </div>
 
@@ -419,11 +420,11 @@ const Login: React.FC = () => {
             <Sparkles style={{ width: '12px', height: '12px', color: '#ffffff' }} />
             <span style={{ fontSize: '0.7rem', color: '#ffffff', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Introducing Mountain View Peak Collection</span>
           </div>
-          <h1 style={{ 
-            fontSize: '3.2rem', 
-            fontWeight: 800, 
-            lineHeight: 1.15, 
-            color: '#ffffff', 
+          <h1 style={{
+            fontSize: '3.2rem',
+            fontWeight: 800,
+            lineHeight: 1.15,
+            color: '#ffffff',
             letterSpacing: '-0.04em',
             fontFamily: 'var(--font-title)',
             textShadow: '0 4px 24px rgba(0,0,0,0.3)'
@@ -458,9 +459,9 @@ const Login: React.FC = () => {
       </div>
 
       {/* RIGHT PANEL: Elegant, Ultra-Premium Login Form (Light Mode - Scrollbar Hidden) */}
-      <div 
+      <div
         className="split-right-panel"
-        style={{ 
+        style={{
           width: '540px',
           background: '#ffffff', // Clean light mode white background
           borderLeft: '1px solid rgba(0, 61, 166, 0.08)',
@@ -486,25 +487,60 @@ const Login: React.FC = () => {
           pointerEvents: 'none'
         }} />
 
-        <div 
-          className="animate-fade-in" 
-          style={{ 
-            width: '100%', 
-            maxWidth: '400px', 
-            display: 'flex', 
-            flexDirection: 'column', 
+        <div
+          className="animate-fade-in"
+          style={{
+            width: '100%',
+            maxWidth: '400px',
+            display: 'flex',
+            flexDirection: 'column',
             gap: '20px' // Compact gap to prevent scrolling
           }}
         >
+          {/* Back to Landing Page */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start' }}>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                background: 'rgba(0, 61, 166, 0.05)',
+                border: '1px solid rgba(0, 61, 166, 0.1)',
+                borderRadius: '8px',
+                color: '#003DA6',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '6px 12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 61, 166, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 61, 166, 0.05)';
+              }}
+            >
+              <span>← Back to Landing Page</span>
+            </button>
+          </div>
+
           {/* Logo and Greeting */}
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             {/* Official Mountain View Logo Image (Original Blue on Light Background) */}
-            <img 
-              src="/mountain_view_logo.png" 
-              alt="Mountain View Logo" 
-              style={{ height: '36px', width: 'auto', objectFit: 'contain', marginBottom: '8px' }} 
+            <img
+              src="/mountain_view_logo.png"
+              alt="Mountain View Logo"
+              style={{ 
+                height: '36px', 
+                width: 'auto', 
+                objectFit: 'contain', 
+                marginBottom: '8px',
+                filter: 'brightness(0) saturate(100%) invert(16%) sepia(61%) saturate(5185%) hue-rotate(217deg) brightness(92%) contrast(109%)'
+              }}
             />
-            
+
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', fontFamily: 'var(--font-title)', letterSpacing: '-0.02em', marginTop: '12px' }}>
               {isRegister ? 'Register Account' : 'Welcome Back'}
             </h3>
@@ -514,23 +550,23 @@ const Login: React.FC = () => {
           </div>
 
           {/* Tab Selector */}
-          <div style={{ 
-            display: 'flex', 
-            background: 'rgba(0, 61, 166, 0.02)', 
+          <div style={{
+            display: 'flex',
+            background: 'rgba(0, 61, 166, 0.02)',
             border: '1px solid rgba(0, 61, 166, 0.08)',
-            padding: '4px', 
-            borderRadius: '14px', 
-            gap: '4px' 
+            padding: '4px',
+            borderRadius: '14px',
+            gap: '4px'
           }}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={`tab-btn ${!isRegister ? 'tab-btn-active' : 'tab-btn-inactive'}`}
               onClick={() => { setIsRegister(false); setError(''); }}
             >
               Sign In
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={`tab-btn ${isRegister ? 'tab-btn-active' : 'tab-btn-inactive'}`}
               onClick={() => { setIsRegister(true); setError(''); }}
             >
@@ -540,25 +576,25 @@ const Login: React.FC = () => {
 
           {/* Quick-Fill Profiles section - Styled as luxury tags */}
           {!isRegister && (
-            <div 
-              style={{ 
-                padding: '14px', 
-                borderRadius: '16px', 
-                background: 'rgba(0, 61, 166, 0.01)', 
+            <div
+              style={{
+                padding: '14px',
+                borderRadius: '16px',
+                background: 'rgba(0, 61, 166, 0.01)',
                 border: '1px solid rgba(0, 61, 166, 0.05)',
                 boxShadow: 'inset 0 1px 1px rgba(0, 61, 166, 0.01)'
               }}
             >
-              <h4 style={{ 
-                fontSize: '0.65rem', 
-                textTransform: 'uppercase', 
-                color: '#003DA6', 
-                fontWeight: 800, 
-                letterSpacing: '0.08em', 
-                marginBottom: '10px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px' 
+              <h4 style={{
+                fontSize: '0.65rem',
+                textTransform: 'uppercase',
+                color: '#003DA6',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}>
                 <UserCheck style={{ width: '12px', height: '12px', color: '#003DA6' }} />
                 Quick-Fill Sandbox Profiles
@@ -577,12 +613,12 @@ const Login: React.FC = () => {
           {/* Form */}
           <form onSubmit={isRegister ? handleRegister : handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {error && (
-              <div style={{ 
-                color: '#ef4444', 
-                fontSize: '0.78rem', 
-                textAlign: 'center', 
-                padding: '10px 14px', 
-                background: 'rgba(239, 68, 68, 0.05)', 
+              <div style={{
+                color: '#ef4444',
+                fontSize: '0.78rem',
+                textAlign: 'center',
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.05)',
                 border: '1px solid rgba(239, 68, 68, 0.12)',
                 borderRadius: '12px',
                 fontWeight: 500
@@ -596,13 +632,13 @@ const Login: React.FC = () => {
                 <label className="form-label" style={{ color: '#334155', fontSize: '0.8rem', paddingLeft: '4px' }}>Full Name</label>
                 <div className="luxury-input-group">
                   <User style={{ position: 'absolute', left: '14px', top: '13px', width: '14px', height: '14px', color: '#64748b' }} />
-                  <input 
-                    type="text" 
-                    className="luxury-input" 
+                  <input
+                    type="text"
+                    className="luxury-input"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. User Operator" 
-                    required 
+                    placeholder="e.g. User Operator"
+                    required
                   />
                 </div>
               </div>
@@ -612,13 +648,13 @@ const Login: React.FC = () => {
               <label className="form-label" style={{ color: '#334155', fontSize: '0.8rem', paddingLeft: '4px' }}>Email Address</label>
               <div className="luxury-input-group">
                 <Mail style={{ position: 'absolute', left: '14px', top: '13px', width: '14px', height: '14px', color: '#64748b' }} />
-                <input 
-                  type="email" 
-                  className="luxury-input" 
+                <input
+                  type="email"
+                  className="luxury-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@domain.com" 
-                  required 
+                  placeholder="name@domain.com"
+                  required
                 />
               </div>
             </div>
@@ -628,12 +664,12 @@ const Login: React.FC = () => {
                 <label className="form-label" style={{ color: '#334155', fontSize: '0.8rem', paddingLeft: '4px' }}>Phone Number</label>
                 <div className="luxury-input-group">
                   <Phone style={{ position: 'absolute', left: '14px', top: '13px', width: '14px', height: '14px', color: '#64748b' }} />
-                  <input 
-                    type="text" 
-                    className="luxury-input" 
+                  <input
+                    type="text"
+                    className="luxury-input"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. +20100998877" 
+                    placeholder="e.g. +20100998877"
                   />
                 </div>
               </div>
@@ -643,13 +679,13 @@ const Login: React.FC = () => {
               <label className="form-label" style={{ color: '#334155', fontSize: '0.8rem', paddingLeft: '4px' }}>Password</label>
               <div className="luxury-input-group">
                 <KeyRound style={{ position: 'absolute', left: '14px', top: '13px', width: '14px', height: '14px', color: '#64748b' }} />
-                <input 
-                  type="password" 
-                  className="luxury-input" 
+                <input
+                  type="password"
+                  className="luxury-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  required 
+                  placeholder="••••••••"
+                  required
                 />
               </div>
             </div>
@@ -659,13 +695,13 @@ const Login: React.FC = () => {
                 <label className="form-label" style={{ color: '#334155', fontSize: '0.8rem', paddingLeft: '4px' }}>Confirm Password</label>
                 <div className="luxury-input-group">
                   <KeyRound style={{ position: 'absolute', left: '14px', top: '13px', width: '14px', height: '14px', color: '#64748b' }} />
-                  <input 
-                    type="password" 
-                    className="luxury-input" 
+                  <input
+                    type="password"
+                    className="luxury-input"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    required 
+                    placeholder="••••••••"
+                    required
                   />
                 </div>
               </div>
@@ -676,36 +712,36 @@ const Login: React.FC = () => {
                 {isRegister ? 'Role in Platform' : 'Login Role (Simulated)'}
               </label>
               <div style={{ position: 'relative' }}>
-                <select 
+                <select
                   className="luxury-select"
                   value={role}
                   onChange={(e) => {
-                const val = e.target.value;
-                setRole(val);
-                if (!isRegister) {
-                  fillProfile(val);
-                }
-              }}
+                    const val = e.target.value;
+                    setRole(val);
+                    if (!isRegister) {
+                      fillProfile(val);
+                    }
+                  }}
                 >
                   <option value="admin">👑 Platform Administrator (CEO)</option>
-              <option value="executive">👔 Executive Director</option>
-              <option value="company_sales">🏢 Commercial Sales Head (Tier 3)</option>
-              <option value="sales_agent">🟠 Sales Agent</option>
+                  <option value="executive">👔 Executive Director</option>
+                  <option value="company_sales">🏢 Commercial Sales Head (Tier 3)</option>
+                  <option value="sales_agent">🟠 Sales Agent</option>
                   <option value="tele_sales">📞 Tele-Sales Agent (Tier 1)</option>
                   <option value="broker">🍊 External Broker (Tier 2)</option>
                   <option value="finance_officer">🔵 Financial Officer</option>
-              <option value="project_manager">🏗️ Project Manager</option>
-              <option value="delivery_engineer">🟢 Delivery Specialist</option>
+                  <option value="project_manager">🏗️ Project Manager</option>
+                  <option value="delivery_engineer">🟢 Delivery Specialist</option>
                   <option value="maintenance_manager">🟠🔧 Facilities Maintenance Manager</option>
-              <option value="legal_officer">⚖️ Legal Officer</option>
+                  <option value="legal_officer">⚖️ Legal Officer</option>
                   <option value="compliance_officer">🔵🔒 Compliance Officer</option>
                   <option value="client">🐳 Compound Client/Homeowner</option>
-                    </select>
-                <div style={{ 
-                  position: 'absolute', 
-                  right: '16px', 
-                  top: '16px', 
-                  pointerEvents: 'none', 
+                </select>
+                <div style={{
+                  position: 'absolute',
+                  right: '16px',
+                  top: '16px',
+                  pointerEvents: 'none',
                   borderLeft: '4px solid transparent',
                   borderRight: '4px solid transparent',
                   borderTop: '5px solid #64748b'
@@ -713,9 +749,9 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="submit-btn-glow" 
+            <button
+              type="submit"
+              className="submit-btn-glow"
               disabled={loading}
               style={{ marginTop: '6px' }}
             >

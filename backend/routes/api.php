@@ -12,6 +12,7 @@ use App\Http\Controllers\Acquisition\EoiReservationController;
 use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
+use App\Http\Controllers\Acquisition\AppointmentController;
 
 // ── 🔶 Tiered Sales Controllers ──
 use App\Http\Controllers\Acquisition\TeleSalesController;
@@ -255,6 +256,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // ── Campaigns & Marketing Analytics ──
         Route::get('/campaigns', [SocialAdsWebhookController::class, 'index']);
         Route::get('/campaigns/{id}', [SocialAdsWebhookController::class, 'show']);
+
+        // ── Appointment Management ──
+        Route::get('/appointments', [AppointmentController::class, 'index']);
+        Route::post('/appointments', [AppointmentController::class, 'store']);
+        Route::put('/appointments/{id}', [AppointmentController::class, 'update']);
+        Route::delete('/appointments/{id}', [AppointmentController::class, 'destroy']);
     });
 
     // ══════════════════════════════════════════════════════════
