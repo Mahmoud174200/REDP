@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/auth/Login';
 import DashboardLayout from './components/DashboardLayout';
 import LandingPage from './pages/public/LandingPage';
+import InteractiveUnitSelection from './pages/public/InteractiveUnitSelection';
 
 // 🟠 Acquisition Pages
 import Leads from './pages/acquisition/Leads';
@@ -151,6 +152,9 @@ const App: React.FC = () => {
 
         {/* 🏠 Public Landing Page */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* 🏗️ Interactive 3D Unit Selection */}
+        <Route path="/unit-selection" element={<InteractiveUnitSelection />} />
 
         {/* 🏠 Root landing routing logic */}
         <Route path="/dashboard" element={<HomeRedirect />} />

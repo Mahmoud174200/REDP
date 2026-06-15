@@ -15,6 +15,7 @@ const translations = {
     navContact: 'Contact Us',
     navDashboard: 'Dashboard Portal',
     navLogin: 'Operator Login',
+    navUnitSelection: 'Unit Selection',
     heroTitle: 'Luxury Living Redefined',
     heroSubtitle: 'Explore Mountain View exclusive communities, inspect live available unit configurations, and secure your launch priority through our digital EOI portal.',
     heroCta: 'Book Priority EOI Ticket',
@@ -84,6 +85,7 @@ const translations = {
     navContact: 'اتصل بنا',
     navDashboard: 'بوابة لوحة التحكم',
     navLogin: 'دخول الموظفين',
+    navUnitSelection: 'اختيار الوحدات',
     heroTitle: 'العيش الفاخر كما يجب أن يكون',
     heroSubtitle: 'اكتشف مجتمعات ماونتن فيو الحصرية، وتصفح الوحدات المتاحة لحظياً، واحجز مكانك ذو الأولوية في الطرح عبر بوابة جدية الحجز الرقمية.',
     heroCta: 'احجز تذكرة EOI ذات أولوية',
@@ -755,6 +757,7 @@ const LandingPage: React.FC = () => {
 
         <div className="topbar-links" style={{ display: 'flex', gap: 32 }}>
           <a href="#projects" className="mv-nav-link">{t.navProjects}</a>
+          <a href="/unit-selection" className="mv-nav-link" style={{ color: '#003DA6', fontWeight: 800 }}>{t.navUnitSelection}</a>
           <a href="#gallery" className="mv-nav-link">{t.navGallery}</a>
           <a href="#faq" className="mv-nav-link">{t.navFaq}</a>
           <a href="#contact" className="mv-nav-link">{t.navContact}</a>

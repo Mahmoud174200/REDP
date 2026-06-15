@@ -21,6 +21,7 @@ class Unit extends Model
         'view_type', // 'garden', 'pool', 'street', 'sea', 'landmark'
         'building',
         'layout_description',
+        'layout_image_url',
         'price',
         'status', // 'available', 'reserved', 'sold', 'hidden', 'coming_soon', 'frozen'
         'handover_date',

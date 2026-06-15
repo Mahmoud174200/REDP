@@ -17,6 +17,7 @@ class Project extends Model
         'status', // 'planning', 'active', 'completed'
         'delivery_date',
         'released_phases',
+        'image_url',
     ];
 
     protected $casts = [
@@ -40,6 +41,11 @@ class Project extends Model
     public function paymentPlans()
     {
         return $this->hasMany(ProjectPaymentPlan::class);
+    }
+
+    public function media()
+    {
+        return $this->hasMany(ProjectMedia::class);
     }
 }
 

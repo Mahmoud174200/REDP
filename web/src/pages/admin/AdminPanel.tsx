@@ -193,6 +193,13 @@ const AdminPanel: React.FC = () => {
   const [userModalMode, setUserModalMode] = useState<'add' | 'edit'>('add');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
+  const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
+  const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
+
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectModalMode, setProjectModalMode] = useState<'add' | 'edit'>('add');
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
@@ -521,6 +528,127 @@ const AdminPanel: React.FC = () => {
   const openProjectPlansModal = (proj: ProjectItem) => {
     setSelectedProjectForPlans(proj);
     setShowPlansModal(true);
+  };
+
+  // ── Project Media Handlers ──
+  const openProjectMediaModal = async (project: ProjectItem) => {
+    setSelectedProjectForMedia(project);
+    setShowMediaModal(true);
+    setMediaLoading(true);
+    try {
+      const res = await api.get(`/public/projects/${project.id}/media`);
+      if (res.data?.success) {
+        setProjectMedia(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load project media', err);
+      setProjectMedia({ project_image: null, building_images: {}, floor_plan_images: {} });
+    } finally {
+      setMediaLoading(false);
+    }
+  };
+
+  const handleUploadProjectImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProjectForMedia || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingMediaKey('project');
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert('Project image uploaded successfully!');
+        setProjectMedia(prev => prev ? { ...prev, project_image: res.data.data.image_url } : null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  };
+
+  const handleUploadBuildingImage = async (buildingName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProjectForMedia || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('building_name', buildingName);
+
+    setUploadingMediaKey(`building-${buildingName}`);
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/building-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert(`${buildingName} image uploaded successfully!`);
+        setProjectMedia(prev => {
+          if (!prev) return null;
+          const updatedBuildingImages = { ...prev.building_images };
+          updatedBuildingImages[buildingName] = { image_url: res.data.data.image_url };
+          return { ...prev, building_images: updatedBuildingImages };
+        });
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  };
+
+  const handleUploadFloorPlanImage = async (buildingName: string, floorNumber: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProjectForMedia || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('building_name', buildingName);
+    formData.append('floor_number', floorNumber.toString());
+
+    const refKey = `${buildingName}|${floorNumber}`;
+    setUploadingMediaKey(`floor-${refKey}`);
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/floor-plan-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert(`${buildingName} Floor ${floorNumber} plan uploaded successfully!`);
+        setProjectMedia(prev => {
+          if (!prev) return null;
+          const updatedFloorPlanImages = { ...prev.floor_plan_images };
+          updatedFloorPlanImages[refKey] = { image_url: res.data.data.image_url };
+          return { ...prev, floor_plan_images: updatedFloorPlanImages };
+        });
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  };
+
+  const handleUploadUnitLayoutImage = async (unitId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingUnitLayout(true);
+    try {
+      const res = await api.post(`/admin/units/${unitId}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert('Unit layout image uploaded successfully!');
+        setSelectedUnit(prev => prev ? { ...prev, layout_image_url: res.data.data.image_url } : null);
+        setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, layout_image_url: res.data.data.image_url } : u));
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingUnitLayout(false);
+    }
   };
 
   const openAddPlanModal = () => {
@@ -1208,6 +1336,9 @@ const AdminPanel: React.FC = () => {
                         </button>
                         <button onClick={() => openProjectPlansModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-primary)', borderColor: 'rgba(50, 71, 58, 0.2)' }}>
                           <ClipboardList size={12} /> Plans
+                        </button>
+                        <button onClick={() => openProjectMediaModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.2)' }}>
+                          <Monitor size={12} /> Media
                         </button>
                         <button onClick={() => handleDeleteProject(p.id)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
                           <Trash2 size={12} /> Delete
@@ -2289,6 +2420,30 @@ const AdminPanel: React.FC = () => {
                 <textarea className="form-control" style={{ height: '70px', resize: 'none' }} value={formUnitLayoutDescription} onChange={e => setFormUnitLayoutDescription(e.target.value)} placeholder="e.g. 3 غرف، 2 حمام، ريسبشن قطعتين، مطبخ، تراس" />
               </div>
 
+              {unitModalMode === 'edit' && selectedUnit && (
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Unit Floor Plan Layout Image (صورة تقسيمة الشقة)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="form-control"
+                    style={{ padding: '6px' }}
+                    onChange={(e) => handleUploadUnitLayoutImage(selectedUnit.id, e)}
+                  />
+                  {uploadingUnitLayout && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading image...</span>}
+                  {selectedUnit.layout_image_url && (
+                    <div style={{ marginTop: '10px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Layout Image:</span>
+                      <img
+                        src={selectedUnit.layout_image_url.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`}
+                        alt="Unit Layout"
+                        style={{ width: '100%', maxHeight: '150px', objectFit: 'contain', marginTop: '5px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>
                 {unitModalMode === 'add' ? 'Create Unit' : 'Save Changes'}
               </button>
@@ -2717,6 +2872,223 @@ const AdminPanel: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🖼️ Project Media CRUD Modal */}
+      {showMediaModal && selectedProjectForMedia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '800px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button onClick={() => { setShowMediaModal(false); setSelectedProjectForMedia(null); setProjectMedia(null); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(0,0,0,0.06)', paddingBottom: '12px' }}>
+              <Building2 size={20} style={{ color: 'var(--color-primary)' }} />
+              Project Media Gallery Manager: {selectedProjectForMedia.name}
+            </h3>
+
+            {mediaLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', flexDirection: 'column', gap: '12px' }}>
+                <div className="animate-spin" style={{ width: '30px', height: '30px', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading media assets...</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                
+                {/* 1. Project Master Plan Image */}
+                <div style={{ padding: '20px', background: 'rgba(0,61,166,0.03)', border: '1.5px solid rgba(0,61,166,0.08)', borderRadius: 'var(--radius-md)' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 12px 0' }}>
+                    1. Compound Master Plan Image (المخطط العام للكمبوند)
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                        This image represents the overall layout of the project compound and is displayed to the user in the first stage of the interactive 3D Unit Selector.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="form-control"
+                        style={{ padding: '6px' }}
+                        onChange={handleUploadProjectImage}
+                      />
+                      {uploadingMediaKey === 'project' && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading master plan...</span>}
+                    </div>
+                    <div>
+                      {projectMedia?.project_image ? (
+                        <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', overflow: 'hidden' }}>
+                          <img
+                            src={projectMedia.project_image}
+                            alt="Master Plan"
+                            style={{ width: '100%', maxHeight: '120px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ height: '100px', background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--text-muted)' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No Master Plan Image</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Building & Floor Plan Images */}
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 6px 0' }}>
+                    2. Buildings & Floor Layout Plans (المباني وتقسيم الأدوار)
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    Select a building to upload its rendering image and floor layouts. These floor plans should display the configuration of all apartments on that specific floor.
+                  </p>
+
+                  {(() => {
+                    const uniqueBuildings = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && u.building).map(u => u.building as string)));
+
+                    if (uniqueBuildings.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '30px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed rgba(0,0,0,0.08)' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            No buildings or units found for this project. Please create units with building names in the "Units" tab first.
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {uniqueBuildings.map((buildingName) => {
+                          const floors = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && u.building === buildingName).map(u => u.floor))).sort((a, b) => a - b);
+                          const bImage = projectMedia?.building_images?.[buildingName]?.image_url;
+
+                          return (
+                            <div key={buildingName} style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '18px', background: '#fbfbfb' }}>
+                              
+                              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', alignItems: 'center', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '12px', marginBottom: '12px' }}>
+                                <div>
+                                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName}</strong>
+                                  <div style={{ marginTop: '8px' }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Upload Building Exterior Image:</label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="form-control"
+                                      style={{ padding: '4px 8px', fontSize: '0.75rem', height: 'auto' }}
+                                      onChange={(e) => handleUploadBuildingImage(buildingName, e)}
+                                    />
+                                    {uploadingMediaKey === `building-${buildingName}` && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading building photo...</span>}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  {bImage ? (
+                                    <img
+                                      src={bImage}
+                                      alt={buildingName}
+                                      style={{ maxHeight: '70px', maxWidth: '100px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-glass)' }}
+                                    />
+                                  ) : (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.05)', padding: '4px 8px', borderRadius: '4px' }}>No Building Image</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Floor & Apartment Layout Maps (مخططات الأدوار والشقق):</span>
+                                {floors.map((floorNum) => {
+                                  const refKey = `${buildingName}|${floorNum}`;
+                                  const fImage = projectMedia?.floor_plan_images?.[refKey]?.image_url;
+                                  const floorUnits = units.filter(u => u.project_id === selectedProjectForMedia.id && u.building === buildingName && u.floor === floorNum);
+
+                                  return (
+                                    <div key={floorNum} style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
+                                      {/* Floor plan row */}
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map</span>
+                                        
+                                        <div>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="form-control"
+                                            style={{ padding: '2px 6px', fontSize: '0.72rem', height: 'auto' }}
+                                            onChange={(e) => handleUploadFloorPlanImage(buildingName, floorNum, e)}
+                                          />
+                                          {uploadingMediaKey === `floor-${refKey}` && <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)' }}>Uploading plan...</span>}
+                                        </div>
+
+                                        <div style={{ textAlign: 'right' }}>
+                                          {fImage ? (
+                                            <img
+                                              src={fImage}
+                                              alt={`Floor ${floorNum}`}
+                                              style={{ maxHeight: '35px', maxWidth: '80px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-glass)' }}
+                                            />
+                                          ) : (
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>No floor plan</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Units layouts list */}
+                                      {floorUnits.length > 0 && (
+                                        <div style={{ paddingLeft: '15px', borderLeft: '2.5px solid rgba(0,61,166,0.1)', display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                            Apartments Layout Plans (مخططات الشقق):
+                                          </span>
+                                          {floorUnits.map((unit) => {
+                                            const uImage = unit.layout_image_url;
+                                            return (
+                                              <div key={unit.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr', gap: '15px', alignItems: 'center', background: '#fcfcfc', border: '1px dashed rgba(0,0,0,0.04)', borderRadius: '4px', padding: '6px 10px' }}>
+                                                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#4b5563' }}>
+                                                  Unit {unit.unit_number} ({unit.type})
+                                                </span>
+                                                <div>
+                                                  <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="form-control"
+                                                    style={{ padding: '2px 4px', fontSize: '0.68rem', height: 'auto' }}
+                                                    onChange={(e) => handleUploadUnitLayoutImage(unit.id, e)}
+                                                  />
+                                                  {uploadingUnitLayout && <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)' }}>Uploading...</span>}
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                  {uImage ? (
+                                                    <img
+                                                      src={uImage.startsWith('http') ? uImage : `http://127.0.0.1:8000/storage/${uImage}`}
+                                                      alt={`Unit ${unit.unit_number}`}
+                                                      style={{ maxHeight: '25px', maxWidth: '60px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-glass)' }}
+                                                    />
+                                                  ) : (
+                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>No layout plan</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '25px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+              <button onClick={() => { setShowMediaModal(false); setSelectedProjectForMedia(null); setProjectMedia(null); }} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

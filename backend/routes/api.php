@@ -61,6 +61,8 @@ Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCal
 Route::prefix('v1/public')->group(function () {
     Route::get('/projects', [\App\Http\Controllers\PublicLandingController::class, 'getProjects']);
     Route::get('/projects/{projectId}/units', [\App\Http\Controllers\PublicLandingController::class, 'getProjectUnits']);
+    Route::get('/projects/{projectId}/units-by-building', [\App\Http\Controllers\PublicLandingController::class, 'getProjectUnitsByBuilding']);
+    Route::get('/projects/{projectId}/media', [\App\Http\Controllers\ProjectMediaController::class, 'getProjectMedia']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
 });
@@ -441,6 +443,13 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/project-payment-plans', [\App\Http\Controllers\Admin\AdminController::class, 'createProjectPaymentPlan']);
         Route::put('/project-payment-plans/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'updateProjectPaymentPlan']);
         Route::delete('/project-payment-plans/{id}', [\App\Http\Controllers\Admin\AdminController::class, 'deleteProjectPaymentPlan']);
+
+        // Project Media Upload (Images at all levels)
+        $mediaCtrl = \App\Http\Controllers\ProjectMediaController::class;
+        Route::post('/projects/{projectId}/image', [$mediaCtrl, 'uploadProjectImage']);
+        Route::post('/projects/{projectId}/building-image', [$mediaCtrl, 'uploadBuildingImage']);
+        Route::post('/projects/{projectId}/floor-plan-image', [$mediaCtrl, 'uploadFloorPlanImage']);
+        Route::post('/units/{unitId}/image', [$mediaCtrl, 'uploadUnitImage']);
     });
 
     // ══════════════════════════════════════════════════════════

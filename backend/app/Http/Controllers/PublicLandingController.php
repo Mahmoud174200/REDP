@@ -217,4 +217,79 @@ class PublicLandingController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Get project units grouped by building and floor for interactive 3D unit selection.
+     */
+    public function getProjectUnitsByBuilding(string $projectId): JsonResponse
+    {
+        $project = Project::findOrFail($projectId);
+        $releasedPhases = $project->released_phases;
+
+        $units = Unit::where('project_id', $projectId)
+            ->whereIn('phase', $releasedPhases)
+            ->orderBy('building')
+            ->orderBy('floor')
+            ->orderBy('unit_number')
+            ->get();
+
+        // Group units by building, then by floor
+        $buildingsMap = [];
+        foreach ($units as $unit) {
+            $buildingName = $unit->building ?: 'Main Building';
+            $floor = (int) $unit->floor;
+
+            if (!isset($buildingsMap[$buildingName])) {
+                $buildingsMap[$buildingName] = [];
+            }
+            if (!isset($buildingsMap[$buildingName][$floor])) {
+                $buildingsMap[$buildingName][$floor] = [];
+            }
+            $buildingsMap[$buildingName][$floor][] = $unit;
+        }
+
+        // Structure the response
+        $buildings = [];
+        foreach ($buildingsMap as $buildingName => $floors) {
+            $floorData = [];
+            $totalAvailable = 0;
+            $totalUnits = 0;
+
+            ksort($floors);
+            foreach ($floors as $floorNum => $floorUnits) {
+                $available = collect($floorUnits)->where('status', 'available')->count();
+                $totalAvailable += $available;
+                $totalUnits += count($floorUnits);
+
+                $floorData[] = [
+                    'floor' => $floorNum,
+                    'units' => $floorUnits,
+                    'total_units' => count($floorUnits),
+                    'available_units' => $available,
+                ];
+            }
+
+            $buildings[] = [
+                'name' => $buildingName,
+                'total_floors' => count($floors),
+                'total_units' => $totalUnits,
+                'available_units' => $totalAvailable,
+                'floors' => $floorData,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'project' => [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'location' => $project->location,
+                    'status' => $project->status,
+                    'delivery_date' => $project->delivery_date,
+                ],
+                'buildings' => $buildings,
+            ],
+        ]);
+    }
 }
