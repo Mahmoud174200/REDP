@@ -22,8 +22,9 @@ class Unit extends Model
         'building',
         'layout_description',
         'price',
-        'status', // 'available', 'reserved', 'sold', 'blocked'
+        'status', // 'available', 'reserved', 'sold', 'hidden', 'coming_soon', 'frozen'
         'handover_date',
+        'phase',
     ];
 
     protected $casts = [

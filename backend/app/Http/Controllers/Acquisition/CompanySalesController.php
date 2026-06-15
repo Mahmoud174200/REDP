@@ -437,7 +437,7 @@ class CompanySalesController extends Controller
         $user = $request->user();
 
         $fields = $request->validate([
-            'status' => 'required|string|in:available,reserved,sold,blocked',
+            'status' => 'required|string|in:available,reserved,sold,hidden,coming_soon,frozen',
             'reason' => 'nullable|string|max:500',
         ]);
 
@@ -457,6 +457,132 @@ class CompanySalesController extends Controller
             'success' => true,
             'message' => "Unit status changed from '{$previousStatus}' to '{$fields['status']}'.",
             'data'    => $unit->fresh()->load('project'),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/company/units
+     * Create a new unit.
+     */
+    public function storeUnit(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $fields = $request->validate([
+            'project_id'         => 'required|uuid|exists:projects,id',
+            'unit_number'        => 'required|string|max:255',
+            'floor'              => 'required|integer',
+            'type'               => 'required|string|in:apartment,villa,commercial,office,duplex,penthouse',
+            'area'               => 'required|numeric|min:0',
+            'bedrooms'           => 'nullable|integer|min:0',
+            'bathrooms'          => 'nullable|integer|min:0',
+            'view_type'          => 'nullable|string|max:255',
+            'building'           => 'nullable|string|max:255',
+            'layout_description' => 'nullable|string|max:1000',
+            'price'              => 'required|numeric|min:0',
+            'status'             => 'required|string|in:available,reserved,sold,hidden,coming_soon,frozen',
+            'phase'              => 'required|string|in:Phase 1,Phase 2,Phase 3',
+            'handover_date'      => 'nullable|date',
+        ]);
+
+        $fields['id'] = (string) Str::uuid();
+
+        $unit = Unit::create($fields);
+
+        // Update project total_units count
+        $project = Project::find($fields['project_id']);
+        if ($project) {
+            $project->increment('total_units');
+        }
+
+        AuditLogService::log('UNIT_CREATED', $user->id, [
+            'unit_id'    => $unit->id,
+            'project_id' => $unit->project_id,
+            'unit_number'=> $unit->unit_number,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Unit created successfully.',
+            'data'    => $unit->load('project'),
+        ], 201);
+    }
+
+    /**
+     * PUT /api/v1/sales/company/units/{id}
+     * Update an existing unit's details.
+     */
+    public function updateUnit(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $unit = Unit::findOrFail($id);
+
+        $fields = $request->validate([
+            'unit_number'        => 'required|string|max:255',
+            'floor'              => 'required|integer',
+            'type'               => 'required|string|in:apartment,villa,commercial,office,duplex,penthouse',
+            'area'               => 'required|numeric|min:0',
+            'bedrooms'           => 'nullable|integer|min:0',
+            'bathrooms'          => 'nullable|integer|min:0',
+            'view_type'          => 'nullable|string|max:255',
+            'building'           => 'nullable|string|max:255',
+            'layout_description' => 'nullable|string|max:1000',
+            'price'              => 'required|numeric|min:0',
+            'status'             => 'required|string|in:available,reserved,sold,hidden,coming_soon,frozen',
+            'phase'              => 'required|string|in:Phase 1,Phase 2,Phase 3',
+            'handover_date'      => 'nullable|date',
+        ]);
+
+        $previousStatus = $unit->status;
+        $unit->update($fields);
+
+        if ($previousStatus !== $fields['status']) {
+            AuditLogService::log('UNIT_STATUS_CHANGE', $user->id, [
+                'unit_id'         => $id,
+                'previous_status' => $previousStatus,
+                'new_status'      => $fields['status'],
+                'reason'          => 'Full unit update',
+            ]);
+        }
+
+        AuditLogService::log('UNIT_UPDATED', $user->id, [
+            'unit_id' => $id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Unit updated successfully.',
+            'data'    => $unit->fresh()->load('project'),
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/sales/company/projects/{projectId}/phases
+     * Update project's released phases.
+     */
+    public function updateProjectPhases(Request $request, string $projectId): JsonResponse
+    {
+        $user = $request->user();
+        $project = Project::findOrFail($projectId);
+
+        $fields = $request->validate([
+            'released_phases' => 'required|array',
+            'released_phases.*' => 'required|string|in:Phase 1,Phase 2,Phase 3',
+        ]);
+
+        $project->update([
+            'released_phases' => $fields['released_phases'],
+        ]);
+
+        AuditLogService::log('PROJECT_PHASES_UPDATED', $user->id, [
+            'project_id'      => $projectId,
+            'released_phases' => $fields['released_phases'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project selling phases updated successfully.',
+            'data'    => $project->fresh(),
         ]);
     }
 

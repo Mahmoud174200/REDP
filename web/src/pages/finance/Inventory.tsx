@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X } from 'lucide-react';
+import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X, Edit, Plus } from 'lucide-react';
 import api from '../../services/api';
 
 interface UnitData {
@@ -14,7 +14,10 @@ interface UnitData {
   building: string;
   price: number;
   status: string;
-  project?: { name: string; location: string };
+  phase?: string;
+  handover_date?: string;
+  layout_description?: string;
+  project?: { id: string; name: string; location: string };
 }
 
 const Inventory: React.FC = () => {
@@ -27,6 +30,36 @@ const Inventory: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
+
+  // User Management Role State
+  const [user, setUser] = useState<any>(null);
+  const [canManage, setCanManage] = useState(false);
+
+  // Projects list for Unit creation and Phase management
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedProjectPhases, setSelectedProjectPhases] = useState<string[]>([]);
+
+  // Form Modal States
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(true);
+  const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
+  const [unitForm, setUnitForm] = useState({
+    project_id: '',
+    unit_number: '',
+    floor: 0,
+    type: 'apartment',
+    area: 120,
+    bedrooms: 2,
+    bathrooms: 2,
+    view_type: 'garden',
+    building: '',
+    layout_description: '',
+    price: 3000000,
+    status: 'available',
+    phase: 'Phase 1',
+    handover_date: ''
+  });
 
   // Live Stats State
   const [stats, setStats] = useState({
@@ -68,23 +101,65 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const res = await api.get('/v1/sales/company/projects');
+      if (res.data?.success) {
+        setProjects(res.data.data);
+        if (res.data.data.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(res.data.data[0].id);
+          setSelectedProjectPhases(res.data.data[0].released_phases || ['Phase 1']);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch projects:', err);
+    }
+  };
+
   useEffect(() => {
+    const userStr = localStorage.getItem('redp_user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        setUser(u);
+        const hasAccess = u.role === 'company_sales' || u.role === 'admin';
+        setCanManage(hasAccess);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     fetchInventory();
   }, []);
+
+  useEffect(() => {
+    if (canManage) {
+      fetchProjects();
+    }
+  }, [canManage]);
+
+  useEffect(() => {
+    if (selectedProjectId && projects.length > 0) {
+      const proj = projects.find(p => p.id === selectedProjectId);
+      if (proj) {
+        setSelectedProjectPhases(proj.released_phases || ['Phase 1']);
+      }
+    }
+  }, [selectedProjectId, projects]);
 
   useEffect(() => {
     let result = units;
     if (searchTerm) {
       result = result.filter(u => 
         u.unit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.project?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        u.project?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.building?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     if (filterStatus !== 'all') {
-      result = result.filter(u => u.status === filterStatus);
+      result = result.filter(u => u.status.toLowerCase() === filterStatus.toLowerCase());
     }
     if (filterType !== 'all') {
-      result = result.filter(u => u.type === filterType);
+      result = result.filter(u => u.type.toLowerCase() === filterType.toLowerCase());
     }
     setFilteredUnits(result);
   }, [searchTerm, filterStatus, filterType, units]);
@@ -124,14 +199,24 @@ const Inventory: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const map: Record<string, { class: string; label: string }> = {
+    const map: Record<string, { class: string; label: string; style?: React.CSSProperties }> = {
       available: { class: 'badge-success', label: 'Available' },
       reserved: { class: 'badge-warning', label: 'Reserved' },
       sold: { class: 'badge-info', label: 'Sold' },
       blocked: { class: 'badge-danger', label: 'Blocked' },
+      hidden: { class: 'badge-danger', label: 'Hidden', style: { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' } },
+      coming_soon: { class: 'badge-warning', label: 'Coming Soon', style: { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' } },
+      frozen: { class: 'badge-info', label: 'Frozen (مسقعة)', style: { background: 'rgba(100, 116, 139, 0.15)', color: '#64748b' } },
     };
-    const cfg = map[status] || { class: 'badge-info', label: status };
-    return <span className={`badge ${cfg.class}`}>{cfg.label}</span>;
+    const cfg = map[status.toLowerCase()] || { class: 'badge-info', label: status };
+    return (
+      <span 
+        className={`badge ${cfg.class}`}
+        style={{ ...cfg.style, fontSize: '0.72rem', padding: '4px 8px', borderRadius: '4px', fontWeight: 700 }}
+      >
+        {cfg.label}
+      </span>
+    );
   };
 
   const getTypeIcon = (type: string) => {
@@ -160,12 +245,102 @@ const Inventory: React.FC = () => {
             <Building2 style={{ color: 'var(--color-primary)' }} />
             Real Estate Inventory
           </h1>
-          <p style={{ fontSize: '0.85rem' }}>Unit catalog with transactional row locking, dynamic pricing & real-time availability</p>
+          <p style={{ fontSize: '0.85rem' }}>Unit catalog with transactional row locking, release states & project selling phases</p>
         </div>
-        <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.5</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {canManage && (
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setIsCreateMode(true);
+                setUnitForm({
+                  project_id: selectedProjectId || (projects[0]?.id || ''),
+                  unit_number: '',
+                  floor: 0,
+                  type: 'apartment',
+                  area: 120,
+                  bedrooms: 3,
+                  bathrooms: 2,
+                  view_type: 'garden',
+                  building: '',
+                  layout_description: '',
+                  price: 3500000,
+                  status: 'available',
+                  phase: 'Phase 1',
+                  handover_date: ''
+                });
+                setShowFormModal(true);
+              }}
+              style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}
+            >
+              <Plus size={16} />
+              Create Unit
+            </button>
+          )}
+          <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-sm)' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.05em' }}>MODULE: H.5</span>
+          </div>
         </div>
       </div>
+
+      {/* Project Selling Phase Release Management */}
+      {canManage && projects.length > 0 && (
+        <div className="glass-panel" style={{ padding: '24px 32px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
+            ⚙️ Project Release Management (Selling Phases)
+          </h3>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: '280px' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                Select Compound / Project
+              </label>
+              <select
+                className="form-control"
+                value={selectedProjectId}
+                onChange={e => setSelectedProjectId(e.target.value)}
+                style={{ fontSize: '0.85rem' }}
+              >
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '16px' }}>
+              {['Phase 1', 'Phase 2', 'Phase 3'].map(phase => {
+                const isReleased = selectedProjectPhases.includes(phase);
+                return (
+                  <label key={phase} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={isReleased}
+                      onChange={async () => {
+                        let newPhases = [...selectedProjectPhases];
+                        if (isReleased) {
+                          newPhases = newPhases.filter(p => p !== phase);
+                        } else {
+                          newPhases.push(phase);
+                        }
+                        setSelectedProjectPhases(newPhases);
+                        try {
+                          await api.put(`/v1/sales/company/projects/${selectedProjectId}/phases`, {
+                            released_phases: newPhases
+                          });
+                          setProjects(prev => prev.map(p => p.id === selectedProjectId ? { ...p, released_phases: newPhases } : p));
+                        } catch (err) {
+                          console.error('Failed to update project phases:', err);
+                        }
+                      }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    {phase}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
@@ -227,7 +402,7 @@ const Inventory: React.FC = () => {
           <Search style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--text-muted)' }} />
           <input
             className="form-control"
-            placeholder="Search units by number or project..."
+            placeholder="Search units by number, building or project..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{ paddingLeft: '40px', fontSize: '0.85rem' }}
@@ -243,6 +418,9 @@ const Inventory: React.FC = () => {
           <option value="available">Available</option>
           <option value="reserved">Reserved</option>
           <option value="sold">Sold</option>
+          <option value="hidden">Hidden</option>
+          <option value="coming_soon">Coming Soon</option>
+          <option value="frozen">Frozen</option>
         </select>
         <select
           className="form-control"
@@ -256,6 +434,7 @@ const Inventory: React.FC = () => {
           <option value="duplex">Duplex</option>
           <option value="penthouse">Penthouse</option>
           <option value="office">Office</option>
+          <option value="commercial">Commercial</option>
         </select>
       </div>
 
@@ -266,7 +445,12 @@ const Inventory: React.FC = () => {
             {/* Color Accent Top Bar */}
             <div style={{
               height: '4px',
-              background: unit.status === 'available' ? 'var(--color-success)' : unit.status === 'reserved' ? 'var(--color-warning)' : unit.status === 'sold' ? 'var(--color-primary)' : 'var(--color-danger)',
+              background: 
+                unit.status.toLowerCase() === 'available' ? 'var(--color-success)' : 
+                unit.status.toLowerCase() === 'reserved' ? 'var(--color-warning)' : 
+                unit.status.toLowerCase() === 'sold' ? 'var(--color-primary)' : 
+                unit.status.toLowerCase() === 'coming_soon' ? '#3b82f6' : 
+                unit.status.toLowerCase() === 'frozen' ? '#64748b' : 'var(--color-danger)',
             }} />
             <div style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -293,23 +477,59 @@ const Inventory: React.FC = () => {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   <span style={{ fontWeight: 600 }}>View:</span> {unit.view_type}
                 </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', gridColumn: 'span 2' }}>
+                  <span style={{ fontWeight: 600 }}>Phase:</span> <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{unit.phase || 'Phase 1'}</span>
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '14px' }}>
                 <div>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</span>
-                  <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)' }}>{unit.price.toLocaleString()} EGP</h4>
+                  <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-primary)' }}>{Number(unit.price).toLocaleString()} EGP</h4>
                 </div>
-                {unit.status === 'available' && (
-                  <button
-                    className="btn-primary"
-                    style={{ padding: '8px 18px', fontSize: '0.75rem' }}
-                    onClick={(e) => { e.stopPropagation(); simulateRowLock(unit.id); }}
-                  >
-                    <Lock style={{ width: '12px', height: '12px' }} />
-                    Reserve
-                  </button>
-                )}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {unit.status.toLowerCase() === 'available' && (
+                    <button
+                      className="btn-primary"
+                      style={{ padding: '8px 14px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={(e) => { e.stopPropagation(); simulateRowLock(unit.id); }}
+                    >
+                      <Lock style={{ width: '12px', height: '12px' }} />
+                      Reserve
+                    </button>
+                  )}
+                  {canManage && (
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '8px 12px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreateMode(false);
+                        setEditingUnitId(unit.id);
+                        setUnitForm({
+                          project_id: unit.project?.id || (projects[0]?.id || ''),
+                          unit_number: unit.unit_number,
+                          floor: unit.floor,
+                          type: unit.type,
+                          area: unit.area,
+                          bedrooms: unit.bedrooms,
+                          bathrooms: unit.bathrooms,
+                          view_type: unit.view_type || '',
+                          building: unit.building || '',
+                          layout_description: unit.layout_description || '',
+                          price: unit.price,
+                          status: unit.status,
+                          phase: unit.phase || 'Phase 1',
+                          handover_date: unit.handover_date || ''
+                        });
+                        setShowFormModal(true);
+                      }}
+                    >
+                      <Edit style={{ width: '12px', height: '12px' }} />
+                      Edit
+                    </button>
+                  )}
+                </div>
               </div>
 
               {unit.project && (
@@ -359,28 +579,289 @@ const Inventory: React.FC = () => {
                 { label: 'Floor', value: selectedUnit.floor === 0 ? 'Ground' : `Floor ${selectedUnit.floor}` },
                 { label: 'Bedrooms', value: selectedUnit.bedrooms },
                 { label: 'Bathrooms', value: selectedUnit.bathrooms },
-                { label: 'View', value: selectedUnit.view_type },
+                { label: 'View', value: selectedUnit.view_type || 'N/A' },
                 { label: 'Project', value: selectedUnit.project?.name || 'N/A' },
+                { label: 'Selling Phase', value: selectedUnit.phase || 'Phase 1' },
+                { label: 'Handover Date', value: selectedUnit.handover_date || 'N/A' }
               ].map((item, i) => (
-                <div key={i} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)', border: '1px solid var(--border-glass)' }}>
+                <div key={i} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)' }}>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</span>
                   <p style={{ fontWeight: 700, marginTop: '4px', color: 'var(--text-main)' }}>{item.value}</p>
                 </div>
               ))}
             </div>
 
+            {selectedUnit.layout_description && (
+              <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)', marginBottom: '24px' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Layout / Design Description</span>
+                <p style={{ fontSize: '0.85rem', marginTop: '6px', color: 'var(--text-main)', lineHeight: '1.4' }}>{selectedUnit.layout_description}</p>
+              </div>
+            )}
+
             <div style={{ padding: '16px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '20px' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Unit Price</span>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '4px' }}>{selectedUnit.price.toLocaleString()} EGP</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~{(selectedUnit.price / selectedUnit.area).toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP/m²</span>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '4px' }}>{Number(selectedUnit.price).toLocaleString()} EGP</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~{Math.round(selectedUnit.price / selectedUnit.area).toLocaleString()} EGP/m²</span>
             </div>
 
-            {selectedUnit.status === 'available' && (
-              <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} onClick={() => { setSelectedUnit(null); simulateRowLock(selectedUnit.id); }}>
-                <Lock style={{ width: '14px', height: '14px' }} />
-                Secure Row Lock & Reserve Unit
-              </button>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {selectedUnit.status.toLowerCase() === 'available' && (
+                <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} onClick={() => { setSelectedUnit(null); simulateRowLock(selectedUnit.id); }}>
+                  <Lock style={{ width: '14px', height: '14px' }} />
+                  Secure Row Lock & Reserve Unit
+                </button>
+              )}
+              {canManage && (
+                <button 
+                  className="btn-secondary" 
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px', display: 'flex', alignItems: 'center', gap: '6px' }} 
+                  onClick={() => {
+                    setIsCreateMode(false);
+                    setEditingUnitId(selectedUnit.id);
+                    setUnitForm({
+                      project_id: selectedUnit.project?.id || (projects[0]?.id || ''),
+                      unit_number: selectedUnit.unit_number,
+                      floor: selectedUnit.floor,
+                      type: selectedUnit.type,
+                      area: selectedUnit.area,
+                      bedrooms: selectedUnit.bedrooms,
+                      bathrooms: selectedUnit.bathrooms,
+                      view_type: selectedUnit.view_type || '',
+                      building: selectedUnit.building || '',
+                      layout_description: selectedUnit.layout_description || '',
+                      price: selectedUnit.price,
+                      status: selectedUnit.status,
+                      phase: selectedUnit.phase || 'Phase 1',
+                      handover_date: selectedUnit.handover_date || ''
+                    });
+                    setSelectedUnit(null);
+                    setShowFormModal(true);
+                  }}
+                >
+                  <Edit style={{ width: '14px', height: '14px' }} />
+                  Edit Unit Details
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Form Modal */}
+      {showFormModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px',
+        }} onClick={() => setShowFormModal(false)}>
+          <div className="glass-panel" style={{ maxWidth: '640px', width: '100%', padding: '32px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowFormModal(false)} style={{
+              position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none',
+              color: 'var(--text-muted)', cursor: 'pointer', padding: '4px',
+            }}>
+              <X size={20} />
+            </button>
+
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '20px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isCreateMode ? <Plus size={20} /> : <Edit size={20} />}
+              {isCreateMode ? 'Create New Unit' : 'Edit Unit Details'}
+            </h2>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                if (isCreateMode) {
+                  await api.post('/v1/sales/company/units', unitForm);
+                } else {
+                  await api.put(`/v1/sales/company/units/${editingUnitId}`, unitForm);
+                }
+                setShowFormModal(false);
+                fetchInventory();
+              } catch (err: any) {
+                alert(err.response?.data?.message || 'Operation failed');
+              }
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                {isCreateMode && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Project / Compound</label>
+                    <select
+                      className="form-control"
+                      value={unitForm.project_id}
+                      onChange={e => setUnitForm(prev => ({ ...prev, project_id: e.target.value }))}
+                      required
+                    >
+                      <option value="">Select Project</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Unit Number</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={unitForm.unit_number}
+                    onChange={e => setUnitForm(prev => ({ ...prev, unit_number: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Building / Block</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={unitForm.building}
+                    onChange={e => setUnitForm(prev => ({ ...prev, building: e.target.value }))}
+                    placeholder="e.g. Building B"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Floor</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={unitForm.floor}
+                    onChange={e => setUnitForm(prev => ({ ...prev, floor: parseInt(e.target.value) || 0 }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Unit Type</label>
+                  <select
+                    className="form-control"
+                    value={unitForm.type}
+                    onChange={e => setUnitForm(prev => ({ ...prev, type: e.target.value }))}
+                    required
+                  >
+                    <option value="apartment">Apartment</option>
+                    <option value="villa">Villa</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="office">Office</option>
+                    <option value="duplex">Duplex</option>
+                    <option value="penthouse">Penthouse</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Area (m²)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={unitForm.area}
+                    onChange={e => setUnitForm(prev => ({ ...prev, area: parseFloat(e.target.value) || 0 }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Price (EGP)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={unitForm.price}
+                    onChange={e => setUnitForm(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Bedrooms</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={unitForm.bedrooms}
+                    onChange={e => setUnitForm(prev => ({ ...prev, bedrooms: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Bathrooms</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={unitForm.bathrooms}
+                    onChange={e => setUnitForm(prev => ({ ...prev, bathrooms: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>View Type</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={unitForm.view_type}
+                    onChange={e => setUnitForm(prev => ({ ...prev, view_type: e.target.value }))}
+                    placeholder="e.g. Garden, Pool, Sea"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Handover Date</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={unitForm.handover_date}
+                    onChange={e => setUnitForm(prev => ({ ...prev, handover_date: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Status</label>
+                  <select
+                    className="form-control"
+                    value={unitForm.status}
+                    onChange={e => setUnitForm(prev => ({ ...prev, status: e.target.value }))}
+                    required
+                  >
+                    <option value="available">Available</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="sold">Sold</option>
+                    <option value="hidden">Hidden</option>
+                    <option value="coming_soon">Coming Soon</option>
+                    <option value="frozen">Frozen (مسقعة مؤقتاً)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Phase</label>
+                  <select
+                    className="form-control"
+                    value={unitForm.phase}
+                    onChange={e => setUnitForm(prev => ({ ...prev, phase: e.target.value }))}
+                    required
+                  >
+                    <option value="Phase 1">Phase 1</option>
+                    <option value="Phase 2">Phase 2</option>
+                    <option value="Phase 3">Phase 3</option>
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-main)' }}>Layout Description</label>
+                  <textarea
+                    className="form-control"
+                    value={unitForm.layout_description}
+                    onChange={e => setUnitForm(prev => ({ ...prev, layout_description: e.target.value }))}
+                    style={{ minHeight: '80px', fontFamily: 'inherit', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowFormModal(false)} style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{ padding: '10px 24px', fontSize: '0.85rem' }}>
+                  Save Unit
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

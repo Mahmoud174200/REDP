@@ -176,6 +176,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Units (full access + status management)
             Route::get('/units', [CompanySalesController::class, 'listUnits']);
+            Route::post('/units', [CompanySalesController::class, 'storeUnit']);
+            Route::put('/units/{id}', [CompanySalesController::class, 'updateUnit']);
             Route::put('/units/{id}/status', [CompanySalesController::class, 'updateUnitStatus']);
 
             // Transactions
@@ -184,6 +186,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Projects
             Route::get('/projects', [CompanySalesController::class, 'listProjects']);
+            Route::put('/projects/{projectId}/phases', [CompanySalesController::class, 'updateProjectPhases']);
             Route::get('/projects/{projectId}/payment-plans', [CompanySalesController::class, 'getProjectPaymentPlans']);
 
             // Broker Request auditing (reservations & payout approvals)

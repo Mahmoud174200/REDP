@@ -16,7 +16,21 @@ class Project extends Model
         'total_units',
         'status', // 'planning', 'active', 'completed'
         'delivery_date',
+        'released_phases',
     ];
+
+    protected $casts = [
+        'released_phases' => 'array',
+    ];
+
+    public function getReleasedPhasesAttribute($value)
+    {
+        if (!$value) {
+            return ['Phase 1'];
+        }
+        $val = json_decode($value, true);
+        return empty($val) ? ['Phase 1'] : $val;
+    }
 
     public function units()
     {
@@ -28,3 +42,4 @@ class Project extends Model
         return $this->hasMany(ProjectPaymentPlan::class);
     }
 }
+

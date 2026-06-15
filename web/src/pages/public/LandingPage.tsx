@@ -36,6 +36,7 @@ const translations = {
     unitBathrooms: 'Baths',
     unitPrice: 'Price',
     unitAction: 'Book & Pay EOI',
+    unitActionComingSoon: 'Coming Soon',
     unitPlaceholder: 'Select a project above to inspect live inventory.',
     unitEmpty: 'No units currently listed as available for this project.',
     galleryTitle: 'Visual Showcase',
@@ -75,8 +76,8 @@ const translations = {
     eoiTicketNo: 'Your Priority Queue Number',
     eoiClose: 'Close Portal',
     footerRights: 'All rights reserved. Mountain View Developer Real Estate Holding.',
-  },
-  ar: {
+    },
+    ar: {
     navProjects: 'محفظة المشاريع',
     navGallery: 'معرض الصور والفيديو',
     navFaq: 'الأسئلة الشائعة',
@@ -104,6 +105,7 @@ const translations = {
     unitBathrooms: 'الحمامات',
     unitPrice: 'السعر',
     unitAction: 'حجز ودفع الـ EOI',
+    unitActionComingSoon: 'قريباً',
     unitPlaceholder: 'اختر مشروعاً من الأعلى لتصفح الوحدات المتوفرة.',
     unitEmpty: 'لا توجد وحدات متاحة حالياً في هذا المشروع.',
     galleryTitle: 'المعرض المرئي للمشاريع',
@@ -1139,7 +1141,24 @@ const LandingPage: React.FC = () => {
                   {units.map((unit: any) => (
                     <tr key={unit.id}>
                       <td style={{ fontWeight: 800, fontSize: '0.88rem', color: '#003DA6' }}>
-                        {unit.building} - {unit.unit_number}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>{unit.building} - {unit.unit_number}</span>
+                          {unit.status === 'coming_soon' && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              background: '#FFF3CD',
+                              color: '#856404',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {lang === 'en' ? 'Soon' : 'قريباً'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ fontWeight: 600, color: '#0f172a' }}>{unit.type}</td>
                       <td style={{ color: '#5c6c7f' }}>{parseFloat(unit.area).toFixed(0)} m²</td>
@@ -1150,11 +1169,21 @@ const LandingPage: React.FC = () => {
                         EGP {parseFloat(unit.price).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <button className="btn-luxury-primary" onClick={() => openEoiModal(selectedProjectObj, unit)} style={{
-                          fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px'
-                        }}>
-                          {t.unitAction}
-                        </button>
+                        {unit.status === 'coming_soon' ? (
+                          <button disabled style={{
+                            fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px',
+                            background: '#f1f5f9', color: '#94a3b8', border: '1px solid #e2e8f0', cursor: 'not-allowed',
+                            fontWeight: 700
+                          }}>
+                            {t.unitActionComingSoon}
+                          </button>
+                        ) : (
+                          <button className="btn-luxury-primary" onClick={() => openEoiModal(selectedProjectObj, unit)} style={{
+                            fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px'
+                          }}>
+                            {t.unitAction}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -19,8 +19,17 @@ class PublicLandingController extends Controller
      */
     public function getProjects(): JsonResponse
     {
-        $projects = Project::withCount(['units' => function ($query) {
-            $query->where('status', 'available');
+        $driver = DB::connection()->getDriverName();
+        $concatSql = $driver === 'sqlite' 
+            ? "projects.released_phases LIKE '%\"' || units.phase || '\"%'" 
+            : "projects.released_phases LIKE CONCAT('%\"', units.phase, '\"%')";
+
+        $projects = Project::withCount(['units' => function ($query) use ($concatSql) {
+            $query->where('status', 'available')
+                ->where(function ($q) use ($concatSql) {
+                    $q->whereRaw("projects.released_phases IS NULL AND units.phase = 'Phase 1'")
+                      ->orWhereRaw($concatSql);
+                });
         }])->with('paymentPlans')->get();
 
         return response()->json([
@@ -34,8 +43,12 @@ class PublicLandingController extends Controller
      */
     public function getProjectUnits(string $projectId): JsonResponse
     {
+        $project = Project::findOrFail($projectId);
+        $releasedPhases = $project->released_phases; // Calls the array cast/accessor (defaults to ['Phase 1'])
+
         $units = Unit::where('project_id', $projectId)
-            ->where('status', 'available')
+            ->whereIn('status', ['available', 'coming_soon'])
+            ->whereIn('phase', $releasedPhases)
             ->get();
 
         return response()->json([
