@@ -526,6 +526,45 @@ const LandingPage: React.FC = () => {
           border-color: #003DA6;
           transform: translateY(-1px);
         }
+        .nav-lang-btn {
+          background: rgba(255, 255, 255, 0.8) !important;
+          border: 1.5px solid rgba(0, 61, 166, 0.15) !important;
+          border-radius: 999px !important;
+          padding: 8px 18px !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          font-size: 0.82rem !important;
+          font-weight: 700 !important;
+          color: #003DA6 !important;
+          box-shadow: 0 2px 6px rgba(0, 61, 166, 0.02) !important;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .nav-lang-btn:hover {
+          background: #003DA6 !important;
+          color: #ffffff !important;
+          border-color: #003DA6 !important;
+          transform: translateY(-1.5px) !important;
+          box-shadow: 0 6px 15px rgba(0, 61, 166, 0.2) !important;
+        }
+        .nav-login-btn {
+          font-size: 0.82rem !important;
+          padding: 10px 24px !important;
+          border-radius: 999px !important;
+          border: none !important;
+          color: #ffffff !important;
+          background: linear-gradient(135deg, #003DA6 0%, #001f5c 100%) !important;
+          cursor: pointer !important;
+          font-weight: 700 !important;
+          box-shadow: 0 4px 12px rgba(0, 61, 166, 0.15) !important;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .nav-login-btn:hover {
+          transform: translateY(-1.5px) !important;
+          box-shadow: 0 6px 18px rgba(0, 61, 166, 0.3) !important;
+          filter: brightness(1.1) !important;
+        }
         .mv-card {
           background: rgba(255, 255, 255, 0.85);
           backdrop-filter: blur(28px);
@@ -720,20 +759,7 @@ const LandingPage: React.FC = () => {
         </div>
 
         <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={toggleLanguage} style={{
-            background: 'rgba(255, 255, 255, 0.75)',
-            border: '1.5px solid rgba(0, 61, 166, 0.15)',
-            borderRadius: '999px',
-            padding: '8px 16px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            color: '#003DA6',
-            transition: 'all 0.3s ease'
-          }}>
+          <button onClick={toggleLanguage} className="nav-lang-btn">
             <Globe size={15} />
             {lang === 'en' ? 'العربية' : 'English'}
           </button>
@@ -744,17 +770,7 @@ const LandingPage: React.FC = () => {
               {lang === 'en' ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
             </button>
           ) : (
-            <button onClick={() => navigate('/login')} style={{
-              fontSize: '0.8rem',
-              padding: '10px 24px',
-              borderRadius: '999px',
-              border: '1.5px solid #003DA6',
-              color: '#003DA6',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontWeight: 700,
-              transition: 'all 0.3s ease'
-            }}>
+            <button onClick={() => navigate('/login')} className="nav-login-btn">
               {t.navLogin}
             </button>
           )}
@@ -1702,10 +1718,20 @@ const LandingPage: React.FC = () => {
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <button onClick={() => { toggleLanguage(); setMobileMenuOpen(false); }} style={{
-                background: '#ffffff', border: '1.5px solid rgba(0, 61, 166, 0.15)',
-                borderRadius: '12px', padding: '12px 16px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: '0.92rem', fontWeight: 700,
-                color: '#003DA6', width: '100%', transition: 'all 0.3s ease'
+                background: 'rgba(0, 61, 166, 0.05)',
+                border: '1px solid rgba(0, 61, 166, 0.12)',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                fontSize: '0.92rem',
+                fontWeight: 700,
+                color: '#003DA6',
+                width: '100%',
+                transition: 'all 0.25s ease'
               }}>
                 <Globe size={18} />
                 {lang === 'en' ? 'العربية' : 'English'}
@@ -1718,7 +1744,18 @@ const LandingPage: React.FC = () => {
                 </button>
               ) : (
                 <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} style={{
-                  width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px solid #003DA6', color: '#003DA6', background: 'transparent', cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', textAlign: 'center', transition: 'all 0.3s ease'
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #003DA6 0%, #001f5c 100%)',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0, 61, 166, 0.15)',
+                  transition: 'all 0.25s ease'
                 }}>
                   {t.navLogin}
                 </button>

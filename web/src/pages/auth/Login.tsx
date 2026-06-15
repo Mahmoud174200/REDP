@@ -167,24 +167,26 @@ const Login: React.FC = () => {
           scrollbar-width: none !important;  /* Firefox */
         }
         .quick-fill-btn {
-          border: 1px solid rgba(0, 61, 166, 0.15);
-          background: rgba(0, 61, 166, 0.02);
-          color: #003DA6;
-          border-radius: 10px;
-          padding: 6px 10px;
-          font-size: 0.7rem;
+          border: 1px solid rgba(0, 15, 61, 0.08);
+          background: rgba(255, 255, 255, 0.85);
+          color: #0f172a;
+          border-radius: 20px;
+          padding: 6px 14px;
+          font-size: 0.72rem;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          box-shadow: 0 2px 4px rgba(0, 15, 61, 0.02);
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           display: flex;
           align-items: center;
           gap: 6px;
         }
         .quick-fill-btn:hover {
-          background: rgba(0, 61, 166, 0.08);
+          background: #003DA6;
+          color: #ffffff;
           border-color: #003DA6;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0, 61, 166, 0.1);
+          transform: translateY(-1.5px);
+          box-shadow: 0 4px 12px rgba(0, 61, 166, 0.2);
         }
         .quick-fill-btn:active {
           transform: translateY(0);
@@ -277,27 +279,64 @@ const Login: React.FC = () => {
         }
         .tab-btn {
           flex: 1;
-          padding: 10px;
-          font-size: 0.8rem;
-          font-weight: 750;
+          padding: 10px 16px;
+          font-size: 0.82rem;
+          font-weight: 700;
           font-family: var(--font-title);
           border-radius: 10px;
           border: none;
           cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .tab-btn-active {
-          background: rgba(0, 61, 166, 0.06);
+          background: #ffffff;
           color: #003DA6;
-          border: 1px solid rgba(0, 61, 166, 0.12);
+          box-shadow: 0 4px 10px rgba(0, 61, 166, 0.06);
+          border: 1px solid rgba(0, 61, 166, 0.03);
         }
         .tab-btn-inactive {
           background: transparent;
           color: #64748b;
         }
         .tab-btn-inactive:hover {
-          color: #0f172a;
-          background: rgba(0, 61, 166, 0.02);
+          color: #003DA6;
+        }
+        .back-to-landing-link {
+          position: relative;
+          color: #64748b;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+          font-weight: 600;
+          cursor: pointer;
+          background: none;
+          border: none;
+          padding: 4px 0;
+          transition: color 0.25s ease;
+        }
+        .back-to-landing-link:hover {
+          color: #003DA6;
+        }
+        .back-to-landing-link:hover .arrow {
+          transform: translateX(-3px);
+        }
+        .back-to-landing-link::after {
+          content: '';
+          position: absolute;
+          width: 100%;
+          transform: scaleX(0);
+          height: 1.5px;
+          bottom: 0;
+          left: 0;
+          background-color: #003DA6;
+          transform-origin: bottom right;
+          transition: transform 0.25s ease-out;
+        }
+        .back-to-landing-link:hover::after {
+          transform: scaleX(1);
+          transform-origin: bottom left;
         }
         @media (max-width: 1024px) {
           .split-left-panel {
@@ -501,28 +540,10 @@ const Login: React.FC = () => {
           <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start' }}>
             <button
               onClick={() => navigate('/')}
-              style={{
-                background: 'rgba(0, 61, 166, 0.05)',
-                border: '1px solid rgba(0, 61, 166, 0.1)',
-                borderRadius: '8px',
-                color: '#003DA6',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                padding: '6px 12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(0, 61, 166, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(0, 61, 166, 0.05)';
-              }}
+              className="back-to-landing-link"
             >
-              <span>← Back to Landing Page</span>
+              <span className="arrow" style={{ transition: 'transform 0.25s ease', display: 'inline-block' }}>←</span>
+              <span>Back to Landing Page</span>
             </button>
           </div>
 
