@@ -22,6 +22,11 @@ class Unit extends Model
         'building',
         'layout_description',
         'layout_image_url',
+        'model_3d_status',
+        'model_3d_url',
+        'tripo_task_id',
+        'tripo_error_msg',
+        'model_generated_at',
         'price',
         'status', // 'available', 'reserved', 'sold', 'hidden', 'coming_soon', 'frozen'
         'handover_date',

@@ -88,6 +88,12 @@ const translations = {
     penthouse: 'Penthouse',
     fillRequired: 'Please fill all required fields.',
     errorOccurred: 'An error occurred. Please try again.',
+    view3D: 'View 3D',
+    viewImage: 'View Image',
+    model3DReady: '3D Model Ready',
+    model3DProcessing: 'Generating 3D...',
+    model3DFailed: '3D Generation Failed',
+    interactHint: 'Click & drag to rotate • Scroll to zoom',
   },
   ar: {
     pageTitle: 'اختيار الوحدات التفاعلي',
@@ -165,6 +171,12 @@ const translations = {
     penthouse: 'بنتهاوس',
     fillRequired: 'يرجى ملء جميع الحقول المطلوبة.',
     errorOccurred: 'حدث خطأ. يرجى المحاولة مرة أخرى.',
+    view3D: 'عرض ثلاثي الأبعاد',
+    viewImage: 'عرض الصورة',
+    model3DReady: 'النموذج ثلاثي الأبعاد جاهز',
+    model3DProcessing: 'جارٍ إنشاء النموذج...',
+    model3DFailed: 'فشل إنشاء النموذج',
+    interactHint: 'اسحب للتدوير • مرر للتكبير',
   }
 };
 
@@ -186,6 +198,9 @@ interface UnitData {
   layout_description: string | null;
   handover_date: string | null;
   layout_image_url?: string | null;
+  model_3d_status?: string | null;
+  model_3d_url?: string | null;
+  tripo_error_msg?: string | null;
 }
 
 interface FloorData {
@@ -252,6 +267,10 @@ const InteractiveUnitSelection: React.FC = () => {
   } | null>(null);
   const [hoveredFloor, setHoveredFloor] = useState<FloorData | null>(null);
 
+  // 3D Model state
+  const [building3DModels, setBuilding3DModels] = useState<Record<string, { status: string; model_url: string | null }>>({});
+  const [active3DBuilding, setActive3DBuilding] = useState<string | null>(null);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -259,6 +278,11 @@ const InteractiveUnitSelection: React.FC = () => {
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unitView3D, setUnitView3D] = useState(false);
+
+  useEffect(() => {
+    setUnitView3D(false);
+  }, [selectedUnit]);
 
   // Reservation form
   const [reserveForm, setReserveForm] = useState({
@@ -272,6 +296,14 @@ const InteractiveUnitSelection: React.FC = () => {
   useEffect(() => {
     setIsLoggedIn(!!localStorage.getItem('redp_token'));
     loadProjects();
+
+    // Load Google Model Viewer script
+    if (!document.querySelector('script[src*="model-viewer"]')) {
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js';
+      document.head.appendChild(script);
+    }
   }, []);
 
   // Auto-select project from URL param
@@ -314,10 +346,25 @@ const InteractiveUnitSelection: React.FC = () => {
         console.error('Error fetching project media:', mediaErr);
       }
 
+      // Fetch 3D model data
+      let models3D: Record<string, { status: string; model_url: string | null }> = {};
+      try {
+        const models3DRes = await api.get(`/v1/public/projects/${projectId}/3d-models`);
+        if (models3DRes.data?.success && Array.isArray(models3DRes.data.data)) {
+          models3DRes.data.data.forEach((m: any) => {
+            models3D[m.building_name] = { status: m.status, model_url: m.model_url };
+          });
+        }
+      } catch (err3D) {
+        console.error('Error fetching 3D models:', err3D);
+      }
+
       if (res.data?.success) {
         setSelectedProject(res.data.data.project);
         setBuildings(res.data.data.buildings || []);
         setProjectMedia(mediaData);
+        setBuilding3DModels(models3D);
+        setActive3DBuilding(null);
         setTimeout(() => {
           setCurrentStep('buildings');
           setAnimating(false);
@@ -681,6 +728,45 @@ const InteractiveUnitSelection: React.FC = () => {
         <p style={{ color: '#64748b', fontSize: '0.95rem' }}>{t.selectBuildingDesc}</p>
       </div>
 
+      {/* 🗺️ Compound Master Plan Section */}
+      {projectMedia?.project_image && (
+        <div style={{
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(28px)',
+          border: '1.5px solid rgba(0,61,166,0.08)',
+          borderRadius: 24,
+          padding: 24,
+          marginBottom: 40,
+          boxShadow: '0 20px 50px -15px rgba(0,15,61,0.05)',
+          position: 'relative',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                🗺️ {lang === 'ar' ? 'المخطط العام للكمبوند' : 'Compound Master Plan'}
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.82rem', margin: '4px 0 0 0' }}>
+                {lang === 'ar' ? 'تصفح المخطط العام للكمبوند بالكامل وتوزيع المباني' : 'Explore the overall compound layout and building distribution'}
+              </p>
+            </div>
+
+          </div>
+
+          {/* Master Plan Image */}
+          <div style={{
+            height: 320, width: '100%', borderRadius: 16, overflow: 'hidden',
+            background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid rgba(0,61,166,0.05)',
+          }}>
+            <img
+              src={projectMedia.project_image}
+              alt="Master Plan"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+        </div>
+      )}
+
       {buildings.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
           <Building size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
@@ -695,6 +781,9 @@ const InteractiveUnitSelection: React.FC = () => {
         }}>
           {buildings.map((building, idx) => {
             const availPct = building.total_units > 0 ? (building.available_units / building.total_units * 100) : 0;
+            const model3D = building3DModels[building.name];
+            const has3DModel = model3D?.status === 'completed' && model3D?.model_url;
+            const is3DActive = active3DBuilding === building.name;
             return (
               <div
                 key={building.name}
@@ -705,25 +794,110 @@ const InteractiveUnitSelection: React.FC = () => {
                   transformStyle: 'preserve-3d',
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = 'rotateY(-5deg) rotateX(3deg) translateY(-10px)';
+                  if (!is3DActive) {
+                    (e.currentTarget as HTMLDivElement).style.transform = 'rotateY(-5deg) rotateX(3deg) translateY(-10px)';
+                  }
                 }}
                 onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = 'rotateY(0) rotateX(0) translateY(0)';
+                  if (!is3DActive) {
+                    (e.currentTarget as HTMLDivElement).style.transform = 'rotateY(0) rotateX(0) translateY(0)';
+                  }
                 }}
               >
                 {/* 3D Tower Visualization */}
                 <div style={{
                   background: 'rgba(255,255,255,0.85)',
                   backdropFilter: 'blur(28px)',
-                  border: '1.5px solid rgba(0,61,166,0.1)',
+                  border: `1.5px solid ${is3DActive ? 'rgba(197,168,128,0.4)' : 'rgba(0,61,166,0.1)'}`,
                   borderRadius: 24,
                   overflow: 'hidden',
                   transition: 'all 0.5s cubic-bezier(0.25,1,0.5,1)',
-                  boxShadow: '0 20px 50px -15px rgba(0,15,61,0.08)',
+                  boxShadow: is3DActive ? '0 20px 50px -15px rgba(197,168,128,0.2), 0 0 20px rgba(197,168,128,0.08)' : '0 20px 50px -15px rgba(0,15,61,0.08)',
                   position: 'relative',
                 }}>
-                  {/* Building Image Header */}
-                  {projectMedia?.building_images?.[building.name]?.image_url ? (
+
+                  {/* 3D Model Badge */}
+                  {model3D && (
+                    <div style={{
+                      position: 'absolute', top: 12, [lang === 'ar' ? 'left' : 'right']: 12, zIndex: 10,
+                      display: 'flex', gap: 6, alignItems: 'center',
+                    }}>
+                      {model3D.status === 'completed' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActive3DBuilding(is3DActive ? null : building.name);
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '6px 14px', borderRadius: 999,
+                            background: is3DActive
+                              ? 'linear-gradient(135deg, #C5A880, #a08960)'
+                              : 'linear-gradient(135deg, rgba(0,61,166,0.9), rgba(0,26,112,0.9))',
+                            color: '#fff', border: 'none', cursor: 'pointer',
+                            fontSize: '0.72rem', fontWeight: 700,
+                            fontFamily: 'var(--font-title)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            transition: 'all 0.3s ease',
+                            backdropFilter: 'blur(10px)',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.85rem' }}>{is3DActive ? '🖼️' : '🧊'}</span>
+                          {is3DActive ? t.viewImage : t.view3D}
+                        </button>
+                      )}
+                      {model3D.status === 'processing' && (
+                        <span style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '5px 12px', borderRadius: 999,
+                          background: 'rgba(245,158,11,0.9)', color: '#fff',
+                          fontSize: '0.68rem', fontWeight: 700,
+                          animation: 'us3d-pulse 2s ease-in-out infinite',
+                        }}>
+                          <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          {t.model3DProcessing}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Building Image Header OR 3D Model Viewer */}
+                  {is3DActive && has3DModel ? (
+                    <div
+                      style={{
+                        height: 280, width: '100%', position: 'relative',
+                        borderBottom: '1px solid rgba(197,168,128,0.2)',
+                        background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* @ts-ignore — model-viewer is a web component */}
+                      <model-viewer
+                        src={model3D.model_url}
+                        camera-controls
+                        auto-rotate
+                        shadow-intensity="1"
+                        exposure="1.2"
+                        environment-image="neutral"
+                        style={{
+                          width: '100%', height: '100%',
+                          borderRadius: '24px 24px 0 0',
+                          '--poster-color': 'transparent',
+                        } as any}
+                      />
+                      {/* Interaction hint */}
+                      <div style={{
+                        position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+                        padding: '4px 14px', borderRadius: 999,
+                        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                        color: '#fff', fontSize: '0.65rem', fontWeight: 600,
+                        whiteSpace: 'nowrap', pointerEvents: 'none',
+                        opacity: 0.8,
+                      }}>
+                        {t.interactHint}
+                      </div>
+                    </div>
+                  ) : projectMedia?.building_images?.[building.name]?.image_url ? (
                     <div style={{ height: 160, width: '100%', overflow: 'hidden', position: 'relative', borderBottom: '1px solid rgba(0,61,166,0.08)', backgroundColor: '#f8fafc' }}>
                       <img
                         src={projectMedia.building_images[building.name].image_url}
@@ -1351,25 +1525,79 @@ const InteractiveUnitSelection: React.FC = () => {
           </div>
         </div>
 
-        {/* Unit Layout Image */}
+        {/* Unit Layout Image or 3D Model */}
         {selectedUnit.layout_image_url && (
           <div style={{ marginBottom: 24 }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-              {lang === 'ar' ? 'تقسيم الوحدة (كروكي)' : 'Apartment Division Plan'}
-            </span>
-            <div style={{
-              background: '#fff', borderRadius: 14, padding: 8,
-              border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
-              cursor: 'zoom-in'
-            }}
-              onClick={() => window.open(selectedUnit.layout_image_url?.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`, '_blank')}
-            >
-              <img
-                src={selectedUnit.layout_image_url.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`}
-                alt={`Unit ${selectedUnit.unit_number} Layout`}
-                style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
-              />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                {lang === 'ar' ? 'تصميم الوحدة' : 'Apartment Plan'}
+              </span>
+              
+              {/* 3D Model Toggle for Unit */}
+              {selectedUnit.model_3d_status === 'completed' && (
+                <button
+                  type="button"
+                  onClick={() => setUnitView3D(!unitView3D)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 999,
+                    background: unitView3D
+                      ? 'linear-gradient(135deg, #C5A880, #a08960)'
+                      : 'linear-gradient(135deg, rgba(0,61,166,0.9), rgba(0,26,112,0.9))',
+                    color: '#fff', border: 'none', cursor: 'pointer',
+                    fontSize: '0.68rem', fontWeight: 700,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <span>{unitView3D ? '🖼️' : '🧊'}</span>
+                  {unitView3D ? t.viewImage : t.view3D}
+                </button>
+              )}
             </div>
+
+            {unitView3D && selectedUnit.model_3d_status === 'completed' ? (
+              <div style={{
+                height: 220, width: '100%', position: 'relative',
+                borderRadius: 14, overflow: 'hidden',
+                background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
+                border: '1px solid rgba(0,61,166,0.08)',
+              }}>
+                {/* @ts-ignore */}
+                <model-viewer
+                  src={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/v1') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 7) : ((import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/api') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 4) : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'))}/api/v1/public/units/${selectedUnit.id}/3d-model/file`}
+                  camera-controls
+                  auto-rotate
+                  shadow-intensity="1"
+                  exposure="1.2"
+                  environment-image="neutral"
+                  style={{ width: '100%', height: '100%', '--poster-color': 'transparent' } as any}
+                />
+                <div style={{
+                  position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+                  padding: '2px 10px', borderRadius: 999,
+                  background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                  color: '#fff', fontSize: '0.65rem', fontWeight: 600,
+                  whiteSpace: 'nowrap', pointerEvents: 'none',
+                  opacity: 0.8,
+                }}>
+                  {t.interactHint}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: '#fff', borderRadius: 14, padding: 8,
+                border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
+                cursor: 'zoom-in'
+              }}
+                onClick={() => window.open(selectedUnit.layout_image_url?.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`, '_blank')}
+              >
+                <img
+                  src={selectedUnit.layout_image_url.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`}
+                  alt={`Unit ${selectedUnit.unit_number} Layout`}
+                  style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+                />
+              </div>
+            )}
           </div>
         )}
 

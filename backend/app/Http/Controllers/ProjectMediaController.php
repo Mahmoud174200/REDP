@@ -37,6 +37,120 @@ class ProjectMediaController extends Controller
     }
 
     /**
+     * Set up the number of units/apartments on a floor.
+     * Auto-creates new units or deletes excess available units.
+     */
+    public function setupUnitsForFloor(Request $request, string $projectId, string $buildingName, int $floorNum): JsonResponse
+    {
+        $request->validate([
+            'count' => 'required|integer|min:0|max:100',
+        ]);
+
+        $project = Project::findOrFail($projectId);
+        $count = (int) $request->input('count');
+
+        // Fetch current units for this building and floor
+        $existingUnits = Unit::where('project_id', $projectId)
+            ->where('building', $buildingName)
+            ->where('floor', $floorNum)
+            ->orderBy('unit_number', 'asc')
+            ->get();
+
+        $currentCount = $existingUnits->count();
+
+        if ($count > $currentCount) {
+            // Create missing units
+            $toCreate = $count - $currentCount;
+            $createdCount = 0;
+            
+            // Find the highest suffix currently used or default to 0
+            $highestSuffix = 0;
+            foreach ($existingUnits as $unit) {
+                // If unit number is like '305', suffix is 5.
+                // Let's parse the last 2 digits
+                $numStr = preg_replace('/[^0-9]/', '', $unit->unit_number);
+                if (strlen($numStr) >= 2) {
+                    $suffix = (int) substr($numStr, -2);
+                    if ($suffix > $highestSuffix) {
+                        $highestSuffix = $suffix;
+                    }
+                }
+            }
+
+            for ($i = 1; $i <= $toCreate; $i++) {
+                $suffix = $highestSuffix + $i;
+                $unitNumber = sprintf('%d%02d', $floorNum, $suffix);
+
+                Unit::create([
+                    'id' => (string) Str::uuid(),
+                    'project_id' => $projectId,
+                    'unit_number' => $unitNumber,
+                    'floor' => $floorNum,
+                    'building' => $buildingName,
+                    'type' => 'apartment',
+                    'price' => 1000000.00, // Default baseline price
+                    'status' => 'available',
+                ]);
+                $createdCount++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully created {$createdCount} new units on floor {$floorNum}.",
+            ]);
+        } elseif ($count < $currentCount) {
+            // Prune excess units, starting from highest unit number, but only if they are available
+            $toRemove = $currentCount - $count;
+            $removedCount = 0;
+            $skippedCount = 0;
+
+            // Fetch in descending order to delete from the end
+            $unitsToPrune = Unit::where('project_id', $projectId)
+                ->where('building', $buildingName)
+                ->where('floor', $floorNum)
+                ->orderBy('unit_number', 'desc')
+                ->get();
+
+            foreach ($unitsToPrune as $unit) {
+                if ($removedCount >= $toRemove) {
+                    break;
+                }
+
+                if ($unit->status === 'available') {
+                    // Check if unit has layout image, delete it from disk
+                    if ($unit->layout_image_url) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($unit->layout_image_url);
+                    }
+                    if ($unit->model_3d_url && !str_starts_with($unit->model_3d_url, 'http')) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($unit->model_3d_url);
+                    }
+                    $unit->delete();
+                    $removedCount++;
+                } else {
+                    $skippedCount++;
+                }
+            }
+
+            if ($removedCount < $toRemove) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Pruned {$removedCount} units. Skipped {$skippedCount} units because they are reserved/sold and cannot be deleted.",
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully pruned {$removedCount} excess units on floor {$floorNum}.",
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "No changes made. Floor {$floorNum} already has {$currentCount} units.",
+        ]);
+    }
+
+    /**
      * Upload building image.
      */
     public function uploadBuildingImage(Request $request, string $projectId): JsonResponse
@@ -157,7 +271,7 @@ class ProjectMediaController extends Controller
             $item = [
                 'id' => $m->id,
                 'reference_key' => $m->reference_key,
-                'image_url' => asset('storage/' . $m->image_path),
+                'image_url' => $m->image_path ? asset('storage/' . $m->image_path) : null,
                 'caption' => $m->caption,
             ];
 
@@ -175,6 +289,95 @@ class ProjectMediaController extends Controller
                 'building_images' => $buildingImages,
                 'floor_plan_images' => $floorPlanImages,
             ],
+        ]);
+    }
+
+    /**
+     * Setup building layout structure: name, floors count, units count per floor.
+     */
+    public function setupBuilding(Request $request, string $projectId): JsonResponse
+    {
+        $request->validate([
+            'building_name' => 'required|string|max:255',
+            'floors_count' => 'required|integer|min:1|max:50',
+            'units_per_floor' => 'required|integer|min:1|max:20',
+        ]);
+
+        $project = Project::findOrFail($projectId);
+        $buildingName = $request->input('building_name');
+        $floorsCount = (int) $request->input('floors_count');
+        $unitsPerFloor = (int) $request->input('units_per_floor');
+
+        $createdCount = 0;
+        for ($floor = 1; $floor <= $floorsCount; $floor++) {
+            $existingCount = Unit::where('project_id', $projectId)
+                ->where('building', $buildingName)
+                ->where('floor', $floor)
+                ->count();
+
+            if ($existingCount >= $unitsPerFloor) {
+                if ($existingCount > $unitsPerFloor) {
+                    $excess = $existingCount - $unitsPerFloor;
+                    $unitsToPrune = Unit::where('project_id', $projectId)
+                        ->where('building', $buildingName)
+                        ->where('floor', $floor)
+                        ->orderBy('unit_number', 'desc')
+                        ->get();
+
+                    $pruned = 0;
+                    foreach ($unitsToPrune as $unit) {
+                        if ($pruned >= $excess) break;
+                        if ($unit->status === 'available') {
+                            if ($unit->layout_image_url) {
+                                \Illuminate\Support\Facades\Storage::disk('public')->delete($unit->layout_image_url);
+                            }
+                            if ($unit->model_3d_url && !str_starts_with($unit->model_3d_url, 'http')) {
+                                \Illuminate\Support\Facades\Storage::disk('public')->delete($unit->model_3d_url);
+                            }
+                            $unit->delete();
+                            $pruned++;
+                        }
+                    }
+                }
+                continue;
+            }
+
+            $toCreate = $unitsPerFloor - $existingCount;
+            for ($i = 1; $i <= $toCreate; $i++) {
+                $suffix = $existingCount + $i;
+                $unitNumber = sprintf('%d%02d', $floor, $suffix);
+
+                Unit::create([
+                    'id' => (string) Str::uuid(),
+                    'project_id' => $projectId,
+                    'unit_number' => $unitNumber,
+                    'floor' => $floor,
+                    'building' => $buildingName,
+                    'type' => 'apartment',
+                    'price' => 1000000.00,
+                    'status' => 'available',
+                ]);
+                $createdCount++;
+            }
+        }
+
+        // Ensure ProjectMedia record exists so it registers in dashboard
+        ProjectMedia::firstOrCreate(
+            [
+                'project_id' => $projectId,
+                'media_type' => 'building',
+                'reference_key' => $buildingName,
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'image_path' => '', // Uploaded later
+                'caption' => $buildingName,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully configured building '{$buildingName}' with {$floorsCount} floors and {$unitsPerFloor} apartments per floor.",
         ]);
     }
 }

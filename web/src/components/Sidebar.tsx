@@ -74,10 +74,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       ]
     },
     {
-      title: 'Acquisition (Legacy)',
-      roles: ['admin', 'sales_agent'],
+      title: 'Acquisition',
+      roles: ['admin', 'sales_agent', 'company_sales'],
       items: [
-        { name: 'Leads & KYC', path: '/acquisition/leads', icon: Users },
+        { name: 'Leads & Appointments', path: '/acquisition/leads', icon: Users },
         { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple' },
         { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
         { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },

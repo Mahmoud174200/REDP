@@ -63,6 +63,9 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/projects/{projectId}/units', [\App\Http\Controllers\PublicLandingController::class, 'getProjectUnits']);
     Route::get('/projects/{projectId}/units-by-building', [\App\Http\Controllers\PublicLandingController::class, 'getProjectUnitsByBuilding']);
     Route::get('/projects/{projectId}/media', [\App\Http\Controllers\ProjectMediaController::class, 'getProjectMedia']);
+    Route::get('/projects/{projectId}/3d-models', [\App\Http\Controllers\Tripo3DController::class, 'publicModels']);
+    Route::get('/3d-models/{mediaId}/file', [\App\Http\Controllers\Tripo3DController::class, 'serveModelFile']);
+    Route::get('/units/{unitId}/3d-model/file', [\App\Http\Controllers\Tripo3DController::class, 'serveUnitModelFile']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
 });
@@ -450,6 +453,24 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/projects/{projectId}/building-image', [$mediaCtrl, 'uploadBuildingImage']);
         Route::post('/projects/{projectId}/floor-plan-image', [$mediaCtrl, 'uploadFloorPlanImage']);
         Route::post('/units/{unitId}/image', [$mediaCtrl, 'uploadUnitImage']);
+
+        // ── Tripo AI 3D Model Generation ──
+        $tripoCtrl = \App\Http\Controllers\Tripo3DController::class;
+        Route::post('/projects/{projectId}/generate-3d', [$tripoCtrl, 'generate']);
+        Route::get('/projects/{projectId}/3d-status', [$tripoCtrl, 'status']);
+        Route::delete('/3d-models/{mediaId}', [$tripoCtrl, 'deleteModel']);
+        Route::post('/3d-models/{mediaId}/regenerate', [$tripoCtrl, 'regenerate']);
+        Route::post('/3d-models/{mediaId}/copy-from', [$tripoCtrl, 'copyModel']);
+
+        // Floor Units Configuration
+        Route::post('/projects/{projectId}/setup-building', [$mediaCtrl, 'setupBuilding']);
+        Route::post('/projects/{projectId}/buildings/{buildingName}/floors/{floorNum}/setup-units', [$mediaCtrl, 'setupUnitsForFloor']);
+
+        // Unit 3D Model Generation
+        Route::post('/units/{unitId}/generate-3d', [$tripoCtrl, 'generateUnit3D']);
+        Route::post('/units/{unitId}/regenerate-3d', [$tripoCtrl, 'regenerateUnit3D']);
+        Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
+        Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
     });
 
     // ══════════════════════════════════════════════════════════

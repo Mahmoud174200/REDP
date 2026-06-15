@@ -17,6 +17,16 @@ class ProjectMedia extends Model
         'reference_key', // building name or "BuildingName|FloorNum"
         'image_path',
         'caption',
+        // Tripo AI 3D Model fields
+        'model_3d_status',   // 'pending', 'processing', 'completed', 'failed'
+        'model_3d_url',      // path to .glb file or remote URL
+        'tripo_task_id',     // Tripo task ID for polling
+        'tripo_error_msg',   // Error message if failed
+        'model_generated_at', // When model completed
+    ];
+
+    protected $casts = [
+        'model_generated_at' => 'datetime',
     ];
 
     public function project()
@@ -46,5 +56,39 @@ class ProjectMedia extends Model
     public function getImageUrlAttribute(): string
     {
         return asset('storage/' . $this->image_path);
+    }
+
+    /**
+     * Check if this media has a completed 3D model.
+     */
+    public function has3DModel(): bool
+    {
+        return $this->model_3d_status === 'completed' && !empty($this->model_3d_url);
+    }
+
+    /**
+     * Check if 3D generation is currently in progress.
+     */
+    public function is3DProcessing(): bool
+    {
+        return in_array($this->model_3d_status, ['pending', 'processing']);
+    }
+
+    /**
+     * Get the public URL for the 3D model file.
+     */
+    public function getModel3dPublicUrlAttribute(): ?string
+    {
+        if (!$this->model_3d_url) {
+            return null;
+        }
+
+        // If it's already a full URL (external), return as-is
+        if (str_starts_with($this->model_3d_url, 'http://') || str_starts_with($this->model_3d_url, 'https://')) {
+            return $this->model_3d_url;
+        }
+
+        // Otherwise, it's a local storage path
+        return asset('storage/' . $this->model_3d_url);
     }
 }

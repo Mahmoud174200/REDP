@@ -199,6 +199,12 @@ const AdminPanel: React.FC = () => {
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
   const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
+  const [building3DStatuses, setBuilding3DStatuses] = useState<any[]>([]);
+  const [is3DGenerating, setIs3DGenerating] = useState<string | null>(null);
+  const [newBName, setNewBName] = useState('');
+  const [newBFloors, setNewBFloors] = useState('3');
+  const [newBUnits, setNewBUnits] = useState('4');
+  const [isConfiguringB, setIsConfiguringB] = useState(false);
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectModalMode, setProjectModalMode] = useState<'add' | 'edit'>('add');
@@ -531,6 +537,17 @@ const AdminPanel: React.FC = () => {
   };
 
   // ── Project Media Handlers ──
+  const fetch3DStatuses = async (projectId: string) => {
+    try {
+      const res = await api.get(`/admin/projects/${projectId}/3d-status`);
+      if (res.data?.success) {
+        setBuilding3DStatuses(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch 3D model statuses', err);
+    }
+  };
+
   const openProjectMediaModal = async (project: ProjectItem) => {
     setSelectedProjectForMedia(project);
     setShowMediaModal(true);
@@ -540,11 +557,124 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         setProjectMedia(res.data.data);
       }
+      await fetch3DStatuses(project.id);
     } catch (err) {
       console.error('Failed to load project media', err);
       setProjectMedia({ project_image: null, building_images: {}, floor_plan_images: {} });
     } finally {
       setMediaLoading(false);
+    }
+  };
+
+  const handleGenerate3D = async (buildingName: string) => {
+    if (!selectedProjectForMedia) return;
+    setIs3DGenerating(buildingName);
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/generate-3d`, {
+        building_name: buildingName
+      });
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetch3DStatuses(selectedProjectForMedia.id);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to start 3D model generation');
+    } finally {
+      setIs3DGenerating(null);
+    }
+  };
+
+  const handleRegenerate3D = async (mediaId: string, buildingName: string) => {
+    if (!selectedProjectForMedia) return;
+    setIs3DGenerating(buildingName);
+    try {
+      const res = await api.post(`/admin/3d-models/${mediaId}/regenerate`);
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetch3DStatuses(selectedProjectForMedia.id);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to regenerate 3D model');
+    } finally {
+      setIs3DGenerating(null);
+    }
+  };
+
+  const handleDelete3D = async (mediaId: string, buildingName: string) => {
+    if (!selectedProjectForMedia) return;
+    if (!confirm(`Are you sure you want to delete the 3D model for ${buildingName}?`)) return;
+    setIs3DGenerating(buildingName);
+    try {
+      const res = await api.delete(`/admin/3d-models/${mediaId}`);
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetch3DStatuses(selectedProjectForMedia.id);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete 3D model');
+    } finally {
+      setIs3DGenerating(null);
+    }
+  };
+
+  const handleGenerateUnit3D = async (unitId: string) => {
+    try {
+      const res = await api.post(`/admin/units/${unitId}/generate-3d`);
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to start unit 3D model generation');
+    }
+  };
+
+  const handleRegenerateUnit3D = async (unitId: string) => {
+    try {
+      const res = await api.post(`/admin/units/${unitId}/regenerate-3d`);
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to regenerate unit 3D model');
+    }
+  };
+
+  const handleDeleteUnit3D = async (unitId: string) => {
+    if (!confirm('Are you sure you want to delete this unit 3D model?')) return;
+    try {
+      const res = await api.delete(`/admin/units/${unitId}/3d-model`);
+      if (res.data?.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete unit 3D model');
+    }
+  };
+
+  const handleSetupBuilding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectForMedia || !newBName) return;
+    setIsConfiguringB(true);
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/setup-building`, {
+        building_name: newBName,
+        floors_count: parseInt(newBFloors, 10),
+        units_per_floor: parseInt(newBUnits, 10),
+      });
+      alert(res.data.message);
+      setNewBName('');
+      await fetchData();
+      const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+      if (mediaRes.data?.success) {
+        setProjectMedia(mediaRes.data.data);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to setup building structure');
+    } finally {
+      setIsConfiguringB(false);
     }
   };
 
@@ -2942,14 +3072,80 @@ const AdminPanel: React.FC = () => {
                     Select a building to upload its rendering image and floor layouts. These floor plans should display the configuration of all apartments on that specific floor.
                   </p>
 
+                  {/* Building setup form */}
+                  <form onSubmit={handleSetupBuilding} style={{
+                    marginBottom: '24px',
+                    padding: '20px',
+                    background: 'rgba(59,130,246,0.03)',
+                    border: '1.5px solid rgba(59,130,246,0.1)',
+                    borderRadius: 'var(--radius-md)',
+                  }}>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--color-primary)', display: 'block', marginBottom: '12px' }}>
+                      🏗️ Setup Building/Block Structure (هيكلة وإضافة مبنى جديد)
+                    </strong>
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '15px',
+                      alignItems: 'flex-end'
+                    }}>
+                      <div style={{ flex: '2 1 200px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Building / Block Name (اسم البلوك/العمارة):</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Block A1, Block B"
+                          className="form-control"
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                          value={newBName}
+                          onChange={(e) => setNewBName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div style={{ flex: '1 1 100px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Total Floors (الأدوار):</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          className="form-control"
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                          value={newBFloors}
+                          onChange={(e) => setNewBFloors(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div style={{ flex: '1.2 1 120px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Apartments / Floor:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          className="form-control"
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                          value={newBUnits}
+                          onChange={(e) => setNewBUnits(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        style={{ padding: '8px 16px', fontSize: '0.8rem', height: 'auto', background: 'var(--color-primary)' }}
+                        disabled={isConfiguringB}
+                      >
+                        {isConfiguringB ? 'Configuring...' : 'Configure (هيكلة)'}
+                      </button>
+                    </div>
+                  </form>
+
                   {(() => {
-                    const uniqueBuildings = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && u.building).map(u => u.building as string)));
+                    const uniqueBuildings = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id).map(u => u.building || 'Main Building')));
 
                     if (uniqueBuildings.length === 0) {
                       return (
                         <div style={{ textAlign: 'center', padding: '30px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed rgba(0,0,0,0.08)' }}>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            No buildings or units found for this project. Please create units with building names in the "Units" tab first.
+                            No buildings configured yet. Use the form above to add a building and structure its floors/apartments.
                           </span>
                         </div>
                       );
@@ -2958,7 +3154,7 @@ const AdminPanel: React.FC = () => {
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         {uniqueBuildings.map((buildingName) => {
-                          const floors = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && u.building === buildingName).map(u => u.floor))).sort((a, b) => a - b);
+                          const floors = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building'))).map(u => u.floor))).sort((a, b) => a - b);
                           const bImage = projectMedia?.building_images?.[buildingName]?.image_url;
 
                           return (
@@ -2992,19 +3188,220 @@ const AdminPanel: React.FC = () => {
                                 </div>
                               </div>
 
+                              {/* 3D Model Generation Section */}
+                              <div style={{
+                                marginTop: '12px',
+                                marginBottom: '20px',
+                                padding: '14px 18px',
+                                background: 'rgba(59,130,246,0.04)',
+                                border: '1px solid rgba(59,130,246,0.12)',
+                                borderRadius: 'var(--radius-md)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '12px'
+                              }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tripo AI 3D Model</span>
+                                  {(() => {
+                                    const building3D = building3DStatuses.find(b => b.building_name === buildingName);
+                                    if (!bImage) {
+                                      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Upload an image first to generate 3D model.</span>;
+                                    }
+                                    if (!building3D || !building3D.model_3d_status) {
+                                      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No 3D model generated yet.</span>;
+                                    }
+
+                                    const statusColors: Record<string, string> = {
+                                      pending: '#f59e0b',
+                                      processing: '#3b82f6',
+                                      completed: '#10b981',
+                                      failed: '#ef4444'
+                                    };
+
+                                    return (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{
+                                          fontSize: '0.7rem',
+                                          fontWeight: 700,
+                                          textTransform: 'uppercase',
+                                          color: statusColors[building3D.model_3d_status] || '#64748b',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px'
+                                        }}>
+                                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColors[building3D.model_3d_status] || '#64748b' }} />
+                                          {building3D.model_3d_status}
+                                        </span>
+                                        {building3D.tripo_error_msg && (
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--color-danger)' }}>({building3D.tripo_error_msg})</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                  {(() => {
+                                    const building3D = building3DStatuses.find(b => b.building_name === buildingName);
+                                    const otherBuildingsWith3D = building3DStatuses.filter(b =>
+                                      b.building_name !== buildingName &&
+                                      b.model_3d_status === 'completed' &&
+                                      b.media_id
+                                    );
+
+                                    if (!building3D || otherBuildingsWith3D.length === 0) return null;
+
+                                    return (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Or copy 3D model from:</span>
+                                        <select
+                                          className="form-control"
+                                          style={{ padding: '2px 6px', fontSize: '0.72rem', width: 'auto', height: 'auto' }}
+                                          onChange={async (e) => {
+                                            const sourceMediaId = e.target.value;
+                                            if (!sourceMediaId) return;
+                                            try {
+                                              const res = await api.post(`/admin/3d-models/${building3D.media_id}/copy-from`, {
+                                                copy_from_media_id: sourceMediaId
+                                              });
+                                              alert(res.data.message);
+                                              await fetch3DStatuses(selectedProjectForMedia.id);
+                                            } catch (err: any) {
+                                              alert(err.response?.data?.message || 'Failed to copy model');
+                                            }
+                                          }}
+                                          defaultValue=""
+                                        >
+                                          <option value="">-- Select --</option>
+                                          {otherBuildingsWith3D.map(ob => (
+                                            <option key={ob.media_id} value={ob.media_id}>{ob.building_name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                <div>
+                                  {(() => {
+                                    const building3D = building3DStatuses.find(b => b.building_name === buildingName);
+                                    const isGeneratingThis = is3DGenerating === buildingName;
+
+                                    if (!bImage) return null;
+
+                                    if (!building3D || !building3D.model_3d_status) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn-primary"
+                                          style={{ padding: '6px 14px', fontSize: '0.75rem', height: 'auto', background: 'var(--color-primary)' }}
+                                          disabled={isGeneratingThis}
+                                          onClick={() => handleGenerate3D(buildingName)}
+                                        >
+                                          {isGeneratingThis ? 'Requesting...' : 'Generate 3D Model'}
+                                        </button>
+                                      );
+                                    }
+
+                                    if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
+                                      return (
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Processing on Tripo...</span>
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto' }}
+                                            onClick={() => fetch3DStatuses(selectedProjectForMedia.id)}
+                                          >
+                                            Refresh
+                                          </button>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        {building3D.model_3d_status === 'completed' && building3D.model_3d_url && (
+                                          <a
+                                            href={building3D.model_3d_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn-secondary"
+                                            style={{ padding: '6px 12px', fontSize: '0.72rem', color: 'var(--color-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                                          >
+                                            Download GLB
+                                          </a>
+                                        )}
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                                          disabled={isGeneratingThis}
+                                          onClick={() => handleRegenerate3D(building3D.media_id, buildingName)}
+                                        >
+                                          {isGeneratingThis ? 'Requesting...' : 'Regenerate'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          style={{ padding: '6px 12px', fontSize: '0.72rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }}
+                                          disabled={isGeneratingThis}
+                                          onClick={() => handleDelete3D(building3D.media_id, buildingName)}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Floor & Apartment Layout Maps (مخططات الأدوار والشقق):</span>
                                 {floors.map((floorNum) => {
                                   const refKey = `${buildingName}|${floorNum}`;
                                   const fImage = projectMedia?.floor_plan_images?.[refKey]?.image_url;
-                                  const floorUnits = units.filter(u => u.project_id === selectedProjectForMedia.id && u.building === buildingName && u.floor === floorNum);
+                                  const floorUnits = units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building')) && u.floor === floorNum);
 
                                   return (
                                     <div key={floorNum} style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                                       {/* Floor plan row */}
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map</span>
-                                        
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>Apartments:</span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            defaultValue={floorUnits.length}
+                                            id={`units-count-${buildingName}-${floorNum}`}
+                                            style={{ width: '45px', padding: '2px 4px', fontSize: '0.72rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.15)' }}
+                                          />
+                                          <button
+                                            type="button"
+                                            className="btn-primary"
+                                            style={{ padding: '2px 6px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
+                                            onClick={async () => {
+                                              const inputVal = (document.getElementById(`units-count-${buildingName}-${floorNum}`) as HTMLInputElement)?.value;
+                                              const newCount = parseInt(inputVal || '0', 10);
+                                              try {
+                                                const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/buildings/${buildingName}/floors/${floorNum}/setup-units`, {
+                                                  count: newCount
+                                                });
+                                                alert(res.data.message);
+                                                await fetchData();
+                                                const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+                                                if (mediaRes.data?.success) {
+                                                  setProjectMedia(mediaRes.data.data);
+                                                }
+                                              } catch (err: any) {
+                                                alert(err.response?.data?.message || 'Failed to setup units count.');
+                                              }
+                                            }}
+                                          >
+                                            Set
+                                          </button>
+                                        </div>
                                         <div>
                                           <input
                                             type="file"
@@ -3038,30 +3435,166 @@ const AdminPanel: React.FC = () => {
                                           {floorUnits.map((unit) => {
                                             const uImage = unit.layout_image_url;
                                             return (
-                                              <div key={unit.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr', gap: '15px', alignItems: 'center', background: '#fcfcfc', border: '1px dashed rgba(0,0,0,0.04)', borderRadius: '4px', padding: '6px 10px' }}>
-                                                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#4b5563' }}>
-                                                  Unit {unit.unit_number} ({unit.type})
-                                                </span>
-                                                <div>
-                                                  <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="form-control"
-                                                    style={{ padding: '2px 4px', fontSize: '0.68rem', height: 'auto' }}
-                                                    onChange={(e) => handleUploadUnitLayoutImage(unit.id, e)}
-                                                  />
-                                                  {uploadingUnitLayout && <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)' }}>Uploading...</span>}
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                  {uImage ? (
-                                                    <img
-                                                      src={uImage.startsWith('http') ? uImage : `http://127.0.0.1:8000/storage/${uImage}`}
-                                                      alt={`Unit ${unit.unit_number}`}
-                                                      style={{ maxHeight: '25px', maxWidth: '60px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-glass)' }}
+                                              <div key={unit.id} style={{ background: '#fcfcfc', border: '1px dashed rgba(0,0,0,0.04)', borderRadius: '4px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
+                                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#4b5563' }}>
+                                                    Unit {unit.unit_number} ({unit.type}) - <strong style={{ color: unit.status === 'available' ? 'var(--color-success)' : 'var(--color-danger)' }}>{unit.status.toUpperCase()}</strong>
+                                                  </span>
+                                                  <div>
+                                                    <input
+                                                      type="file"
+                                                      accept="image/*"
+                                                      className="form-control"
+                                                      style={{ padding: '2px 4px', fontSize: '0.68rem', height: 'auto' }}
+                                                      onChange={(e) => handleUploadUnitLayoutImage(unit.id, e)}
                                                     />
-                                                  ) : (
-                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>No layout plan</span>
-                                                  )}
+                                                    {uploadingUnitLayout && <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)' }}>Uploading...</span>}
+                                                  </div>
+                                                  <div style={{ textAlign: 'right' }}>
+                                                    {uImage ? (
+                                                      <img
+                                                        src={uImage.startsWith('http') ? uImage : `http://127.0.0.1:8000/storage/${uImage}`}
+                                                        alt={`Unit ${unit.unit_number}`}
+                                                        style={{ maxHeight: '25px', maxWidth: '60px', objectFit: 'contain', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-glass)' }}
+                                                      />
+                                                    ) : (
+                                                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>No layout plan</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Unit 3D Controls */}
+                                                <div style={{
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'space-between',
+                                                  background: 'rgba(59,130,246,0.02)',
+                                                  border: '1px solid rgba(59,130,246,0.06)',
+                                                  padding: '6px 10px',
+                                                  borderRadius: '4px',
+                                                  flexWrap: 'wrap',
+                                                  gap: '8px'
+                                                }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>3D Model:</span>
+                                                    {uImage ? (
+                                                      <>
+                                                        {unit.model_3d_status ? (
+                                                          <span style={{
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 700,
+                                                            color: unit.model_3d_status === 'completed' ? '#10b981' : unit.model_3d_status === 'failed' ? '#ef4444' : '#f59e0b'
+                                                          }}>
+                                                            {unit.model_3d_status.toUpperCase()}
+                                                          </span>
+                                                        ) : (
+                                                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NOT GENERATED</span>
+                                                        )}
+                                                        {unit.tripo_error_msg && (
+                                                          <span style={{ fontSize: '0.65rem', color: '#ef4444' }} title={unit.tripo_error_msg}>({unit.tripo_error_msg.substring(0, 25)}...)</span>
+                                                        )}
+                                                      </>
+                                                    ) : (
+                                                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NO IMAGE</span>
+                                                    )}
+                                                  </div>
+
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    {uImage && (
+                                                      <>
+                                                        {(!unit.model_3d_status || unit.model_3d_status === 'failed') && (
+                                                          <button
+                                                            type="button"
+                                                            className="btn-primary"
+                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
+                                                            onClick={() => handleGenerateUnit3D(unit.id)}
+                                                          >
+                                                            Generate 3D
+                                                          </button>
+                                                        )}
+
+                                                        {(unit.model_3d_status === 'pending' || unit.model_3d_status === 'processing') && (
+                                                          <button
+                                                            type="button"
+                                                            className="btn-secondary"
+                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto' }}
+                                                            onClick={fetchData}
+                                                          >
+                                                            Refresh
+                                                          </button>
+                                                        )}
+
+                                                        {unit.model_3d_status === 'completed' && (
+                                                          <>
+                                                            {unit.model_3d_url && (
+                                                              <a
+                                                                href={unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="btn-secondary"
+                                                                style={{ padding: '2px 8px', fontSize: '0.68rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
+                                                              >
+                                                                View 3D
+                                                              </a>
+                                                            )}
+                                                            <button
+                                                              type="button"
+                                                              className="btn-secondary"
+                                                              style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto' }}
+                                                              onClick={() => handleRegenerateUnit3D(unit.id)}
+                                                            >
+                                                              Regenerate
+                                                            </button>
+                                                            <button
+                                                              type="button"
+                                                              className="btn-secondary"
+                                                              style={{ padding: '2px 8px', fontSize: '0.68rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', height: 'auto' }}
+                                                              onClick={() => handleDeleteUnit3D(unit.id)}
+                                                            >
+                                                              Delete
+                                                            </button>
+                                                          </>
+                                                        )}
+                                                      </>
+                                                    )}
+
+                                                    {/* Copy unit layout dropdown */}
+                                                    {(() => {
+                                                      const otherUnitsWithLayout = units.filter(u =>
+                                                        u.project_id === selectedProjectForMedia.id &&
+                                                        u.id !== unit.id &&
+                                                        u.layout_image_url
+                                                      );
+
+                                                      if (otherUnitsWithLayout.length === 0) return null;
+
+                                                      return (
+                                                        <select
+                                                          className="form-control"
+                                                          style={{ padding: '2px 4px', fontSize: '0.65rem', width: 'auto', height: 'auto', display: 'inline-block' }}
+                                                          defaultValue=""
+                                                          onChange={async (e) => {
+                                                            const srcId = e.target.value;
+                                                            if (!srcId) return;
+                                                            try {
+                                                              const res = await api.post(`/admin/units/${unit.id}/copy-3d-from`, {
+                                                                copy_from_unit_id: srcId
+                                                              });
+                                                              alert(res.data.message);
+                                                              await fetchData();
+                                                            } catch (err: any) {
+                                                              alert(err.response?.data?.message || 'Failed to copy layout');
+                                                            }
+                                                          }}
+                                                        >
+                                                          <option value="">Copy Layout From...</option>
+                                                          {otherUnitsWithLayout.map(ou => (
+                                                            <option key={ou.id} value={ou.id}>Unit {ou.unit_number} ({ou.building || 'Main'})</option>
+                                                          ))}
+                                                        </select>
+                                                      );
+                                                    })()}
+                                                  </div>
                                                 </div>
                                               </div>
                                             );
