@@ -29,13 +29,14 @@ class GenerateBuilding3DJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public ProjectMedia $media
+        public ProjectMedia $media,
+        public bool $preprocessWithChatgpt = false
     ) {}
 
     /**
      * Execute the job.
      */
-    public function handle(TripoService $tripoService): void
+    public function handle(TripoService $tripoService, \App\Services\GeminiService $geminiService): void
     {
         $media = $this->media;
 
@@ -44,6 +45,7 @@ class GenerateBuilding3DJob implements ShouldQueue
             'project_id' => $media->project_id,
             'building' => $media->reference_key,
             'image_path' => $media->image_path,
+            'preprocess' => $this->preprocessWithChatgpt,
         ]);
 
         try {
@@ -55,11 +57,16 @@ class GenerateBuilding3DJob implements ShouldQueue
             // Set status to processing
             $media->update([
                 'model_3d_status' => 'processing',
-                'tripo_error_msg' => null,
+                'tripo_error_msg' => $this->preprocessWithChatgpt ? 'Preprocessing layout with Gemini...' : null,
             ]);
 
+            $imagePath = $media->image_path;
+            if ($this->preprocessWithChatgpt) {
+                $imagePath = $geminiService->preprocessFloorPlan($imagePath);
+            }
+
             // Step 1: Upload image to Tripo
-            $uploadResult = $tripoService->uploadImage($media->image_path);
+            $uploadResult = $tripoService->uploadImage($imagePath);
             $imageToken = $uploadResult['image_token'] ?? null;
 
             if (!$imageToken) {

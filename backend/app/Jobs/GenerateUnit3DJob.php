@@ -19,10 +19,11 @@ class GenerateUnit3DJob implements ShouldQueue
     public int $timeout = 300;
 
     public function __construct(
-        public Unit $unit
+        public Unit $unit,
+        public bool $preprocessWithChatgpt = false
     ) {}
 
-    public function handle(TripoService $tripoService): void
+    public function handle(TripoService $tripoService, \App\Services\GeminiService $geminiService): void
     {
         $unit = $this->unit;
 
@@ -31,6 +32,7 @@ class GenerateUnit3DJob implements ShouldQueue
             'project_id' => $unit->project_id,
             'unit_number' => $unit->unit_number,
             'image_path' => $unit->layout_image_url,
+            'preprocess' => $this->preprocessWithChatgpt,
         ]);
 
         try {
@@ -40,11 +42,16 @@ class GenerateUnit3DJob implements ShouldQueue
 
             $unit->update([
                 'model_3d_status' => 'processing',
-                'tripo_error_msg' => null,
+                'tripo_error_msg' => $this->preprocessWithChatgpt ? 'Preprocessing layout with Gemini...' : null,
             ]);
 
+            $imagePath = $unit->layout_image_url;
+            if ($this->preprocessWithChatgpt) {
+                $imagePath = $geminiService->preprocessFloorPlan($imagePath);
+            }
+
             // Step 1: Upload image to Tripo
-            $uploadResult = $tripoService->uploadImage($unit->layout_image_url);
+            $uploadResult = $tripoService->uploadImage($imagePath);
             $imageToken = $uploadResult['image_token'] ?? null;
 
             if (!$imageToken) {

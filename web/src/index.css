@@ -7,29 +7,29 @@
   --font-title: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Ethereal Botanical Light Theme (mockup spec) */
-  --bg-primary: #f2f6f1;
-  --bg-secondary: rgba(255, 255, 255, 0.65);
+  /* Ethereal Executive Blue & Gold Light Theme (landing page specs) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: rgba(255, 255, 255, 0.75);
   
   /* Highly blurred milk glass tokens */
-  --bg-glass: rgba(255, 255, 255, 0.82);
-  --border-glass: rgba(255, 255, 255, 0.9);
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(255, 255, 255, 0.95);
   --backdrop-blur: blur(28px);
   
-  /* Deep forest-charcoal color palette */
-  --color-primary: #32473a;       /* Deep Forest Slate */
-  --color-primary-hover: #1e2c24;
-  --color-secondary: #a1b7a7;     /* Soft Mint Gray */
-  --color-success: #2e7d32;       /* Moss Green */
-  --color-warning: #d0941e;       /* Wheat Gold */
-  --color-danger: #d32f2f;        /* Soft Ruby */
+  /* Executive blue & sand gold color palette */
+  --color-primary: #003DA6;       /* Royal Blue */
+  --color-primary-hover: #001A70; /* Deep Midnight Blue */
+  --color-secondary: #C5A880;     /* Sandy / Champagne Gold */
+  --color-success: #16a34a;       /* Clean Green */
+  --color-warning: #ea580c;       /* Clean Orange */
+  --color-danger: #ef4444;        /* Soft Ruby Red */
 
-  --text-main: #1d2d24;           /* Deep Charcoal Green */
-  --text-muted: #5c7064;          /* Slate Green */
-  --text-inverse: #f3f6f1;
+  --text-main: #0f172a;           /* Deep Navy Slate */
+  --text-muted: #64748b;          /* Slate Cool Gray */
+  --text-inverse: #ffffff;
 
-  --shadow-premium: 0 15px 35px -10px rgba(44, 62, 50, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.5);
-  --shadow-glow: 0 0 25px rgba(200, 220, 205, 0.4);
+  --shadow-premium: 0 15px 35px -10px rgba(0, 61, 166, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+  --shadow-glow: 0 0 25px rgba(0, 61, 166, 0.08);
   
   --radius-sm: 14px;
   --radius-md: 24px;
@@ -48,8 +48,8 @@
 }
 
 body {
-  /* Botanical radial blends: Sage, wheat, soft cream */
-  background: radial-gradient(circle at 10% 20%, rgba(203, 222, 209, 0.45) 0%, rgba(246, 248, 244, 0.85) 60%, rgba(228, 237, 222, 0.4) 100%), #f2f6f1;
+  /* Executive Blue and Gold radial blends */
+  background: radial-gradient(circle at 10% 20%, rgba(0, 61, 166, 0.04) 0%, rgba(248, 250, 252, 0.95) 60%, rgba(197, 168, 128, 0.03) 100%), #f8fafc;
   color: var(--text-main);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -628,3 +628,53 @@ p {
     opacity: 1;
   }
 }
+
+/* ───────────────────────────────────────────────────
+   Premium Custom File Inputs
+   ─────────────────────────────────────────────────── */
+.custom-file-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1.5px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: 0 2px 6px rgba(44, 62, 50, 0.02);
+  user-select: none;
+}
+
+.custom-file-upload:hover {
+  background: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(44, 62, 50, 0.06);
+  transform: translateY(-1px);
+}
+
+.custom-file-upload:active {
+  transform: translateY(0);
+}
+
+.custom-file-upload input[type="file"] {
+  display: none !important;
+}
+
+.custom-file-upload.small {
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  border-radius: 8px;
+}
+
+.custom-file-upload.full-width {
+  display: flex;
+  width: 100%;
+}
+

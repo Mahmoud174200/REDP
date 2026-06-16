@@ -271,6 +271,10 @@ const InteractiveUnitSelection: React.FC = () => {
   const [building3DModels, setBuilding3DModels] = useState<Record<string, { status: string; model_url: string | null }>>({});
   const [active3DBuilding, setActive3DBuilding] = useState<string | null>(null);
 
+  // Fullscreen 3D Viewer Modal State
+  const [fullscreenModelUrl, setFullscreenModelUrl] = useState<string | null>(null);
+  const [fullscreenModelTitle, setFullscreenModelTitle] = useState<string>('');
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -865,7 +869,7 @@ const InteractiveUnitSelection: React.FC = () => {
                   {is3DActive && has3DModel ? (
                     <div
                       style={{
-                        height: 280, width: '100%', position: 'relative',
+                        height: 340, width: '100%', position: 'relative',
                         borderBottom: '1px solid rgba(197,168,128,0.2)',
                         background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
                       }}
@@ -885,6 +889,29 @@ const InteractiveUnitSelection: React.FC = () => {
                           '--poster-color': 'transparent',
                         } as any}
                       />
+                      {/* Maximize button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFullscreenModelUrl(model3D.model_url);
+                          setFullscreenModelTitle(building.name);
+                        }}
+                        style={{
+                          position: 'absolute', top: 12, left: lang === 'ar' ? 12 : 'auto', right: lang === 'ar' ? 'auto' : 12,
+                          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(0,61,166,0.1)', cursor: 'pointer',
+                          width: '32px', height: '32px', borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#003DA6', zIndex: 10,
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        <Maximize size={14} />
+                      </button>
                       {/* Interaction hint */}
                       <div style={{
                         position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
@@ -1557,7 +1584,7 @@ const InteractiveUnitSelection: React.FC = () => {
 
             {unitView3D && selectedUnit.model_3d_status === 'completed' ? (
               <div style={{
-                height: 220, width: '100%', position: 'relative',
+                height: 280, width: '100%', position: 'relative',
                 borderRadius: 14, overflow: 'hidden',
                 background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
                 border: '1px solid rgba(0,61,166,0.08)',
@@ -1572,6 +1599,32 @@ const InteractiveUnitSelection: React.FC = () => {
                   environment-image="neutral"
                   style={{ width: '100%', height: '100%', '--poster-color': 'transparent' } as any}
                 />
+                {/* Maximize button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api');
+                    const normalizedBase = baseUrl.endsWith('/v1') 
+                      ? baseUrl.substring(0, baseUrl.length - 7) 
+                      : (baseUrl.endsWith('/api') ? baseUrl.substring(0, baseUrl.length - 4) : baseUrl);
+                    setFullscreenModelUrl(`${normalizedBase}/api/v1/public/units/${selectedUnit.id}/3d-model/file`);
+                    setFullscreenModelTitle(`${lang === 'ar' ? 'الوحدة' : 'Unit'} ${selectedUnit.unit_number}`);
+                  }}
+                  style={{
+                    position: 'absolute', top: 12, left: lang === 'ar' ? 12 : 'auto', right: lang === 'ar' ? 'auto' : 12,
+                    background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(0,61,166,0.1)', cursor: 'pointer',
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#003DA6', zIndex: 10,
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Maximize size={14} />
+                </button>
                 <div style={{
                   position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
                   padding: '2px 10px', borderRadius: 999,
@@ -2229,6 +2282,88 @@ const InteractiveUnitSelection: React.FC = () => {
 
       {/* ─── Reservation Modal ─── */}
       {renderReserveModal()}
+
+      {/* ─── Fullscreen 3D Model Modal ─── */}
+      {fullscreenModelUrl && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,15,61,0.7)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3000,
+          animation: 'us3d-modalFade 0.3s ease forwards',
+          padding: '24px',
+        }}
+          onClick={() => { setFullscreenModelUrl(null); setFullscreenModelTitle(''); }}
+        >
+          <div 
+            style={{
+              background: '#ffffff',
+              borderRadius: 28,
+              padding: '24px',
+              maxWidth: '90vw', width: '100%',
+              height: '85vh',
+              boxShadow: '0 30px 70px rgba(0,15,61,0.25)',
+              display: 'flex', flexDirection: 'column',
+              animation: 'us3d-modalSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              position: 'relative',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(0,61,166,0.08)', paddingBottom: '12px' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#003DA6', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🧊 {lang === 'ar' ? 'معاينة ثلاثية الأبعاد تفاعلية' : 'Interactive 3D Preview'} — {fullscreenModelTitle}
+              </h3>
+              <button 
+                onClick={() => { setFullscreenModelUrl(null); setFullscreenModelTitle(''); }}
+                style={{ 
+                  background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', 
+                  width: '36px', height: '36px', borderRadius: '50%', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#64748b', transition: 'all 0.3s ease' 
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 3D Model Viewer container */}
+            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 16, overflow: 'hidden', border: '1.5px solid rgba(0,61,166,0.08)' }}>
+              {/* @ts-ignore */}
+              <model-viewer
+                src={fullscreenModelUrl}
+                camera-controls
+                auto-rotate
+                shadow-intensity="1.5"
+                exposure="1.2"
+                environment-image="neutral"
+                style={{
+                  width: '100%', height: '100%',
+                  '--poster-color': 'transparent',
+                } as any}
+              />
+              
+              {/* Controls guide */}
+              <div style={{
+                position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+                padding: '8px 20px', borderRadius: 999,
+                background: 'rgba(0,15,61,0.65)', backdropFilter: 'blur(8px)',
+                color: '#fff', fontSize: '0.75rem', fontWeight: 600,
+                whiteSpace: 'nowrap', pointerEvents: 'none',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}>
+                <span>🖱️ {lang === 'ar' ? 'اسحب للتدوير' : 'Drag to rotate'}</span>
+                <span style={{ opacity: 0.5 }}>|</span>
+                <span>🔍 {lang === 'ar' ? 'استخدم البكرة للتكبير' : 'Scroll to zoom'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Footer ─── */}
       <footer style={{

@@ -24,6 +24,7 @@ class Tripo3DController extends Controller
     {
         $request->validate([
             'building_name' => 'required|string|max:255',
+            'preprocess_with_chatgpt' => 'nullable|boolean',
         ]);
 
         $project = Project::findOrFail($projectId);
@@ -78,11 +79,11 @@ class Tripo3DController extends Controller
             'model_3d_status' => 'pending',
             'model_3d_url' => null,
             'tripo_task_id' => null,
-            'tripo_error_msg' => null,
+            'tripo_error_msg' => $request->boolean('preprocess_with_chatgpt') ? 'Preprocessing layout with Gemini...' : null,
             'model_generated_at' => null,
         ]);
 
-        GenerateBuilding3DJob::dispatch($media);
+        GenerateBuilding3DJob::dispatch($media, $request->boolean('preprocess_with_chatgpt'));
 
         Log::info('tripo.controller.generate.dispatched', [
             'project_id' => $projectId,
@@ -174,7 +175,7 @@ class Tripo3DController extends Controller
      *
      * POST /v1/admin/3d-models/{mediaId}/regenerate
      */
-    public function regenerate(string $mediaId): JsonResponse
+    public function regenerate(Request $request, string $mediaId): JsonResponse
     {
         $media = ProjectMedia::findOrFail($mediaId);
 
@@ -209,11 +210,11 @@ class Tripo3DController extends Controller
             'model_3d_status' => 'pending',
             'model_3d_url' => null,
             'tripo_task_id' => null,
-            'tripo_error_msg' => null,
+            'tripo_error_msg' => $request->boolean('preprocess_with_chatgpt') ? 'Preprocessing layout with Gemini...' : null,
             'model_generated_at' => null,
         ]);
 
-        GenerateBuilding3DJob::dispatch($media);
+        GenerateBuilding3DJob::dispatch($media, $request->boolean('preprocess_with_chatgpt'));
 
         Log::info('tripo.controller.model.regenerating', [
             'media_id' => $mediaId,
@@ -387,11 +388,11 @@ class Tripo3DController extends Controller
             'model_3d_status' => 'pending',
             'model_3d_url' => null,
             'tripo_task_id' => null,
-            'tripo_error_msg' => null,
+            'tripo_error_msg' => $request->boolean('preprocess_with_chatgpt') ? 'Preprocessing layout with Gemini...' : null,
             'model_generated_at' => null,
         ]);
 
-        GenerateUnit3DJob::dispatch($unit);
+        GenerateUnit3DJob::dispatch($unit, $request->boolean('preprocess_with_chatgpt'));
 
         return response()->json([
             'success' => true,
@@ -402,7 +403,7 @@ class Tripo3DController extends Controller
     /**
      * Regenerate 3D model for a unit.
      */
-    public function regenerateUnit3D(string $unitId): JsonResponse
+    public function regenerateUnit3D(Request $request, string $unitId): JsonResponse
     {
         $unit = Unit::findOrFail($unitId);
 
@@ -441,11 +442,11 @@ class Tripo3DController extends Controller
             'model_3d_status' => 'pending',
             'model_3d_url' => null,
             'tripo_task_id' => null,
-            'tripo_error_msg' => null,
+            'tripo_error_msg' => $request->boolean('preprocess_with_chatgpt') ? 'Preprocessing layout with Gemini...' : null,
             'model_generated_at' => null,
         ]);
 
-        GenerateUnit3DJob::dispatch($unit);
+        GenerateUnit3DJob::dispatch($unit, $request->boolean('preprocess_with_chatgpt'));
 
         return response()->json([
             'success' => true,

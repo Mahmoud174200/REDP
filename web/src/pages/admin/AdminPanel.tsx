@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Settings, Plus, Edit2, Trash2, Key, ToggleLeft, ToggleRight,
   Save, X, Search, Building2, ClipboardList, AlertCircle, FileText,
-  Trash, RefreshCw, Layers, UserCheck, ShieldAlert, Activity, Monitor
+  Trash, RefreshCw, Layers, UserCheck, ShieldAlert, Activity, Monitor,
+  UploadCloud
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -201,6 +202,8 @@ const AdminPanel: React.FC = () => {
   const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
   const [building3DStatuses, setBuilding3DStatuses] = useState<any[]>([]);
   const [is3DGenerating, setIs3DGenerating] = useState<string | null>(null);
+  const [buildingPreprocess, setBuildingPreprocess] = useState<Record<string, boolean>>({});
+  const [unitPreprocess, setUnitPreprocess] = useState<Record<string, boolean>>({});
   const [newBName, setNewBName] = useState('');
   const [newBFloors, setNewBFloors] = useState('3');
   const [newBUnits, setNewBUnits] = useState('4');
@@ -566,12 +569,13 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleGenerate3D = async (buildingName: string) => {
+  const handleGenerate3D = async (buildingName: string, preprocess = false) => {
     if (!selectedProjectForMedia) return;
     setIs3DGenerating(buildingName);
     try {
       const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/generate-3d`, {
-        building_name: buildingName
+        building_name: buildingName,
+        preprocess_with_chatgpt: preprocess
       });
       if (res.data?.success) {
         alert(res.data.message);
@@ -584,11 +588,13 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleRegenerate3D = async (mediaId: string, buildingName: string) => {
+  const handleRegenerate3D = async (mediaId: string, buildingName: string, preprocess = false) => {
     if (!selectedProjectForMedia) return;
     setIs3DGenerating(buildingName);
     try {
-      const res = await api.post(`/admin/3d-models/${mediaId}/regenerate`);
+      const res = await api.post(`/admin/3d-models/${mediaId}/regenerate`, {
+        preprocess_with_chatgpt: preprocess
+      });
       if (res.data?.success) {
         alert(res.data.message);
         await fetch3DStatuses(selectedProjectForMedia.id);
@@ -617,9 +623,11 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleGenerateUnit3D = async (unitId: string) => {
+  const handleGenerateUnit3D = async (unitId: string, preprocess = false) => {
     try {
-      const res = await api.post(`/admin/units/${unitId}/generate-3d`);
+      const res = await api.post(`/admin/units/${unitId}/generate-3d`, {
+        preprocess_with_chatgpt: preprocess
+      });
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
@@ -629,9 +637,11 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleRegenerateUnit3D = async (unitId: string) => {
+  const handleRegenerateUnit3D = async (unitId: string, preprocess = false) => {
     try {
-      const res = await api.post(`/admin/units/${unitId}/regenerate-3d`);
+      const res = await api.post(`/admin/units/${unitId}/regenerate-3d`, {
+        preprocess_with_chatgpt: preprocess
+      });
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
@@ -1952,26 +1962,34 @@ const AdminPanel: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 700 }}>Upload Custom Icon File</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="form-control"
-                      style={{ padding: '6px' }}
-                      onChange={(e) => handleFileUpload(e, 'icon')}
-                    />
+                    <div style={{ marginTop: '4px' }}>
+                      <label className="custom-file-upload full-width">
+                        <UploadCloud size={16} />
+                        <span>Choose Icon Image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileUpload(e, 'icon')}
+                        />
+                      </label>
+                    </div>
                     {uploadingIcon && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading...</span>}
                   </div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 700 }}>Upload Custom Logo File</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-control"
-                    style={{ padding: '6px' }}
-                    onChange={(e) => handleFileUpload(e, 'logo')}
-                  />
+                  <div style={{ marginTop: '4px' }}>
+                    <label className="custom-file-upload full-width">
+                      <UploadCloud size={16} />
+                      <span>Choose Logo Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, 'logo')}
+                      />
+                    </label>
+                  </div>
                   {uploadingLogo && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading...</span>}
                 </div>
 
@@ -2553,13 +2571,17 @@ const AdminPanel: React.FC = () => {
               {unitModalMode === 'edit' && selectedUnit && (
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ fontWeight: 700 }}>Unit Floor Plan Layout Image (صورة تقسيمة الشقة)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-control"
-                    style={{ padding: '6px' }}
-                    onChange={(e) => handleUploadUnitLayoutImage(selectedUnit.id, e)}
-                  />
+                  <div style={{ marginTop: '4px' }}>
+                    <label className="custom-file-upload full-width">
+                      <UploadCloud size={16} />
+                      <span>Choose Layout Image / اختر صورة التقسيمة</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleUploadUnitLayoutImage(selectedUnit.id, e)}
+                      />
+                    </label>
+                  </div>
                   {uploadingUnitLayout && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading image...</span>}
                   {selectedUnit.layout_image_url && (
                     <div style={{ marginTop: '10px' }}>
@@ -3036,13 +3058,17 @@ const AdminPanel: React.FC = () => {
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
                         This image represents the overall layout of the project compound and is displayed to the user in the first stage of the interactive 3D Unit Selector.
                       </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="form-control"
-                        style={{ padding: '6px' }}
-                        onChange={handleUploadProjectImage}
-                      />
+                      <div style={{ marginTop: '4px' }}>
+                        <label className="custom-file-upload full-width">
+                          <UploadCloud size={16} />
+                          <span>Choose Master Plan / اختر المخطط العام</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleUploadProjectImage}
+                          />
+                        </label>
+                      </div>
                       {uploadingMediaKey === 'project' && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading master plan...</span>}
                     </div>
                     <div>
@@ -3165,13 +3191,17 @@ const AdminPanel: React.FC = () => {
                                   <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName}</strong>
                                   <div style={{ marginTop: '8px' }}>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Upload Building Exterior Image:</label>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="form-control"
-                                      style={{ padding: '4px 8px', fontSize: '0.75rem', height: 'auto' }}
-                                      onChange={(e) => handleUploadBuildingImage(buildingName, e)}
-                                    />
+                                    <div style={{ marginTop: '4px' }}>
+                                      <label className="custom-file-upload small full-width">
+                                        <UploadCloud size={14} />
+                                        <span>Choose Exterior Image</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => handleUploadBuildingImage(buildingName, e)}
+                                        />
+                                      </label>
+                                    </div>
                                     {uploadingMediaKey === `building-${buildingName}` && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading building photo...</span>}
                                   </div>
                                 </div>
@@ -3272,8 +3302,8 @@ const AdminPanel: React.FC = () => {
                                           defaultValue=""
                                         >
                                           <option value="">-- Select --</option>
-                                          {otherBuildingsWith3D.map(ob => (
-                                            <option key={ob.media_id} value={ob.media_id}>{ob.building_name}</option>
+                                          {otherBuildingsWith3D.map(b => (
+                                            <option key={b.media_id} value={b.media_id}>{b.building_name}</option>
                                           ))}
                                         </select>
                                       </div>
@@ -3288,67 +3318,71 @@ const AdminPanel: React.FC = () => {
 
                                     if (!bImage) return null;
 
+                                    const isPreprocess = !!buildingPreprocess[buildingName];
+
                                     if (!building3D || !building3D.model_3d_status) {
                                       return (
-                                        <button
-                                          type="button"
-                                          className="btn-primary"
-                                          style={{ padding: '6px 14px', fontSize: '0.75rem', height: 'auto', background: 'var(--color-primary)' }}
-                                          disabled={isGeneratingThis}
-                                          onClick={() => handleGenerate3D(buildingName)}
-                                        >
-                                          {isGeneratingThis ? 'Requesting...' : 'Generate 3D Model'}
-                                        </button>
-                                      );
-                                    }
-
-                                    if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
-                                      return (
-                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Processing on Tripo...</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isPreprocess}
+                                              onChange={(e) => setBuildingPreprocess(prev => ({ ...prev, [buildingName]: e.target.checked }))}
+                                            />
+                                            <span>Optimize 2D Plan with Gemini (تحسين المخطط بـ Gemini)</span>
+                                          </label>
                                           <button
                                             type="button"
-                                            className="btn-secondary"
-                                            style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto' }}
-                                            onClick={() => fetch3DStatuses(selectedProjectForMedia.id)}
+                                            className="btn-primary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)' }}
+                                            disabled={isGeneratingThis}
+                                            onClick={() => handleGenerate3D(buildingName, isPreprocess)}
                                           >
-                                            Refresh
+                                            {isGeneratingThis ? 'Generating...' : 'Generate 3D'}
                                           </button>
                                         </div>
                                       );
                                     }
 
+                                    if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
+                                      return (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
+                                        </div>
+                                      );
+                                    }
+
                                     return (
-                                      <div style={{ display: 'flex', gap: '6px' }}>
-                                        {building3D.model_3d_status === 'completed' && building3D.model_3d_url && (
-                                          <a
-                                            href={building3D.model_3d_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={isPreprocess}
+                                            onChange={(e) => setBuildingPreprocess(prev => ({ ...prev, [buildingName]: e.target.checked }))}
+                                          />
+                                          <span>Optimize 2D Plan with Gemini (تحسين المخطط بـ Gemini)</span>
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                          <button
+                                            type="button"
                                             className="btn-secondary"
-                                            style={{ padding: '6px 12px', fontSize: '0.72rem', color: 'var(--color-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                            disabled={isGeneratingThis}
+                                            onClick={() => handleRegenerate3D(building3D.media_id, buildingName, isPreprocess)}
                                           >
-                                            Download GLB
-                                          </a>
-                                        )}
-                                        <button
-                                          type="button"
-                                          className="btn-secondary"
-                                          style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                                          disabled={isGeneratingThis}
-                                          onClick={() => handleRegenerate3D(building3D.media_id, buildingName)}
-                                        >
-                                          {isGeneratingThis ? 'Requesting...' : 'Regenerate'}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="btn-secondary"
-                                          style={{ padding: '6px 12px', fontSize: '0.72rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }}
-                                          disabled={isGeneratingThis}
-                                          onClick={() => handleDelete3D(building3D.media_id, buildingName)}
-                                        >
-                                          Delete
-                                        </button>
+                                            {isGeneratingThis ? 'Regenerating...' : 'Regenerate'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }}
+                                            disabled={isGeneratingThis}
+                                            onClick={() => handleDelete3D(building3D.media_id, buildingName)}
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
                                       </div>
                                     );
                                   })()}
@@ -3403,14 +3437,16 @@ const AdminPanel: React.FC = () => {
                                           </button>
                                         </div>
                                         <div>
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="form-control"
-                                            style={{ padding: '2px 6px', fontSize: '0.72rem', height: 'auto' }}
-                                            onChange={(e) => handleUploadFloorPlanImage(buildingName, floorNum, e)}
-                                          />
-                                          {uploadingMediaKey === `floor-${refKey}` && <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)' }}>Uploading plan...</span>}
+                                          <label className="custom-file-upload small">
+                                            <UploadCloud size={12} />
+                                            <span>Choose Plan</span>
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handleUploadFloorPlanImage(buildingName, floorNum, e)}
+                                            />
+                                          </label>
+                                          {uploadingMediaKey === `floor-${refKey}` && <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', marginTop: '2px' }}>Uploading plan...</div>}
                                         </div>
 
                                         <div style={{ textAlign: 'right' }}>
@@ -3441,14 +3477,16 @@ const AdminPanel: React.FC = () => {
                                                     Unit {unit.unit_number} ({unit.type}) - <strong style={{ color: unit.status === 'available' ? 'var(--color-success)' : 'var(--color-danger)' }}>{unit.status.toUpperCase()}</strong>
                                                   </span>
                                                   <div>
-                                                    <input
-                                                      type="file"
-                                                      accept="image/*"
-                                                      className="form-control"
-                                                      style={{ padding: '2px 4px', fontSize: '0.68rem', height: 'auto' }}
-                                                      onChange={(e) => handleUploadUnitLayoutImage(unit.id, e)}
-                                                    />
-                                                    {uploadingUnitLayout && <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)' }}>Uploading...</span>}
+                                                    <label className="custom-file-upload small">
+                                                      <UploadCloud size={12} />
+                                                      <span>Choose Layout</span>
+                                                      <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleUploadUnitLayoutImage(unit.id, e)}
+                                                      />
+                                                    </label>
+                                                    {uploadingUnitLayout && <div style={{ fontSize: '0.65rem', color: 'var(--color-primary)', marginTop: '2px' }}>Uploading...</div>}
                                                   </div>
                                                   <div style={{ textAlign: 'right' }}>
                                                     {uImage ? (
@@ -3502,12 +3540,23 @@ const AdminPanel: React.FC = () => {
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {uImage && (
                                                       <>
+                                                        {(!unit.model_3d_status || unit.model_3d_status === 'failed' || unit.model_3d_status === 'completed') && (
+                                                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.65rem', marginRight: '6px', userSelect: 'none' }}>
+                                                            <input
+                                                              type="checkbox"
+                                                              checked={!!unitPreprocess[unit.id]}
+                                                              onChange={(e) => setUnitPreprocess(prev => ({ ...prev, [unit.id]: e.target.checked }))}
+                                                            />
+                                                            <span>Gemini Optimize</span>
+                                                          </label>
+                                                        )}
+
                                                         {(!unit.model_3d_status || unit.model_3d_status === 'failed') && (
                                                           <button
                                                             type="button"
                                                             className="btn-primary"
                                                             style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                                            onClick={() => handleGenerateUnit3D(unit.id)}
+                                                            onClick={() => handleGenerateUnit3D(unit.id, !!unitPreprocess[unit.id])}
                                                           >
                                                             Generate 3D
                                                           </button>
@@ -3541,7 +3590,7 @@ const AdminPanel: React.FC = () => {
                                                               type="button"
                                                               className="btn-secondary"
                                                               style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto' }}
-                                                              onClick={() => handleRegenerateUnit3D(unit.id)}
+                                                              onClick={() => handleRegenerateUnit3D(unit.id, !!unitPreprocess[unit.id])}
                                                             >
                                                               Regenerate
                                                             </button>
