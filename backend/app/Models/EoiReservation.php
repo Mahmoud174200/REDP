@@ -40,6 +40,7 @@ class EoiReservation extends Model
     public const PAYMENT_BANK_TRANSFER              = 'bank_transfer';
     public const PAYMENT_CHEQUE                      = 'cheque';
     public const PAYMENT_INTERNATIONAL_BANK_TRANSFER = 'international_bank_transfer';
+    public const PAYMENT_INSTAPAY                   = 'instapay';
 
     /**
      * Payment methods available per location.
@@ -49,6 +50,7 @@ class EoiReservation extends Model
             self::PAYMENT_CASH,
             self::PAYMENT_BANK_TRANSFER,
             self::PAYMENT_CHEQUE,
+            self::PAYMENT_INSTAPAY,
         ],
         self::LOCATION_OUTSIDE_EGYPT => [
             self::PAYMENT_INTERNATIONAL_BANK_TRANSFER,
@@ -67,6 +69,7 @@ class EoiReservation extends Model
         'payment_method',
         'payment_amount',
         'receipt_path',
+        'passport_path',
         'status',
         'order_number',
         'queue_number',

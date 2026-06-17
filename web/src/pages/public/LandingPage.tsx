@@ -60,7 +60,7 @@ const translations = {
     eoiModalTitle: 'Expression of Interest (EOI) Priority Portal',
     eoiModalSubtitle: 'Mountain View prioritizes unit allocation fairly based on millisecond timestamp booking.',
     eoiFormPersonal: '1. Contact Information',
-    eoiFormPayment: '2. Secure Payment Gateway',
+    eoiFormPayment: '2. Secure Payment & Files Upload',
     eoiSelectedProject: 'Selected Compound',
     eoiSelectedUnit: 'Selected Unit',
     eoiAmountLabel: 'EOI Registration Token',
@@ -70,13 +70,25 @@ const translations = {
     eoiCardNo: 'Credit Card Number',
     eoiCardExp: 'Expiry (MM/YY)',
     eoiCardCvv: 'CVV',
-    eoiPaySubmit: 'Secure Payment & Join Queue',
-    eoiProcessing: 'Authorizing Merchant Hold...',
-    eoiSuccessTitle: 'Reservation Ticket Confirmed!',
-    eoiSuccessDesc: 'Your Expression of Interest (EOI) payment has been processed and locked on the ledger.',
-    eoiTicketNo: 'Your Priority Queue Number',
+    eoiPaySubmit: 'Submit EOI & Join Queue',
+    eoiProcessing: 'Uploading files and submitting reservation...',
+    eoiSuccessTitle: 'Reservation Request Submitted!',
+    eoiSuccessDesc: 'Your Expression of Interest (EOI) request and receipt have been submitted successfully. An accountant will review your payment shortly to approve your queue number.',
+    eoiTicketNo: 'Status',
     eoiClose: 'Close Portal',
     footerRights: 'All rights reserved. Mountain View Developer Real Estate Holding.',
+    eoiLocationLabel: 'Select Your Location',
+    eoiLocationInside: 'Inside Egypt 🇪🇬',
+    eoiLocationOutside: 'Outside Egypt 🌍',
+    eoiPaymentMethodLabel: 'Select Payment Method',
+    eoiPaymentMethodBank: 'Local Bank Transfer',
+    eoiPaymentMethodInstapay: 'InstaPay Transfer',
+    eoiPaymentMethodIntlBank: 'International Bank Transfer',
+    eoiReceiptUpload: 'Upload Payment Receipt (Required) *',
+    eoiPassportUpload: 'Upload Passport (Required for Outside Egypt) *',
+    eoiBankDetailsTitle: 'Bank Account Transfer Details',
+    eoiInstapayDetailsTitle: 'InstaPay Details',
+    eoiUploadHint: 'Accepts PDF, JPG, PNG up to 10MB',
     },
     ar: {
     navProjects: 'محفظة المشاريع',
@@ -130,7 +142,7 @@ const translations = {
     eoiModalTitle: 'بوابة تسجيل جدية الحجز (EOI)',
     eoiModalSubtitle: 'تمنح ماونتن فيو أولوية تخصيص الوحدات بعدالة مطلقة اعتماداً على زمن الحجز بالجزء من الثانية.',
     eoiFormPersonal: '1. البيانات الشخصية للاتصال',
-    eoiFormPayment: '2. بوابة الدفع الآمنة',
+    eoiFormPayment: '2. تأكيد الدفع ورفع الملفات',
     eoiSelectedProject: 'المشروع المحدد',
     eoiSelectedUnit: 'الوحدة المحددة',
     eoiAmountLabel: 'قيمة جدية الحجز (EOI)',
@@ -140,13 +152,25 @@ const translations = {
     eoiCardNo: 'رقم بطاقة الائتمان',
     eoiCardExp: 'تاريخ الانتهاء (الشهر/السنة)',
     eoiCardCvv: 'الرمز السري (CVV)',
-    eoiPaySubmit: 'دفع آمن والانضمام لصف الأولوية',
-    eoiProcessing: 'جاري فحص تفاصيل الدفع والتحقق...',
-    eoiSuccessTitle: 'تم تأكيد طلب الحجز بنجاح!',
-    eoiSuccessDesc: 'تمت معالجة دفعة جدية الحجز (EOI) الخاصة بك وتأكيدها في سجل المعاملات.',
-    eoiTicketNo: 'رقم الأسبقية الخاص بك في صف المشروع',
+    eoiPaySubmit: 'تقديم طلب الحجز والانضمام للصف',
+    eoiProcessing: 'جاري رفع الملفات وإرسال طلب الحجز...',
+    eoiSuccessTitle: 'تم إرسال طلب الحجز بنجاح!',
+    eoiSuccessDesc: 'تم إرسال طلب جدية الحجز (EOI) وإيصال التحويل بنجاح. سيقوم المحاسب بمراجعة عملية الدفع قريباً لتأكيد رقم الأسبقية الخاص بك.',
+    eoiTicketNo: 'الحالة',
     eoiClose: 'إغلاق البوابة',
     footerRights: 'جميع الحقوق محفوظة. مجموعة ماونتن فيو للتطوير العقاري.',
+    eoiLocationLabel: 'تحديد موقعك الحالي',
+    eoiLocationInside: 'داخل مصر 🇪🇬',
+    eoiLocationOutside: 'خارج مصر 🌍',
+    eoiPaymentMethodLabel: 'اختر طريقة الدفع',
+    eoiPaymentMethodBank: 'تحويل بنكي محلي',
+    eoiPaymentMethodInstapay: 'تحويل عبر InstaPay',
+    eoiPaymentMethodIntlBank: 'تحويل بنكي دولي',
+    eoiReceiptUpload: 'رفع إيصال الدفع (مطلوب) *',
+    eoiPassportUpload: 'رفع صورة جواز السفر (مطلوب لخارج مصر) *',
+    eoiBankDetailsTitle: 'بيانات الحساب البنكي للتحويل',
+    eoiInstapayDetailsTitle: 'بيانات حساب InstaPay',
+    eoiUploadHint: 'الملفات المقبولة: PDF, JPG, PNG حتى 10 ميجابايت',
   }
 };
 
@@ -250,8 +274,11 @@ const LandingPage: React.FC = () => {
   const [eoiUnit, setEoiUnit] = useState<any>(null);
   const [eoiForm, setEoiForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', national_id: '',
-    card_name: '', card_no: '', card_exp: '', card_cvv: ''
   });
+  const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
   const [eoiStep, setEoiStep] = useState<1 | 2 | 3>(1);
   const [eoiProcessing, setEoiProcessing] = useState(false);
   const [eoiResult, setEoiResult] = useState<any>(null);
@@ -334,8 +361,11 @@ const LandingPage: React.FC = () => {
     setEoiUnit(unit);
     setEoiForm({
       first_name: '', last_name: '', email: '', phone: '', national_id: '',
-      card_name: '', card_no: '', card_exp: '', card_cvv: ''
     });
+    setClientLocation('');
+    setPaymentMethod('');
+    setReceiptFile(null);
+    setPassportFile(null);
     setEoiStep(1);
     setErrorMessage('');
     setEoiResult(null);
@@ -354,24 +384,52 @@ const LandingPage: React.FC = () => {
       return;
     }
 
+    if (!clientLocation) {
+      setErrorMessage(lang === 'en' ? 'Please select your location.' : 'يرجى تحديد موقعك.');
+      return;
+    }
+    if (!paymentMethod) {
+      setErrorMessage(lang === 'en' ? 'Please select a payment method.' : 'يرجى تحديد طريقة الدفع.');
+      return;
+    }
+    if (!receiptFile) {
+      setErrorMessage(lang === 'en' ? 'Please upload the payment receipt.' : 'يرجى رفع إيصال الدفع.');
+      return;
+    }
+    if (clientLocation === 'outside_egypt' && !passportFile) {
+      setErrorMessage(lang === 'en' ? 'Please upload your passport.' : 'يرجى رفع صورة جواز السفر.');
+      return;
+    }
+
     setEoiProcessing(true);
     setErrorMessage('');
     try {
-      const payload = {
-        first_name: eoiForm.first_name,
-        last_name: eoiForm.last_name,
-        email: eoiForm.email,
-        phone: eoiForm.phone,
-        national_id: eoiForm.national_id || undefined,
-        project_id: eoiProject.id,
-        unit_id: eoiUnit?.id || undefined,
-        eoi_amount: 50000.00,
-        notes: eoiUnit ? `Website EOI payment for unit number ${eoiUnit.unit_number}` : 'General Compound EOI reservation via Public Landing'
-      };
+      const formData = new FormData();
+      formData.append('first_name', eoiForm.first_name);
+      formData.append('last_name', eoiForm.last_name);
+      formData.append('email', eoiForm.email);
+      formData.append('phone', eoiForm.phone);
+      if (eoiForm.national_id) {
+        formData.append('national_id', eoiForm.national_id);
+      }
+      formData.append('project_id', eoiProject.id);
+      if (eoiUnit?.id) {
+        formData.append('unit_id', eoiUnit.id);
+      }
+      formData.append('eoi_amount', '50000.00');
+      formData.append('client_location', clientLocation);
+      formData.append('payment_method', paymentMethod);
+      formData.append('receipt', receiptFile);
+      if (passportFile) {
+        formData.append('passport', passportFile);
+      }
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const res = await api.post('/v1/public/eoi/submit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-      const res = await api.post('/v1/public/eoi/submit', payload);
       if (res.data?.success) {
         setEoiResult(res.data);
         setEoiStep(3);
@@ -382,7 +440,7 @@ const LandingPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMessage(err.response?.data?.message || 'Payment processing failed. Please verify card details.');
+      setErrorMessage(err.response?.data?.message || (lang === 'en' ? 'Submission failed. Please try again.' : 'فشل تقديم الطلب. يرجى المحاولة مرة أخرى.'));
     }
     setEoiProcessing(false);
   };
@@ -1573,7 +1631,7 @@ const LandingPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* STEP 2: Credit Card Simulated Details */}
+                {/* STEP 2: Location, Method, and File Uploads */}
                 {eoiStep === 2 && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10 }}>
@@ -1585,62 +1643,244 @@ const LandingPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <div style={{ background: 'rgba(22, 163, 74, 0.06)', padding: 16, borderRadius: '12px', border: '1px solid rgba(22, 163, 74, 0.15)', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                      <Lock size={18} color="#16a34a" />
-                      <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>
-                        {lang === 'en' ? 'SSL Secure checkout. Card values will be authorized on our merchant gateway.' : 'بوابة دفع مشفرة آمنة. سيتم حجز وتأكيد المعاملة مالياً.'}
-                      </span>
-                    </div>
-
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardName} *</label>
-                      <input
-                        className="mv-input"
-                        type="text" required placeholder="John Doe" value={eoiForm.card_name}
-                        onChange={e => setEoiForm({ ...eoiForm, card_name: e.target.value })}
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardNo} *</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          className="mv-input"
-                          style={{ paddingLeft: '44px', paddingRight: '44px' }}
-                          type="text" required placeholder="4000 1234 5678 9010" value={eoiForm.card_no}
-                          onChange={e => setEoiForm({ ...eoiForm, card_no: e.target.value })}
-                        />
-                        <CreditCard size={16} style={{ position: 'absolute', left: 16, top: 15 }} color="#5c6c7f" />
+                    {/* Location Selection */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiLocationLabel} *</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientLocation('inside_egypt');
+                            setPaymentMethod('bank_transfer');
+                          }}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'inside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'inside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
+                            color: '#1e293b',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          {t.eoiLocationInside}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientLocation('outside_egypt');
+                            setPaymentMethod('international_bank_transfer');
+                          }}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'outside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'outside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
+                            color: '#1e293b',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          {t.eoiLocationOutside}
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+                    {/* Payment Method Selection */}
+                    {clientLocation === 'inside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiPaymentMethodLabel} *</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('bank_transfer')}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'bank_transfer' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'bank_transfer' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.eoiPaymentMethodBank}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('instapay')}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'instapay' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'instapay' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.eoiPaymentMethodInstapay}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {clientLocation === 'outside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiPaymentMethodLabel}</label>
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: '2px solid #003DA6',
+                            background: 'rgba(0,61,166,0.02)',
+                            color: '#1e293b',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <Globe size={14} color="#003DA6" />
+                          {t.eoiPaymentMethodIntlBank}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Transfer Details Card */}
+                    {clientLocation && (
                       <div>
-                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardExp} *</label>
-                        <input
-                          className="mv-input"
-                          type="text" required placeholder="12/28" value={eoiForm.card_exp}
-                          onChange={e => setEoiForm({ ...eoiForm, card_exp: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiCardCvv} *</label>
-                        <input
-                          className="mv-input"
-                          type="password" required maxLength={3} placeholder="•••" value={eoiForm.card_cvv}
-                          onChange={e => setEoiForm({ ...eoiForm, card_cvv: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                        {paymentMethod === 'bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB)<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev<br/>
+                              <strong>Account No:</strong> 100045678912<br/>
+                              <strong>IBAN:</strong> EG12000300000000100045678912<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'international_bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle} (USD / EUR)</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB) Egypt<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev Intl<br/>
+                              <strong>Account No (USD):</strong> 100099887766<br/>
+                              <strong>IBAN:</strong> EG89000300000000100099887766<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'instapay' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiInstapayDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>InstaPay Address:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'rgba(0,61,166,0.08)', padding: '2px 6px', borderRadius: 4 }}>mountainview@instapay</span>
+                            </div>
+                          </div>
+                        )}
 
-                    <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} disabled={eoiProcessing}>
-                      {eoiProcessing ? (
-                        <>
-                          <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', marginRight: 8 }} />
-                          {t.eoiProcessing}
-                        </>
-                      ) : t.eoiPaySubmit}
-                    </button>
+                        {/* File Upload fields */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiReceiptUpload}</label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              required
+                              onChange={e => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  setReceiptFile(e.target.files[0]);
+                                }
+                              }}
+                              style={{ display: 'none' }}
+                              id="eoi-receipt-file-input"
+                            />
+                            <label
+                              htmlFor="eoi-receipt-file-input"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '12px 16px',
+                                border: '2px dashed rgba(0,61,166,0.15)',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                background: '#fff',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
+                              onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
+                            >
+                              <Info size={18} color="#003DA6" />
+                              <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                {receiptFile ? receiptFile.name : t.eoiUploadHint}
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {clientLocation === 'outside_egypt' && (
+                          <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{t.eoiPassportUpload}</label>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                required
+                                onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    setPassportFile(e.target.files[0]);
+                                  }
+                                }}
+                                style={{ display: 'none' }}
+                                id="eoi-passport-file-input"
+                              />
+                              <label
+                                htmlFor="eoi-passport-file-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '12px 16px',
+                                  border: '2px dashed rgba(0,61,166,0.15)',
+                                  borderRadius: '10px',
+                                  cursor: 'pointer',
+                                  background: '#fff',
+                                  transition: 'all 0.2s',
+                                }}
+                                onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
+                                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
+                              >
+                                <Globe size={18} color="#003DA6" />
+                                <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                  {passportFile ? passportFile.name : t.eoiUploadHint}
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+
+                        <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px', marginTop: 10 }} disabled={eoiProcessing}>
+                          {eoiProcessing ? (
+                            <>
+                              <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', marginRight: 8 }} />
+                              {t.eoiProcessing}
+                            </>
+                          ) : t.eoiPaySubmit}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </form>
@@ -1667,8 +1907,18 @@ const LandingPage: React.FC = () => {
                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#003DA6', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
                     {t.eoiTicketNo}
                   </span>
-                  <strong style={{ fontSize: '3rem', color: '#001A70', fontFamily: 'var(--font-title)', display: 'block', lineHeight: 1, fontWeight: 900 }}>
-                    #{eoiResult?.queue_number || '1'}
+                  <strong style={{ 
+                    fontSize: eoiResult?.queue_number ? '3rem' : '1.8rem', 
+                    color: '#001A70', 
+                    fontFamily: 'var(--font-title)', 
+                    display: 'block', 
+                    lineHeight: 1.2, 
+                    fontWeight: 900,
+                    margin: '8px 0'
+                  }}>
+                    {eoiResult?.queue_number 
+                      ? `#${eoiResult.queue_number}` 
+                      : (lang === 'en' ? 'PENDING REVIEW' : 'قيد المراجعة')}
                   </strong>
                   <span style={{ fontSize: '0.72rem', color: '#5c6c7f', display: 'block', marginTop: 12, fontWeight: 700 }}>
                     Compound: {eoiProject?.name}

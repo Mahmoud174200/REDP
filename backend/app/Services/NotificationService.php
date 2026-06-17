@@ -27,7 +27,10 @@ class NotificationService
         try {
             switch ($channel) {
                 case 'email':
-                    // e.g., Mail::to($recipient)->send(new REDPNotification($title, $content));
+                    \Illuminate\Support\Facades\Mail::html($content, function ($message) use ($recipient, $title) {
+                        $message->to($recipient)
+                                ->subject($title);
+                    });
                     break;
                 case 'sms':
                     // e.g., TwilioClient::send($recipient, $content);

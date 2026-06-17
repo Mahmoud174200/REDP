@@ -139,9 +139,10 @@ class EoiReservationController extends Controller
             'client_email'     => 'required|email|max:255',
             'client_phone'     => 'required|string|max:50',
             'client_location'  => ['required', Rule::in(['inside_egypt', 'outside_egypt'])],
-            'payment_method'   => ['required', Rule::in(['cash', 'bank_transfer', 'cheque', 'international_bank_transfer'])],
+            'payment_method'   => ['required', Rule::in(['cash', 'bank_transfer', 'cheque', 'international_bank_transfer', 'instapay'])],
             'payment_amount'   => 'required|numeric|min:0.01',
             'receipt'          => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+            'passport'         => 'required_if:client_location,outside_egypt|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
         ]);
 
         // Validate payment method matches location
@@ -152,7 +153,7 @@ class EoiReservationController extends Controller
                 'errors'  => [
                     'payment_method' => [
                         $fields['client_location'] === 'inside_egypt'
-                            ? 'Inside Egypt: Only Cash, Bank Transfer, or Cheque are accepted.'
+                            ? 'Inside Egypt: Only Cash, Bank Transfer, Cheque, or InstaPay are accepted.'
                             : 'Outside Egypt: Only International Bank Transfer is accepted.'
                     ],
                 ],
@@ -176,7 +177,20 @@ class EoiReservationController extends Controller
         // Handle receipt file upload
         $receiptPath = $request->file('receipt')->store('eoi-receipts', 'public');
 
-        $reservation = DB::transaction(function () use ($fields, $receiptPath) {
+        // Handle passport file upload
+        $passportPath = null;
+        if ($request->hasFile('passport')) {
+            $passportPath = $request->file('passport')->store('eoi-passports', 'public');
+            // Update passport path on lead
+            $lead = Lead::find($fields['lead_id']);
+            if ($lead) {
+                $lead->update([
+                    'passport_path' => $passportPath,
+                ]);
+            }
+        }
+
+        $reservation = DB::transaction(function () use ($fields, $receiptPath, $passportPath) {
             return EoiReservation::create([
                 'id'              => (string) Str::uuid(),
                 'lead_id'         => $fields['lead_id'],
@@ -189,6 +203,7 @@ class EoiReservationController extends Controller
                 'payment_method'  => $fields['payment_method'],
                 'payment_amount'  => $fields['payment_amount'],
                 'receipt_path'    => $receiptPath,
+                'passport_path'   => $passportPath,
                 'status'          => EoiReservation::STATUS_PENDING_REVIEW,
             ]);
         });
