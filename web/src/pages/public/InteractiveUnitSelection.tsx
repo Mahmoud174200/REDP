@@ -285,7 +285,11 @@ const InteractiveUnitSelection: React.FC = () => {
   const [unitView3D, setUnitView3D] = useState(false);
 
   useEffect(() => {
-    setUnitView3D(false);
+    if (selectedUnit) {
+      setUnitView3D(!selectedUnit.layout_image_url && selectedUnit.model_3d_status === 'completed');
+    } else {
+      setUnitView3D(false);
+    }
   }, [selectedUnit]);
 
   // Reservation form
@@ -1553,7 +1557,7 @@ const InteractiveUnitSelection: React.FC = () => {
         </div>
 
         {/* Unit Layout Image or 3D Model */}
-        {selectedUnit.layout_image_url && (
+        {(selectedUnit.layout_image_url || selectedUnit.model_3d_status === 'completed') && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
@@ -1561,7 +1565,7 @@ const InteractiveUnitSelection: React.FC = () => {
               </span>
               
               {/* 3D Model Toggle for Unit */}
-              {selectedUnit.model_3d_status === 'completed' && (
+              {selectedUnit.model_3d_status === 'completed' && selectedUnit.layout_image_url && (
                 <button
                   type="button"
                   onClick={() => setUnitView3D(!unitView3D)}
@@ -1586,15 +1590,15 @@ const InteractiveUnitSelection: React.FC = () => {
               <div style={{
                 height: 280, width: '100%', position: 'relative',
                 borderRadius: 14, overflow: 'hidden',
-                background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
-                border: '1px solid rgba(0,61,166,0.08)',
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                border: '1px solid rgba(197,168,128,0.35)',
               }}>
                 {/* @ts-ignore */}
                 <model-viewer
                   src={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/v1') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 7) : ((import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/api') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 4) : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'))}/api/v1/public/units/${selectedUnit.id}/3d-model/file`}
                   camera-controls
                   auto-rotate
-                  shadow-intensity="1"
+                  shadow-intensity="2.0"
                   exposure="1.2"
                   environment-image="neutral"
                   style={{ width: '100%', height: '100%', '--poster-color': 'transparent' } as any}
@@ -1636,21 +1640,24 @@ const InteractiveUnitSelection: React.FC = () => {
                   {t.interactHint}
                 </div>
               </div>
-            ) : (
-              <div style={{
-                background: '#fff', borderRadius: 14, padding: 8,
-                border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
-                cursor: 'zoom-in'
-              }}
-                onClick={() => window.open(selectedUnit.layout_image_url?.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`, '_blank')}
-              >
-                <img
-                  src={selectedUnit.layout_image_url.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`}
-                  alt={`Unit ${selectedUnit.unit_number} Layout`}
-                  style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
-                />
-              </div>
-            )}
+            ) : selectedUnit.layout_image_url ? (() => {
+              const imgUrl = selectedUnit.layout_image_url;
+              return (
+                <div style={{
+                  background: '#fff', borderRadius: 14, padding: 8,
+                  border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
+                  cursor: 'zoom-in'
+                }}
+                  onClick={() => window.open(imgUrl.startsWith('http') ? imgUrl : `http://127.0.0.1:8000/storage/${imgUrl}`, '_blank')}
+                >
+                  <img
+                    src={imgUrl.startsWith('http') ? imgUrl : `http://127.0.0.1:8000/storage/${imgUrl}`}
+                    alt={`Unit ${selectedUnit.unit_number} Layout`}
+                    style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+                  />
+                </div>
+              );
+            })() : null}
           </div>
         )}
 
@@ -2287,8 +2294,8 @@ const InteractiveUnitSelection: React.FC = () => {
       {fullscreenModelUrl && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,15,61,0.7)',
-          backdropFilter: 'blur(12px)',
+          background: 'rgba(15, 23, 42, 0.85)',
+          backdropFilter: 'blur(16px)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           zIndex: 3000,
           animation: 'us3d-modalFade 0.3s ease forwards',
@@ -2298,12 +2305,13 @@ const InteractiveUnitSelection: React.FC = () => {
         >
           <div 
             style={{
-              background: '#ffffff',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              border: '1.5px solid rgba(197, 168, 128, 0.35)',
               borderRadius: 28,
               padding: '24px',
               maxWidth: '90vw', width: '100%',
               height: '85vh',
-              boxShadow: '0 30px 70px rgba(0,15,61,0.25)',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.5)',
               display: 'flex', flexDirection: 'column',
               animation: 'us3d-modalSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
               position: 'relative',
@@ -2311,33 +2319,33 @@ const InteractiveUnitSelection: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(0,61,166,0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#003DA6', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(197, 168, 128, 0.15)', paddingBottom: '12px' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#C5A880', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 🧊 {lang === 'ar' ? 'معاينة ثلاثية الأبعاد تفاعلية' : 'Interactive 3D Preview'} — {fullscreenModelTitle}
               </h3>
               <button 
                 onClick={() => { setFullscreenModelUrl(null); setFullscreenModelTitle(''); }}
                 style={{ 
-                  background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', 
+                  background: 'rgba(255, 255, 255, 0.08)', border: 'none', cursor: 'pointer', 
                   width: '36px', height: '36px', borderRadius: '50%', 
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#64748b', transition: 'all 0.3s ease' 
+                  color: '#94a3b8', transition: 'all 0.3s ease' 
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.color = '#f87171'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* 3D Model Viewer container */}
-            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 16, overflow: 'hidden', border: '1.5px solid rgba(0,61,166,0.08)' }}>
+            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(135deg, #090d16 0%, #111827 100%)', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(197, 168, 128, 0.25)' }}>
               {/* @ts-ignore */}
               <model-viewer
                 src={fullscreenModelUrl}
                 camera-controls
                 auto-rotate
-                shadow-intensity="1.5"
+                shadow-intensity="2.0"
                 exposure="1.2"
                 environment-image="neutral"
                 style={{

@@ -3796,79 +3796,70 @@ const AdminPanel: React.FC = () => {
                                                 }}>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>3D Model:</span>
-                                                    {uImage ? (
-                                                      <>
-                                                        {unit.model_3d_status ? (
-                                                          <span style={{
-                                                            fontSize: '0.65rem',
-                                                            fontWeight: 700,
-                                                            color: unit.model_3d_status === 'completed' ? '#10b981' : unit.model_3d_status === 'failed' ? '#ef4444' : '#f59e0b'
-                                                          }}>
-                                                            {unit.model_3d_status.toUpperCase()}
-                                                          </span>
-                                                        ) : (
-                                                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NOT GENERATED</span>
-                                                        )}
-                                                        {unit.tripo_error_msg && (
-                                                          <span style={{ fontSize: '0.65rem', color: '#ef4444' }} title={unit.tripo_error_msg}>({unit.tripo_error_msg.substring(0, 25)}...)</span>
-                                                        )}
-                                                      </>
-                                                    ) : (
-                                                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NO IMAGE</span>
-                                                    )}
+                                                    <>
+                                                      {unit.model_3d_status ? (
+                                                        <span style={{
+                                                          fontSize: '0.65rem',
+                                                          fontWeight: 700,
+                                                          color: unit.model_3d_status === 'completed' ? '#10b981' : unit.model_3d_status === 'failed' ? '#ef4444' : '#f59e0b'
+                                                        }}>
+                                                          {unit.model_3d_status.toUpperCase()}
+                                                        </span>
+                                                      ) : (
+                                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NOT GENERATED</span>
+                                                      )}
+                                                      {unit.tripo_error_msg && (
+                                                        <span style={{ fontSize: '0.65rem', color: '#ef4444' }} title={unit.tripo_error_msg}>({unit.tripo_error_msg.substring(0, 25)}...)</span>
+                                                      )}
+                                                    </>
                                                   </div>
 
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    {uImage && (
+                                                    <button
+                                                      type="button"
+                                                      className="btn-primary"
+                                                      style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
+                                                      onClick={() => {
+                                                        setEditorUnitId(unit.id);
+                                                        setEditorUnitNumber(unit.unit_number);
+                                                        setShowFloorPlanEditor(true);
+                                                      }}
+                                                    >
+                                                      ✍️ {unit.model_3d_status === 'completed' ? 'Edit 3D Plan' : 'Build 3D Plan'}
+                                                    </button>
+                                                    {unit.model_3d_status === 'completed' && (
                                                       <>
+                                                        {unit.model_3d_url && (
+                                                          <a
+                                                            href={unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="btn-secondary"
+                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
+                                                          >
+                                                            View 3D
+                                                          </a>
+                                                        )}
                                                         <button
                                                           type="button"
-                                                          className="btn-primary"
-                                                          style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                                          onClick={() => {
-                                                            setEditorUnitId(unit.id);
-                                                            setEditorUnitNumber(unit.unit_number);
-                                                            setShowFloorPlanEditor(true);
-                                                          }}
+                                                          className="btn-secondary"
+                                                          style={{ padding: '2px 8px', fontSize: '0.68rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', height: 'auto' }}
+                                                          onClick={() => handleDeleteUnit3D(unit.id)}
                                                         >
-                                                          ✍️ {unit.model_3d_status === 'completed' ? 'Edit 3D Plan' : 'Build 3D Plan'}
+                                                          Delete
                                                         </button>
-
-                                                        {unit.model_3d_status === 'completed' && (
-                                                          <>
-                                                            {unit.model_3d_url && (
-                                                              <a
-                                                                href={unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="btn-secondary"
-                                                                style={{ padding: '2px 8px', fontSize: '0.68rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
-                                                              >
-                                                                View 3D
-                                                              </a>
-                                                            )}
-                                                            <button
-                                                              type="button"
-                                                              className="btn-secondary"
-                                                              style={{ padding: '2px 8px', fontSize: '0.68rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', height: 'auto' }}
-                                                              onClick={() => handleDeleteUnit3D(unit.id)}
-                                                            >
-                                                              Delete
-                                                            </button>
-                                                          </>
-                                                        )}
                                                       </>
                                                     )}
 
                                                     {/* Copy unit layout dropdown */}
                                                     {(() => {
-                                                      const otherUnitsWithLayout = units.filter(u =>
+                                                      const otherUnitsWith3D = units.filter(u =>
                                                         u.project_id === selectedProjectForMedia.id &&
                                                         u.id !== unit.id &&
-                                                        u.layout_image_url
+                                                        u.model_3d_status === 'completed'
                                                       );
 
-                                                      if (otherUnitsWithLayout.length === 0) return null;
+                                                      if (otherUnitsWith3D.length === 0) return null;
 
                                                       return (
                                                         <select
@@ -3890,7 +3881,7 @@ const AdminPanel: React.FC = () => {
                                                           }}
                                                         >
                                                           <option value="">Copy Layout From...</option>
-                                                          {otherUnitsWithLayout.map(ou => (
+                                                          {otherUnitsWith3D.map(ou => (
                                                             <option key={ou.id} value={ou.id}>Unit {ou.unit_number} ({ou.building || 'Main'})</option>
                                                           ))}
                                                         </select>
