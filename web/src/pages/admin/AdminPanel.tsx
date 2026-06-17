@@ -121,6 +121,17 @@ const AdminPanel: React.FC = () => {
   const [showFloorPlanEditor, setShowFloorPlanEditor] = useState(false);
   const [editorUnitId, setEditorUnitId] = useState('');
   const [editorUnitNumber, setEditorUnitNumber] = useState('');
+  const [preview3DUnit, setPreview3DUnit] = useState<{ id: string; unitNumber: string; url: string } | null>(null);
+
+  // Load model-viewer script if needed
+  useEffect(() => {
+    if (!document.querySelector('script[src*="model-viewer"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js';
+      script.type = 'module';
+      document.head.appendChild(script);
+    }
+  }, []);
 
   // ── Database Lists States ──
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -3830,15 +3841,21 @@ const AdminPanel: React.FC = () => {
                                                     {unit.model_3d_status === 'completed' && (
                                                       <>
                                                         {unit.model_3d_url && (
-                                                          <a
-                                                            href={unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                          <button
+                                                            type="button"
                                                             className="btn-secondary"
-                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
+                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
+                                                            onClick={() => {
+                                                              const url = unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`;
+                                                              setPreview3DUnit({
+                                                                id: unit.id,
+                                                                unitNumber: unit.unit_number,
+                                                                url
+                                                              });
+                                                            }}
                                                           >
                                                             View 3D
-                                                          </a>
+                                                          </button>
                                                         )}
                                                         <button
                                                           type="button"
@@ -3926,6 +3943,79 @@ const AdminPanel: React.FC = () => {
           onClose={() => setShowFloorPlanEditor(false)}
           onSuccess={fetchData}
         />
+      )}
+
+      {preview3DUnit && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.9)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          fontFamily: 'Inter, sans-serif'
+        }}>
+          <div style={{
+            background: '#0f172a',
+            border: '2px solid rgba(197, 168, 128, 0.4)',
+            borderRadius: '16px',
+            width: '90%',
+            maxWidth: '750px',
+            height: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            color: '#ffffff'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(30, 41, 59, 0.3)'
+            }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#C5A880', margin: 0 }}>
+                3D Model Preview - Unit {preview3DUnit.unitNumber}
+              </h3>
+              <button
+                onClick={() => setPreview3DUnit(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Model Viewer Container */}
+            <div style={{ flex: 1, position: 'relative', background: '#090d16' }}>
+              {/* @ts-ignore */}
+              <model-viewer
+                src={preview3DUnit.url}
+                camera-controls
+                auto-rotate
+                shadow-intensity="2.0"
+                exposure="0.95"
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

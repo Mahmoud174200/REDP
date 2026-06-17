@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { X, Save, Trash2, RotateCw, HelpCircle, Layers, PenTool, Eraser } from 'lucide-react';
+import { X, Save, Trash2, RotateCw, HelpCircle, Layers, PenTool, Eraser, CheckCircle, AlertTriangle, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 
 interface FloorPlanEditorProps {
@@ -80,6 +80,178 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<any>(null); // 'draw' or 'erase'
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // ── Custom Dialog / Modal State ──
+  interface DialogState {
+    isOpen: boolean;
+    type: 'success' | 'error' | 'confirm';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    onClose?: () => void;
+  }
+
+  const [dialog, setDialog] = useState<DialogState>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
+  const showSuccess = (message: string, onClose?: () => void) => {
+    setDialog({
+      isOpen: true,
+      type: 'success',
+      title: 'Success / نجاح',
+      message,
+      onClose
+    });
+  };
+
+  const showError = (message: string, onClose?: () => void) => {
+    setDialog({
+      isOpen: true,
+      type: 'error',
+      title: 'Error / خطأ',
+      message,
+      onClose
+    });
+  };
+
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    setDialog({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Confirmation / تأكيد',
+      message,
+      onConfirm
+    });
+  };
+
+  // ── Render Custom Dialog ──
+  const renderDialog = () => {
+    if (!dialog.isOpen) return null;
+
+    const overlayStyle: React.CSSProperties = {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15, 23, 42, 0.75)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+    };
+
+    const containerStyle: React.CSSProperties = {
+      background: '#1e293b',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '16px',
+      width: '90%',
+      maxWidth: '420px',
+      padding: '24px',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      color: '#ffffff',
+      fontFamily: 'Inter, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+    };
+
+    const headerStyle: React.CSSProperties = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+    };
+
+    const titleStyle: React.CSSProperties = {
+      fontSize: '1.2rem',
+      fontWeight: 700,
+      margin: 0,
+    };
+
+    const messageStyle: React.CSSProperties = {
+      fontSize: '0.9rem',
+      color: '#cbd5e1',
+      lineHeight: '1.5',
+      margin: 0,
+      whiteSpace: 'pre-line'
+    };
+
+    const actionsStyle: React.CSSProperties = {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: '12px',
+      marginTop: '8px',
+    };
+
+    const btnBaseStyle: React.CSSProperties = {
+      padding: '8px 18px',
+      borderRadius: '8px',
+      fontSize: '0.82rem',
+      fontWeight: 600,
+      cursor: 'pointer',
+      border: 'none',
+      transition: 'background-color 0.2s',
+    };
+
+    const btnConfirmStyle: React.CSSProperties = {
+      ...btnBaseStyle,
+      background: dialog.type === 'confirm' ? '#ef4444' : (dialog.type === 'success' ? '#10b981' : '#ef4444'),
+      color: '#ffffff',
+    };
+
+    const btnCancelStyle: React.CSSProperties = {
+      ...btnBaseStyle,
+      background: 'rgba(255, 255, 255, 0.1)',
+      color: '#cbd5e1',
+    };
+
+    return (
+      <div style={overlayStyle}>
+        <div style={containerStyle}>
+          <div style={headerStyle}>
+            {dialog.type === 'success' && <CheckCircle size={22} color="#10b981" />}
+            {dialog.type === 'error' && <AlertCircle size={22} color="#ef4444" />}
+            {dialog.type === 'confirm' && <AlertTriangle size={22} color="#f59e0b" />}
+            <h3 style={titleStyle}>{dialog.title}</h3>
+          </div>
+          <p style={messageStyle}>{dialog.message}</p>
+          <div style={actionsStyle}>
+            {dialog.type === 'confirm' ? (
+              <>
+                <button
+                  style={btnCancelStyle}
+                  onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))}
+                >
+                  Cancel / إلغاء
+                </button>
+                <button
+                  style={btnConfirmStyle}
+                  onClick={() => {
+                    setDialog(prev => ({ ...prev, isOpen: false }));
+                    if (dialog.onConfirm) dialog.onConfirm();
+                  }}
+                >
+                  Confirm / تأكيد
+                </button>
+              </>
+            ) : (
+              <button
+                style={btnConfirmStyle}
+                onClick={() => {
+                  setDialog(prev => ({ ...prev, isOpen: false }));
+                  if (dialog.onClose) dialog.onClose();
+                }}
+              >
+                OK / موافق
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ── Three.js Refs ──
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -1313,16 +1485,20 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
   }, []);
 
   const clearGrid = () => {
-    if (!confirm('Are you sure you want to clear the entire floor plan?')) return;
-    setGrid(
-      Array(GRID_SIZE).fill(null).map(() =>
-        Array(GRID_SIZE).fill(null).map(() => ({
-          type: 'empty',
-          floor: 'default',
-          furniture: null,
-          rotation: 0
-        }))
-      )
+    showConfirm(
+      'Are you sure you want to clear the entire floor plan?\nهل أنت متأكد من رغبتك في مسح مخطط الطابق بالكامل؟',
+      () => {
+        setGrid(
+          Array(GRID_SIZE).fill(null).map(() =>
+            Array(GRID_SIZE).fill(null).map(() => ({
+              type: 'empty',
+              floor: 'default',
+              furniture: null,
+              rotation: 0
+            }))
+          )
+        );
+      }
     );
   };
 
@@ -1355,26 +1531,27 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             });
 
             if (res.data?.success) {
-              alert('3D Floor Plan saved successfully!');
-              onSuccess();
-              onClose();
+              showSuccess('3D Floor Plan saved successfully!\nتم حفظ مخطط الطابق ثلاثي الأبعاد بنجاح!', () => {
+                onSuccess();
+                onClose();
+              });
             }
           } catch (err: any) {
-            alert(err.response?.data?.message || 'Failed to upload generated GLB model.');
+            showError(err.response?.data?.message || 'Failed to upload generated GLB model.\nفشل في رفع النموذج ثلاثي الأبعاد.');
           } finally {
             setIsSaving(false);
           }
         },
         (error) => {
           console.error('GLTF Export failed', error);
-          alert('Failed to compile 3D model geometry.');
+          showError('Failed to compile 3D model geometry.\nفشل في تجميع هندسة النموذج ثلاثي الأبعاد.');
           setIsSaving(false);
         },
         { binary: true }
       );
     } catch (err) {
       console.error(err);
-      alert('An unexpected error occurred during export.');
+      showError('An unexpected error occurred during export.\nحدث خطأ غير متوقع أثناء التصدير.');
       setIsSaving(false);
     }
   };
@@ -1810,6 +1987,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
           </div>
         </div>
       </div>
+      {renderDialog()}
     </div>
   );
 };
