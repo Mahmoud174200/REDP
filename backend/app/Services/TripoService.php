@@ -50,7 +50,6 @@ class TripoService
         }
 
         $mimeType = mime_content_type($fullPath);
-        $extension = pathinfo($fullPath, PATHINFO_EXTENSION);
 
         Log::info('tripo.upload.starting', [
             'path' => $imagePath,
@@ -59,22 +58,39 @@ class TripoService
         ]);
 
         try {
-            $response = $this->client()
-                ->attach('file', file_get_contents($fullPath), basename($fullPath), [
-                    'Content-Type' => $mimeType,
-                ])
-                ->post("{$this->baseUrl}/upload");
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, rtrim($this->baseUrl, '/') . '/upload');
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->apiKey
+            ]);
 
-            if ($response->failed()) {
-                Log::error('tripo.upload.api_error', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                $errorMsg = $this->getErrorMessage($response, "Tripo upload failed: HTTP {$response->status()}");
-                throw new \RuntimeException($errorMsg);
+            $cFile = new \CURLFile($fullPath, $mimeType, basename($fullPath));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                'file' => $cFile
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                Log::error('tripo.upload.curl_error', ['error' => $curlError]);
+                throw new \RuntimeException("Tripo upload failed: " . $curlError);
             }
 
-            $data = $response->json();
+            if ($httpCode !== 200) {
+                Log::error('tripo.upload.api_error', [
+                    'status' => $httpCode,
+                    'body' => $response,
+                ]);
+                throw new \RuntimeException("Tripo upload failed: HTTP {$httpCode}");
+            }
+
+            $data = json_decode($response, true);
 
             if (($data['code'] ?? -1) !== 0) {
                 Log::error('tripo.upload.response_error', ['response' => $data]);
@@ -86,9 +102,9 @@ class TripoService
             ]);
 
             return $data['data'];
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('tripo.upload.timeout', ['error' => $e->getMessage()]);
-            throw new \RuntimeException("Tripo API connection timeout during upload");
+        } catch (\Throwable $e) {
+            Log::error('tripo.upload.failed', ['error' => $e->getMessage()]);
+            throw new \RuntimeException($e->getMessage());
         }
     }
 

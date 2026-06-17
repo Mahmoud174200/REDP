@@ -6,6 +6,7 @@ import {
   UploadCloud
 } from 'lucide-react';
 import api from '../../services/api';
+import FloorPlanEditor from '../../components/admin/FloorPlanEditor';
 
 // ── Interfaces ──
 interface UserItem {
@@ -109,6 +110,11 @@ const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'projects' | 'units' | 'leads' | 'tickets' | 'sessions' | 'health' | 'audit_logs' | 'configs'>('users');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Floor Plan Editor Modal States
+  const [showFloorPlanEditor, setShowFloorPlanEditor] = useState(false);
+  const [editorUnitId, setEditorUnitId] = useState('');
+  const [editorUnitNumber, setEditorUnitNumber] = useState('');
 
   // ── Database Lists States ──
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -3543,38 +3549,18 @@ const AdminPanel: React.FC = () => {
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {uImage && (
                                                       <>
-                                                        {(!unit.model_3d_status || unit.model_3d_status === 'failed' || unit.model_3d_status === 'completed') && (
-                                                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.65rem', marginRight: '6px', userSelect: 'none' }}>
-                                                            <input
-                                                              type="checkbox"
-                                                              checked={!!unitPreprocess[unit.id]}
-                                                              onChange={(e) => setUnitPreprocess(prev => ({ ...prev, [unit.id]: e.target.checked }))}
-                                                            />
-                                                            <span>Gemini Optimize</span>
-                                                          </label>
-                                                        )}
-
-                                                        {(!unit.model_3d_status || unit.model_3d_status === 'failed') && (
-                                                          <button
-                                                            type="button"
-                                                            className="btn-primary"
-                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                                            onClick={() => handleGenerateUnit3D(unit.id, !!unitPreprocess[unit.id])}
-                                                          >
-                                                            Generate 3D
-                                                          </button>
-                                                        )}
-
-                                                        {(unit.model_3d_status === 'pending' || unit.model_3d_status === 'processing') && (
-                                                          <button
-                                                            type="button"
-                                                            className="btn-secondary"
-                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto' }}
-                                                            onClick={fetchData}
-                                                          >
-                                                            Refresh
-                                                          </button>
-                                                        )}
+                                                        <button
+                                                          type="button"
+                                                          className="btn-primary"
+                                                          style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
+                                                          onClick={() => {
+                                                            setEditorUnitId(unit.id);
+                                                            setEditorUnitNumber(unit.unit_number);
+                                                            setShowFloorPlanEditor(true);
+                                                          }}
+                                                        >
+                                                          ✍️ {unit.model_3d_status === 'completed' ? 'Edit 3D Plan' : 'Build 3D Plan'}
+                                                        </button>
 
                                                         {unit.model_3d_status === 'completed' && (
                                                           <>
@@ -3589,14 +3575,6 @@ const AdminPanel: React.FC = () => {
                                                                 View 3D
                                                               </a>
                                                             )}
-                                                            <button
-                                                              type="button"
-                                                              className="btn-secondary"
-                                                              style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto' }}
-                                                              onClick={() => handleRegenerateUnit3D(unit.id, !!unitPreprocess[unit.id])}
-                                                            >
-                                                              Regenerate
-                                                            </button>
                                                             <button
                                                               type="button"
                                                               className="btn-secondary"
@@ -3678,6 +3656,14 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
+      {showFloorPlanEditor && (
+        <FloorPlanEditor
+          unitId={editorUnitId}
+          unitNumber={editorUnitNumber}
+          onClose={() => setShowFloorPlanEditor(false)}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 };
