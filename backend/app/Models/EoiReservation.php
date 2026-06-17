@@ -26,6 +26,46 @@ class EoiReservation extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected static function booted()
+    {
+        static::created(function ($eoiRes) {
+            $exists = EoiQueue::where('id', $eoiRes->id)->exists();
+            if (!$exists) {
+                $priorityScore = microtime(true);
+                $queueNumber = EoiQueue::where('project_id', $eoiRes->project_id)->count() + 1;
+
+                EoiQueue::create([
+                    'id' => $eoiRes->id,
+                    'lead_id' => $eoiRes->lead_id,
+                    'project_id' => $eoiRes->project_id,
+                    'queue_number' => $queueNumber,
+                    'priority_score' => $priorityScore,
+                    'status' => $eoiRes->status === self::STATUS_APPROVED ? EoiQueue::STATUS_CONFIRMED : ($eoiRes->status === self::STATUS_REJECTED ? EoiQueue::STATUS_CANCELLED : EoiQueue::STATUS_PENDING),
+                    'eoi_amount' => $eoiRes->payment_amount,
+                    'notes' => $eoiRes->review_notes ?: ($eoiRes->unit_id ? "Reserved Unit: {$eoiRes->unit_id}" : null),
+                ]);
+            }
+        });
+
+        static::updated(function ($eoiRes) {
+            $eoiQueue = EoiQueue::find($eoiRes->id);
+            if ($eoiQueue) {
+                $newStatus = null;
+                if ($eoiRes->status === self::STATUS_APPROVED && $eoiQueue->status !== EoiQueue::STATUS_CONFIRMED) {
+                    $newStatus = EoiQueue::STATUS_CONFIRMED;
+                } elseif ($eoiRes->status === self::STATUS_REJECTED && $eoiQueue->status !== EoiQueue::STATUS_CANCELLED) {
+                    $newStatus = EoiQueue::STATUS_CANCELLED;
+                }
+
+                if ($newStatus) {
+                    $eoiQueue->status = $newStatus;
+                    $eoiQueue->queue_number = $eoiRes->queue_number;
+                    $eoiQueue->saveQuietly();
+                }
+            }
+        });
+    }
+
     // ── Status Constants ──
     public const STATUS_PENDING_REVIEW = 'pending_review';
     public const STATUS_APPROVED       = 'approved';
