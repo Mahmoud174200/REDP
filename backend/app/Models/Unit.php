@@ -12,13 +12,26 @@ class Unit extends Model
     protected $fillable = [
         'id',
         'project_id',
+        'building_id',
+        'floor_id',
         'unit_number',
         'floor',
         'type', // 'apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'
         'area', // in square meters
+        'net_area',
+        'finishing_type',
         'bedrooms',
         'bathrooms',
+        'living_rooms',
+        'kitchen_count',
+        'balcony_count',
+        'balcony_area',
+        'has_maid_room',
+        'has_storage',
+        'has_private_garden',
+        'has_private_parking',
         'view_type', // 'garden', 'pool', 'street', 'sea', 'landmark'
+        'orientation',
         'building',
         'layout_description',
         'layout_image_url',
@@ -36,11 +49,27 @@ class Unit extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'area' => 'decimal:2',
+        'net_area' => 'decimal:2',
+        'balcony_area' => 'decimal:2',
+        'has_maid_room' => 'boolean',
+        'has_storage' => 'boolean',
+        'has_private_garden' => 'boolean',
+        'has_private_parking' => 'boolean',
     ];
 
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function buildingRef()
+    {
+        return $this->belongsTo(Building::class, 'building_id');
+    }
+
+    public function floorRef()
+    {
+        return $this->belongsTo(BuildingFloor::class, 'floor_id');
     }
 
     public function reservations()
