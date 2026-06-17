@@ -480,6 +480,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/units/{unitId}/regenerate-3d', [$tripoCtrl, 'regenerateUnit3D']);
         Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
+        Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
     });
 
     // ══════════════════════════════════════════════════════════
