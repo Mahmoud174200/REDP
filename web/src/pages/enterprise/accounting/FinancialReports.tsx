@@ -116,9 +116,9 @@ const FinancialReports: React.FC = () => {
                     <th style={headerStyle}>Account Code</th>
                     <th style={headerStyle}>Account Name</th>
                     <th style={headerStyle}>Class Type</th>
-                    <th style={headerStyle} style={{ textAlign: 'right' }}>Debit (EGP)</th>
-                    <th style={headerStyle} style={{ textAlign: 'right' }}>Credit (EGP)</th>
-                    <th style={headerStyle} style={{ textAlign: 'right' }}>Net Balance (EGP)</th>
+                    <th style={{ textAlign: 'right', ...headerStyle }}>Debit (EGP)</th>
+                    <th style={{ textAlign: 'right', ...headerStyle }}>Credit (EGP)</th>
+                    <th style={{ textAlign: 'right', ...headerStyle }}>Net Balance (EGP)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,7 +150,7 @@ const FinancialReports: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Revenues Section */}
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981', borderBottom: '1px solid var(--border-glass)', pb: 4, mb: 10, textTransform: 'uppercase' }}>Operating Revenues</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981', borderBottom: '1px solid var(--border-glass)', paddingBottom: 4, marginBottom: 10, textTransform: 'uppercase' }}>Operating Revenues</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <tbody>
                     {reportData.revenues.map((acc: ReportAccount) => (
@@ -169,7 +169,7 @@ const FinancialReports: React.FC = () => {
 
               {/* Expenses Section */}
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ef4444', borderBottom: '1px solid var(--border-glass)', pb: 4, mb: 10, textTransform: 'uppercase' }}>Operating Expenses</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ef4444', borderBottom: '1px solid var(--border-glass)', paddingBottom: 4, marginBottom: 10, textTransform: 'uppercase' }}>Operating Expenses</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <tbody>
                     {reportData.expenses.map((acc: ReportAccount) => (
@@ -202,7 +202,7 @@ const FinancialReports: React.FC = () => {
               
               {/* Assets */}
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--border-glass)', pb: 4, mb: 10, textTransform: 'uppercase' }}>Assets</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--border-glass)', paddingBottom: 4, marginBottom: 10, textTransform: 'uppercase' }}>Assets</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <tbody>
                     {reportData.assets.map((acc: ReportAccount) => (
@@ -221,7 +221,7 @@ const FinancialReports: React.FC = () => {
 
               {/* Liabilities */}
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#8b5cf6', borderBottom: '1px solid var(--border-glass)', pb: 4, mb: 10, textTransform: 'uppercase' }}>Liabilities</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#8b5cf6', borderBottom: '1px solid var(--border-glass)', paddingBottom: 4, marginBottom: 10, textTransform: 'uppercase' }}>Liabilities</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <tbody>
                     {reportData.liabilities.map((acc: ReportAccount) => (
@@ -240,7 +240,7 @@ const FinancialReports: React.FC = () => {
 
               {/* Equity */}
               <div>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f59e0b', borderBottom: '1px solid var(--border-glass)', pb: 4, mb: 10, textTransform: 'uppercase' }}>Owner's Equity</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f59e0b', borderBottom: '1px solid var(--border-glass)', paddingBottom: 4, marginBottom: 10, textTransform: 'uppercase' }}>Owner's Equity</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <tbody>
                     {reportData.equity.map((acc: ReportAccount) => (

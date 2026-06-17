@@ -206,4 +206,272 @@ OUTPUT FORMAT CRITICAL:
 
         return $newFilename;
     }
+
+    /**
+     * Analyze a 2D floor plan image and generate a structural grid representing walls, windows, and doors.
+     *
+     * @param string $imagePath Local path of the image (relative to storage/app/public)
+     * @param int $gridSize Size of the grid (default 28)
+     * @return array 2D array representing structural layout
+     * @throws \RuntimeException when API key is missing/invalid or detection fails
+     */
+    public function autodetectFloorPlanGrid(string $imagePath, int $gridSize = 28): array
+    {
+        if (empty($this->apiKey) || $this->apiKey === 'your_gemini_api_key_here' || str_contains($this->apiKey, 'placeholder')) {
+            throw new \RuntimeException(
+                "Gemini API key is not configured. Please set a valid GEMINI_API_KEY in your .env file.\n" .
+                "مفتاح Gemini API غير مُعد. يرجى إضافة مفتاح صالح في ملف .env"
+            );
+        }
+
+        $fullPath = Storage::disk('public')->path($imagePath);
+        if (!file_exists($fullPath)) {
+            throw new \RuntimeException("Source image not found for layout detection: {$imagePath}");
+        }
+
+        $imageData = base64_encode(file_get_contents($fullPath));
+        $mimeType = mime_content_type($fullPath);
+
+        Log::info('gemini.layout_autodetect.started', ['image' => $imagePath, 'gridSize' => $gridSize]);
+
+        $promptText = "You are an expert architectural floor plan analyzer. Analyze this 2D floor plan image with extreme precision and map it onto a {$gridSize}x{$gridSize} grid matrix.
+
+ANALYSIS INSTRUCTIONS:
+1. First identify the EXACT shape and proportions of the apartment/unit boundary (it may not be a perfect rectangle).
+2. Identify ALL rooms: bedrooms, bathrooms, kitchen, living room, dining area, walk-in closets, storage rooms, patio/balcony, hallways, and entry areas.
+3. Identify the EXACT position of every wall segment — both outer boundary walls AND inner partition walls that separate rooms.
+4. Identify ALL doors (shown as arcs or gaps in walls) and ALL windows (shown as parallel lines on outer walls).
+5. Pay close attention to the relative sizes of rooms — bathrooms and closets are typically much smaller than bedrooms and living rooms.
+
+GRID MAPPING RULES:
+- Row 0 = top of the floor plan, Row " . ($gridSize - 1) . " = bottom
+- Column 0 = left of the floor plan, Column " . ($gridSize - 1) . " = right
+- Scale the floor plan to fill most of the {$gridSize}x{$gridSize} grid, leaving 1-2 cells of margin around the outer boundary.
+- Each cell value:
+  0 = Empty walkable floor area (inside rooms, hallways)
+  1 = Wall (structural walls — must form continuous connected lines, never isolated single cells)
+  2 = Window (on outer walls only, where windows appear in the drawing)
+  3 = Door (where doors/openings appear — both entrance and internal doors)
+
+CRITICAL ACCURACY REQUIREMENTS:
+- Walls MUST form continuous connected lines (no gaps except at doors/windows).
+- The outer boundary MUST form a CLOSED perimeter (except at entrance doors and windows).
+- Inner partition walls MUST connect to the outer walls to fully enclose each room.
+- Room proportions must match the original drawing — if Bedroom 1 is 12'x17' and Bath 1 is 5'x8', the bedroom should occupy roughly 4x the grid area of the bathroom.
+- Every room visible in the floor plan must appear as a distinct enclosed space in the grid.
+- Areas OUTSIDE the apartment boundary should be 0 (empty).
+
+Return a JSON object with a 'grid' key containing the {$gridSize}x{$gridSize} 2D integer array.";
+
+        $chatModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+        $response = null;
+        $lastError = '';
+        $maxRetries = 2; // retry each model up to 2 times
+
+        $schema = [
+            'type' => 'OBJECT',
+            'properties' => [
+                'grid' => [
+                    'type' => 'ARRAY',
+                    'items' => [
+                        'type' => 'ARRAY',
+                        'items' => [
+                            'type' => 'INTEGER'
+                        ]
+                    ]
+                ]
+            ],
+            'required' => ['grid']
+        ];
+
+        foreach ($chatModels as $model) {
+            for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                Log::info("gemini.layout_autodetect.trying_model", ['model' => $model, 'attempt' => $attempt]);
+                $response = Http::timeout(180)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $this->apiKey, [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $promptText],
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => $mimeType,
+                                        'data' => $imageData
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                    'generationConfig' => [
+                        'temperature' => 0.1,
+                        'responseMimeType' => 'application/json',
+                        'responseSchema' => $schema
+                    ]
+                ]);
+
+                if ($response->successful()) {
+                    break 2; // break both loops
+                }
+
+                $lastError = $response->json('error.message') ?? 'Unknown error';
+                Log::warning("gemini.layout_autodetect.model_failed", ['model' => $model, 'attempt' => $attempt, 'error' => $lastError]);
+
+                // If rate limited or high demand, wait before retry
+                if (str_contains(strtolower($lastError), 'high demand') || 
+                    str_contains(strtolower($lastError), 'rate limit') ||
+                    str_contains(strtolower($lastError), '429') ||
+                    $response->status() === 429 || $response->status() === 503) {
+                    Log::info("gemini.layout_autodetect.waiting_before_retry", ['seconds' => 5 * $attempt]);
+                    sleep(5 * $attempt); // Wait 5s, then 10s
+                } else {
+                    break; // Non-retryable error, try next model
+                }
+            }
+        }
+
+        if (!$response || !$response->successful()) {
+            Log::error('gemini.layout_autodetect.all_models_failed', ['error' => $lastError]);
+
+            if (str_contains(strtolower($lastError), 'api key not valid') || str_contains(strtolower($lastError), 'expired') || str_contains(strtolower($lastError), 'key not')) {
+                throw new \RuntimeException(
+                    "Gemini API key is invalid or expired. Please update GEMINI_API_KEY in your .env file with a valid key from https://aistudio.google.com/app/apikey\n" .
+                    "مفتاح Gemini API غير صالح أو منتهي الصلاحية. يرجى تحديث المفتاح في ملف .env"
+                );
+            }
+
+            throw new \RuntimeException("Gemini layout detection failed: " . $lastError);
+        }
+
+        $text = $response->json('candidates.0.content.parts.0.text');
+        $data = json_decode($text, true);
+
+        if (empty($data) || !isset($data['grid'])) {
+            if (preg_match('/\{[\s\S]*\}/', $text, $matches)) {
+                $data = json_decode($matches[0], true);
+            }
+        }
+
+        if (empty($data) || !isset($data['grid']) || !is_array($data['grid'])) {
+            Log::error('gemini.layout_autodetect.invalid_json', ['text' => $text]);
+            throw new \RuntimeException(
+                "Failed to parse structural layout grid from Gemini response.\n" .
+                "فشل في تحليل شبكة المخطط من استجابة Gemini"
+            );
+        }
+
+        // Normalize the grid to exactly $gridSize x $gridSize
+        $detectedGrid = $data['grid'];
+        $normalizedGrid = [];
+        for ($r = 0; $r < $gridSize; $r++) {
+            $row = [];
+            for ($c = 0; $c < $gridSize; $c++) {
+                $val = $detectedGrid[$r][$c] ?? 0;
+                // Clamp values to valid range 0-3
+                $row[] = max(0, min(3, (int)$val));
+            }
+            $normalizedGrid[] = $row;
+        }
+
+        // Validate: check that there are some walls detected (not an empty/all-zero grid)
+        $wallCount = 0;
+        foreach ($normalizedGrid as $row) {
+            foreach ($row as $cell) {
+                if ($cell === 1) $wallCount++;
+            }
+        }
+
+        if ($wallCount < 10) {
+            Log::warning('gemini.layout_autodetect.too_few_walls', ['wall_count' => $wallCount]);
+            throw new \RuntimeException(
+                "AI detected too few walls ({$wallCount}). The floor plan image may be unclear or too complex. Please try with a clearer image.\n" .
+                "اكتشف الذكاء الاصطناعي عدداً قليلاً جداً من الجدران. يرجى استخدام صورة أوضح للمخطط."
+            );
+        }
+
+        Log::info('gemini.layout_autodetect.success', [
+            'image' => $imagePath,
+            'walls' => $wallCount,
+            'grid_rows' => count($normalizedGrid),
+            'grid_cols' => count($normalizedGrid[0] ?? [])
+        ]);
+
+        return $normalizedGrid;
+    }
+
+    /**
+     * Generate a procedural mock 2D apartment floor plan grid layout.
+     */
+    protected function generateMockGrid(int $gridSize): array
+    {
+        // Initialize grid with 0s
+        $grid = array_fill(0, $gridSize, array_fill(0, $gridSize, 0));
+
+        // Let's create a beautiful, standard layout for a 28x28 grid
+        if ($gridSize === 28) {
+            // 1. Draw Outer Walls
+            for ($c = 2; $c <= 25; $c++) {
+                $grid[2][$c] = 1;  // Top Wall
+                $grid[25][$c] = 1; // Bottom Wall
+            }
+            for ($r = 2; $r <= 25; $r++) {
+                $grid[$r][2] = 1;  // Left Wall
+                $grid[$r][25] = 1; // Right Wall
+            }
+
+            // 2. Put Outer Windows (value 2) and Entrance Door (value 3)
+            $grid[2][8] = 2;   // Top Window 1
+            $grid[2][18] = 2;  // Top Window 2
+            $grid[12][2] = 2;  // Left Window
+            $grid[12][25] = 2; // Right Window
+            $grid[25][14] = 3; // Entrance Door (Bottom)
+
+            // 3. Draw Horizontal partition dividing bedrooms (top) and living (bottom) at row 14
+            for ($c = 2; $c <= 25; $c++) {
+                $grid[14][$c] = 1;
+            }
+            // Put doors in the horizontal partition
+            $grid[14][6] = 3;  // Door to Left Bedroom
+            $grid[14][18] = 3; // Door to Right Bedroom
+            $grid[14][12] = 0; // Walkway opening
+
+            // 4. Draw Vertical partition dividing Top Left and Top Right bedrooms at col 13
+            for ($r = 2; $r <= 14; $r++) {
+                $grid[$r][13] = 1;
+            }
+            $grid[8][13] = 3;  // Inter-connecting door between bedrooms
+
+            // 5. Draw Vertical partition separating Kitchen/Bathroom from Living Area at col 10 (bottom)
+            for ($r = 14; $r <= 25; $r++) {
+                $grid[$r][10] = 1;
+            }
+            $grid[18][10] = 3; // Door to kitchen/bathroom area
+
+            // 6. Draw Horizontal partition separating Bathroom (top left bottom part) and Kitchen (bottom left) at row 19
+            for ($c = 2; $c <= 10; $c++) {
+                $grid[19][$c] = 1;
+            }
+            $grid[19][5] = 3;  // Door to bathroom
+        } else {
+            // General grid size fallback: just draw outer walls and center partition
+            for ($c = 1; $c < $gridSize - 1; $c++) {
+                $grid[1][$c] = 1;
+                $grid[$gridSize - 2][$c] = 1;
+            }
+            for ($r = 1; $r < $gridSize - 1; $r++) {
+                $grid[$r][1] = 1;
+                $grid[$r][$gridSize - 2] = 1;
+            }
+            // Entrance
+            $grid[$gridSize - 2][(int)($gridSize / 2)] = 3;
+            
+            // Middle partition
+            $mid = (int)($gridSize / 2);
+            for ($c = 1; $c < $gridSize - 1; $c++) {
+                $grid[$mid][$c] = 1;
+            }
+            $grid[$mid][(int)($gridSize / 3)] = 3;
+        }
+
+        return $grid;
+    }
 }
+

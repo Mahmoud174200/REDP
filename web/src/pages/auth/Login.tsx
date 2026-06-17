@@ -603,7 +603,9 @@ const Login: React.FC = () => {
                 borderRadius: '16px',
                 background: 'rgba(0, 61, 166, 0.01)',
                 border: '1px solid rgba(0, 61, 166, 0.05)',
-                boxShadow: 'inset 0 1px 1px rgba(0, 61, 166, 0.01)'
+                boxShadow: 'inset 0 1px 1px rgba(0, 61, 166, 0.01)',
+                maxHeight: '220px',
+                overflowY: 'auto'
               }}
             >
               <h4 style={{
@@ -620,13 +622,57 @@ const Login: React.FC = () => {
                 <UserCheck style={{ width: '12px', height: '12px', color: '#003DA6' }} />
                 Quick-Fill Sandbox Profiles
               </h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <button type="button" onClick={() => fillProfile('admin')} className="quick-fill-btn">👑 Admin</button>
-                <button type="button" onClick={() => fillProfile('tele_sales')} className="quick-fill-btn">📞 Tele-Sales</button>
-                <button type="button" onClick={() => fillProfile('broker')} className="quick-fill-btn">🍊 Broker</button>
-                <button type="button" onClick={() => fillProfile('company_sales')} className="quick-fill-btn">🏢 Co-Sales</button>
-                <button type="button" onClick={() => fillProfile('finance_officer')} className="quick-fill-btn">🔵 Accounts</button>
-                <button type="button" onClick={() => fillProfile('delivery_engineer')} className="quick-fill-btn">🟢 Delivery</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>ADMIN & EXECUTIVE</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <button type="button" onClick={() => fillProfile('admin')} className="quick-fill-btn">👑 Admin</button>
+                    <button type="button" onClick={() => fillProfile('executive')} className="quick-fill-btn">👔 Executive</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>COMMERCIAL SALES</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <button type="button" onClick={() => fillProfile('company_sales')} className="quick-fill-btn">🏢 Co-Sales Head</button>
+                    <button type="button" onClick={() => fillProfile('company_sales_leader')} className="quick-fill-btn">🏢 Sales Leader</button>
+                    <button type="button" onClick={() => fillProfile('company_sales_agent')} className="quick-fill-btn">🏢 Sales Agent</button>
+                    <button type="button" onClick={() => fillProfile('sales_agent')} className="quick-fill-btn">🟠 Direct Agent</button>
+                    <button type="button" onClick={() => fillProfile('tele_sales')} className="quick-fill-btn">📞 Tele-Sales Agent</button>
+                    <button type="button" onClick={() => fillProfile('tele_sales_manager')} className="quick-fill-btn">📞 Tele-Sales Mgr</button>
+                    <button type="button" onClick={() => fillProfile('tele_sales_head')} className="quick-fill-btn">📞 Tele-Sales Head</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>EXTERNAL BROKERS</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <button type="button" onClick={() => fillProfile('broker_owner')} className="quick-fill-btn">🍊 Broker Owner</button>
+                    <button type="button" onClick={() => fillProfile('broker_team_leader')} className="quick-fill-btn">🍊 Team Leader</button>
+                    <button type="button" onClick={() => fillProfile('broker')} className="quick-fill-btn">🍊 Broker Agent</button>
+                    <button type="button" onClick={() => fillProfile('freelance_broker')} className="quick-fill-btn">🍊 Freelancer</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>FINANCE, OPS & SUPPORT</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <button type="button" onClick={() => fillProfile('finance_officer')} className="quick-fill-btn">🔵 Accounts</button>
+                    <button type="button" onClick={() => fillProfile('project_manager')} className="quick-fill-btn">🏗️ Project Mgr</button>
+                    <button type="button" onClick={() => fillProfile('delivery_engineer')} className="quick-fill-btn">🟢 Delivery</button>
+                    <button type="button" onClick={() => fillProfile('handover')} className="quick-fill-btn">🤝 Handover</button>
+                    <button type="button" onClick={() => fillProfile('maintenance_manager')} className="quick-fill-btn">🔧 Facilities</button>
+                    <button type="button" onClick={() => fillProfile('legal_officer')} className="quick-fill-btn">⚖️ Legal</button>
+                    <button type="button" onClick={() => fillProfile('compliance_officer')} className="quick-fill-btn">🔒 Compliance</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>CLIENT PORTAL</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    <button type="button" onClick={() => fillProfile('client')} className="quick-fill-btn">🐳 Homeowner</button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -226,7 +226,7 @@ const GlobalizationSettings: React.FC = () => {
                     <tr>
                       <th style={headerStyle}>From</th>
                       <th style={headerStyle}>To</th>
-                      <th style={headerStyle} style={{ textAlign: 'right', ...headerStyle }}>Multiplier Rate</th>
+                      <th style={{ textAlign: 'right', ...headerStyle }}>Multiplier Rate</th>
                       <th style={headerStyle}>Last synced</th>
                     </tr>
                   </thead>

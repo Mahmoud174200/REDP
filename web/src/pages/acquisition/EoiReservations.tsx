@@ -28,6 +28,7 @@ interface EoiReservation {
   payment_method: string;
   payment_amount: string;
   receipt_path: string;
+  passport_path?: string | null;
   status: 'pending_review' | 'approved' | 'rejected';
   order_number: string | null;
   queue_number: number | null;
@@ -910,6 +911,15 @@ const EoiReservations: React.FC = () => {
                     >
                       <Eye style={{ width: '13px', height: '13px' }} /> Receipt
                     </button>
+                    {item.passport_path && (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setReceiptModal(getReceiptUrl(item.passport_path))}
+                        style={{ padding: '8px 14px', fontSize: '0.75rem' }}
+                      >
+                        <Eye style={{ width: '13px', height: '13px' }} /> Passport
+                      </button>
+                    )}
                     <button
                       className="btn-primary"
                       onClick={() => { setApproveModal(item); setReviewNotes(''); }}
@@ -1038,6 +1048,14 @@ const EoiReservations: React.FC = () => {
                               >
                                 <FileText style={{ width: '12px', height: '12px' }} /> Receipt
                               </button>
+                              {item.passport_path && (
+                                <button
+                                  onClick={() => setReceiptModal(getReceiptUrl(item.passport_path))}
+                                  style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', transition: 'var(--transition-smooth)' }}
+                                >
+                                  <FileText style={{ width: '12px', height: '12px' }} /> Passport
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1425,7 +1443,9 @@ const EoiReservations: React.FC = () => {
             <button onClick={() => setReceiptModal(null)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.6)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X style={{ width: '16px', height: '16px' }} />
             </button>
-            <h3 style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', marginBottom: '16px' }}>Payment Receipt</h3>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', marginBottom: '16px' }}>
+              {receiptModal.includes('eoi-passports') ? 'Passport Document' : 'Payment Receipt'}
+            </h3>
             <div style={{ textAlign: 'center', maxHeight: '70vh', overflow: 'auto' }}>
               {receiptModal.endsWith('.pdf') ? (
                 <iframe src={receiptModal} style={{ width: '100%', height: '60vh', border: 'none', borderRadius: '12px' }} />
@@ -1560,13 +1580,24 @@ const EoiReservations: React.FC = () => {
               ))}
             </div>
 
-            <button
-              className="btn-secondary"
-              onClick={() => setReceiptModal(getReceiptUrl(detailModal.receipt_path))}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              <Eye style={{ width: '14px', height: '14px' }} /> View Payment Receipt
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => setReceiptModal(getReceiptUrl(detailModal.receipt_path))}
+                style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Eye style={{ width: '14px', height: '14px' }} /> View Receipt
+              </button>
+              {detailModal.passport_path && (
+                <button
+                  className="btn-secondary"
+                  onClick={() => setReceiptModal(getReceiptUrl(detailModal.passport_path))}
+                  style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Eye style={{ width: '14px', height: '14px' }} /> View Passport
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

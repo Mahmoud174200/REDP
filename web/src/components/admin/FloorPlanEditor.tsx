@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { X, Save, Trash2, RotateCw, HelpCircle, Layers, PenTool, Eraser, CheckCircle, AlertTriangle, AlertCircle } from 'lucide-react';
+import { X, Save, Trash2, RotateCw, HelpCircle, Layers, PenTool, Eraser, CheckCircle, AlertTriangle, AlertCircle, UploadCloud } from 'lucide-react';
 import api from '../../services/api';
 
 interface FloorPlanEditorProps {
@@ -23,7 +23,7 @@ interface GridCell {
   rotation: number; // 0, 90, 180, 270
 }
 
-const GRID_SIZE = 14;
+const GRID_SIZE = 28;
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, onClose, onSuccess }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -56,13 +56,45 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
     );
   });
 
+  const [layoutImageUrl, setLayoutImageUrl] = useState<string | null>(null);
+  const [isUploadingLayout, setIsUploadingLayout] = useState(false);
+  const [isAutodetecting, setIsAutodetecting] = useState(false);
+
   // Load saved floor plan grid layout from backend on mount
   useEffect(() => {
     const loadSavedGrid = async () => {
       try {
+        const unitRes = await api.get(`/finance/units/${unitId}`);
+        if (unitRes.data?.success && unitRes.data?.data) {
+          setLayoutImageUrl(unitRes.data.data.layout_image_url);
+        }
+      } catch (err) {
+        console.error('Failed to load unit details', err);
+      }
+
+      try {
         const res = await api.get(`/admin/units/${unitId}/3d-model/grid`);
         if (res.data?.success && res.data?.grid) {
-          setGrid(res.data.grid);
+          const loadedGrid = res.data.grid;
+          if (loadedGrid.length !== GRID_SIZE) {
+            // Normalize grid structure by padding or truncating to GRID_SIZE
+            const newGrid = Array(GRID_SIZE).fill(null).map((_, r) =>
+              Array(GRID_SIZE).fill(null).map((_, c) => {
+                if (loadedGrid[r] && loadedGrid[r][c]) {
+                  return loadedGrid[r][c];
+                }
+                return {
+                  type: 'empty',
+                  floor: 'default',
+                  furniture: null,
+                  rotation: 0
+                };
+              })
+            );
+            setGrid(newGrid);
+          } else {
+            setGrid(loadedGrid);
+          }
         }
       } catch (err) {
         console.log('No saved floor plan grid found, starting fresh.');
@@ -1502,7 +1534,56 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
     );
   };
 
-  // ── Save/Export the Three.js Scene as GLB and upload ──
+  const handleLayoutImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setIsUploadingLayout(true);
+    try {
+      const res = await api.post(`/admin/units/${unitId}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        setLayoutImageUrl(res.data.data.image_url);
+        showSuccess('Layout image uploaded successfully!\nتم رفع مخطط الشقة بنجاح!');
+      }
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Upload failed.\nفشل في رفع الصورة.');
+    } finally {
+      setIsUploadingLayout(false);
+    }
+  };
+
+  const handleAIAutodetect = async () => {
+    if (!layoutImageUrl) {
+      showError('Please upload a 2D layout image first.\nيرجى رفع صورة مخطط الشقة أولاً.');
+      return;
+    }
+
+    showConfirm(
+      'Are you sure you want to autodetect the layout? This will overwrite your current draft.\nهل أنت متأكد من رغبتك في استخدام الرسم التلقائي؟ سيؤدي هذا لمسح الرسم الحالي.',
+      async () => {
+        setIsAutodetecting(true);
+        try {
+          const res = await api.post(`/admin/units/${unitId}/autodetect-layout`);
+          if (res.data?.success && res.data?.grid) {
+            setGrid(res.data.grid);
+            showSuccess('AI autodetected floor plan layout successfully!\nقام الذكاء الاصطناعي برسم مخطط الشقة بنجاح!');
+          } else {
+            showError(res.data?.message || 'AI returned no grid data.\nلم يُرجع الذكاء الاصطناعي بيانات.');
+          }
+        } catch (err: any) {
+          const msg = err.response?.data?.message || 'Failed to detect layout.\nفشل الذكاء الاصطناعي في تمييز المخطط.';
+          showError(msg);
+        } finally {
+          setIsAutodetecting(false);
+        }
+      }
+    );
+  };
+
   const save3DModel = async () => {
     const scene = sceneRef.current;
     const group = groupRef.current;
@@ -1682,6 +1763,100 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
           {/* Tool selectors */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
+            {/* AI Autocomplete & Upload Panel */}
+            <div style={{
+              background: 'rgba(30, 41, 59, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '8px',
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', display: 'block' }}>
+                🪄 AI Floor Plan Autodetection (الرسم التلقائي بالذكاء الاصطناعي)
+              </span>
+              <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0 }}>
+                Upload a 2D floor plan layout image, then click Autodetect to have Gemini trace the walls, doors, and windows automatically onto your 28x28 grid!
+              </p>
+              
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
+                <label style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px dashed rgba(255, 255, 255, 0.2)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontWeight: 600
+                }}>
+                  <UploadCloud size={14} />
+                  {isUploadingLayout ? 'Uploading...' : (layoutImageUrl ? 'Change Layout Image' : 'Upload 2D Layout')}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleLayoutImageUpload}
+                    disabled={isUploadingLayout}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleAIAutodetect}
+                  disabled={isAutodetecting || !layoutImageUrl}
+                  className="btn-primary"
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '0.75rem',
+                    background: layoutImageUrl ? '#8b5cf6' : 'rgba(255,255,255,0.05)',
+                    color: layoutImageUrl ? '#ffffff' : '#64748b',
+                    cursor: layoutImageUrl ? 'pointer' : 'not-allowed',
+                    border: '1px solid ' + (layoutImageUrl ? '#8b5cf6' : 'rgba(255,255,255,0.1)'),
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: 700
+                  }}
+                >
+                  {isAutodetecting ? (
+                    <>
+                      <div className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                      Analyzing...
+                    </>
+                  ) : (
+                    '🪄 Autodetect Layout'
+                  )}
+                </button>
+              </div>
+
+              {layoutImageUrl && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <img
+                    src={layoutImageUrl.startsWith('http') ? layoutImageUrl : `http://127.0.0.1:8000/storage/${layoutImageUrl}`}
+                    alt="2D Layout Reference"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      objectFit: 'cover',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.15)'
+                    }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>✓ Layout Loaded</span>
+                    <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>Ready for Gemini Autodetection</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Draw Tools */}
             <div>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
@@ -1850,84 +2025,86 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
               <HelpCircle size={14} /> Click and drag to draw walls or erase. Furniture can only be placed on empty tiles.
             </span>
 
-            {/* Drawing Board grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-              gap: '2px',
-              padding: '6px',
-              background: '#1e293b',
-              border: '2px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: 'var(--radius-md)',
-              userSelect: 'none'
-            }}>
-              {grid.map((row, rIdx) =>
-                row.map((cell, cIdx) => {
-                  // Render color helper based on type/floor/furniture
-                  let cellBg = '#334155'; // empty default
-                  let cellBorder = '1px solid rgba(255,255,255,0.05)';
+            {/* Drawing Board grid wrapper for horizontal scrolling if needed */}
+            <div style={{ maxWidth: '100%', overflowX: 'auto', paddingBottom: '4px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                gap: '2px',
+                padding: '6px',
+                background: '#1e293b',
+                border: '2px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: 'var(--radius-md)',
+                userSelect: 'none'
+              }}>
+                {grid.map((row, rIdx) =>
+                  row.map((cell, cIdx) => {
+                    // Render color helper based on type/floor/furniture
+                    let cellBg = '#334155'; // empty default
+                    let cellBorder = '1px solid rgba(255,255,255,0.05)';
 
-                  // Apply floor type colors
-                  if (cell.floor === 'wood') cellBg = '#7c2d12';
-                  else if (cell.floor === 'tile') cellBg = '#64748b';
-                  else if (cell.floor === 'carpet') cellBg = '#475569';
-                  else if (cell.floor === 'balcony') cellBg = '#1d4ed8';
-                  else if (cell.floor === 'grass') cellBg = '#065f46';
+                    // Apply floor type colors
+                    if (cell.floor === 'wood') cellBg = '#7c2d12';
+                    else if (cell.floor === 'tile') cellBg = '#64748b';
+                    else if (cell.floor === 'carpet') cellBg = '#475569';
+                    else if (cell.floor === 'balcony') cellBg = '#1d4ed8';
+                    else if (cell.floor === 'grass') cellBg = '#065f46';
 
-                  // Apply structure types on top
-                  if (cell.type === 'wall') {
-                    cellBg = '#f3f4f6';
-                    cellBorder = '1px solid #d1d5db';
-                  } else if (cell.type === 'window') {
-                    cellBg = '#67e8f9';
-                    cellBorder = '1px solid #0891b2';
-                  } else if (cell.type === 'door') {
-                    cellBg = '#f59e0b';
-                    cellBorder = '1px solid #b45309';
-                  }
+                    // Apply structure types on top
+                    if (cell.type === 'wall') {
+                      cellBg = '#f3f4f6';
+                      cellBorder = '1px solid #d1d5db';
+                    } else if (cell.type === 'window') {
+                      cellBg = '#67e8f9';
+                      cellBorder = '1px solid #0891b2';
+                    } else if (cell.type === 'door') {
+                      cellBg = '#f59e0b';
+                      cellBorder = '1px solid #b45309';
+                    }
 
-                  return (
-                    <div
-                      key={`${rIdx}-${cIdx}`}
-                      onMouseDown={(e) => handleMouseDown(rIdx, cIdx, e)}
-                      onMouseEnter={() => handleMouseEnter(rIdx, cIdx)}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        background: cellBg,
-                        border: cellBorder,
-                        borderRadius: '3px',
-                        cursor: 'crosshair',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.55rem',
-                        fontWeight: 'bold',
-                        color: '#ffffff',
-                        position: 'relative'
-                      }}
-                    >
-                      {/* Draw furniture label abbreviated */}
-                      {cell.furniture && (
-                        <div style={{
-                          position: 'absolute',
-                          inset: '1px',
-                          background: 'rgba(0,0,0,0.5)',
+                    return (
+                      <div
+                        key={`${rIdx}-${cIdx}`}
+                        onMouseDown={(e) => handleMouseDown(rIdx, cIdx, e)}
+                        onMouseEnter={() => handleMouseEnter(rIdx, cIdx)}
+                        style={{
+                          width: '15px',
+                          height: '15px',
+                          background: cellBg,
+                          border: cellBorder,
                           borderRadius: '2px',
+                          cursor: 'crosshair',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: '0.45rem',
-                          textTransform: 'uppercase'
-                        }}>
-                          {cell.furniture.substring(0, 2)}
-                          {cell.rotation > 0 && <span style={{ fontSize: '0.35rem', color: '#fbbf24', marginLeft: '1px' }}>{cell.rotation}°</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+                          fontWeight: 'bold',
+                          color: '#ffffff',
+                          position: 'relative'
+                        }}
+                      >
+                        {/* Draw furniture label abbreviated */}
+                        {cell.furniture && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: '1px',
+                            background: 'rgba(0,0,0,0.5)',
+                            borderRadius: '1px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.35rem',
+                            textTransform: 'uppercase'
+                          }}>
+                            {cell.furniture.substring(0, 2)}
+                            {cell.rotation > 0 && <span style={{ fontSize: '0.25rem', color: '#fbbf24', marginLeft: '1px' }}>{cell.rotation}°</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {/* Color Legend Map */}

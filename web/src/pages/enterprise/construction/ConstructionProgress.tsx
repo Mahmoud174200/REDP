@@ -240,7 +240,7 @@ const ConstructionProgress: React.FC = () => {
                     <thead>
                       <tr>
                         <th style={headerStyle}>Milestone Title</th>
-                        <th style={headerStyle} style={{ width: 140, ...headerStyle }}>Progress slider</th>
+                        <th style={{ width: 140, ...headerStyle }}>Progress slider</th>
                         <th style={headerStyle}>Status</th>
                       </tr>
                     </thead>
@@ -282,9 +282,9 @@ const ConstructionProgress: React.FC = () => {
                       <thead>
                         <tr>
                           <th style={headerStyle}>Item</th>
-                          <th style={headerStyle} style={{ textAlign: 'right', ...headerStyle }}>Planned Qty</th>
-                          <th style={headerStyle} style={{ textAlign: 'right', ...headerStyle }}>Actual Qty</th>
-                          <th style={headerStyle} style={{ textAlign: 'right', ...headerStyle }}>Total Price</th>
+                          <th style={{ textAlign: 'right', ...headerStyle }}>Planned Qty</th>
+                          <th style={{ textAlign: 'right', ...headerStyle }}>Actual Qty</th>
+                          <th style={{ textAlign: 'right', ...headerStyle }}>Total Price</th>
                         </tr>
                       </thead>
                       <tbody>
