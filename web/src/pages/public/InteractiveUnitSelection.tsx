@@ -307,6 +307,7 @@ const InteractiveUnitSelection: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unitView3D, setUnitView3D] = useState(false);
+  const [eoiInvitation, setEoiInvitation] = useState<any>(null);
 
   useEffect(() => {
     if (selectedUnit) {
@@ -331,8 +332,12 @@ const InteractiveUnitSelection: React.FC = () => {
 
   // Init
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem('redp_token'));
+    const loggedIn = !!localStorage.getItem('redp_token');
+    setIsLoggedIn(loggedIn);
     loadProjects();
+    if (loggedIn) {
+      fetchInvitationStatus();
+    }
 
     // Load Google Model Viewer script
     if (!document.querySelector('script[src*="model-viewer"]')) {
@@ -366,6 +371,17 @@ const InteractiveUnitSelection: React.FC = () => {
       console.error('Error fetching projects:', err);
     }
     setLoading(false);
+  };
+
+  const fetchInvitationStatus = async () => {
+    try {
+      const res = await api.get('/v1/client/eoi-invitation');
+      if (res.data?.success) {
+        setEoiInvitation(res.data.data);
+      }
+    } catch (err) {
+      console.error('No active EOI invitation found or client not invited.');
+    }
   };
 
   const handleSelectProject = async (projectId: string) => {
@@ -515,6 +531,33 @@ const InteractiveUnitSelection: React.FC = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+      });
+
+      if (res.data?.success) {
+        setReserveResult(res.data);
+        // Update unit status locally
+        if (selectedFloor && selectedUnit) {
+          const updatedUnits = selectedFloor.units.map(u =>
+            u.id === selectedUnit.id ? { ...u, status: 'reserved' } : u
+          );
+          setSelectedFloor({ ...selectedFloor, units: updatedUnits, available_units: selectedFloor.available_units - 1 });
+          setSelectedUnit({ ...selectedUnit, status: 'reserved' });
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setReserveError(err.response?.data?.message || t.errorOccurred);
+    }
+    setReserveProcessing(false);
+  };
+
+  const handleReserveSubmitLoggedIn = async () => {
+    setReserveProcessing(true);
+    setReserveError('');
+    try {
+      const res = await api.post('/v1/public/eoi/submit', {
+        project_id: selectedProject?.id,
+        unit_id: selectedUnit?.id,
       });
 
       if (res.data?.success) {
@@ -1871,409 +1914,499 @@ const InteractiveUnitSelection: React.FC = () => {
           maxHeight: '90vh',
           overflowY: 'auto',
         }}>
-          {/* Success State */}
-          {reserveResult ? (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 24px',
-                animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
-              }}>
-                <CheckCircle size={40} style={{ color: '#fff' }} />
-              </div>
-              <h3 style={{
-                fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
-                color: '#0f172a', marginBottom: 12,
-              }}>
-                {t.successTitle}
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.6 }}>
-                {lang === 'en'
-                  ? 'Your reservation request and receipt have been submitted successfully. An accountant will review your payment shortly to approve your queue number.'
-                  : 'تم إرسال طلب الحجز وإيصال التحويل بنجاح. سيقوم المحاسب بمراجعة عملية الدفع قريباً لتأكيد رقم الأسبقية الخاص بك.'}
-              </p>
-              <div style={{
-                fontSize: '1.15rem', fontWeight: 800, color: '#003DA6',
-                fontFamily: 'var(--font-title)',
-                padding: '12px 24px',
-                background: 'rgba(0,61,166,0.05)',
-                borderRadius: 16,
-                display: 'inline-block',
-                marginBottom: 28,
-              }}>
-                {lang === 'en' ? 'PENDING REVIEW' : 'قيد المراجعة'}
-              </div>
-              <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #003DA6, #001A70)',
-                color: '#fff', border: 'none',
-                padding: '14px 24px', borderRadius: 999,
-                fontFamily: 'var(--font-title)', fontWeight: 700,
-                fontSize: '0.95rem', cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
-              }}>
-                {t.close}
-              </button>
-            </div>
-          ) : (
-            /* Form State */
-            <form onSubmit={handleReserveSubmit}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{
-                  fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800,
-                  color: '#0f172a', margin: 0,
-                }}>
-                  {t.confirmReservation}
-                </h3>
-                {reserveStep === 2 && (
-                  <button type="button" onClick={() => setReserveStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
-                    {lang === 'en' ? '← Back' : '← رجوع'}
-                  </button>
-                )}
-              </div>
-
-              {/* Unit summary */}
-              <div style={{
-                background: 'rgba(0,61,166,0.04)',
-                borderRadius: 16, padding: '14px 18px',
-                marginBottom: 20,
-                border: '1px solid rgba(0,61,166,0.08)',
-                display: 'flex', alignItems: 'center', gap: 16,
-              }}>
+          {isLoggedIn ? (
+            /* Logged in Flow */
+            reserveResult ? (
+              <div style={{ textAlign: 'center' }}>
                 <div style={{
-                  width: 44, height: 44, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
-                  flexShrink: 0
+                  margin: '0 auto 24px',
+                  animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
                 }}>
-                  {selectedUnit.unit_number}
+                  <CheckCircle size={40} style={{ color: '#fff' }} />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem' }}>
-                    {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
-                    {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
-                  </div>
-                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
+                  color: '#0f172a', marginBottom: 12,
+                }}>
+                  {lang === 'en' ? 'Unit Reserved!' : 'تم حجز الوحدة!'}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.6 }}>
+                  {lang === 'en'
+                    ? `You have successfully reserved Unit ${selectedUnit.unit_number}. A confirmation email has been sent to you with the hold expiration details.`
+                    : `تم حجز الوحدة ${selectedUnit.unit_number} بنجاح. تم إرسال بريد إلكتروني لتأكيد تفاصيل فترة حجز الوحدة.`}
+                </p>
+                <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  color: '#fff', border: 'none',
+                  padding: '14px 24px', borderRadius: 999,
+                  fontFamily: 'var(--font-title)', fontWeight: 700,
+                  fontSize: '0.95rem', cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                }}>
+                  {t.close}
+                </button>
               </div>
+            ) : (
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>
+                  {lang === 'en' ? 'Confirm Reservation Hold' : 'تأكيد فترة حجز الوحدة'}
+                </h3>
 
-              {/* STEP 1: Personal Info */}
-              {reserveStep === 1 && (
-                <div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
-                    {lang === 'en' ? '1. Personal Contact Info' : '1. البيانات الشخصية للاتصال'}
-                  </h4>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                    <div>
-                      <label style={labelStyle}>{t.firstName} *</label>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        required
-                        value={reserveForm.first_name}
-                        onChange={e => setReserveForm({ ...reserveForm, first_name: e.target.value })}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
-                      />
+                {/* Unit summary */}
+                <div style={{
+                  background: 'rgba(0,61,166,0.04)',
+                  borderRadius: 16, padding: '14px 18px',
+                  marginBottom: 20,
+                  border: '1px solid rgba(0,61,166,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 16,
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
+                    flexShrink: 0
+                  }}>
+                    {selectedUnit.unit_number}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem' }}>
+                      {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
                     </div>
-                    <div>
-                      <label style={labelStyle}>{t.lastName} *</label>
-                      <input
-                        style={inputStyle}
-                        type="text"
-                        required
-                        value={reserveForm.last_name}
-                        onChange={e => setReserveForm({ ...reserveForm, last_name: e.target.value })}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
-                      />
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                      {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
                     </div>
                   </div>
+                </div>
 
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>{t.email} *</label>
-                    <input
-                      style={inputStyle}
-                      type="email"
-                      required
-                      value={reserveForm.email}
-                      onChange={e => setReserveForm({ ...reserveForm, email: e.target.value })}
-                      onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
-                    />
+                {!(eoiInvitation && eoiInvitation.project_id === selectedProject?.id) ? (
+                  <div style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: 20, textAlign: 'center', fontWeight: 600 }}>
+                    {lang === 'en'
+                      ? 'You do not have an active approved EOI invitation for this project.'
+                      : 'ليس لديك دعوة حجز نشطة معتمدة لهذا المشروع.'}
                   </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>{t.phone} *</label>
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      required
-                      placeholder="+201..."
-                      value={reserveForm.phone}
-                      onChange={e => setReserveForm({ ...reserveForm, phone: e.target.value })}
-                      onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
-                    />
+                ) : (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ color: '#334155', fontSize: '0.9rem', lineHeight: 1.5, margin: '0 0 12px 0' }}>
+                      {lang === 'en'
+                        ? `Welcome back, ${eoiInvitation.client_name}. You are eligible to reserve this unit based on your priority queue number (#${eoiInvitation.queue_number}).`
+                        : `مرحباً بك، ${eoiInvitation.client_name}. أنت مؤهل لحجز هذه الوحدة بناءً على رقم أسبقية الحجز الخاص بك (#${eoiInvitation.queue_number}).`}
+                    </p>
+                    <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', padding: 14, borderRadius: 12 }}>
+                      <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0, fontWeight: 700 }}>
+                        ⚠️ {lang === 'en' ? 'Contracting Signature Hold' : 'فترة صلاحية حجز العقد'}
+                      </p>
+                      <p style={{ color: '#475569', fontSize: '0.8rem', margin: '6px 0 0 0', lineHeight: 1.4 }}>
+                        {lang === 'en'
+                          ? `Once confirmed, this unit will be reserved for you for exactly ${eoiInvitation.contracting_deadline_hours} hours. You must sign the contract within this period, or the unit will be released.`
+                          : `بمجرد التأكيد، سيتم حجز هذه الوحدة لك لمدة ${eoiInvitation.contracting_deadline_hours} ساعة بالضبط. يجب عليك توقيع العقد خلال هذه الفترة، وإلا سيتم إلغاء الحجز.`}
+                      </p>
+                    </div>
                   </div>
+                )}
 
-                  <div style={{ marginBottom: 24 }}>
-                    <label style={labelStyle}>{t.nationalId}</label>
-                    <input
-                      style={inputStyle}
-                      type="text"
-                      placeholder="29001011234567"
-                      value={reserveForm.national_id}
-                      onChange={e => setReserveForm({ ...reserveForm, national_id: e.target.value })}
-                      onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
-                    />
+                {reserveError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 16, fontWeight: 600 }}>
+                    {reserveError}
                   </div>
+                )}
 
+                <div style={{ display: 'flex', gap: 12 }}>
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={() => setShowReserveModal(false)}
+                    disabled={reserveProcessing}
                     style={{
-                      width: '100%',
-                      background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '14px 24px',
-                      borderRadius: 999,
-                      fontFamily: 'var(--font-title)',
-                      fontWeight: 700,
-                      fontSize: '0.95rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                      flex: 1, padding: '12px', borderRadius: 999, border: '1px solid #cbd5e1',
+                      background: '#fff', color: '#475569', fontWeight: 700, cursor: 'pointer'
                     }}
                   >
-                    {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
-                    <Arrow size={16} />
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReserveSubmitLoggedIn}
+                    disabled={reserveProcessing || !(eoiInvitation && eoiInvitation.project_id === selectedProject?.id)}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: 999, border: 'none',
+                      background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                      color: '#fff', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(0,61,166,0.2)'
+                    }}
+                  >
+                    {reserveProcessing ? (lang === 'en' ? 'Processing...' : 'جاري معالجة...') : (lang === 'en' ? 'Confirm Reserve' : 'تأكيد الحجز')}
                   </button>
                 </div>
-              )}
+              </div>
+            )
+          ) : (
+            /* Guest Flow */
+            reserveResult ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
+                }}>
+                  <CheckCircle size={40} style={{ color: '#fff' }} />
+                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
+                  color: '#0f172a', marginBottom: 12,
+                }}>
+                  {t.successTitle}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.6 }}>
+                  {lang === 'en'
+                    ? 'Your reservation request and receipt have been submitted successfully. An accountant will review your payment shortly to approve your queue number.'
+                    : 'تم إرسال طلب الحجز وإيصال التحويل بنجاح. سيقوم المحاسب بمراجعة عملية الدفع قريباً لتأكيد رقم الأسبقية الخاص بك.'}
+                </p>
+                <div style={{
+                  fontSize: '1.15rem', fontWeight: 800, color: '#003DA6',
+                  fontFamily: 'var(--font-title)',
+                  padding: '12px 24px',
+                  background: 'rgba(0,61,166,0.05)',
+                  borderRadius: 16,
+                  display: 'inline-block',
+                  marginBottom: 28,
+                }}>
+                  {lang === 'en' ? 'PENDING REVIEW' : 'قيد المراجعة'}
+                </div>
+                <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  color: '#fff', border: 'none',
+                  padding: '14px 24px', borderRadius: 999,
+                  fontFamily: 'var(--font-title)', fontWeight: 700,
+                  fontSize: '0.95rem', cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                }}>
+                  {t.close}
+                </button>
+              </div>
+            ) : (
+              /* Form State */
+              <form onSubmit={handleReserveSubmit}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{
+                    fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800,
+                    color: '#0f172a', margin: 0,
+                  }}>
+                    {t.confirmReservation}
+                  </h3>
+                  {reserveStep === 2 && (
+                    <button type="button" onClick={() => setReserveStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
+                      {lang === 'en' ? '← Back' : '← رجوع'}
+                    </button>
+                  )}
+                </div>
 
-              {/* STEP 2: Location, Method, and File Uploads */}
-              {reserveStep === 2 && (
-                <div>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
-                    {lang === 'en' ? '2. Confirm Payment & Upload Documents' : '2. تأكيد الدفع ورفع الملفات'}
-                  </h4>
-
-                  {/* Location Selection */}
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={labelStyle}>{t.eoiLocationLabel} *</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClientLocation('inside_egypt');
-                          setPaymentMethod('bank_transfer');
-                        }}
-                        style={{
-                          padding: '12px',
-                          borderRadius: '10px',
-                          border: `2px solid ${clientLocation === 'inside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
-                          background: clientLocation === 'inside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
-                          color: '#1e293b',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {t.eoiLocationInside}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClientLocation('outside_egypt');
-                          setPaymentMethod('international_bank_transfer');
-                        }}
-                        style={{
-                          padding: '12px',
-                          borderRadius: '10px',
-                          border: `2px solid ${clientLocation === 'outside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
-                          background: clientLocation === 'outside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
-                          color: '#1e293b',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {t.eoiLocationOutside}
-                      </button>
+                {/* Unit summary */}
+                <div style={{
+                  background: 'rgba(0,61,166,0.04)',
+                  borderRadius: 16, padding: '14px 18px',
+                  marginBottom: 20,
+                  border: '1px solid rgba(0,61,166,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 16,
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
+                    flexShrink: 0
+                  }}>
+                    {selectedUnit.unit_number}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem' }}>
+                      {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                      {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
                     </div>
                   </div>
+                </div>
 
-                  {/* Payment Method Selection */}
-                  {clientLocation === 'inside_egypt' && (
+                {/* STEP 1: Personal Info */}
+                {reserveStep === 1 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
+                      {lang === 'en' ? '1. Personal Contact Info' : '1. البيانات الشخصية للاتصال'}
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{t.firstName} *</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          value={reserveForm.first_name}
+                          onChange={e => setReserveForm({ ...reserveForm, first_name: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{t.lastName} *</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          value={reserveForm.last_name}
+                          onChange={e => setReserveForm({ ...reserveForm, last_name: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={labelStyle}>{t.email} *</label>
+                      <input
+                        style={inputStyle}
+                        type="email"
+                        required
+                        value={reserveForm.email}
+                        onChange={e => setReserveForm({ ...reserveForm, email: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={labelStyle}>{t.phone} *</label>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        required
+                        placeholder="+201..."
+                        value={reserveForm.phone}
+                        onChange={e => setReserveForm({ ...reserveForm, phone: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 24 }}>
+                      <label style={labelStyle}>{t.nationalId}</label>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="29001011234567"
+                        value={reserveForm.national_id}
+                        onChange={e => setReserveForm({ ...reserveForm, national_id: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '14px 24px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                      }}
+                    >
+                      {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
+                      <Arrow size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2: Location, Method, and File Uploads */}
+                {reserveStep === 2 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
+                      {lang === 'en' ? '2. Confirm Payment & Upload Documents' : '2. تأكيد الدفع ورفع الملفات'}
+                    </h4>
+
+                    {/* Location Selection */}
                     <div style={{ marginBottom: 16 }}>
-                      <label style={labelStyle}>{t.eoiPaymentMethodLabel} *</label>
+                      <label style={labelStyle}>{t.eoiLocationLabel} *</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod('bank_transfer')}
+                          onClick={() => {
+                            setClientLocation('inside_egypt');
+                            setPaymentMethod('bank_transfer');
+                          }}
                           style={{
-                            padding: '10px',
-                            borderRadius: '8px',
-                            border: `2px solid ${paymentMethod === 'bank_transfer' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
-                            background: paymentMethod === 'bank_transfer' ? 'rgba(0,61,166,0.02)' : '#fff',
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'inside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'inside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
                             color: '#1e293b',
-                            fontSize: '0.75rem',
+                            fontSize: '0.8rem',
                             fontWeight: 700,
                             cursor: 'pointer',
+                            transition: 'all 0.2s',
                           }}
                         >
-                          {t.eoiPaymentMethodBank}
+                          {t.eoiLocationInside}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod('instapay')}
+                          onClick={() => {
+                            setClientLocation('outside_egypt');
+                            setPaymentMethod('international_bank_transfer');
+                          }}
                           style={{
-                            padding: '10px',
-                            borderRadius: '8px',
-                            border: `2px solid ${paymentMethod === 'instapay' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
-                            background: paymentMethod === 'instapay' ? 'rgba(0,61,166,0.02)' : '#fff',
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'outside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'outside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
                             color: '#1e293b',
-                            fontSize: '0.75rem',
+                            fontSize: '0.8rem',
                             fontWeight: 700,
                             cursor: 'pointer',
+                            transition: 'all 0.2s',
                           }}
                         >
-                          {t.eoiPaymentMethodInstapay}
+                          {t.eoiLocationOutside}
                         </button>
                       </div>
                     </div>
-                  )}
 
-                  {clientLocation === 'outside_egypt' && (
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={labelStyle}>{t.eoiPaymentMethodLabel}</label>
-                      <div
-                        style={{
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          border: '2px solid #003DA6',
-                          background: 'rgba(0,61,166,0.02)',
-                          color: '#1e293b',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                        }}
-                      >
-                        <Globe size={14} color="#003DA6" />
-                        {t.eoiPaymentMethodIntlBank}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Transfer Details Card */}
-                  {clientLocation && (
-                    <div>
-                      {paymentMethod === 'bank_transfer' && (
-                        <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
-                          <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle}</h5>
-                          <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
-                            <strong>Bank Name:</strong> Commercial International Bank (CIB)<br/>
-                            <strong>Account Name:</strong> Mountain View Real Estate Dev<br/>
-                            <strong>Account No:</strong> 100045678912<br/>
-                            <strong>IBAN:</strong> EG12000300000000100045678912<br/>
-                            <strong>SWIFT Code:</strong> COIBEGCX
-                          </div>
-                        </div>
-                      )}
-                      {paymentMethod === 'international_bank_transfer' && (
-                        <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
-                          <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle} (USD / EUR)</h5>
-                          <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
-                            <strong>Bank Name:</strong> Commercial International Bank (CIB) Egypt<br/>
-                            <strong>Account Name:</strong> Mountain View Real Estate Dev Intl<br/>
-                            <strong>Account No (USD):</strong> 100099887766<br/>
-                            <strong>IBAN:</strong> EG89000300000000100099887766<br/>
-                            <strong>SWIFT Code:</strong> COIBEGCX
-                          </div>
-                        </div>
-                      )}
-                      {paymentMethod === 'instapay' && (
-                        <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
-                          <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiInstapayDetailsTitle}</h5>
-                          <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
-                            <strong>InstaPay Address:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'rgba(0,61,166,0.08)', padding: '2px 6px', borderRadius: 4 }}>mountainview@instapay</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* File Upload fields */}
-                      <div style={{ marginBottom: 14 }}>
-                        <label style={labelStyle}>{t.eoiReceiptUpload}</label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.pdf"
-                            required
-                            onChange={e => {
-                              if (e.target.files && e.target.files.length > 0) {
-                                setReceiptFile(e.target.files[0]);
-                              }
-                            }}
-                            style={{ display: 'none' }}
-                            id="reserve-receipt-file-input"
-                          />
-                          <label
-                            htmlFor="reserve-receipt-file-input"
+                    {/* Payment Method Selection */}
+                    {clientLocation === 'inside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={labelStyle}>{t.eoiPaymentMethodLabel} *</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('bank_transfer')}
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              padding: '12px 16px',
-                              border: '2px dashed rgba(0,61,166,0.15)',
-                              borderRadius: '10px',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'bank_transfer' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'bank_transfer' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
                               cursor: 'pointer',
-                              background: '#fff',
-                              transition: 'all 0.2s',
                             }}
-                            onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
-                            onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
                           >
-                            <Info size={18} color="#003DA6" />
-                            <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                              {receiptFile ? receiptFile.name : t.eoiUploadHint}
-                            </span>
-                          </label>
+                            {t.eoiPaymentMethodBank}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('instapay')}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'instapay' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'instapay' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.eoiPaymentMethodInstapay}
+                          </button>
                         </div>
                       </div>
+                    )}
 
-                      {clientLocation === 'outside_egypt' && (
-                        <div style={{ marginBottom: 20 }}>
-                          <label style={labelStyle}>{t.eoiPassportUpload}</label>
+                    {clientLocation === 'outside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={labelStyle}>{t.eoiPaymentMethodLabel}</label>
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: '2px solid #003DA6',
+                            background: 'rgba(0,61,166,0.02)',
+                            color: '#1e293b',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <Globe size={14} color="#003DA6" />
+                          {t.eoiPaymentMethodIntlBank}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Transfer Details Card */}
+                    {clientLocation && (
+                      <div>
+                        {paymentMethod === 'bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB)<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev<br/>
+                              <strong>Account No:</strong> 100045678912<br/>
+                              <strong>IBAN:</strong> EG12000300000000100045678912<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'international_bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle} (USD / EUR)</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB) Egypt<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev Intl<br/>
+                              <strong>Account No (USD):</strong> 100099887766<br/>
+                              <strong>IBAN:</strong> EG89000300000000100099887766<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'instapay' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiInstapayDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>InstaPay Address:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'rgba(0,61,166,0.08)', padding: '2px 6px', borderRadius: 4 }}>mountainview@instapay</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* File Upload fields */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={labelStyle}>{t.eoiReceiptUpload}</label>
                           <div style={{ position: 'relative' }}>
                             <input
                               type="file"
                               accept=".jpg,.jpeg,.png,.pdf"
-                              required={clientLocation === 'outside_egypt'}
+                              required
                               onChange={e => {
                                 if (e.target.files && e.target.files.length > 0) {
-                                  setPassportFile(e.target.files[0]);
+                                  setReceiptFile(e.target.files[0]);
                                 }
                               }}
                               style={{ display: 'none' }}
-                              id="reserve-passport-file-input"
+                              id="reserve-receipt-file-input"
                             />
                             <label
-                              htmlFor="reserve-passport-file-input"
+                              htmlFor="reserve-receipt-file-input"
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2290,67 +2423,108 @@ const InteractiveUnitSelection: React.FC = () => {
                             >
                               <Info size={18} color="#003DA6" />
                               <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                                {passportFile ? passportFile.name : t.eoiUploadHint}
+                                {receiptFile ? receiptFile.name : t.eoiUploadHint}
                               </span>
                             </label>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )}
 
-                  {reserveError && (
-                    <div style={{
-                      background: 'rgba(239,68,68,0.08)',
-                      color: '#dc2626',
-                      padding: '12px 16px',
-                      borderRadius: 12,
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      marginBottom: 16,
-                      border: '1px solid rgba(239,68,68,0.15)',
-                    }}>
-                      {reserveError}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={reserveProcessing}
-                    style={{
-                      width: '100%',
-                      background: reserveProcessing ? '#94a3b8' : 'linear-gradient(135deg, #22c55e, #16a34a)',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '15px 24px',
-                      borderRadius: 999,
-                      fontFamily: 'var(--font-title)',
-                      fontWeight: 700,
-                      fontSize: '0.95rem',
-                      cursor: reserveProcessing ? 'wait' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 10,
-                      boxShadow: reserveProcessing ? 'none' : '0 6px 20px rgba(34,197,94,0.3)',
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    {reserveProcessing ? (
-                      <>
-                        <Loader size={18} className="animate-spin" />
-                        {lang === 'en' ? 'Processing Reservation...' : 'جاري معالجة الحجز...'}
-                      </>
-                    ) : (
-                      <>
-                        <Shield size={18} />
-                        {t.confirmReservation}
-                      </>
+                        {clientLocation === 'outside_egypt' && (
+                          <div style={{ marginBottom: 20 }}>
+                            <label style={labelStyle}>{t.eoiPassportUpload}</label>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                required={clientLocation === 'outside_egypt'}
+                                onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    setPassportFile(e.target.files[0]);
+                                  }
+                                }}
+                                style={{ display: 'none' }}
+                                id="reserve-passport-file-input"
+                              />
+                              <label
+                                htmlFor="reserve-passport-file-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '12px 16px',
+                                  border: '2px dashed rgba(0,61,166,0.15)',
+                                  borderRadius: '10px',
+                                  cursor: 'pointer',
+                                  background: '#fff',
+                                  transition: 'all 0.2s',
+                                }}
+                                onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
+                                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
+                              >
+                                <Info size={18} color="#003DA6" />
+                                <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                  {passportFile ? passportFile.name : t.eoiUploadHint}
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </button>
-                </div>
-              )}
-            </form>
+
+                    {reserveError && (
+                      <div style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        color: '#dc2626',
+                        padding: '12px 16px',
+                        borderRadius: 12,
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        marginBottom: 16,
+                        border: '1px solid rgba(239,68,68,0.15)',
+                      }}>
+                        {reserveError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={reserveProcessing}
+                      style={{
+                        width: '100%',
+                        background: reserveProcessing ? '#94a3b8' : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '15px 24px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: reserveProcessing ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 10,
+                        boxShadow: reserveProcessing ? 'none' : '0 6px 20px rgba(34,197,94,0.3)',
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      {reserveProcessing ? (
+                        <>
+                          <Loader size={18} className="animate-spin" />
+                          {lang === 'en' ? 'Processing Reservation...' : 'جاري معالجة الحجز...'}
+                        </>
+                      ) : (
+                        <>
+                          <Shield size={18} />
+                          {t.confirmReservation}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </form>
+            )
           )}
         </div>
       </div>

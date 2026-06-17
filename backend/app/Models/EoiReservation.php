@@ -117,6 +117,8 @@ class EoiReservation extends Model
         'review_notes',
         'reviewed_at',
         'email_sent_at',
+        'invited_at',
+        'contracting_deadline_hours',
     ];
 
     protected $casts = [
@@ -124,6 +126,8 @@ class EoiReservation extends Model
         'queue_number'   => 'integer',
         'reviewed_at'    => 'datetime',
         'email_sent_at'  => 'datetime',
+        'invited_at'     => 'datetime',
+        'contracting_deadline_hours' => 'integer',
         'created_at'     => 'datetime',
         'updated_at'     => 'datetime',
         'deleted_at'     => 'datetime',
