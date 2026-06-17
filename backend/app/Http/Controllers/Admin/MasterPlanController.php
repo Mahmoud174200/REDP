@@ -806,7 +806,7 @@ class MasterPlanController extends Controller
         $project->update([
             'total_buildings_count' => $buildings->count(),
             'total_built_area' => $buildings->sum('total_built_area'),
-            'total_units' => $project->units()->count(),
+            'total_units' => $project->units()->whereNotNull('building_id')->count(),
             'density_per_feddan' => $this->calculateDensity($project),
         ]);
     }
@@ -830,7 +830,7 @@ class MasterPlanController extends Controller
         $feddanCount = $landAreaSqm / 4200;
         if ($feddanCount <= 0) return null;
 
-        $totalUnits = $project->units()->count();
+        $totalUnits = $project->units()->whereNotNull('building_id')->count();
         return round($totalUnits / $feddanCount, 2);
     }
 }

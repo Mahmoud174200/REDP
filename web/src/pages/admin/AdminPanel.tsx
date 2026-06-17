@@ -1347,7 +1347,6 @@ const AdminPanel: React.FC = () => {
         {[
           { id: 'users', label: 'Users', icon: Users },
           { id: 'projects', label: 'Projects', icon: Building2 },
-          { id: 'units', label: 'Units', icon: Layers },
           { id: 'leads', label: 'CRM Leads', icon: UserCheck },
           { id: 'tickets', label: 'Tickets', icon: AlertCircle },
           { id: 'sessions', label: 'Active Sessions', icon: Monitor },
@@ -1411,11 +1410,6 @@ const AdminPanel: React.FC = () => {
             {activeTab === 'projects' && (
               <button onClick={openAddProjectModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                 <Plus size={14} style={{ marginRight: '6px' }} /> Add Project
-              </button>
-            )}
-            {activeTab === 'units' && (
-              <button onClick={openAddUnitModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                <Plus size={14} style={{ marginRight: '6px' }} /> Add Unit
               </button>
             )}
             {activeTab === 'leads' && (
@@ -1568,59 +1562,7 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* ── Tab Content: UNITS ── */}
-      {activeTab === 'units' && (
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Unit Number</th>
-                <th>Project</th>
-                <th>Floor</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUnits.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No units found.</td>
-                </tr>
-              ) : (
-                filteredUnits.map((un) => (
-                  <tr key={un.id}>
-                    <td><strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>Unit {un.unit_number}</strong></td>
-                    <td>{un.project?.name || <span style={{ color: 'var(--text-muted)' }}>No Project</span>}</td>
-                    <td>Floor {un.floor}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{un.type}</td>
-                    <td style={{ fontWeight: 700 }}>EGP {Number(un.price).toLocaleString()}</td>
-                    <td>
-                      <span className={`badge ${un.status === 'available' ? 'badge-success' :
-                          un.status === 'reserved' ? 'badge-info' :
-                            un.status === 'sold' ? 'badge-danger' : 'badge-danger'
-                        }`} style={{ textTransform: 'uppercase' }}>
-                        {un.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => openEditUnitModal(un)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }}>
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button onClick={() => handleDeleteUnit(un.id)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+
 
       {/* ── Tab Content: CRM LEADS ── */}
       {activeTab === 'leads' && (

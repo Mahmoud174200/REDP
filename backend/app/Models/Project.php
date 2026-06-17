@@ -90,7 +90,7 @@ class Project extends Model
     public function getMasterPlanSummaryAttribute(): array
     {
         $buildings = $this->buildings;
-        $units = $this->units;
+        $units = $this->units()->whereNotNull('building_id')->get();
 
         $totalUnits = $units->count();
         $availableUnits = $units->where('status', 'available')->count();
