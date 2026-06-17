@@ -27,7 +27,23 @@ const GRID_SIZE = 14;
 
 const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, onClose, onSuccess }) => {
   const mountRef = useRef<HTMLDivElement>(null);
-  
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleError = (e: ErrorEvent) => {
+      setRuntimeError(e.message + '\n' + e.filename + ':' + e.lineno);
+    };
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      setRuntimeError('Unhandled Rejection: ' + e.reason);
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   // ── Grid State ──
   const [grid, setGrid] = useState<GridCell[][]>(() => {
     return Array(GRID_SIZE).fill(null).map(() =>
@@ -665,6 +681,27 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
       color: '#ffffff',
       fontFamily: 'Inter, sans-serif'
     }}>
+      {runtimeError && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: '#ef4444',
+          color: '#ffffff',
+          padding: '12px 20px',
+          zIndex: 9999,
+          fontSize: '0.85rem',
+          whiteSpace: 'pre-wrap',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div><strong>Runtime Error:</strong> {runtimeError}</div>
+          <button onClick={() => setRuntimeError(null)} style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }}>X</button>
+        </div>
+      )}
       {/* Top Bar */}
       <div style={{
         display: 'flex',

@@ -2001,6 +2001,7 @@ const AdminPanel: React.FC = () => {
 
       {/* ── Tab Content: CONFIGURATIONS ── */}
       {activeTab === 'configs' && (
+        <>
         <form onSubmit={handleSaveConfigs} className="glass-panel" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '35px' }}>
 
           {/* Section 1: Branding & Identity */}
@@ -2585,6 +2586,7 @@ const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* ── MODALS CONTAINER ── */}

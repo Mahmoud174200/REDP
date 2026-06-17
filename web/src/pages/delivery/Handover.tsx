@@ -669,13 +669,6 @@ const Handover: React.FC = () => {
         </div>
 
       </div>
-
-    </div>
-  );
-};      </div>
-
-      </div>
-
     </div>
   );
 };
