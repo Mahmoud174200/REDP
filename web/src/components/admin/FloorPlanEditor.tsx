@@ -56,6 +56,21 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
     );
   });
 
+  // Load saved floor plan grid layout from backend on mount
+  useEffect(() => {
+    const loadSavedGrid = async () => {
+      try {
+        const res = await api.get(`/admin/units/${unitId}/3d-model/grid`);
+        if (res.data?.success && res.data?.grid) {
+          setGrid(res.data.grid);
+        }
+      } catch (err) {
+        console.log('No saved floor plan grid found, starting fresh.');
+      }
+    };
+    loadSavedGrid();
+  }, [unitId]);
+
   // ── Editor Controls State ──
   const [activeTool, setActiveTool] = useState<'wall' | 'window' | 'door' | 'floor' | 'furniture' | 'eraser'>('wall');
   const [selectedFloor, setSelectedFloor] = useState<FloorType>('wood');
@@ -183,12 +198,18 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
     group.clear();
 
     const cellWidth = 1;
-    const cellHeight = 2.5; // height of walls
+    const cellHeight = 1.8; // height of walls
     const wallThickness = 0.15;
     const offset = (GRID_SIZE * cellWidth) / 2;
 
     // Common Materials
-    const wallMat = new THREE.MeshStandardMaterial({ color: '#f3f4f6', roughness: 0.8 });
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: '#f3f4f6',
+      roughness: 0.6,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: true
+    });
     const woodFloorMat = new THREE.MeshStandardMaterial({ color: '#c4a482', roughness: 0.6 });
     const tileFloorMat = new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.3 });
     const carpetFloorMat = new THREE.MeshStandardMaterial({ color: '#9ca3af', roughness: 0.9 });
@@ -327,45 +348,45 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
           wallMesh.receiveShadow = true;
           group.add(wallMesh);
         } else if (cell.type === 'window') {
-          // Bottom wall segment
-          const bottomGeo = new THREE.BoxGeometry(cellWidth, 0.8, cellWidth);
+          // Bottom wall segment (height 0.5)
+          const bottomGeo = new THREE.BoxGeometry(cellWidth, 0.5, cellWidth);
           const bottomMesh = new THREE.Mesh(bottomGeo, wallMat);
-          bottomMesh.position.set(posX, 0.4, posZ);
+          bottomMesh.position.set(posX, 0.25, posZ);
           bottomMesh.castShadow = true;
           bottomMesh.receiveShadow = true;
           group.add(bottomMesh);
 
-          // Top wall segment
-          const topGeo = new THREE.BoxGeometry(cellWidth, 0.5, cellWidth);
+          // Top wall segment (height 0.3)
+          const topGeo = new THREE.BoxGeometry(cellWidth, 0.3, cellWidth);
           const topMesh = new THREE.Mesh(topGeo, wallMat);
-          topMesh.position.set(posX, cellHeight - 0.25, posZ);
+          topMesh.position.set(posX, cellHeight - 0.15, posZ);
           topMesh.castShadow = true;
           topMesh.receiveShadow = true;
           group.add(topMesh);
 
-          // Glass Pane
-          const glassGeo = new THREE.BoxGeometry(cellWidth - 0.05, 1.2, 0.1);
+          // Glass Pane (height 1.0)
+          const glassGeo = new THREE.BoxGeometry(cellWidth - 0.05, 1.0, 0.1);
           const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-          glassMesh.position.set(posX, 1.4, posZ);
+          glassMesh.position.set(posX, 1.0, posZ);
           group.add(glassMesh);
         } else if (cell.type === 'door') {
-          // Top lintel segment
-          const lintelGeo = new THREE.BoxGeometry(cellWidth, 0.6, cellWidth);
+          // Top lintel segment (height 0.4)
+          const lintelGeo = new THREE.BoxGeometry(cellWidth, 0.4, cellWidth);
           const lintelMesh = new THREE.Mesh(lintelGeo, wallMat);
-          lintelMesh.position.set(posX, cellHeight - 0.3, posZ);
+          lintelMesh.position.set(posX, cellHeight - 0.2, posZ);
           lintelMesh.castShadow = true;
           lintelMesh.receiveShadow = true;
           group.add(lintelMesh);
 
-          // Side door frames
-          const frameLeftGeo = new THREE.BoxGeometry(0.1, 1.9, 0.1);
+          // Side door frames (height 1.4)
+          const frameLeftGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
           const frameLeft = new THREE.Mesh(frameLeftGeo, woodMat);
-          frameLeft.position.set(posX - cellWidth / 2 + 0.05, 0.95, posZ);
+          frameLeft.position.set(posX - cellWidth / 2 + 0.05, 0.7, posZ);
           group.add(frameLeft);
 
-          const frameRightGeo = new THREE.BoxGeometry(0.1, 1.9, 0.1);
+          const frameRightGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
           const frameRight = new THREE.Mesh(frameRightGeo, woodMat);
-          frameRight.position.set(posX + cellWidth / 2 - 0.05, 0.95, posZ);
+          frameRight.position.set(posX + cellWidth / 2 - 0.05, 0.7, posZ);
           group.add(frameRight);
         }
 
@@ -374,6 +395,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
           const furnGroup = new THREE.Group();
           furnGroup.position.set(posX, 0, posZ);
           furnGroup.rotation.y = (cell.rotation * Math.PI) / 180;
+          furnGroup.scale.set(1.25, 1.25, 1.25); // Scale up furniture by 25% to make them prominent and highly visible!
 
           if (cell.furniture === 'bed') {
             // 1. Bed Frame Legs (4 short wood cylinders)
@@ -1045,6 +1067,7 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
 
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('grid_json', JSON.stringify(grid));
 
             const res = await api.post(`/admin/units/${unitId}/upload-3d-model`, formData, {
               headers: {

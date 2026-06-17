@@ -66,6 +66,7 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/projects/{projectId}/3d-models', [\App\Http\Controllers\Tripo3DController::class, 'publicModels']);
     Route::get('/3d-models/{mediaId}/file', [\App\Http\Controllers\Tripo3DController::class, 'serveModelFile']);
     Route::get('/units/{unitId}/3d-model/file', [\App\Http\Controllers\Tripo3DController::class, 'serveUnitModelFile']);
+    Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
 });
@@ -481,6 +482,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
         Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
+        Route::get('/units/{unitId}/3d-model/grid', [$tripoCtrl, 'getUnit3DGrid']);
 
         // ── Master Plan Module ──
         $mpCtrl = \App\Http\Controllers\Admin\MasterPlanController::class;

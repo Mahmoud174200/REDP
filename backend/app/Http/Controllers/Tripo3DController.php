@@ -553,6 +553,7 @@ class Tripo3DController extends Controller
     {
         $request->validate([
             'file' => 'required|file|max:20480', // 20MB max
+            'grid_json' => 'nullable|string',
         ]);
 
         $unit = Unit::findOrFail($unitId);
@@ -571,6 +572,11 @@ class Tripo3DController extends Controller
         $localPath = "3d-models/units/{$unit->id}.glb";
         Storage::disk('public')->put($localPath, file_get_contents($file));
 
+        // Save grid JSON if provided
+        if ($request->has('grid_json')) {
+            Storage::disk('public')->put("3d-models/units/{$unit->id}_grid.json", $request->input('grid_json'));
+        }
+
         $unit->update([
             'model_3d_status' => 'completed',
             'model_3d_url' => $localPath,
@@ -584,5 +590,26 @@ class Tripo3DController extends Controller
             'message' => "Custom 3D model uploaded successfully for unit {$unit->unit_number}.",
             'model_url' => url("/api/v1/public/units/{$unit->id}/3d-model/file"),
         ]);
+    }
+
+    /**
+     * Get the saved 3D floor plan grid layout JSON for a unit.
+     */
+    public function getUnit3DGrid(string $unitId): JsonResponse
+    {
+        $localPath = "3d-models/units/{$unitId}_grid.json";
+        
+        if (Storage::disk('public')->exists($localPath)) {
+            $json = Storage::disk('public')->get($localPath);
+            return response()->json([
+                'success' => true,
+                'grid' => json_decode($json, true),
+            ])->header('Access-Control-Allow-Origin', '*');
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'No saved grid layout found for this unit.',
+        ], 404);
     }
 }
