@@ -398,111 +398,160 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
           furnGroup.scale.set(1.25, 1.25, 1.25); // Scale up furniture by 25% to make them prominent and highly visible!
 
           if (cell.furniture === 'bed') {
-            // 1. Bed Frame Legs (4 short wood cylinders)
-            const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8);
-            const legPositions = [
-              [-0.4, 0.06, -0.4],
-              [0.4, 0.06, -0.4],
-              [-0.4, 0.06, 0.4],
-              [0.4, 0.06, 0.4]
-            ];
-            legPositions.forEach(pos => {
-              const leg = new THREE.Mesh(legGeo, woodMat);
-              leg.position.set(pos[0], pos[1], pos[2]);
-              leg.castShadow = true;
-              furnGroup.add(leg);
-            });
+            // 1. Sleek low base box (under-support)
+            const baseBoxGeo = new THREE.BoxGeometry(0.46, 0.08, 0.75);
+            const baseBox = new THREE.Mesh(baseBoxGeo, woodMat);
+            baseBox.position.set(0, 0.04, 0);
+            baseBox.castShadow = true;
+            furnGroup.add(baseBox);
 
-            // 2. Bed Frame
-            const frameGeo = new THREE.BoxGeometry(0.9, 0.18, 0.95);
+            // 2. LED Under-Glow Strip
+            const ledGeo = new THREE.BoxGeometry(0.48, 0.02, 0.77);
+            const ledMesh = new THREE.Mesh(ledGeo, lampGlowMat);
+            ledMesh.position.set(0, 0.01, 0);
+            furnGroup.add(ledMesh);
+
+            // 3. Floating Platform Bed Frame
+            const frameGeo = new THREE.BoxGeometry(0.6, 0.14, 0.88);
             const frame = new THREE.Mesh(frameGeo, woodMat);
-            frame.position.set(0, 0.21, 0);
+            frame.position.set(0, 0.15, 0);
             frame.castShadow = true;
             furnGroup.add(frame);
 
-            // 3. Mattress (soft comfort layer)
-            const matGeo = new THREE.BoxGeometry(0.85, 0.22, 0.9);
+            // 4. Mattress (comfort layer)
+            const matGeo = new THREE.BoxGeometry(0.54, 0.22, 0.84);
             const mattress = new THREE.Mesh(matGeo, pillowMat);
-            mattress.position.set(0, 0.35, -0.02);
+            mattress.position.set(0, 0.29, -0.01);
             mattress.castShadow = true;
             furnGroup.add(mattress);
 
-            // 4. Main Blanket / Duvet
-            const blanketGeo = new THREE.BoxGeometry(0.87, 0.23, 0.65);
+            // 5. Main Blanket / Duvet
+            const blanketGeo = new THREE.BoxGeometry(0.55, 0.23, 0.58);
             const blanket = new THREE.Mesh(blanketGeo, bedFabricMat);
-            blanket.position.set(0, 0.36, 0.125);
+            blanket.position.set(0, 0.3, 0.12);
             blanket.castShadow = true;
             furnGroup.add(blanket);
 
-            // 5. Folded duvet sheet (contrasting style)
-            const foldGeo = new THREE.BoxGeometry(0.87, 0.24, 0.12);
-            const fold = new THREE.Mesh(foldGeo, fabricGreyMat);
-            fold.position.set(0, 0.365, -0.18);
+            // 6. Folded top sheet (hotel detail)
+            const foldGeo = new THREE.BoxGeometry(0.55, 0.235, 0.12);
+            const fold = new THREE.Mesh(foldGeo, pillowMat);
+            fold.position.set(0, 0.302, -0.15);
             furnGroup.add(fold);
 
-            // 6. Pillows (squeezed organic spheres)
-            const pillowGeo = new THREE.SphereGeometry(0.12, 16, 16);
+            // 7. Duvet accent throw runner (luxury gold strip)
+            const runnerGeo = new THREE.BoxGeometry(0.56, 0.24, 0.14);
+            const runner = new THREE.Mesh(runnerGeo, fabricGoldMat);
+            runner.position.set(0, 0.31, 0.28);
+            runner.castShadow = true;
+            furnGroup.add(runner);
+
+            // 8. Draped blanket hanging off the foot of the bed
+            const drapeGeo = new THREE.BoxGeometry(0.56, 0.18, 0.08);
+            const drape = new THREE.Mesh(drapeGeo, fabricRedMat);
+            drape.position.set(0, 0.22, 0.39);
+            furnGroup.add(drape);
+
+            // 9. Pillows (4 Pillows: 2 sleeping + 2 decorative red accent pillows)
+            const pillowGeo = new THREE.SphereGeometry(0.08, 16, 16);
             
+            // White sleeping pillows
             const pillowL = new THREE.Mesh(pillowGeo, pillowMat);
-            pillowL.scale.set(1.6, 0.5, 1.0);
-            pillowL.position.set(-0.2, 0.47, -0.32);
+            pillowL.scale.set(1.2, 0.5, 0.9);
+            pillowL.position.set(-0.14, 0.42, -0.28);
             pillowL.rotation.x = -0.15;
             furnGroup.add(pillowL);
 
             const pillowR = new THREE.Mesh(pillowGeo, pillowMat);
-            pillowR.scale.set(1.6, 0.5, 1.0);
-            pillowR.position.set(0.2, 0.47, -0.32);
+            pillowR.scale.set(1.2, 0.5, 0.9);
+            pillowR.position.set(0.14, 0.42, -0.28);
             pillowR.rotation.x = -0.15;
             furnGroup.add(pillowR);
 
-            // 7. Headboard
-            const hbGeo = new THREE.BoxGeometry(0.95, 0.65, 0.05);
-            const headboard = new THREE.Mesh(hbGeo, woodMat);
-            headboard.position.set(0, 0.425, -0.47);
+            // Red decorative pillows in front
+            const pillowDecoL = new THREE.Mesh(pillowGeo, fabricRedMat);
+            pillowDecoL.scale.set(1.0, 0.4, 0.9);
+            pillowDecoL.position.set(-0.14, 0.44, -0.18);
+            pillowDecoL.rotation.set(-0.2, 0.1, 0.15);
+            furnGroup.add(pillowDecoL);
+
+            const pillowDecoR = new THREE.Mesh(pillowGeo, fabricRedMat);
+            pillowDecoR.scale.set(1.0, 0.4, 0.9);
+            pillowDecoR.position.set(0.14, 0.44, -0.18);
+            pillowDecoR.rotation.set(-0.2, -0.1, -0.15);
+            furnGroup.add(pillowDecoR);
+
+            // 10. Luxurious Channel-Tufted Velvet Headboard
+            const hbFrameGeo = new THREE.BoxGeometry(0.84, 0.7, 0.06);
+            const headboard = new THREE.Mesh(hbFrameGeo, woodMat);
+            headboard.position.set(0, 0.45, -0.45);
             headboard.castShadow = true;
             furnGroup.add(headboard);
 
-            // 8. Bedside Nightstands & Table Lamps (Left & Right)
-            const nsGeo = new THREE.BoxGeometry(0.2, 0.32, 0.25);
+            const segmentWidth = 0.74 / 6;
+            const colGeo = new THREE.CylinderGeometry(segmentWidth / 2, segmentWidth / 2, 0.58, 8);
+            for (let i = 0; i < 6; i++) {
+              const col = new THREE.Mesh(colGeo, fabricGoldMat);
+              col.position.set(-0.31 + i * segmentWidth + segmentWidth / 2, 0.49, -0.41);
+              col.castShadow = true;
+              furnGroup.add(col);
+            }
+
+            // 11. Floating Bedside Nightstands & Cylinder Table Lamps
+            const nsGeo = new THREE.BoxGeometry(0.12, 0.14, 0.22);
             
-            // Left nightstand
+            // Left floating nightstand
             const nsL = new THREE.Mesh(nsGeo, woodMat);
-            nsL.position.set(-0.54, 0.16, -0.34);
+            nsL.position.set(-0.38, 0.24, -0.32);
             nsL.castShadow = true;
             furnGroup.add(nsL);
 
-            const drawerLineGeo = new THREE.BoxGeometry(0.18, 0.015, 0.01);
-            const dlL = new THREE.Mesh(drawerLineGeo, metalMat);
-            dlL.position.set(-0.54, 0.22, -0.21);
-            furnGroup.add(dlL);
+            const handleL = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.015, 0.06), metalMat);
+            handleL.position.set(-0.38, 0.24, -0.205);
+            furnGroup.add(handleL);
 
-            const lampBaseGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.08, 8);
+            const lampBaseGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8);
             const lampBaseL = new THREE.Mesh(lampBaseGeo, metalMat);
-            lampBaseL.position.set(-0.54, 0.36, -0.34);
+            lampBaseL.position.set(-0.38, 0.35, -0.32);
             furnGroup.add(lampBaseL);
 
-            const lampShadeGeo = new THREE.ConeGeometry(0.055, 0.1, 12);
+            const lampShadeGeo = new THREE.CylinderGeometry(0.025, 0.035, 0.09, 12, 1, true);
             const shadeL = new THREE.Mesh(lampShadeGeo, lampGlowMat);
-            shadeL.position.set(-0.54, 0.44, -0.34);
+            shadeL.position.set(-0.38, 0.43, -0.32);
             furnGroup.add(shadeL);
 
-            // Right nightstand
+            // Left table cup accessory
+            const cupGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.03, 8);
+            const cup = new THREE.Mesh(cupGeo, pillowMat);
+            cup.position.set(-0.38, 0.325, -0.24);
+            furnGroup.add(cup);
+
+            // Right floating nightstand
             const nsR = new THREE.Mesh(nsGeo, woodMat);
-            nsR.position.set(0.54, 0.16, -0.34);
+            nsR.position.set(0.38, 0.24, -0.32);
             nsR.castShadow = true;
             furnGroup.add(nsR);
 
-            const dlR = new THREE.Mesh(drawerLineGeo, metalMat);
-            dlR.position.set(0.54, 0.22, -0.21);
-            furnGroup.add(dlR);
+            const handleR = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.015, 0.06), metalMat);
+            handleR.position.set(0.38, 0.24, -0.205);
+            furnGroup.add(handleR);
 
             const lampBaseR = new THREE.Mesh(lampBaseGeo, metalMat);
-            lampBaseR.position.set(0.54, 0.36, -0.34);
+            lampBaseR.position.set(0.38, 0.35, -0.32);
             furnGroup.add(lampBaseR);
 
             const shadeR = new THREE.Mesh(lampShadeGeo, lampGlowMat);
-            shadeR.position.set(0.54, 0.44, -0.34);
+            shadeR.position.set(0.38, 0.43, -0.32);
             furnGroup.add(shadeR);
+
+            // Right table digital clock accessory
+            const clockGeo = new THREE.BoxGeometry(0.05, 0.02, 0.02);
+            const clock = new THREE.Mesh(clockGeo, new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.5 }));
+            clock.position.set(0.38, 0.32, -0.24);
+            furnGroup.add(clock);
+            const faceGeo = new THREE.BoxGeometry(0.045, 0.015, 0.002);
+            const clockFace = new THREE.Mesh(faceGeo, new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 0.8 }));
+            clockFace.position.set(0.38, 0.32, -0.229);
+            furnGroup.add(clockFace);
 
           } else if (cell.furniture === 'sofa') {
             // 1. Chrome Legs (4 short cylinders)
@@ -586,7 +635,14 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             armPanelR.position.set(0.41, 0.18, 0.06);
             furnGroup.add(armPanelR);
 
-            // 6. Throw pillows in the corners (squeezed spheres, rotated)
+            // 6. Cozy thrown blanket on sofa arm
+            const throwBlanketGeo = new THREE.BoxGeometry(0.12, 0.28, 0.34);
+            const throwBlanket = new THREE.Mesh(throwBlanketGeo, fabricRedMat);
+            throwBlanket.position.set(-0.408, 0.24, 0.2);
+            throwBlanket.rotation.z = 0.08;
+            furnGroup.add(throwBlanket);
+
+            // 7. Throw pillows in the corners (squeezed spheres, rotated)
             const throwPillowGeo = new THREE.SphereGeometry(0.09, 12, 12);
 
             const pillow1 = new THREE.Mesh(throwPillowGeo, fabricGoldMat);
@@ -600,6 +656,22 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             pillow2.position.set(0.29, 0.31, -0.1);
             pillow2.rotation.set(0.2, -0.4, -0.5);
             furnGroup.add(pillow2);
+
+            // 8. Modern coffee table in front of the sofa
+            const coffeeTableGeo = new THREE.BoxGeometry(0.55, 0.14, 0.35);
+            const coffeeTable = new THREE.Mesh(coffeeTableGeo, woodMat);
+            coffeeTable.position.set(0, 0.07, 0.52);
+            coffeeTable.castShadow = true;
+            furnGroup.add(coffeeTable);
+            
+            const ctTray = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.01, 0.18), metalMat);
+            ctTray.position.set(-0.06, 0.145, 0.52);
+            furnGroup.add(ctTray);
+            
+            const ctBook = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.015, 0.08), fabricGoldMat);
+            ctBook.position.set(0.1, 0.148, 0.52);
+            ctBook.rotation.y = -0.15;
+            furnGroup.add(ctBook);
 
           } else if (cell.furniture === 'table') {
             // Table Top
@@ -717,149 +789,334 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             });
 
           } else if (cell.furniture === 'toilet') {
-            // Rounded tapered toilet bowl base
-            const baseGeo = new THREE.CylinderGeometry(0.16, 0.12, 0.38, 12);
-            const base = new THREE.Mesh(baseGeo, pillowMat);
-            base.position.set(0, 0.19, 0.06);
-            base.scale.set(1.0, 1.0, 1.25);
-            base.castShadow = true;
-            furnGroup.add(base);
+            // Wall-Hung Floating Smart Toilet
+            const bowlGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.32, 16);
+            const toiletBowl = new THREE.Mesh(bowlGeo, pillowMat);
+            toiletBowl.position.set(0, 0.3, 0.05); // Elevated, floating effect
+            toiletBowl.scale.set(1.0, 1.0, 1.28);
+            toiletBowl.castShadow = true;
+            furnGroup.add(toiletBowl);
 
-            // Toilet seat cover ring
-            const seatGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.02, 12);
+            // LED Nightlight glow under the toilet bowl (cool blue)
+            const toiletGlowGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16);
+            const toiletGlow = new THREE.Mesh(toiletGlowGeo, new THREE.MeshStandardMaterial({
+              color: '#0ea5e9',
+              emissive: '#0ea5e9',
+              emissiveIntensity: 0.9,
+              transparent: true,
+              opacity: 0.8
+            }));
+            toiletGlow.position.set(0, 0.13, 0.05);
+            toiletGlow.scale.set(1.0, 1.0, 1.28);
+            furnGroup.add(toiletGlow);
+
+            // Slim seat
+            const seatGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.02, 12);
             const seat = new THREE.Mesh(seatGeo, defaultFloorMat);
-            seat.position.set(0, 0.39, 0.06);
+            seat.position.set(0, 0.46, 0.08);
             seat.scale.set(1.0, 1.0, 1.25);
             furnGroup.add(seat);
 
-            // Water tank at the back
-            const tankGeo = new THREE.BoxGeometry(0.38, 0.45, 0.18);
-            const tank = new THREE.Mesh(tankGeo, pillowMat);
-            tank.position.set(0, 0.525, -0.14);
-            tank.castShadow = true;
-            furnGroup.add(tank);
+            // Soft-close seat lid (half-open leaning back)
+            const lidGeo = new THREE.BoxGeometry(0.3, 0.02, 0.4);
+            const lid = new THREE.Mesh(lidGeo, defaultFloorMat);
+            lid.position.set(0, 0.54, -0.06);
+            lid.rotation.x = -0.3;
+            lid.castShadow = true;
+            furnGroup.add(lid);
 
-            // Chrome flush button
-            const btnGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.01, 8);
-            const btn = new THREE.Mesh(btnGeo, metalMat);
-            btn.position.set(0.08, 0.755, -0.14);
-            btn.rotation.x = Math.PI / 2;
-            furnGroup.add(btn);
+            // Wall-mounted Concealed Tank Flush Plate
+            const wallPlateGeo = new THREE.BoxGeometry(0.24, 0.16, 0.01);
+            const wallPlate = new THREE.Mesh(wallPlateGeo, metalMat);
+            wallPlate.position.set(0, 0.75, -0.19);
+            furnGroup.add(wallPlate);
+
+            // Chrome dual-flush buttons
+            const btn1 = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.005, 8), defaultFloorMat);
+            btn1.position.set(-0.03, 0.75, -0.182);
+            btn1.rotation.x = Math.PI / 2;
+            furnGroup.add(btn1);
+            const btn2 = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.005, 8), defaultFloorMat);
+            btn2.position.set(0.03, 0.75, -0.182);
+            btn2.rotation.x = Math.PI / 2;
+            furnGroup.add(btn2);
+
+            // Designer metal toilet paper stand next to the toilet
+            const baseStand = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.01, 12), metalMat);
+            baseStand.position.set(-0.28, 0.005, 0.15);
+            furnGroup.add(baseStand);
+            const poleStand = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.5, 8), metalMat);
+            poleStand.position.set(-0.28, 0.25, 0.15);
+            furnGroup.add(poleStand);
+            const armStand = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 8), metalMat);
+            armStand.position.set(-0.24, 0.5, 0.15);
+            armStand.rotation.z = Math.PI / 2;
+            furnGroup.add(armStand);
+            
+            // Active paper roll
+            const activeRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.09, 10), defaultFloorMat);
+            activeRoll.position.set(-0.21, 0.5, 0.15);
+            activeRoll.rotation.x = Math.PI / 2;
+            furnGroup.add(activeRoll);
+
+            // Spare paper roll on bottom of stand
+            const spareRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.09, 10), defaultFloorMat);
+            spareRoll.position.set(-0.28, 0.12, 0.15);
+            spareRoll.rotation.x = Math.PI / 2;
+            furnGroup.add(spareRoll);
+
+            // Chrome toilet brush holder
+            const brushHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 8), metalMat);
+            brushHolder.position.set(0.28, 0.075, -0.05);
+            furnGroup.add(brushHolder);
+            const brushHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.24, 8), metalMat);
+            brushHandle.position.set(0.28, 0.22, -0.05);
+            furnGroup.add(brushHandle);
 
           } else if (cell.furniture === 'bath') {
-            // Hollow tub constructed from 5 box walls
-            const wThickness = 0.06;
-            const tHeight = 0.48;
+            // Freestanding Oval Luxury Tub
+            const tubGeo = new THREE.CylinderGeometry(0.48, 0.44, 0.42, 24, 1);
+            const tub = new THREE.Mesh(tubGeo, pillowMat);
+            tub.scale.set(1.6, 1.0, 0.95); // oval shape
+            tub.position.set(0, 0.21, 0);
+            tub.castShadow = true;
+            furnGroup.add(tub);
 
-            // 1. Tub Bottom
-            const bottomGeo = new THREE.BoxGeometry(0.9, wThickness, 0.9);
-            const bottom = new THREE.Mesh(bottomGeo, pillowMat);
-            bottom.position.set(0, wThickness / 2, 0);
-            bottom.receiveShadow = true;
-            furnGroup.add(bottom);
+            // Oval smooth rim
+            const rimGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.03, 24);
+            const rim = new THREE.Mesh(rimGeo, pillowMat);
+            rim.scale.set(1.6, 1.0, 0.95);
+            rim.position.set(0, 0.42, 0);
+            furnGroup.add(rim);
 
-            // 2. Tub Back wall
-            const backGeo = new THREE.BoxGeometry(0.9, tHeight, wThickness);
-            const back = new THREE.Mesh(backGeo, pillowMat);
-            back.position.set(0, tHeight / 2, -0.45 + wThickness / 2);
-            back.castShadow = true;
-            furnGroup.add(back);
-
-            // 3. Tub Front wall
-            const front = new THREE.Mesh(backGeo, pillowMat);
-            front.position.set(0, tHeight / 2, 0.45 - wThickness / 2);
-            front.castShadow = true;
-            furnGroup.add(front);
-
-            // 4. Tub Left wall
-            const leftGeo = new THREE.BoxGeometry(wThickness, tHeight, 0.9 - 2 * wThickness);
-            const left = new THREE.Mesh(leftGeo, pillowMat);
-            left.position.set(-0.45 + wThickness / 2, tHeight / 2, 0);
-            left.castShadow = true;
-            furnGroup.add(left);
-
-            // 5. Tub Right wall
-            const right = new THREE.Mesh(leftGeo, pillowMat);
-            right.position.set(0.45 - wThickness / 2, tHeight / 2, 0);
-            right.castShadow = true;
-            furnGroup.add(right);
-
-            // 6. Translucent water plane inside, halfway down
-            const waterWidth = 0.9 - 2 * wThickness - 0.01;
-            const waterGeo = new THREE.BoxGeometry(waterWidth, 0.01, waterWidth);
+            // Inner water volume
+            const waterGeo = new THREE.CylinderGeometry(0.45, 0.41, 0.32, 24);
             const water = new THREE.Mesh(waterGeo, waterMat);
-            water.position.set(0, tHeight * 0.6, 0);
+            water.scale.set(1.56, 1.0, 0.92);
+            water.position.set(0, 0.25, 0);
             furnGroup.add(water);
 
-            // 7. Chrome drain cover
-            const drainGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.005, 12);
+            // Chrome drain cover at the bottom
+            const drainGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.005, 12);
             const drain = new THREE.Mesh(drainGeo, drainMat);
-            drain.position.set(0, wThickness, 0.2);
+            drain.position.set(0, 0.08, 0.2);
             furnGroup.add(drain);
 
-            // 8. Gooseneck curves faucet
-            const fBaseGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.2, 8);
-            const fBase = new THREE.Mesh(fBaseGeo, metalMat);
-            fBase.position.set(0, tHeight + 0.05, -0.41);
-            furnGroup.add(fBase);
+            // Floor-Standing Gooseneck Tub Filler (tall floor tap)
+            const pipeGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.6, 8);
+            const pipe = new THREE.Mesh(pipeGeo, metalMat);
+            pipe.position.set(0, 0.3, -0.44);
+            pipe.castShadow = true;
+            furnGroup.add(pipe);
 
-            const fCurveGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.1, 8);
-            const fCurve = new THREE.Mesh(fCurveGeo, metalMat);
-            fCurve.rotation.x = Math.PI / 2;
-            fCurve.position.set(0, tHeight + 0.15, -0.37);
-            furnGroup.add(fCurve);
+            const faucetCurve = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 8), metalMat);
+            faucetCurve.rotation.x = Math.PI / 2;
+            faucetCurve.position.set(0, 0.6, -0.36);
+            furnGroup.add(faucetCurve);
 
-            const fSpoutGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.04, 8);
-            const fSpout = new THREE.Mesh(fSpoutGeo, metalMat);
-            fSpout.position.set(0, tHeight + 0.12, -0.32);
-            furnGroup.add(fSpout);
+            const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.06, 8), metalMat);
+            spout.position.set(0, 0.54, -0.28);
+            furnGroup.add(spout);
+
+            // Hot/cold knobs on floor base
+            const floorKnobGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.04, 6);
+            const floorHot = new THREE.Mesh(floorKnobGeo, fabricRedMat);
+            floorHot.position.set(-0.06, 0.6, -0.44);
+            furnGroup.add(floorHot);
+            const floorCold = new THREE.Mesh(floorKnobGeo, bedFabricMat);
+            floorCold.position.set(0.06, 0.6, -0.44);
+            furnGroup.add(floorCold);
+
+            // Bathtub Wooden Tray / Caddy spanning across
+            const trayGeo = new THREE.BoxGeometry(1.0, 0.02, 0.14);
+            const tray = new THREE.Mesh(trayGeo, woodMat);
+            tray.position.set(0, 0.43, 0.05);
+            tray.castShadow = true;
+            furnGroup.add(tray);
+
+            const bookGeo = new THREE.BoxGeometry(0.12, 0.02, 0.09);
+            const book = new THREE.Mesh(bookGeo, fabricGoldMat);
+            book.position.set(0.02, 0.45, 0.05);
+            book.rotation.y = 0.12;
+            furnGroup.add(book);
+
+            // Scented candle with glowing flame on tray
+            const candleGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.04, 8);
+            const candle = new THREE.Mesh(candleGeo, pillowMat);
+            candle.position.set(-0.16, 0.46, 0.05);
+            furnGroup.add(candle);
+            const flameGeo = new THREE.SphereGeometry(0.008, 6, 6);
+            const flame = new THREE.Mesh(flameGeo, lampGlowMat);
+            flame.scale.set(1.0, 1.8, 1.0);
+            flame.position.set(-0.16, 0.495, 0.05);
+            furnGroup.add(flame);
+            
+            // Glass of wine on tray
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.04, 6), glassMat);
+            stem.position.set(0.2, 0.46, 0.05);
+            furnGroup.add(stem);
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.004, 8), glassMat);
+            base.position.set(0.2, 0.44, 0.05);
+            furnGroup.add(base);
+            const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.01, 0.03, 8), glassMat);
+            bowl.position.set(0.2, 0.495, 0.05);
+            furnGroup.add(bowl);
+            const wine = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.008, 0.015, 8), fabricRedMat);
+            wine.position.set(0.2, 0.485, 0.05);
+            furnGroup.add(wine);
+
+            // Spa Accents: small wooden step stool with a rolled white towel
+            const stoolGeo = new THREE.BoxGeometry(0.24, 0.02, 0.24);
+            const stool = new THREE.Mesh(stoolGeo, woodMat);
+            stool.position.set(0.68, 0.16, 0.2);
+            stool.castShadow = true;
+            furnGroup.add(stool);
+            const stoolLeg = new THREE.CylinderGeometry(0.015, 0.015, 0.16, 6);
+            const sLegPositions = [
+              [0.58, 0.08, 0.1],
+              [0.78, 0.08, 0.1],
+              [0.58, 0.08, 0.3],
+              [0.78, 0.08, 0.3]
+            ];
+            sLegPositions.forEach(sp => {
+              const leg = new THREE.Mesh(stoolLeg, woodMat);
+              leg.position.set(sp[0], sp[1], sp[2]);
+              leg.castShadow = true;
+              furnGroup.add(leg);
+            });
+
+            const towelGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.18, 10);
+            const rolledTowel = new THREE.Mesh(towelGeo, pillowMat);
+            rolledTowel.rotation.z = Math.PI / 2;
+            rolledTowel.position.set(0.68, 0.21, 0.2);
+            rolledTowel.castShadow = true;
+            furnGroup.add(rolledTowel);
+
+            // Small potted plant on the other side of the tub
+            const plantPot = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.12, 8), potMat);
+            plantPot.position.set(-0.68, 0.06, -0.2);
+            furnGroup.add(plantPot);
+            const plantGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const plantFoliage = new THREE.Mesh(plantGeo, leavesMat);
+            plantFoliage.position.set(-0.68, 0.14, -0.2);
+            plantFoliage.scale.set(1.0, 1.4, 1.0);
+            furnGroup.add(plantFoliage);
 
           } else if (cell.furniture === 'sink') {
-            // Cabinet Vanity
-            const vanGeo = new THREE.BoxGeometry(0.75, 0.72, 0.5);
+            // Modern Floating Wood Vanity (floats off the floor)
+            const vanGeo = new THREE.BoxGeometry(0.85, 0.48, 0.48);
             const vanity = new THREE.Mesh(vanGeo, woodMat);
-            vanity.position.set(0, 0.36, 0);
+            vanity.position.set(0, 0.38, 0); // floats off the floor (0.14 gap below)
             vanity.castShadow = true;
             furnGroup.add(vanity);
 
-            // Door line divider
-            const divider = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.7, 0.008), new THREE.MeshStandardMaterial({ color: '#2b1b0c' }));
-            divider.position.set(0, 0.36, 0.252);
-            furnGroup.add(divider);
-
-            // Door Handles (chrome cylinders)
-            const handleGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.08, 8);
+            // Dark wood drawer panels with gold inlays
+            const drawerGeo = new THREE.BoxGeometry(0.81, 0.2, 0.01);
+            const drawerUpper = new THREE.Mesh(drawerGeo, new THREE.MeshStandardMaterial({ color: '#2b1b0c', roughness: 0.8 }));
+            drawerUpper.position.set(0, 0.5, 0.241);
+            furnGroup.add(drawerUpper);
+            const drawerLower = new THREE.Mesh(drawerGeo, new THREE.MeshStandardMaterial({ color: '#2b1b0c', roughness: 0.8 }));
+            drawerLower.position.set(0, 0.26, 0.241);
+            furnGroup.add(drawerLower);
             
+            // Sleek horizontal gold handles
+            const handleGeo = new THREE.BoxGeometry(0.24, 0.015, 0.015);
+            const handleU = new THREE.Mesh(handleGeo, metalMat);
+            handleU.position.set(0, 0.5, 0.25);
+            furnGroup.add(handleU);
             const handleL = new THREE.Mesh(handleGeo, metalMat);
-            handleL.position.set(-0.06, 0.45, 0.26);
+            handleL.position.set(0, 0.26, 0.25);
             furnGroup.add(handleL);
 
-            const handleR = new THREE.Mesh(handleGeo, metalMat);
-            handleR.position.set(0.06, 0.45, 0.26);
-            furnGroup.add(handleR);
+            // White marble countertop slab
+            const marbleTopGeo = new THREE.BoxGeometry(0.87, 0.05, 0.5);
+            const marbleTop = new THREE.Mesh(marbleTopGeo, tileFloorMat); // tile mat gives white stone marble texture
+            marbleTop.position.set(0, 0.645, 0);
+            marbleTop.castShadow = true;
+            furnGroup.add(marbleTop);
 
-            // White basin top
-            const basinGeo = new THREE.BoxGeometry(0.77, 0.08, 0.52);
-            const basin = new THREE.Mesh(basinGeo, pillowMat);
-            basin.position.set(0, 0.76, 0);
-            basin.castShadow = true;
-            furnGroup.add(basin);
+            // Round ceramic vessel bowl sink sitting on top of the marble counter
+            const bowlOuterGeo = new THREE.CylinderGeometry(0.18, 0.14, 0.1, 16);
+            const bowlOuter = new THREE.Mesh(bowlOuterGeo, pillowMat);
+            bowlOuter.position.set(0, 0.72, 0);
+            bowlOuter.castShadow = true;
+            furnGroup.add(bowlOuter);
+            
+            // Water layer inside vessel
+            const bowlInnerGeo = new THREE.CylinderGeometry(0.16, 0.12, 0.08, 16);
+            const bowlInner = new THREE.Mesh(bowlInnerGeo, waterMat);
+            bowlInner.position.set(0, 0.725, 0);
+            furnGroup.add(bowlInner);
 
-            // Inset hollow basin (contrast color inside)
-            const innerGeo = new THREE.BoxGeometry(0.65, 0.01, 0.4);
-            const inner = new THREE.Mesh(innerGeo, new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.1 }));
-            inner.position.set(0, 0.801, 0);
-            furnGroup.add(inner);
+            // Tall curved chrome gooseneck faucet
+            const tapGeo1 = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 8);
+            const tapBase = new THREE.Mesh(tapGeo1, metalMat);
+            tapBase.position.set(0, 0.745, -0.16);
+            furnGroup.add(tapBase);
+            
+            const tapGeo2 = new THREE.CylinderGeometry(0.01, 0.01, 0.12, 8);
+            const tapCurve = new THREE.Mesh(tapGeo2, metalMat);
+            tapCurve.rotation.x = Math.PI / 2;
+            tapCurve.position.set(0, 0.82, -0.1);
+            furnGroup.add(tapCurve);
+            
+            const tapGeo3 = new THREE.CylinderGeometry(0.008, 0.008, 0.03, 8);
+            const tapSpout = new THREE.Mesh(tapGeo3, metalMat);
+            tapSpout.position.set(0, 0.805, -0.04);
+            furnGroup.add(tapSpout);
 
-            // Chrome curved faucet
-            const faucetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 8), metalMat);
-            faucetBase.position.set(0, 0.86, -0.18);
-            furnGroup.add(faucetBase);
+            // Round Backlit smart mirror on wall
+            const mirrorFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.02, 24), woodMat);
+            mirrorFrame.position.set(0, 1.25, -0.22);
+            mirrorFrame.rotation.x = Math.PI / 2;
+            furnGroup.add(mirrorFrame);
 
-            const faucetCurve = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8), metalMat);
-            faucetCurve.rotation.x = Math.PI / 2;
-            faucetCurve.position.set(0, 0.91, -0.14);
-            furnGroup.add(faucetCurve);
+            const mirrorFace = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.01, 24), glassMat);
+            mirrorFace.position.set(0, 1.25, -0.208);
+            mirrorFace.rotation.x = Math.PI / 2;
+            furnGroup.add(mirrorFace);
+
+            const mirrorGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.01, 24), lampGlowMat);
+            mirrorGlow.position.set(0, 1.25, -0.23);
+            mirrorGlow.rotation.x = Math.PI / 2;
+            furnGroup.add(mirrorGlow);
+
+            // Chrome hand towel ring on the left vanity side
+            const ringHolder = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.01), metalMat);
+            ringHolder.position.set(-0.45, 0.5, 0);
+            furnGroup.add(ringHolder);
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 6, 12), metalMat);
+            ring.position.set(-0.49, 0.45, 0);
+            ring.rotation.y = Math.PI / 2;
+            furnGroup.add(ring);
+            
+            // Folded white towel
+            const towelGeo = new THREE.BoxGeometry(0.02, 0.16, 0.08);
+            const towel = new THREE.Mesh(towelGeo, pillowMat);
+            towel.position.set(-0.49, 0.37, 0);
+            towel.castShadow = true;
+            furnGroup.add(towel);
+
+            // Soap dispenser & accessory tray on marble top
+            const trayGeo = new THREE.BoxGeometry(0.12, 0.01, 0.22);
+            const soapTray = new THREE.Mesh(trayGeo, woodMat);
+            soapTray.position.set(0.26, 0.675, 0.08);
+            furnGroup.add(soapTray);
+            
+            const dispenser = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.04), glassMat);
+            dispenser.position.set(0.26, 0.72, 0.02);
+            furnGroup.add(dispenser);
+            const pump = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.02, 0.02), metalMat);
+            pump.position.set(0.26, 0.77, 0.02);
+            furnGroup.add(pump);
+            
+            const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.06, 8), glassMat);
+            jar.position.set(0.26, 0.71, 0.14);
+            furnGroup.add(jar);
+            const sprig = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.1, 4), leavesMat);
+            sprig.position.set(0.26, 0.78, 0.14);
+            sprig.rotation.z = 0.2;
+            furnGroup.add(sprig);
 
           } else if (cell.furniture === 'counter') {
             // Cabinet Vanity
@@ -869,47 +1126,46 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             cabinet.castShadow = true;
             furnGroup.add(cabinet);
 
-            // Countertop surface
+            // Countertop surface - white quartz countertop
             const topGeo = new THREE.BoxGeometry(0.97, 0.04, 0.77);
-            const top = new THREE.Mesh(topGeo, tileFloorMat);
+            const top = new THREE.Mesh(topGeo, defaultFloorMat); // pure white quartz countertop
             top.position.set(0, 0.84, 0);
             top.receiveShadow = true;
             furnGroup.add(top);
 
-            // Door / drawer divider lines
-            const divGeo = new THREE.BoxGeometry(0.01, 0.76, 0.01);
-            const divMat = new THREE.MeshStandardMaterial({ color: '#2b1b0c', roughness: 0.9 });
-            const divider = new THREE.Mesh(divGeo, divMat);
-            divider.position.set(0, 0.41, 0.376);
-            furnGroup.add(divider);
+            // Integrated Appliance: Built-in oven on the left side
+            const ovenFrameGeo = new THREE.BoxGeometry(0.44, 0.48, 0.02);
+            const ovenFrame = new THREE.Mesh(ovenFrameGeo, metalMat);
+            ovenFrame.position.set(-0.2, 0.38, 0.376);
+            furnGroup.add(ovenFrame);
 
-            const horGeo = new THREE.BoxGeometry(0.93, 0.01, 0.01);
-            const horLine = new THREE.Mesh(horGeo, divMat);
-            horLine.position.set(0, 0.6, 0.376);
-            furnGroup.add(horLine);
+            const ovenGlassGeo = new THREE.BoxGeometry(0.36, 0.36, 0.01);
+            const ovenGlass = new THREE.Mesh(ovenGlassGeo, glassMat);
+            ovenGlass.position.set(-0.2, 0.38, 0.387);
+            furnGroup.add(ovenGlass);
 
-            // Drawer Handles
-            const handleGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.08, 8);
-            
-            const handleL = new THREE.Mesh(handleGeo, metalMat);
-            handleL.position.set(-0.06, 0.35, 0.385);
-            furnGroup.add(handleL);
+            // Internal glowing heating light
+            const ovenGlowGeo = new THREE.BoxGeometry(0.34, 0.34, 0.01);
+            const ovenGlow = new THREE.Mesh(ovenGlowGeo, lampGlowMat);
+            ovenGlow.position.set(-0.2, 0.38, 0.378);
+            furnGroup.add(ovenGlow);
 
-            const handleR = new THREE.Mesh(handleGeo, metalMat);
-            handleR.position.set(0.06, 0.35, 0.385);
-            furnGroup.add(handleR);
+            const ovenHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.3, 8), metalMat);
+            ovenHandle.rotation.z = Math.PI / 2;
+            ovenHandle.position.set(-0.2, 0.54, 0.395);
+            furnGroup.add(ovenHandle);
 
-            const handleDrawL = new THREE.Mesh(handleGeo, metalMat);
-            handleDrawL.rotation.z = Math.PI / 2;
-            handleDrawL.position.set(-0.23, 0.7, 0.385);
-            furnGroup.add(handleDrawL);
+            // Clean cabinet panel on the right side
+            const cabGeo = new THREE.BoxGeometry(0.44, 0.48, 0.01);
+            const cabR = new THREE.Mesh(cabGeo, woodMat);
+            cabR.position.set(0.2, 0.38, 0.376);
+            furnGroup.add(cabR);
 
-            const handleDrawR = new THREE.Mesh(handleGeo, metalMat);
-            handleDrawR.rotation.z = Math.PI / 2;
-            handleDrawR.position.set(0.23, 0.7, 0.385);
-            furnGroup.add(handleDrawR);
+            const cabHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 8), metalMat);
+            cabHandle.position.set(0.36, 0.38, 0.382);
+            furnGroup.add(cabHandle);
 
-            // Inset Sink
+            // Inset sink basin
             const basinGeo = new THREE.BoxGeometry(0.32, 0.01, 0.42);
             const basin = new THREE.Mesh(basinGeo, metalMat);
             basin.position.set(-0.22, 0.861, 0);
@@ -920,14 +1176,19 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
             inner.position.set(-0.22, 0.864, 0);
             furnGroup.add(inner);
 
-            // Faucet
-            const faucetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12, 8), metalMat);
-            faucetBase.position.set(-0.22, 0.92, -0.2);
+            // Professional pull-down coiled faucet
+            const faucetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 8), metalMat);
+            faucetBase.position.set(-0.22, 0.94, -0.2);
             furnGroup.add(faucetBase);
 
-            const faucetSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 8), metalMat);
-            faucetSpout.rotation.x = Math.PI / 2;
-            faucetSpout.position.set(-0.22, 0.98, -0.13);
+            const coilGeo = new THREE.TorusGeometry(0.05, 0.01, 8, 16, Math.PI);
+            const coil = new THREE.Mesh(coilGeo, metalMat);
+            coil.position.set(-0.22, 1.02, -0.15);
+            coil.rotation.y = Math.PI / 2;
+            furnGroup.add(coil);
+
+            const faucetSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 8), metalMat);
+            faucetSpout.position.set(-0.22, 0.98, -0.1);
             furnGroup.add(faucetSpout);
 
             // Stove burners
@@ -950,6 +1211,24 @@ const FloorPlanEditor: React.FC<FloorPlanEditorProps> = ({ unitId, unitNumber, o
               knob.position.set(0.15 + i * 0.12, 0.81, 0.38);
               furnGroup.add(knob);
             }
+
+            // Modern Coffee Maker appliance on counter
+            const coffeeMachineBase = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.16), new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.5 }));
+            coffeeMachineBase.position.set(0.24, 0.97, 0.1);
+            coffeeMachineBase.castShadow = true;
+            furnGroup.add(coffeeMachineBase);
+
+            const coffeeSpout = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.04), metalMat);
+            coffeeSpout.position.set(0.24, 1.02, 0.15);
+            furnGroup.add(coffeeSpout);
+
+            const coffeeCarafe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.08, 8), glassMat);
+            coffeeCarafe.position.set(0.24, 0.9, 0.15);
+            furnGroup.add(coffeeCarafe);
+
+            const carafeLid = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.07), metalMat);
+            carafeLid.position.set(0.24, 0.94, 0.15);
+            furnGroup.add(carafeLid);
           }
 
           group.add(furnGroup);
