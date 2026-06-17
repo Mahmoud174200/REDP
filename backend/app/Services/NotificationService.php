@@ -10,12 +10,26 @@ class NotificationService
     /**
      * Dispatch a multi-channel alert.
      */
-    public static function send(string $userId, string $channel, string $recipient, string $title, string $content): Notification
+    public static function send(?string $userId, string $channel, string $recipient, string $title, string $content): Notification
     {
+        $dbUserId = null;
+        $dbLeadId = null;
+
+        if ($userId) {
+            if (\App\Models\User::where('id', $userId)->exists()) {
+                $dbUserId = $userId;
+            } elseif (\App\Models\Lead::where('id', $userId)->exists()) {
+                $dbLeadId = $userId;
+            } else {
+                $dbUserId = \App\Models\User::where('role', 'admin')->first()?->id ?? \App\Models\User::first()?->id;
+            }
+        }
+
         // 1. Record notification log entry
         $notification = Notification::create([
             'id' => (string) Str::uuid(),
-            'user_id' => $userId,
+            'user_id' => $dbUserId,
+            'lead_id' => $dbLeadId,
             'channel' => $channel, // 'email', 'sms', 'whatsapp', 'push'
             'recipient' => $recipient,
             'title' => $title,
@@ -60,7 +74,7 @@ class NotificationService
     /**
      * Send structured template-based notification.
      */
-    public static function sendTemplate(string $userId, string $channel, string $recipient, string $templateType, array $data): Notification
+    public static function sendTemplate(?string $userId, string $channel, string $recipient, string $templateType, array $data): Notification
     {
         $title = '';
         $content = '';

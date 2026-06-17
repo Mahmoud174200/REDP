@@ -132,7 +132,7 @@ class EoiEmailService
         string $password,
         string $projectId
     ): string {
-        $loginUrl = "http://localhost:5173/login?redirect=" . urlencode("/unit-selection?project=" . $projectId);
+        $loginUrl = "http://localhost:5173/client-login?project=" . $projectId;
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
