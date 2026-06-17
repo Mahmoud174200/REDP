@@ -81,6 +81,12 @@ interface AuditLogItem {
   details: any;
   created_at: string;
   user?: UserItem;
+  old_values?: any;
+  new_values?: any;
+  user_agent?: string | null;
+  device_type?: string | null;
+  browser?: string | null;
+  geo_location?: any;
 }
 
 interface SystemHealth {
@@ -119,6 +125,17 @@ const AdminPanel: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
+
+  // ── Broadcaster Desk States ──
+  const [broadcastProjectId, setBroadcastProjectId] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastChannels, setBroadcastChannels] = useState({ email: true, sms: false, whatsapp: false });
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [isCheckingSchedule, setIsCheckingSchedule] = useState(false);
+
+  // ── Audit Log Modal States ──
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogItem | null>(null);
 
   // ── Project Payment Plan States ──
   const [projectPlans, setProjectPlans] = useState<any[]>([]);
@@ -178,6 +195,9 @@ const AdminPanel: React.FC = () => {
     mail_host: 'smtp.mailtrap.io',
     mail_port: '2525',
     mail_username: '',
+    delay_penalty_percentage: '1',
+    delay_penalty_enabled: 'true',
+    delay_penalty_grace_days: '0',
     mail_password: '',
     mail_encryption: 'tls',
     mail_from_address: 'noreply@redp.com',
@@ -1202,6 +1222,52 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastProjectId) {
+      alert('Please select a project first.');
+      return;
+    }
+    if (!broadcastMessage.trim()) {
+      alert('Please type a message to broadcast.');
+      return;
+    }
+    const channels = Object.keys(broadcastChannels).filter(key => broadcastChannels[key as keyof typeof broadcastChannels]);
+    if (channels.length === 0) {
+      alert('Please select at least one notification channel.');
+      return;
+    }
+    setIsBroadcasting(true);
+    try {
+      const res = await api.post('/admin/notifications/broadcast', {
+        project_id: broadcastProjectId,
+        message: broadcastMessage,
+        channels: channels
+      });
+      if (res.data?.success) {
+        alert(res.data.message || 'Broadcast sent successfully!');
+        setBroadcastMessage('');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send broadcast.');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const handleRunScheduleCheckups = async () => {
+    setIsCheckingSchedule(true);
+    try {
+      const res = await api.post('/admin/notifications/run-schedule-checks');
+      if (res.data?.success) {
+        alert(res.data.message + `\nUpcoming alerts sent: ${res.data.upcoming_alerts_sent}\nOverdue alerts sent: ${res.data.overdue_alerts_sent}`);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to run schedule checks.');
+    } finally {
+      setIsCheckingSchedule(false);
+    }
+  };
+
   // ── Filters & Search ──
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1679,7 +1745,7 @@ const AdminPanel: React.FC = () => {
                 <th>Operator User</th>
                 <th>Event Action</th>
                 <th>IP Address</th>
-                <th>Event Payload Details</th>
+                <th>Payload Details & Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1695,9 +1761,18 @@ const AdminPanel: React.FC = () => {
                     <td><span className="badge badge-info" style={{ fontWeight: 800 }}>{log.action}</span></td>
                     <td style={{ fontSize: '0.75rem' }}>{log.ip_address || '—'}</td>
                     <td>
-                      <code style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', display: 'block', maxWidth: '350px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                        {JSON.stringify(log.details)}
-                      </code>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <code style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', display: 'block', maxWidth: '200px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                          {JSON.stringify(log.new_values || log.details || {})}
+                        </code>
+                        <button
+                          onClick={() => { setSelectedAuditLog(log); setShowAuditModal(true); }}
+                          className="btn-secondary"
+                          style={{ padding: '4px 8px', fontSize: '0.65rem', whiteSpace: 'nowrap' }}
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -2322,6 +2397,49 @@ const AdminPanel: React.FC = () => {
                   required
                 />
               </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Enable Late Payment Penalty (تفعيل غرامة التأخير)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => updateConfigKey('delay_penalty_enabled', (configs as any).delay_penalty_enabled === 'true' ? 'false' : 'true')}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
+                  >
+                    {(configs as any).delay_penalty_enabled === 'true' ? (
+                      <ToggleRight size={38} style={{ color: 'var(--color-success)' }} />
+                    ) : (
+                      <ToggleLeft size={38} style={{ color: 'var(--text-muted)' }} />
+                    )}
+                  </button>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {(configs as any).delay_penalty_enabled === 'true' ? 'Enabled: Apply late fees on overdue payments.' : 'Disabled: Cancel / do not apply late fees.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Default Delay Penalty Rate (%) (نسبة الغرامة الافتراضية)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className="form-control"
+                  value={(configs as any).delay_penalty_percentage || ''}
+                  onChange={(e) => updateConfigKey('delay_penalty_percentage', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Default Penalty Grace Period (Days) (فترة السماح الافتراضية باليوم)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={(configs as any).delay_penalty_grace_days || ''}
+                  onChange={(e) => updateConfigKey('delay_penalty_grace_days', e.target.value)}
+                  required
+                />
+              </div>
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   ⚠️ System Maintenance Mode
@@ -2364,9 +2482,220 @@ const AdminPanel: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {/* 📢 Broadcaster & Alerts Desk */}
+        <div className="glass-panel" style={{ padding: '35px', marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, borderBottom: '1.5px solid var(--border-glass)', paddingBottom: '10px', marginBottom: '10px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📢 Broadcaster & Alerts Desk (لوحة البث والرسائل التنبيهية)
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Broadcast customized project updates directly to homeowners, or trigger a manual scan of upcoming/overdue installments.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
+            {/* Broadcast Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderRight: '1px solid var(--border-glass)', paddingRight: '30px' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                1. Project Update Broadcast (إرسال تحديث للملاك)
+              </h3>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Select Target Project</label>
+                <select 
+                  className="form-control" 
+                  value={broadcastProjectId} 
+                  onChange={e => setBroadcastProjectId(e.target.value)}
+                >
+                  <option value="">Choose Project...</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Broadcast Message</label>
+                <textarea 
+                  className="form-control" 
+                  value={broadcastMessage} 
+                  onChange={e => setBroadcastMessage(e.target.value)} 
+                  placeholder="Enter important updates, construction progress, or announcements..." 
+                  style={{ minHeight: '100px', padding: '10px' }} 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Dispatch Channels</label>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.email} onChange={e => setBroadcastChannels(prev => ({ ...prev, email: e.target.checked }))} />
+                    <span>Email Gateway</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.sms} onChange={e => setBroadcastChannels(prev => ({ ...prev, sms: e.target.checked }))} />
+                    <span>SMS Gateway</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.whatsapp} onChange={e => setBroadcastChannels(prev => ({ ...prev, whatsapp: e.target.checked }))} />
+                    <span>WhatsApp Gateway</span>
+                  </label>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={handleSendBroadcast} 
+                className="btn-primary" 
+                style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}
+                disabled={isBroadcasting}
+              >
+                {isBroadcasting ? 'Broadcasting message...' : '🚀 Dispatch Broadcast'}
+              </button>
+            </div>
+
+            {/* Run Schedule Checkups */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                2. Installment Dues Checkup (فحص الأقساط المستحقة والتحصيل)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Manually scan all contract ledgers to detect:
+              </p>
+              <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 15px', padding: 0 }}>
+                <li style={{ marginBottom: '4px' }}>Upcoming installments due in the next 7 days (Sends Email/WhatsApp).</li>
+                <li>Overdue installments past their due date (Sends Email/SMS/WhatsApp with default 1% penalty).</li>
+              </ul>
+              <button 
+                type="button" 
+                onClick={handleRunScheduleCheckups} 
+                className="btn-secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '42px', color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                disabled={isCheckingSchedule}
+              >
+                {isCheckingSchedule ? 'Running checkup scan...' : '🔍 Trigger Dues Scan & Alerts'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── MODALS CONTAINER ── */}
+
+      {/* 🔍 Audit Log Details Modal */}
+      {showAuditModal && selectedAuditLog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel animate-fade-in" style={{ maxWidth: '800px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', maxHeight: '85vh', overflowY: 'auto' }}>
+            <button onClick={() => { setShowAuditModal(false); setSelectedAuditLog(null); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={20} style={{ color: 'var(--color-primary)' }} />
+              Audit Log Details: {selectedAuditLog.action}
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+              {/* Operator and IP */}
+              <div style={{ padding: '14px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>OPERATOR DETAILS</strong>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <strong>User:</strong> {selectedAuditLog.user?.name || 'System / Guest'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({selectedAuditLog.user?.email || 'No email'})</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>IP Address:</strong> {selectedAuditLog.ip_address || '—'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Time:</strong> {selectedAuditLog.created_at}
+                </div>
+              </div>
+
+              {/* Browser and OS */}
+              <div style={{ padding: '14px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>CLIENT & LOCATION</strong>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <strong>Browser:</strong> {selectedAuditLog.browser || 'Unknown'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Device Type:</strong> {selectedAuditLog.device_type || 'Desktop'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Location:</strong> {selectedAuditLog.geo_location ? (
+                    `${selectedAuditLog.geo_location.city || ''}, ${selectedAuditLog.geo_location.country || ''} (Lat: ${selectedAuditLog.geo_location.lat}, Lng: ${selectedAuditLog.geo_location.lng})`
+                  ) : 'Unknown'}
+                </div>
+              </div>
+            </div>
+
+            {/* User Agent Raw */}
+            <div style={{ marginBottom: '20px' }}>
+              <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>USER AGENT</strong>
+              <div style={{ fontSize: '0.75rem', background: '#f5f5f5', padding: '10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                {selectedAuditLog.user_agent || 'Unknown User Agent'}
+              </div>
+            </div>
+
+            {/* Old vs New Values Side-by-Side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+              {/* Old Values */}
+              <div>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--color-danger)', marginBottom: '6px' }}>🔴 OLD VALUES (ORIGINAL)</strong>
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.03)',
+                  border: '1px solid rgba(239, 68, 68, 0.15)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'pre-wrap',
+                  color: '#b91c1c'
+                }}>
+                  {selectedAuditLog.old_values ? (
+                    JSON.stringify(selectedAuditLog.old_values, null, 2)
+                  ) : (
+                    'No original state changes.'
+                  )}
+                </div>
+              </div>
+
+              {/* New Values */}
+              <div>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--color-success)', marginBottom: '6px' }}>🟢 NEW VALUES (UPDATED)</strong>
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.03)',
+                  border: '1px solid rgba(16, 185, 129, 0.15)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'pre-wrap',
+                  color: '#047857'
+                }}>
+                  {selectedAuditLog.new_values ? (
+                    JSON.stringify(selectedAuditLog.new_values, null, 2)
+                  ) : selectedAuditLog.details ? (
+                    JSON.stringify(selectedAuditLog.details, null, 2)
+                  ) : (
+                    'No new updates.'
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+              <button onClick={() => { setShowAuditModal(false); setSelectedAuditLog(null); }} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 👤 User CRUD Modal */}
       {showUserModal && (
@@ -2402,14 +2731,13 @@ const AdminPanel: React.FC = () => {
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Security Role</label>
                   <select className="form-control" value={formUserRole} onChange={e => setFormUserRole(e.target.value)}>
-                    <option value="admin">System Admin</option>
-                    <option value="tele_sales">Tier 1: Tele-Sales Agent</option>
-                    <option value="broker">Tier 2: External Broker</option>
-                    <option value="company_sales">Tier 3: Company Sales Representative</option>
-                    <option value="sales_agent">Legacy Sales Agent</option>
-                    <option value="finance_officer">Finance Officer</option>
-                    <option value="delivery_engineer">Delivery Engineer</option>
-                    <option value="client">Client (Homeowner)</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="sales_team">Sales Team</option>
+                    <option value="customer_service">Customer Service</option>
+                    <option value="handover_team">Handover Team</option>
+                    <option value="homeowner">Homeowner</option>
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>

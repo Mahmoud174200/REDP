@@ -417,4 +417,132 @@ class ContractController extends Controller
             'data' => $data,
         ]);
     }
+
+    /**
+     * Submit contract for admin approval.
+     */
+    public function submitForApproval(Request $request, string $id)
+    {
+        $contract = Contract::with(['client', 'unit.project', 'paymentPlan'])->findOrFail($id);
+
+        if ($contract->status !== 'draft') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only draft contracts can be submitted for approval. Current status is: ' . $contract->status,
+            ], 400);
+        }
+
+        $contract->update([
+            'status' => 'pending_approval',
+        ]);
+
+        // Initiate the approval workflow using the ApprovalEngine
+        $approvalEngine = app(\App\Services\ApprovalEngine::class);
+        $approvalEngine->initiateApproval(
+            'contract',
+            $contract->id,
+            $request->user(),
+            [
+                'contract_number' => $contract->contract_number,
+                'client_name' => $contract->client->name ?? 'N/A',
+                'unit_number' => $contract->unit->unit_number ?? 'N/A',
+                'project_name' => $contract->unit->project->name ?? 'N/A',
+                'total_amount' => (float)$contract->total_amount,
+                'installments' => $contract->paymentPlan->total_installments ?? 0,
+            ]
+        );
+
+        AuditLogService::log('CONTRACT_SUBMIT_APPROVAL', $request->user()->id, [
+            'contract_id' => $contract->id,
+            'contract_number' => $contract->contract_number,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contract submitted for approval successfully.',
+            'contract' => $contract->fresh(),
+        ]);
+    }
+
+    /**
+     * Escalate contract delinquency status.
+     * Stages: none -> reminder -> warning -> final_notice -> withdrawn
+     */
+    public function escalateWithdrawal(Request $request, string $id)
+    {
+        $contract = Contract::with(['unit', 'paymentPlan'])->findOrFail($id);
+
+        $currentStage = $contract->withdrawal_status ?? 'none';
+        
+        $nextStages = [
+            'none' => 'reminder',
+            'reminder' => 'warning',
+            'warning' => 'final_notice',
+            'final_notice' => 'withdrawn',
+            'withdrawn' => 'withdrawn'
+        ];
+
+        $nextStage = $nextStages[$currentStage] ?? 'none';
+
+        if ($currentStage === 'withdrawn') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This unit is already withdrawn and the contract is terminated.',
+            ], 400);
+        }
+
+        if ($nextStage === 'withdrawn') {
+            // Transaction boundary to ensure data consistency
+            \Illuminate\Support\Facades\DB::transaction(function () use ($contract) {
+                // Update contract status
+                $contract->update([
+                    'status' => 'withdrawn',
+                    'withdrawal_status' => 'withdrawn',
+                ]);
+
+                // Free up unit back to inventory
+                if ($contract->unit_id) {
+                    \App\Models\Unit::where('id', $contract->unit_id)->update([
+                        'status' => 'available',
+                    ]);
+                }
+
+                // Terminate/cancel payment plan
+                if ($contract->paymentPlan) {
+                    $contract->paymentPlan->update([
+                        'status' => 'cancelled',
+                    ]);
+                }
+            });
+
+            AuditLogService::log('CONTRACT_UNIT_WITHDRAWN', $request->user()->id ?? null, [
+                'contract_id' => $contract->id,
+                'contract_number' => $contract->contract_number,
+                'unit_id' => $contract->unit_id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Unit has been successfully withdrawn. Client has been dissociated, and the unit is returned to inventory.',
+                'contract' => $contract->fresh(['unit', 'paymentPlan']),
+            ]);
+        }
+
+        // Just update stage for other values
+        $contract->update([
+            'withdrawal_status' => $nextStage,
+        ]);
+
+        AuditLogService::log('CONTRACT_WITHDRAWAL_STAGE_UPDATED', $request->user()->id ?? null, [
+            'contract_id' => $contract->id,
+            'contract_number' => $contract->contract_number,
+            'stage' => $nextStage,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contract delinquency status escalated to: ' . ucfirst($nextStage),
+            'contract' => $contract->fresh(),
+        ]);
+    }
 }

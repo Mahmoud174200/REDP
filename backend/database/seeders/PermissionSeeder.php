@@ -132,15 +132,22 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $p) {
-            Permission::updateOrCreate(
-                ['name' => $p['name']],
-                [
-                    'id' => (string) Str::uuid(),
+            $existing = Permission::where('name', $p['name'])->first();
+            if ($existing) {
+                $existing->update([
                     'display_name' => $p['display_name'],
                     'module' => $p['module'],
                     'group_name' => $p['group_name'],
-                ]
-            );
+                ]);
+            } else {
+                Permission::create([
+                    'id' => (string) Str::uuid(),
+                    'name' => $p['name'],
+                    'display_name' => $p['display_name'],
+                    'module' => $p['module'],
+                    'group_name' => $p['group_name'],
+                ]);
+            }
         }
 
         // ── 2. Create System Roles ──
@@ -154,54 +161,22 @@ class PermissionSeeder extends Seeder
                 'perms' => [] // Admin logic bypasses explicitly
             ],
             [
-                'name' => 'sales_manager',
-                'display_name' => 'Sales Manager',
-                'description' => 'Oversees sales operations, pipelines, and allocations',
-                'level' => 4,
+                'name' => 'admin',
+                'display_name' => 'System Administrator',
+                'description' => 'System administrator access to configure and manage settings',
+                'level' => 90,
                 'is_system' => true,
                 'perms' => [
-                    'lead.view', 'lead.create', 'lead.edit', 'lead.assign', 'lead.export', 'lead.bulk_action',
-                    'broker.view', 'broker.create', 'broker.edit', 'broker.commissions',
-                    'unit.view', 'unit.change_status', 'unit.block', 'unit.reserve',
-                    'project.view', 'report.view', 'report.export', 'approval.view', 'approval.approve'
+                    'user.view', 'user.create', 'user.edit', 'user.delete', 'user.change_role',
+                    'settings.view', 'settings.edit', 'settings.system_health',
+                    'audit.view', 'audit.export', 'audit.clear',
+                    'org.view', 'org.edit'
                 ]
             ],
             [
-                'name' => 'sales_agent',
-                'display_name' => 'Sales Agent',
-                'description' => 'Manages assigned leads and customer relations',
-                'level' => 2,
-                'is_system' => true,
-                'perms' => [
-                    'lead.view', 'lead.create', 'lead.edit',
-                    'unit.view', 'unit.reserve', 'project.view',
-                    'ticket.create', 'ticket.view'
-                ]
-            ],
-            [
-                'name' => 'tele_sales',
-                'display_name' => 'Tele-Sales Rep',
-                'description' => 'Outreach calling agent logs contacts and schedules meetings',
-                'level' => 1,
-                'is_system' => true,
-                'perms' => [
-                    'lead.view', 'lead.create', 'lead.edit', 'project.view'
-                ]
-            ],
-            [
-                'name' => 'broker',
-                'display_name' => 'External Real Estate Broker',
-                'description' => 'External broker access to register leads and review compound plans',
-                'level' => 1,
-                'is_system' => true,
-                'perms' => [
-                    'lead.view', 'lead.create', 'unit.view', 'project.view'
-                ]
-            ],
-            [
-                'name' => 'finance_officer',
-                'display_name' => 'Financial Officer',
-                'description' => 'Manages invoicing, collections, penalties, and bookkeeping ledger',
+                'name' => 'accountant',
+                'display_name' => 'Financial Accountant',
+                'description' => 'Reviews contract billing and payment transactions',
                 'level' => 3,
                 'is_system' => true,
                 'perms' => [
@@ -211,52 +186,73 @@ class PermissionSeeder extends Seeder
                 ]
             ],
             [
-                'name' => 'delivery_engineer',
-                'display_name' => 'Property Delivery Engineer',
-                'description' => 'Handles unit inspections, handovers, and site punch-lists',
+                'name' => 'sales_team',
+                'display_name' => 'Sales Team Representative',
+                'description' => 'Manages lead records, reservations, and customer pipeline accounts',
                 'level' => 2,
                 'is_system' => true,
                 'perms' => [
-                    'unit.view', 'unit.change_status', 'ticket.view', 'ticket.edit', 'ticket.close',
-                    'project.view', 'report.view'
+                    'lead.view', 'lead.create', 'lead.edit', 'lead.assign', 'lead.export', 'lead.bulk_action',
+                    'unit.view', 'unit.reserve', 'project.view',
+                    'ticket.create', 'ticket.view', 'broker.view'
                 ]
             ],
             [
-                'name' => 'handover_officer',
-                'display_name' => 'Apartment Handover Officer',
-                'description' => 'Coordinates unit inspections, manages handover timelines, and logs defects',
+                'name' => 'customer_service',
+                'display_name' => 'Customer Service & Support',
+                'description' => 'Handles resident service requests, logs tickets, and tracks compliance',
                 'level' => 2,
                 'is_system' => true,
                 'perms' => [
-                    'unit.view', 'unit.change_status', 'ticket.view', 'ticket.edit', 'ticket.close',
-                    'project.view', 'report.view'
-                ]
-            ],
-            [
-                'name' => 'maintenance_manager',
-                'display_name' => 'Facilities Operations Manager',
-                'description' => 'Manages maintenance requests, contractors, and technician assignment',
-                'level' => 3,
-                'is_system' => true,
-                'perms' => [
-                    'ticket.view', 'ticket.create', 'ticket.edit', 'ticket.close', 'ticket.assign', 'ticket.dispatch',
+                    'ticket.view', 'ticket.create', 'ticket.edit', 'ticket.close', 'ticket.assign',
                     'unit.view', 'report.view'
+                ]
+            ],
+            [
+                'name' => 'handover_team',
+                'display_name' => 'Handover & QC Engineer',
+                'description' => 'Conducts inspections, coordinates handovers, and tracks site defect lists',
+                'level' => 2,
+                'is_system' => true,
+                'perms' => [
+                    'unit.view', 'unit.change_status', 'ticket.view', 'ticket.edit', 'ticket.close',
+                    'project.view', 'report.view'
+                ]
+            ],
+            [
+                'name' => 'homeowner',
+                'display_name' => 'Homeowner / Client Portal',
+                'description' => 'Homeowner portal access to review contracts and property status details',
+                'level' => 1,
+                'is_system' => true,
+                'perms' => [
+                    'unit.view', 'project.view'
                 ]
             ],
         ];
 
         foreach ($roles as $r) {
-            $role = EnterpriseRole::updateOrCreate(
-                ['name' => $r['name']],
-                [
-                    'id' => (string) Str::uuid(),
+            $existingRole = EnterpriseRole::where('name', $r['name'])->first();
+            if ($existingRole) {
+                $existingRole->update([
                     'display_name' => $r['display_name'],
                     'description' => $r['description'],
                     'level' => $r['level'],
                     'is_system' => $r['is_system'],
                     'status' => 'active',
-                ]
-            );
+                ]);
+                $role = $existingRole;
+            } else {
+                $role = EnterpriseRole::create([
+                    'id' => (string) Str::uuid(),
+                    'name' => $r['name'],
+                    'display_name' => $r['display_name'],
+                    'description' => $r['description'],
+                    'level' => $r['level'],
+                    'is_system' => $r['is_system'],
+                    'status' => 'active',
+                ]);
+            }
 
             // Sync Permissions
             if (!empty($r['perms'])) {
@@ -275,22 +271,22 @@ class PermissionSeeder extends Seeder
         }
 
         // Establish Role Inheritance
-        $salesManager = EnterpriseRole::where('name', 'sales_manager')->first();
-        $salesAgent = EnterpriseRole::where('name', 'sales_agent')->first();
-        if ($salesManager && $salesAgent) {
-            $salesAgent->update(['parent_role_id' => $salesManager->id]);
+        $adminRole = EnterpriseRole::where('name', 'admin')->first();
+        $salesTeam = EnterpriseRole::where('name', 'sales_team')->first();
+        if ($adminRole && $salesTeam) {
+            $salesTeam->update(['parent_role_id' => $adminRole->id]);
         }
 
         // ── 3. Assign Default Roles to Seeder Users ──
         $roleAssignments = [
             'admin@redp.com' => 'super_admin',
-            'sales_agent@redp.com' => 'sales_agent',
-            'finance_officer@redp.com' => 'finance_officer',
-            'delivery_engineer@redp.com' => 'delivery_engineer',
-            'handover@redp.com' => 'handover_officer',
-            'broker@redp.com' => 'broker',
-            'tele_sales@redp.com' => 'tele_sales',
-            'maintenance_manager@redp.com' => 'maintenance_manager',
+            'sales_agent@redp.com' => 'sales_team',
+            'finance_officer@redp.com' => 'accountant',
+            'delivery_engineer@redp.com' => 'handover_team',
+            'handover@redp.com' => 'handover_team',
+            'broker@redp.com' => 'sales_team',
+            'tele_sales@redp.com' => 'sales_team',
+            'maintenance_manager@redp.com' => 'customer_service',
         ];
 
         foreach ($roleAssignments as $email => $roleName) {

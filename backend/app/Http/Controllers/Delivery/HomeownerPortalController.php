@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\Unit;
 use App\Services\AuditLogService;
+use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -71,6 +72,69 @@ class HomeownerPortalController extends Controller
             return $p->due_date && $p->due_date->isPast();
         });
 
+        // ── 11. Customer Portal: Expose Notifications and Files/Documents ──
+        
+        // Fetch notifications (الإشعارات)
+        $notifications = \App\Models\Notification::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($n) {
+                return [
+                    'id' => $n->id,
+                    'title' => $n->title,
+                    'content' => $n->content,
+                    'channel' => $n->channel,
+                    'status' => $n->status,
+                    'created_at' => $n->created_at->toDateTimeString(),
+                ];
+            })->values();
+
+        // Fetch client files/documents (الملفات)
+        $files = collect([]);
+
+        // 1. If contract has a document path, present it
+        if ($contract && $contract->document_path) {
+            $files->push([
+                'id' => 'contract-' . $contract->id,
+                'title' => 'Signed_Contract_' . $contract->contract_number . '.pdf',
+                'file_path' => $contract->document_path,
+                'type' => 'contract',
+                'created_at' => $contract->signed_at?->toDateTimeString() ?? $contract->created_at->toDateTimeString(),
+            ]);
+        }
+
+        // 2. Query documents table for related files
+        $contractId = $contract?->id;
+        $reservationId = $reservation?->id;
+        if ($contractId || $reservationId || $userId) {
+            $docs = \App\Models\Document::where(function ($q) use ($userId, $contractId, $reservationId) {
+                $q->where('ocr_content', 'like', "%{$userId}%")
+                  ->orWhere('title', 'like', "%{$userId}%");
+                if ($contractId) {
+                    $q->orWhere('ocr_content', 'like', "%{$contractId}%")
+                      ->orWhere('title', 'like', "%{$contractId}%");
+                }
+                if ($reservationId) {
+                    $q->orWhere('ocr_content', 'like', "%{$reservationId}%")
+                      ->orWhere('title', 'like', "%{$reservationId}%");
+                }
+            })->orderBy('created_at', 'desc')->get();
+
+            foreach ($docs as $doc) {
+                if ($contract && $contract->document_path && $doc->file_path === $contract->document_path) {
+                    continue;
+                }
+                $files->push([
+                    'id' => $doc->id,
+                    'title' => $doc->title,
+                    'file_path' => $doc->file_path,
+                    'type' => stripos($doc->title, 'reservation') !== false ? 'reservation_form' : (stripos($doc->title, 'handover') !== false ? 'handover_timeline' : 'other'),
+                    'created_at' => $doc->created_at->toDateTimeString(),
+                ]);
+            }
+        }
+        $files = $files->unique('file_path')->values();
+
         return response()->json([
             'success' => true,
             'unit' => $unit ? [
@@ -88,13 +152,22 @@ class HomeownerPortalController extends Controller
                 'project_name' => $unit->project?->name ?? 'N/A',
                 'project_delivery_date' => $unit->project?->delivery_date ?? null,
             ] : null,
+            'contract' => $contract ? [
+                'id' => $contract->id,
+                'contract_number' => $contract->contract_number,
+                'status' => $contract->status,
+                'total_amount' => (float) $contract->total_amount,
+                'paid_amount' => (float) $contract->paid_amount,
+                'signed_at' => $contract->signed_at?->format('Y-m-d H:i:s'),
+                'document_path' => $contract->document_path,
+            ] : null,
             'financial_summary' => [
                 'total_amount' => $totalAmount,
                 'paid_amount' => (float) $paidAmount,
                 'outstanding' => (float) max(0, $totalAmount - $paidAmount),
                 'total_installments' => $payments->count(),
                 'paid_installments' => $payments->where('status', 'paid')->count(),
-                'pending_installments' => $pendingPayments->count(),
+                'pending_installments' => $payments->where('status', 'pending')->count(),
                 'overdue_installments' => $overduePayments->count(),
                 'next_due' => $pendingPayments->sortBy('due_date')->first(),
             ],
@@ -102,6 +175,7 @@ class HomeownerPortalController extends Controller
                 return [
                     'id' => $p->id,
                     'amount' => (float) $p->amount,
+                    'paid_amount' => (float) $p->paid_amount,
                     'status' => $p->status,
                     'due_date' => $p->due_date?->format('Y-m-d'),
                     'paid_at' => $p->paid_at?->format('Y-m-d'),
@@ -113,6 +187,8 @@ class HomeownerPortalController extends Controller
             'vehicles' => $vehicles,
             'service_requests' => $serviceRequests,
             'resale_requests' => $resaleRequests,
+            'notifications' => $notifications,
+            'files' => $files,
         ]);
     }
 
@@ -128,7 +204,15 @@ class HomeownerPortalController extends Controller
             'national_id' => 'nullable|string|max:50',
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
+            'photo' => 'nullable|file|image|max:10240',
+            'photo_url' => 'nullable|string',
         ]);
+
+        $photoUrl = $request->photo_url;
+
+        if ($request->hasFile('photo')) {
+            $photoUrl = FileUploadService::upload($request->file('photo'), 'family_photos');
+        }
 
         $member = FamilyMember::create([
             'id' => (string) Str::uuid(),
@@ -138,6 +222,7 @@ class HomeownerPortalController extends Controller
             'national_id' => $request->national_id,
             'phone' => $request->phone,
             'date_of_birth' => $request->date_of_birth,
+            'photo_url' => $photoUrl,
         ]);
 
         AuditLogService::log('FAMILY_MEMBER_ADDED', $request->user()->id, [

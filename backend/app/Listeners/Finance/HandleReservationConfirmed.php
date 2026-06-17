@@ -95,6 +95,45 @@ class HandleReservationConfirmed
                 'transaction_reference' => 'EOI-' . $event->reservationId,
             ]);
 
+            // Create Contracting appointment (موعد التعاقد)
+            $client = \App\Models\User::find($event->clientId);
+            $lead = null;
+            if ($client) {
+                $lead = \App\Models\Lead::where('email', $client->email)
+                    ->orWhere('phone', $client->phone)
+                    ->first();
+            }
+
+            \App\Models\Appointment::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => $event->clientId,
+                'lead_id' => $lead ? $lead->id : null,
+                'type' => 'Contracting',
+                'booking_date' => now()->addDays(7)->toDateString(),
+                'booking_time' => '12:00:00',
+                'booking_type' => 'in_company',
+                'scheduled_at' => now()->addDays(7)->setTime(12, 0, 0),
+                'status' => 'pending',
+                'remind_email' => true,
+                'remind_sms' => true,
+            ]);
+
+            // Create Reservation Form (DMS Document)
+            \App\Models\Document::create([
+                'id' => (string) Str::uuid(),
+                'title' => 'Reservation_Form_' . $event->reservationId . '.pdf',
+                'file_path' => '/vault/reservations/forms/' . $event->reservationId . '.pdf',
+                'ocr_content' => 'Reservation Form. ' .
+                                 'Reservation ID: ' . $event->reservationId . '. ' .
+                                 'Client Name: ' . ($client ? $client->name : 'N/A') . '. ' .
+                                 'Client Phone: ' . ($client ? $client->phone : 'N/A') . '. ' .
+                                 'Client Email: ' . ($client ? $client->email : 'N/A') . '. ' .
+                                 'Unit Number: ' . $unit->unit_number . '. ' .
+                                 'Unit Price: ' . $unit->price . ' EGP. ' .
+                                 'EOI Paid: ' . $reservation->eoi_amount . ' EGP.',
+                'status' => 'indexed'
+            ]);
+
             // 6. Audit trail
             AuditLogService::log('CONTRACT_AUTO_GENERATED', $event->clientId, [
                 'contract_id' => $contract->id,

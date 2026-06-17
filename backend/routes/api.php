@@ -300,6 +300,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
             Route::post('/payments/{id}/collect', [PaymentController::class, 'collectPayment']);
             Route::post('/payments/{id}/waive-penalty', [PaymentController::class, 'waivePenalty']);
+            Route::post('/contracts/{contractId}/penalty-settings', [PaymentController::class, 'updatePenaltySettings']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
@@ -319,7 +320,9 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/contracts/{id}', [ContractController::class, 'show']);
             Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
             Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
+            Route::post('/contracts/{id}/submit-approval', [ContractController::class, 'submitForApproval']);
             Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
+            Route::post('/contracts/{id}/escalate-withdrawal', [ContractController::class, 'escalateWithdrawal']);
             Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
         });
     });
@@ -371,6 +374,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
+            Route::post('/units/{unitId}/report', [HandoverController::class, 'saveHandoverReport']);
+            Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
             Route::put('/projects/{projectId}/delivery-date', [HandoverController::class, 'updateDeliveryDate']);
         });
@@ -430,6 +435,10 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // Audit Logs
         Route::get('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'getAuditLogs']);
         Route::delete('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'clearAuditLogs']);
+
+        // Notifications Broadcast and Schedule Scan Triggers
+        Route::post('/notifications/broadcast', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'broadcastUpdate']);
+        Route::post('/notifications/run-schedule-checks', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'runScheduleCheckups']);
 
         // Upload Branding Logo/Icon
         Route::post('/upload-branding', [\App\Http\Controllers\Admin\AdminController::class, 'uploadBranding']);

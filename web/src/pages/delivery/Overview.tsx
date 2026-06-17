@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Users, QrCode, ShieldCheck, Car, Key, Sparkles, Plus, Calendar, AlertTriangle, ArrowRight, CheckCircle, UserPlus, Wrench, DollarSign, RefreshCw, X, Home, CreditCard, Phone, Trash2, Clock, Zap, Droplets, Hammer, Paintbrush, Wind, Send, Tag, ChevronRight, CircleDot, Eye } from 'lucide-react';
+import { Building2, Users, QrCode, ShieldCheck, Car, Key, Sparkles, Plus, Calendar, AlertTriangle, ArrowRight, CheckCircle, UserPlus, Wrench, DollarSign, RefreshCw, X, Home, CreditCard, Phone, Trash2, Clock, Zap, Droplets, Hammer, Paintbrush, Wind, Send, Tag, ChevronRight, CircleDot, Eye, Bell, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -50,6 +50,7 @@ interface FamilyMemberType {
   national_id: string | null;
   phone: string | null;
   date_of_birth: string | null;
+  photo_url?: string | null;
 }
 
 interface VehicleType {
@@ -80,6 +81,33 @@ interface ResaleRequestType {
   created_at: string;
 }
 
+interface ContractInfo {
+  id: string;
+  contract_number: string;
+  status: string;
+  total_amount: number;
+  paid_amount: number;
+  signed_at: string | null;
+  document_path: string | null;
+}
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  channel: string;
+  status: string;
+  created_at: string;
+}
+
+interface FileItem {
+  id: string;
+  title: string;
+  file_path: string;
+  type: string;
+  created_at: string;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -97,6 +125,12 @@ const Overview: React.FC = () => {
   const [vehicles, setVehicles] = useState<VehicleType[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequestType[]>([]);
   const [resaleRequests, setResaleRequests] = useState<ResaleRequestType[]>([]);
+
+  // ── 11. Customer Portal ──
+  const [contractInfo, setContractInfo] = useState<ContractInfo | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [fileSearch, setFileSearch] = useState('');
 
   // Handover Officer data
   const [scheduledHandovers, setScheduledHandovers] = useState<any[]>([]);
@@ -128,6 +162,24 @@ const Overview: React.FC = () => {
   const [famNationalId, setFamNationalId] = useState('');
   const [famPhone, setFamPhone] = useState('');
   const [famDob, setFamDob] = useState('');
+  const [famPhoto, setFamPhoto] = useState<File | null>(null);
+  const [selectedMemberForId, setSelectedMemberForId] = useState<FamilyMemberType | null>(null);
+
+  const getPhotoUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    let host = '';
+    try {
+      const parsed = new URL(api.defaults.baseURL || 'http://127.0.0.1:8000');
+      host = parsed.origin;
+    } catch (e) {
+      host = 'http://127.0.0.1:8000';
+    }
+    if (url.startsWith('/')) {
+      return host + url;
+    }
+    return host + '/' + url;
+  };
 
   // Vehicle form state
   const [vehMake, setVehMake] = useState('');
@@ -176,6 +228,9 @@ const Overview: React.FC = () => {
           setVehicles(res.data.vehicles || []);
           setServiceRequests(res.data.service_requests || []);
           setResaleRequests(res.data.resale_requests || []);
+          setContractInfo(res.data.contract || null);
+          setNotifications(res.data.notifications || []);
+          setFiles(res.data.files || []);
         }
       } else {
         // Fetch handover officer dashboard
@@ -203,15 +258,31 @@ const Overview: React.FC = () => {
     e.preventDefault();
     setFormLoading(true);
     try {
-      const res = await api.post('/v1/delivery/homeowner/family', {
-        name: famName, relationship: famRelation, national_id: famNationalId || null,
-        phone: famPhone || null, date_of_birth: famDob || null
+      const formData = new FormData();
+      formData.append('name', famName);
+      formData.append('relationship', famRelation);
+      if (famNationalId) formData.append('national_id', famNationalId);
+      if (famPhone) formData.append('phone', famPhone);
+      if (famDob) formData.append('date_of_birth', famDob);
+      if (famPhoto) {
+        formData.append('photo', famPhoto);
+      }
+
+      const res = await api.post('/v1/delivery/homeowner/family', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       if (res.data?.success) {
         setFamilyMembers(prev => [res.data.data, ...prev]);
         showToast('Family member added successfully!');
         setShowFamilyForm(false);
-        setFamName(''); setFamRelation('spouse'); setFamNationalId(''); setFamPhone(''); setFamDob('');
+        setFamName('');
+        setFamRelation('spouse');
+        setFamNationalId('');
+        setFamPhone('');
+        setFamDob('');
+        setFamPhoto(null);
       }
     } catch (err: any) {
       showToast(err.response?.data?.message || 'Failed to add family member.', 'error');
@@ -347,6 +418,7 @@ const Overview: React.FC = () => {
     completed: '#10b981', cancelled: '#6b7280', paid: '#10b981',
     failed: '#ef4444', overdue: '#ef4444', listed: '#3b82f6',
     approved: '#10b981', rejected: '#ef4444',
+    upcoming: '#3b82f6', partial: '#f59e0b',
   };
 
   const relationEmoji: Record<string, string> = {
@@ -579,10 +651,13 @@ const Overview: React.FC = () => {
 
   const tabs = [
     { id: 'overview', label: 'My Unit', icon: <Home size={16} /> },
+    { id: 'contract', label: 'Contract (العقد)', icon: <ShieldCheck size={16} /> },
+    { id: 'payments', label: 'Payments (الأقساط)', icon: <CreditCard size={16} /> },
     { id: 'family', label: 'Family', icon: <Users size={16} /> },
     { id: 'vehicles', label: 'Vehicles', icon: <Car size={16} /> },
-    { id: 'payments', label: 'Payments', icon: <CreditCard size={16} /> },
     { id: 'services', label: 'Services', icon: <Wrench size={16} /> },
+    { id: 'notifications', label: 'Notifications (الإشعارات)', icon: <Bell size={16} /> },
+    { id: 'files', label: 'Files (الملفات)', icon: <FileText size={16} /> },
     { id: 'guests', label: 'Guest Passes', icon: <QrCode size={16} /> },
     { id: 'resale', label: 'Resale', icon: <RefreshCw size={16} /> },
   ];
@@ -777,6 +852,206 @@ const Overview: React.FC = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* TAB: CONTRACT */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'contract' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} /> Contract Details (تفاصيل العقد)
+          </h2>
+
+          {contractInfo ? (
+            <div className="glass-panel" style={{ padding: '30px', background: 'linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(16,185,129,0.03) 100%)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '20px', marginBottom: '24px' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 650 }}>Contract Number / رقم العقد</span>
+                  <h3 style={{ fontSize: '1.45rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-main)' }}>{contractInfo.contract_number}</h3>
+                </div>
+                <span className={`badge badge-${contractInfo.status === 'active' ? 'success' : 'warning'}`} style={{ padding: '6px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  {contractInfo.status === 'active' ? '✍️ Signed & Active' : contractInfo.status}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', marginBottom: '30px' }}>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Contract Value / قيمة العقد الإجمالية</span>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: 'var(--text-main)' }}>{fmtCurrency(contractInfo.total_amount)}</h4>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(16,185,129,0.03)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.06)' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Paid / المدفوع</span>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: 'var(--color-success)' }}>{fmtCurrency(contractInfo.paid_amount)}</h4>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(245,158,11,0.03)', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.06)' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Outstanding Balance / المتبقي</span>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: 'var(--color-warning)' }}>
+                    {fmtCurrency(Math.max(0, contractInfo.total_amount - contractInfo.paid_amount))}
+                  </h4>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px', fontSize: '0.82rem' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Signing Date / تاريخ التوقيع:</span>{' '}
+                  <strong>{contractInfo.signed_at ? new Date(contractInfo.signed_at).toLocaleString('en-GB') : 'Not signed yet'}</strong>
+                </div>
+                {contractInfo.document_path && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <a
+                      href={`${api.defaults.baseURL || ''}/v1/finance/contracts/${contractInfo.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary"
+                      style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <FileText size={15} /> Download Contract PDF / تحميل العقد
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+              <ShieldCheck size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No active contract found for this account.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* TAB: NOTIFICATIONS */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'notifications' && (
+        <div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Bell size={20} style={{ color: '#f59e0b' }} /> Inbox Notifications (الإشعارات والرسائل)
+          </h2>
+
+          {notifications.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+              <Bell size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No notifications in your inbox.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {notifications.map(n => (
+                <div key={n.id} className="glass-panel" style={{
+                  padding: '20px', display: 'flex', gap: '16px', alignItems: 'start',
+                  borderLeft: `4px solid ${n.channel === 'email' ? 'var(--color-primary)' : 'var(--color-success)'}`,
+                  background: 'rgba(255,255,255,0.02)'
+                }}>
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '10px',
+                    background: n.channel === 'email' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: n.channel === 'email' ? 'var(--color-primary)' : 'var(--color-success)',
+                    flexShrink: 0
+                  }}>
+                    <Bell size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: '8px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 750, color: 'var(--text-main)' }}>{n.title}</h4>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {new Date(n.created_at).toLocaleString('en-GB')}
+                      </span>
+                    </div>
+                    <span style={{
+                      display: 'inline-block', fontSize: '0.62rem', fontWeight: 700,
+                      padding: '2px 8px', borderRadius: '6px', marginTop: '4px',
+                      background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)',
+                      textTransform: 'uppercase'
+                    }}>
+                      Channel: {n.channel}
+                    </span>
+                    <p style={{
+                      fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '12px',
+                      lineHeight: 1.6, whiteSpace: 'pre-line',
+                      background: 'rgba(0,0,0,0.15)', padding: '12px 16px', borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.02)'
+                    }}>
+                      {n.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* TAB: FILES */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'files' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <FileText size={20} style={{ color: 'var(--color-success)' }} /> My Vault Files (الملفات والمستندات)
+            </h2>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search documents... / بحث المستندات"
+              value={fileSearch}
+              onChange={e => setFileSearch(e.target.value)}
+              style={{ maxWidth: '260px', height: '38px', borderRadius: '10px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)' }}
+            />
+          </div>
+
+          {files.filter(f => f.title.toLowerCase().includes(fileSearch.toLowerCase())).length === 0 ? (
+            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+              <FileText size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No documents found matching your search.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              {files.filter(f => f.title.toLowerCase().includes(fileSearch.toLowerCase())).map(file => (
+                <div key={file.id} className="glass-panel" style={{
+                  padding: '20px', display: 'flex', gap: '16px', alignItems: 'start',
+                  borderLeft: '3px solid var(--color-success)', background: 'rgba(255,255,255,0.02)'
+                }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '10px',
+                    background: 'rgba(16,185,129,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--color-success)', flexShrink: 0
+                  }}>
+                    <FileText size={20} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 750, marginBottom: '6px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.title}>
+                      {file.title.replace(/_/g, ' ')}
+                    </h4>
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
+                      background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)',
+                      textTransform: 'uppercase', display: 'inline-block'
+                    }}>
+                      {file.type.replace(/_/g, ' ')}
+                    </span>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                      Date: {new Date(file.created_at).toLocaleDateString('en-GB')}
+                    </div>
+                    <div style={{ marginTop: '14px' }}>
+                      <a
+                        href={file.file_path.startsWith('/') ? `${api.defaults.baseURL || ''}${file.file_path}` : file.file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} /> View Document / عرض
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
       {/* TAB: FAMILY MEMBERS */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'family' && (
@@ -808,9 +1083,27 @@ const Overview: React.FC = () => {
                   <div style={{
                     width: '48px', height: '48px', borderRadius: '12px',
                     background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1.4rem', flexShrink: 0
+                    fontSize: '1.4rem', flexShrink: 0, overflow: 'hidden'
                   }}>
-                    {relationEmoji[member.relationship] || '👤'}
+                    {member.photo_url ? (
+                      <img 
+                        src={getPhotoUrl(member.photo_url) || ''} 
+                        alt={member.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                          const parent = (e.target as HTMLElement).parentElement;
+                          if (parent) {
+                            const span = document.createElement('span');
+                            span.innerText = relationEmoji[member.relationship] || '👤';
+                            span.style.fontSize = '1.4rem';
+                            parent.appendChild(span);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span>{relationEmoji[member.relationship] || '👤'}</span>
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
                     <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '4px' }}>{member.name}</h4>
@@ -828,6 +1121,23 @@ const Overview: React.FC = () => {
                         ID: {member.national_id}
                       </div>
                     )}
+                    <button 
+                      onClick={() => setSelectedMemberForId(member)}
+                      className="btn-secondary" 
+                      style={{ 
+                        marginTop: '10px', 
+                        padding: '4px 10px', 
+                        fontSize: '0.72rem', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        border: '1px solid rgba(139,92,246,0.3)',
+                        background: 'rgba(139,92,246,0.05)',
+                        color: '#a78bfa'
+                      }}
+                    >
+                      <QrCode size={13} /> Generate Smart ID Card
+                    </button>
                   </div>
                   <button onClick={() => handleRemoveFamily(member.id)} style={{
                     background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '8px',
@@ -841,7 +1151,7 @@ const Overview: React.FC = () => {
 
           {/* Family Form Modal */}
           {showFamilyForm && (
-            <Modal title="✨ Add Family Member" onClose={() => setShowFamilyForm(false)}>
+            <Modal title="✨ Add Family Member" onClose={() => { setShowFamilyForm(false); setFamPhoto(null); }}>
               <form onSubmit={handleAddFamily} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Full Name *</label>
@@ -871,12 +1181,197 @@ const Overview: React.FC = () => {
                   <label className="form-label">Date of Birth</label>
                   <input type="date" className="form-control" value={famDob} onChange={e => setFamDob(e.target.value)} />
                 </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Profile Photo</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="form-control" 
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        setFamPhoto(e.target.files[0]);
+                      }
+                    }} 
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--text-main)',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.82rem'
+                    }}
+                  />
+                </div>
                 <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px' }} disabled={formLoading}>
                   <UserPlus size={16} /> {formLoading ? 'Adding...' : 'Add Family Member'}
                 </button>
               </form>
             </Modal>
           )}
+
+          {/* Smart ID Modal */}
+          {selectedMemberForId && (() => {
+            const member = selectedMemberForId;
+            const userStr = localStorage.getItem('redp_user');
+            const loggedInUser = userStr ? JSON.parse(userStr) : { name: 'Owner' };
+            const qrData = `REDP-BADGE:${member.id};NAME:${member.name};UNIT:${unitInfo?.unit_number};REL:${member.relationship};OWNER:${loggedInUser.name}`;
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+
+            return (
+              <Modal title="🪪 Smart ID Card / بطاقة الهوية الذكية" onClose={() => setSelectedMemberForId(null)}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'center' }}>
+                  
+                  {/* Cards side by side or stacked */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', width: '100%' }}>
+                    
+                    {/* FRONT SIDE */}
+                    <div style={{
+                      width: '320px',
+                      height: '200px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, rgba(31,41,55,0.95) 0%, rgba(17,24,39,0.98) 100%)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
+                      position: 'relative',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      overflow: 'hidden',
+                      fontFamily: 'Inter, sans-serif'
+                    }}>
+                      <div style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)',
+                        pointerEvents: 'none'
+                      }} />
+                      
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                          <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '2px', color: '#10b981', textTransform: 'uppercase' }}>REDP ACCESS</span>
+                        </div>
+                        <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>SMART BADGE</span>
+                      </div>
+                      
+                      {/* Main */}
+                      <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginTop: '10px', flex: 1, zIndex: 1 }}>
+                        <div style={{
+                          width: '64px',
+                          height: '76px',
+                          borderRadius: '8px',
+                          border: '2px solid rgba(255,255,255,0.15)',
+                          background: 'rgba(255,255,255,0.05)',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          position: 'relative',
+                          flexShrink: 0
+                        }}>
+                          {member.photo_url ? (
+                            <img src={getPhotoUrl(member.photo_url) || ''} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ fontSize: '2rem' }}>{relationEmoji[member.relationship] || '👤'}</span>
+                          )}
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, textAlign: 'left' }}>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f3f4f6', lineHeight: 1.2 }}>{member.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', fontWeight: 700, textTransform: 'capitalize' }}>
+                              {member.relationship}
+                            </span>
+                            <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.4)' }}>MEMBER</span>
+                          </div>
+                          {member.national_id && (
+                            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                              ID: <span style={{ color: '#d1d5db', fontFamily: 'monospace' }}>{member.national_id}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Footer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', zIndex: 1 }}>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Unit / الوحدة</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f3f4f6' }}>{unitInfo?.unit_number || 'N/A'}</div>
+                        </div>
+                        
+                        <div style={{
+                          width: '24px', height: '18px', borderRadius: '4px',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          opacity: 0.85, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)'
+                        }} />
+                      </div>
+                    </div>
+                    
+                    {/* BACK SIDE */}
+                    <div style={{
+                      width: '320px',
+                      height: '200px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, rgba(17,24,39,0.98) 0%, rgba(10,15,30,0.99) 100%)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+                      position: 'relative',
+                      padding: '16px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      overflow: 'hidden',
+                      fontFamily: 'Inter, sans-serif'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, zIndex: 1, textAlign: 'left' }}>
+                        <div>
+                          <div style={{ fontWeight: 800, letterSpacing: '1px', fontSize: '0.62rem', color: '#10b981', marginBottom: '8px' }}>
+                            REDP RESIDENCE
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Project / المشروع</span>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f3f4f6' }}>{unitInfo?.project_name || 'N/A'}</span>
+                            
+                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '4px' }}>Owner / المالك</span>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f3f4f6' }}>{loggedInUser.name}</span>
+                          </div>
+                        </div>
+                        
+                        <div style={{ fontSize: '0.48rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.3 }}>
+                          This card is non-transferable and remains property of REDP Communities. Scan QR for access log validation.
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100px', zIndex: 1 }}>
+                        <div style={{
+                          padding: '6px',
+                          background: '#ffffff',
+                          borderRadius: '8px',
+                          width: '88px',
+                          height: '88px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                        }}>
+                          <img src={qrCodeUrl} alt="Security QR Code" style={{ width: '76px', height: '76px' }} />
+                        </div>
+                        <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', marginTop: '8px', fontWeight: 600, letterSpacing: '1px' }}>
+                          SCAN ACCESS
+                        </span>
+                      </div>
+                    </div>
+                    
+                  </div>
+                  
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '400px', margin: '0', lineHeight: 1.4 }}>
+                    💡 This Smart ID is fully scanning-ready. Security guards can scan the QR code to verify family access. You can save or print these badges.
+                  </p>
+                </div>
+              </Modal>
+            );
+          })()}
         </div>
       )}
 
@@ -1030,24 +1525,43 @@ const Overview: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map(p => (
-                      <tr key={p.id} style={{ background: p.is_overdue ? 'rgba(239,68,68,0.05)' : 'transparent' }}>
-                        <td><strong>{p.installment_number || '—'}</strong></td>
-                        <td><strong>{fmtCurrency(p.amount)}</strong></td>
-                        <td>{p.due_date || '—'}</td>
-                        <td>{p.paid_at || '—'}</td>
-                        <td>
-                          <span style={{
-                            fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px',
-                            background: p.is_overdue ? 'rgba(239,68,68,0.12)' : `${statusColors[p.status] || '#6b7280'}15`,
-                            color: p.is_overdue ? '#ef4444' : statusColors[p.status] || '#6b7280',
-                            textTransform: 'uppercase'
-                          }}>
-                            {p.is_overdue ? '⚠️ OVERDUE' : p.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {payments.map(p => {
+                      const status = p.is_overdue ? 'overdue' : (p.status || 'upcoming');
+                      const labelMap: Record<string, string> = {
+                        paid: 'Paid / مدفوع',
+                        upcoming: 'Upcoming / قادم',
+                        overdue: 'Overdue / متأخر',
+                        partial: 'Partial / دفع جزئي',
+                      };
+                      return (
+                        <tr key={p.id} style={{ background: status === 'overdue' ? 'rgba(239,68,68,0.05)' : 'transparent' }}>
+                          <td><strong>{p.installment_number || '—'}</strong></td>
+                          <td>
+                            {status === 'partial' ? (
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <strong>{fmtCurrency(p.amount)}</strong>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                  Paid: {fmtCurrency(p.paid_amount || 0)}
+                                </span>
+                              </div>
+                            ) : (
+                              <strong>{fmtCurrency(p.amount)}</strong>
+                            )}
+                          </td>
+                          <td>{p.due_date || '—'}</td>
+                          <td>{p.paid_at || '—'}</td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px',
+                              background: status === 'overdue' ? 'rgba(239,68,68,0.12)' : `${statusColors[status] || '#6b7280'}15`,
+                              color: status === 'overdue' ? '#ef4444' : statusColors[status] || '#6b7280',
+                            }}>
+                              {labelMap[status] || status.toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

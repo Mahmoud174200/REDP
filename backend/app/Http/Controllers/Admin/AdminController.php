@@ -39,7 +39,7 @@ class AdminController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in(['admin', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
+            'role' => ['required', Rule::in(['super_admin', 'admin', 'accountant', 'sales_team', 'customer_service', 'handover_team', 'homeowner', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
             'status' => ['required', Rule::in(['active', 'inactive'])]
         ]);
 
@@ -72,7 +72,7 @@ class AdminController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:6',
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in(['admin', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'customer_service', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
+            'role' => ['required', Rule::in(['super_admin', 'admin', 'accountant', 'sales_team', 'customer_service', 'handover_team', 'homeowner', 'sales_agent', 'tele_sales', 'company_sales', 'finance_officer', 'delivery_engineer', 'client', 'broker', 'broker_manager', 'technician', 'maintenance_manager', 'project_manager', 'legal_officer', 'executive', 'compliance_officer'])],
             'status' => ['required', Rule::in(['active', 'inactive'])]
         ]);
 
@@ -154,7 +154,10 @@ class AdminController extends Controller
             'eoi_queue_weight_vip' => '150',
             'eoi_queue_nationality_priority' => 'none',
             'eoi_queue_weight_nationality' => '40',
-            'eoi_queue_custom_rules' => '[]'
+            'eoi_queue_custom_rules' => '[]',
+            'delay_penalty_percentage' => '1',
+            'delay_penalty_enabled' => 'true',
+            'delay_penalty_grace_days' => '0'
         ];
 
         foreach ($defaults as $key => $value) {

@@ -2,113 +2,55 @@
 
 namespace App\Traits;
 
-use App\Models\AuditLog;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Request;
+use App\Services\AuditLogService;
+use Illuminate\Database\Eloquent\Model;
 
 trait Auditable
 {
-    public static function bootAuditable(): void
+    public static function bootAuditable()
     {
-        static::created(function ($model) {
-            $model->auditAction('CREATE');
+        static::created(function (Model $model) {
+            static::logModelChange('CREATED', $model, null, $model->getAttributes());
         });
 
-        static::updated(function ($model) {
-            $model->auditAction('UPDATE');
+        static::updating(function (Model $model) {
+            $dirty = $model->getDirty();
+            $old = [];
+            $new = [];
+
+            foreach ($dirty as $key => $newValue) {
+                // Skip timestamp fields to keep logs clean unless requested
+                if (in_array($key, ['updated_at', 'created_at'])) {
+                    continue;
+                }
+                $old[$key] = $model->getOriginal($key);
+                $new[$key] = $newValue;
+            }
+
+            if (!empty($new)) {
+                static::logModelChange('UPDATED', $model, $old, $new);
+            }
         });
 
-        static::deleted(function ($model) {
-            $model->auditAction('DELETE');
+        static::deleted(function (Model $model) {
+            static::logModelChange('DELETED', $model, $model->getAttributes(), null);
         });
     }
 
-    protected function auditAction(string $action): void
+    protected static function logModelChange(string $action, Model $model, ?array $old, ?array $new)
     {
-        if ($this instanceof AuditLog) {
-            return;
-        }
+        $userId = auth()->id() ?: null;
+        $entityType = get_class($model);
+        $entityId = (string) $model->getKey();
 
-        $userId = Auth::id();
-        $ip = Request::ip();
-        $userAgent = Request::header('User-Agent');
-        $sessionId = request()->hasSession() ? request()->session()->getId() : null;
+        $baseName = strtoupper(class_basename($model));
+        $fullAction = "{$baseName}_{$action}";
 
-        // Basic User Agent Parsing
-        $browser = 'Unknown';
-        $deviceType = 'Desktop';
-
-        if ($userAgent) {
-            if (preg_match('/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i', $userAgent)) {
-                $deviceType = 'Tablet';
-            } elseif (preg_match('/(mobi|opera mini|nokia|sony|ericsson|mot|blackberry|samsung|htc|lg|nexus|pixel|iphone)/i', $userAgent)) {
-                $deviceType = 'Mobile';
-            }
-
-            if (str_contains($userAgent, 'MSIE') || str_contains($userAgent, 'Trident')) {
-                $browser = 'Internet Explorer';
-            } elseif (str_contains($userAgent, 'Firefox')) {
-                $browser = 'Firefox';
-            } elseif (str_contains($userAgent, 'Chrome')) {
-                $browser = 'Chrome';
-            } elseif (str_contains($userAgent, 'Safari')) {
-                $browser = 'Safari';
-            } elseif (str_contains($userAgent, 'Opera') || str_contains($userAgent, 'OPR')) {
-                $browser = 'Opera';
-            }
-        }
-
-        // Mock Geo Location for development
-        $geoLocation = [
-            'lat' => 30.0444,
-            'lng' => 31.2357,
-            'city' => 'Cairo',
-            'country' => 'Egypt'
+        $details = [
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
         ];
 
-        $oldValues = null;
-        $newValues = null;
-
-        if ($action === 'CREATE') {
-            $newValues = $this->getAttributes();
-            unset($newValues['password'], $newValues['remember_token']);
-        } elseif ($action === 'UPDATE') {
-            $dirty = $this->getDirty();
-            $oldValues = [];
-            $newValues = [];
-            foreach ($dirty as $key => $value) {
-                if (in_array($key, ['password', 'remember_token', 'updated_at'])) {
-                    continue;
-                }
-                $oldValues[$key] = $this->getOriginal($key);
-                $newValues[$key] = $value;
-            }
-            if (empty($newValues)) {
-                return;
-            }
-        } elseif ($action === 'DELETE') {
-            $oldValues = $this->getAttributes();
-            unset($oldValues['password'], $oldValues['remember_token']);
-        }
-
-        AuditLog::create([
-            'user_id' => $userId,
-            'action' => strtoupper(class_basename($this)) . '_' . $action,
-            'entity_type' => get_class($this),
-            'entity_id' => $this->id,
-            'ip_address' => $ip,
-            'user_agent' => $userAgent,
-            'device_type' => $deviceType,
-            'browser' => $browser,
-            'geo_location' => $geoLocation,
-            'session_id' => $sessionId,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'details' => [
-                'entity' => class_basename($this),
-                'action' => $action,
-                'message' => class_basename($this) . " was " . strtolower($action) . "d."
-            ]
-        ]);
+        AuditLogService::log($fullAction, $userId, $details, $old, $new);
     }
 }

@@ -17,11 +17,17 @@ class PaymentPlan extends Model
         'monthly_amount',
         'status', // 'active', 'completed', 'rescheduled', 'cancelled'
         'start_date',
+        'penalty_rate',
+        'penalty_enabled',
+        'grace_period_days',
     ];
 
     protected $casts = [
         'monthly_amount' => 'decimal:2',
         'start_date' => 'date',
+        'penalty_rate' => 'decimal:2',
+        'penalty_enabled' => 'boolean',
+        'grace_period_days' => 'integer',
     ];
 
     public function contract()

@@ -23,7 +23,8 @@ class Contract extends Model
         'paid_amount',
         'document_path',
         'type', // 'sale', 'reservation', 'installment'
-        'status', // 'draft', 'pending_signature', 'active', 'completed', 'cancelled'
+        'status', // 'draft', 'pending_signature', 'active', 'completed', 'cancelled', 'withdrawn'
+        'withdrawal_status', // 'none', 'reminder', 'warning', 'final_notice', 'withdrawn'
         'notes',
         'signed_at',
     ];

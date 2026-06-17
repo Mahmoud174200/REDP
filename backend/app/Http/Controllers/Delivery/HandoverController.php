@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DefectsSnag;
 use App\Models\Unit;
 use App\Services\AuditLogService;
+use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -22,6 +23,53 @@ class HandoverController extends Controller
         // Fetch existing logged snags for this unit
         $existingSnags = DefectsSnag::where('unit_id', $unitId)->get();
 
+        // Retrieve active contract for unit
+        $contract = \App\Models\Contract::where('unit_id', $unitId)
+            ->whereIn('status', ['active', 'completed'])
+            ->with(['client', 'payments'])
+            ->first();
+
+        $clientData = null;
+        $contractData = null;
+        $paymentStatus = null;
+
+        if ($contract) {
+            $clientData = [
+                'id' => $contract->client->id ?? null,
+                'name' => $contract->client->name ?? 'N/A',
+                'phone' => $contract->client->phone ?? 'N/A',
+                'email' => $contract->client->email ?? 'N/A',
+                'national_id' => $contract->client->national_id ?? 'N/A',
+            ];
+
+            $contractData = [
+                'id' => $contract->id,
+                'contract_number' => $contract->contract_number,
+                'status' => $contract->status,
+                'total_amount' => (float) $contract->total_amount,
+                'paid_amount' => (float) $contract->paid_amount,
+                'signed_at' => $contract->signed_at,
+            ];
+
+            $payments = $contract->payments;
+            $totalAmount = (float) $contract->total_amount;
+            $paidAmount = (float) $payments->where('status', 'paid')->sum('amount');
+            $outstanding = max(0.0, $totalAmount - $paidAmount);
+            
+            $overduePayments = $payments->filter(function ($p) {
+                return $p->status === 'pending' && $p->due_date && \Carbon\Carbon::parse($p->due_date)->isPast();
+            });
+
+            $paymentStatus = [
+                'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount,
+                'outstanding' => $outstanding,
+                'overdue_count' => $overduePayments->count(),
+                'overdue_amount' => (float) $overduePayments->sum('amount'),
+                'status' => $overduePayments->count() > 0 ? 'overdue' : ($outstanding <= 0 ? 'fully_paid' : 'current'),
+            ];
+        }
+
         return response()->json([
             'success' => true,
             'owner' => '🟢 Delivery & Infra',
@@ -29,12 +77,25 @@ class HandoverController extends Controller
                 'id' => $unit->id,
                 'number' => $unit->unit_number,
                 'type' => $unit->type,
+                'floor' => $unit->floor,
+                'building' => $unit->building,
+                'area' => $unit->area,
+                'bedrooms' => $unit->bedrooms,
+                'bathrooms' => $unit->bathrooms,
+                'view_type' => $unit->view_type,
                 'status' => $unit->status,
                 'handover_date' => $unit->handover_date,
+                'handover_status' => $unit->handover_status ?? 'pending',
+                'handover_report' => $unit->handover_report,
+                'handover_images' => $unit->handover_images ? json_decode($unit->handover_images) : [],
+                'handover_signature' => $unit->handover_signature,
                 'project_id' => $unit->project_id,
                 'project_name' => $unit->project->name ?? '—',
                 'project_delivery_date' => $unit->project->delivery_date ?? null,
             ],
+            'client' => $clientData,
+            'contract' => $contractData,
+            'payment_status' => $paymentStatus,
             'checklist' => [
                 ['id' => 'chk_walls', 'item' => 'Wall plaster smoothness & painting layers', 'passed' => $existingSnags->where('description', 'like', '%wall%')->count() === 0],
                 ['id' => 'chk_plumbing', 'item' => 'Plumbing tap flows & drain blockages check', 'passed' => $existingSnags->where('description', 'like', '%plumb%')->count() === 0],
@@ -43,6 +104,69 @@ class HandoverController extends Controller
             ],
             'logged_snags' => $existingSnags
         ], 200);
+    }
+
+    /**
+     * Save/Draft the handover minutes/report.
+     */
+    public function saveHandoverReport(Request $request, string $unitId)
+    {
+        $request->validate([
+            'report' => 'required|string',
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+        $unit->update([
+            'handover_report' => $request->report,
+            'handover_status' => $unit->handover_status === 'pending' ? 'scheduled' : $unit->handover_status,
+        ]);
+
+        AuditLogService::log(
+            'HANDOVER_REPORT_SAVE', 
+            $request->user()->id, 
+            ['unit_id' => $unitId]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Handover minutes draft saved successfully.',
+            'report' => $request->report,
+        ]);
+    }
+
+    /**
+     * Upload an inspection photo for a unit handover.
+     */
+    public function uploadHandoverImage(Request $request, string $unitId)
+    {
+        $request->validate([
+            'file' => 'required|file|image|max:10240',
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+        
+        // Upload file
+        $url = FileUploadService::upload($request->file('file'), 'handover_photos');
+        
+        // Add to images JSON
+        $currentImages = $unit->handover_images ? json_decode($unit->handover_images, true) : [];
+        $currentImages[] = $url;
+        
+        $unit->update([
+            'handover_images' => json_encode($currentImages),
+        ]);
+
+        AuditLogService::log(
+            'HANDOVER_IMAGE_UPLOAD', 
+            $request->user()->id, 
+            ['unit_id' => $unitId, 'url' => $url]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Handover photo uploaded successfully.',
+            'images' => $currentImages,
+        ]);
     }
 
     /**
@@ -92,7 +216,13 @@ class HandoverController extends Controller
             'signature_data' => 'required|string', // Base64 signature path/coordinates
         ]);
 
+        $unit = Unit::findOrFail($unitId);
         $clientId = $request->user()->id;
+
+        $unit->update([
+            'handover_status' => 'signed_off',
+            'handover_signature' => $request->signature_data,
+        ]);
 
         // Perform mock signature verification
         AuditLogService::log(

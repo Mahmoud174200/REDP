@@ -1316,6 +1316,34 @@ const CompanySalesPortal: React.FC = () => {
     }
   };
 
+  const handleSubmitForApproval = async (contractId: string) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post(`/v1/finance/contracts/${contractId}/submit-approval`);
+      if (res.data && res.data.success) {
+        showToast('إرسال العقد للموافقة بنجاح / Contract submitted for approval successfully!', 'success');
+        setShowContractModal(false);
+        setSelectedReservationForContract(null);
+        setBookingUnitId('');
+        setBookingNotes('');
+        setBookingEoi('50000');
+        setDiscountPercent('0');
+        setDownPayment('');
+        setIncludeClub(false);
+        setIncludeGarage(false);
+        setIncludeMaintenance(false);
+        setCustomAddons([]);
+        setSavedSchedule([]);
+        setIsPlanSaved(false);
+        await fetchPortalData();
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to submit contract for approval.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleUpdateUnitStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUnit) return;
@@ -1796,54 +1824,71 @@ const CompanySalesPortal: React.FC = () => {
                               </button>
                             ) : lead.status === 'reserved' ? (() => {
                               const txn = transactions.find(t =>
-                                t.status === 'confirmed' && (!t.contract || t.contract.status === 'draft') &&
+                                t.status === 'confirmed' &&
                                 ((lead.email && t.client?.email === lead.email) ||
                                   (lead.phone && t.client?.phone === lead.phone))
                               );
                               if (txn) {
-                                return (
-                                  <div style={{ display: 'flex', gap: '6px' }}>
-                                    {!txn.contract ? (
+                                if (!txn.contract || txn.contract.status === 'draft') {
+                                  return (
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      {!txn.contract ? (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedReservationForContract(txn);
+                                            setBookingUnitId(txn.unit_id);
+                                            setBookingEoi(txn.eoi_amount.toString());
+                                            setDiscountPercent('0');
+                                            const uPrice = parseFloat(txn.unit?.price) || 0;
+                                            setDownPayment((uPrice * 0.1).toString());
+                                            setMaintenanceCost((uPrice * 0.08).toString());
+                                            setSavedSchedule([]);
+                                            setBookingNotes('');
+                                            setIncludeClub(false);
+                                            setIncludeGarage(false);
+                                            setIncludeMaintenance(false);
+                                            setIsPlanSaved(false);
+                                            setShowContractModal(true);
+                                          }}
+                                          className="btn-primary"
+                                          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                        >
+                                          إتمام التعاقد / Finalize
+                                        </button>
+                                      ) : (
+                                        <button
+                                          onClick={() => loadContractDataIntoModal(txn)}
+                                          className="btn-primary"
+                                          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                        >
+                                          تعديل وتوقيع الخطة / Edit & Sign
+                                        </button>
+                                      )}
                                       <button
-                                        onClick={() => {
-                                          setSelectedReservationForContract(txn);
-                                          setBookingUnitId(txn.unit_id);
-                                          setBookingEoi(txn.eoi_amount.toString());
-                                          setDiscountPercent('0');
-                                          const uPrice = parseFloat(txn.unit?.price) || 0;
-                                          setDownPayment((uPrice * 0.1).toString());
-                                          setMaintenanceCost((uPrice * 0.08).toString());
-                                          setSavedSchedule([]);
-                                          setBookingNotes('');
-                                          setIncludeClub(false);
-                                          setIncludeGarage(false);
-                                          setIncludeMaintenance(false);
-                                          setIsPlanSaved(false);
-                                          setShowContractModal(true);
-                                        }}
-                                        className="btn-primary"
-                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                        onClick={() => handleCancelBooking(txn.id)}
+                                        className="btn-secondary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
                                       >
-                                        إتمام التعاقد / Finalize
+                                        إلغاء / Cancel
                                       </button>
-                                    ) : (
+                                    </div>
+                                  );
+                                } else if (txn.contract.status === 'pending_approval') {
+                                  return (
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <span style={{ color: 'var(--color-warning)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                        Pending Approval
+                                      </span>
                                       <button
-                                        onClick={() => loadContractDataIntoModal(txn)}
-                                        className="btn-primary"
-                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                        onClick={() => handleCancelBooking(txn.id)}
+                                        className="btn-secondary"
+                                        style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
                                       >
-                                        تعديل وتوقيع الخطة / Edit & Sign
+                                        إلغاء / Cancel
                                       </button>
-                                    )}
-                                    <button
-                                      onClick={() => handleCancelBooking(txn.id)}
-                                      className="btn-secondary"
-                                      style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff' }}
-                                    >
-                                      إلغاء / Cancel
-                                    </button>
-                                  </div>
-                                );
+                                    </div>
+                                  );
+                                }
                               }
                               return (
                                 <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 700 }}>
@@ -2174,8 +2219,12 @@ const CompanySalesPortal: React.FC = () => {
                           </td>
                           <td>
                             {txn.contract ? (
-                              <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : 'info'}`}>
-                                {txn.contract.status === 'active' ? `Signed: ${txn.contract.contract_number}` : `Draft: ${txn.contract.contract_number}`}
+                              <span className={`badge badge-${txn.contract.status === 'active' ? 'success' : txn.contract.status === 'pending_approval' ? 'warning' : 'info'}`}>
+                                {txn.contract.status === 'active'
+                                  ? `Signed: ${txn.contract.contract_number}`
+                                  : txn.contract.status === 'pending_approval'
+                                  ? `Pending Approval: ${txn.contract.contract_number}`
+                                  : `Draft: ${txn.contract.contract_number}`}
                               </span>
                             ) : isExpired ? (
                               <span className="badge badge-danger">Expired (EOI Refunded)</span>
@@ -2981,9 +3030,9 @@ const CompanySalesPortal: React.FC = () => {
                         opacity: isPlanSaved ? 1 : 0.8
                       }}
                       disabled={!isPlanSaved || (finalPaymentMethod === 'installment' && Math.abs(yearPercentages.reduce((s, p) => s + p, 0) - 100) > 0.01)}
-                      onClick={() => handleSignContract(selectedReservationForContract.contract.id)}
+                      onClick={() => handleSubmitForApproval(selectedReservationForContract.contract.id)}
                     >
-                      توقيع وإرسال للحسابات / Sign & Send
+                      إرسال للموافقة / Send for Approval
                     </button>
                   )}
                   <button

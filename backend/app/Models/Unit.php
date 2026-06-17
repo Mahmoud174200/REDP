@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class Unit extends Model
 {
+    use Auditable;
+
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -31,6 +34,10 @@ class Unit extends Model
         'status', // 'available', 'reserved', 'sold', 'hidden', 'coming_soon', 'frozen'
         'handover_date',
         'phase',
+        'handover_status',
+        'handover_report',
+        'handover_images',
+        'handover_signature',
     ];
 
     protected $casts = [
