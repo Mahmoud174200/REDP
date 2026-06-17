@@ -8,3 +8,4 @@ try {
     echo "Connection failed: " . $e->getMessage() . "\n";
     exit(1);
 }
+
