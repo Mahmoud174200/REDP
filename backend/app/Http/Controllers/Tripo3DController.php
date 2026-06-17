@@ -545,4 +545,44 @@ class Tripo3DController extends Controller
             ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
             ->header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
     }
+
+    /**
+     * Upload a custom 3D model (GLB) for a unit.
+     */
+    public function uploadCustomUnit3DModel(Request $request, string $unitId): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:20480', // 20MB max
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+        $file = $request->file('file');
+
+        // Delete old file if exists
+        if ($unit->model_3d_url && !$this->isExternalUrl($unit->model_3d_url)) {
+            $isShared = Unit::where('model_3d_url', $unit->model_3d_url)
+                ->where('id', '!=', $unit->id)
+                ->exists();
+            if (!$isShared) {
+                Storage::disk('public')->delete($unit->model_3d_url);
+            }
+        }
+
+        $localPath = "3d-models/units/{$unit->id}.glb";
+        Storage::disk('public')->put($localPath, file_get_contents($file));
+
+        $unit->update([
+            'model_3d_status' => 'completed',
+            'model_3d_url' => $localPath,
+            'model_generated_at' => now(),
+            'tripo_error_msg' => null,
+            'tripo_task_id' => 'custom-upload',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Custom 3D model uploaded successfully for unit {$unit->unit_number}.",
+            'model_url' => url("/api/v1/public/units/{$unit->id}/3d-model/file"),
+        ]);
+    }
 }
