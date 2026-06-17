@@ -483,6 +483,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
         Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
         Route::get('/units/{unitId}/3d-model/grid', [$tripoCtrl, 'getUnit3DGrid']);
+        Route::post('/units/{unitId}/autodetect-layout', [$tripoCtrl, 'autodetectUnitLayout']);
 
         // ── Master Plan Module ──
         $mpCtrl = \App\Http\Controllers\Admin\MasterPlanController::class;
