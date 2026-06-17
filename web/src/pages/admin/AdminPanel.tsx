@@ -234,6 +234,7 @@ const AdminPanel: React.FC = () => {
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
   const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
+  const [mediaBuildings, setMediaBuildings] = useState<any[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
   const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
@@ -241,10 +242,7 @@ const AdminPanel: React.FC = () => {
   const [is3DGenerating, setIs3DGenerating] = useState<string | null>(null);
   const [buildingPreprocess, setBuildingPreprocess] = useState<Record<string, boolean>>({});
   const [unitPreprocess, setUnitPreprocess] = useState<Record<string, boolean>>({});
-  const [newBName, setNewBName] = useState('');
-  const [newBFloors, setNewBFloors] = useState('3');
-  const [newBUnits, setNewBUnits] = useState('4');
-  const [isConfiguringB, setIsConfiguringB] = useState(false);
+
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectModalMode, setProjectModalMode] = useState<'add' | 'edit'>('add');
@@ -597,12 +595,30 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         setProjectMedia(res.data.data);
       }
+      const resBuildings = await api.get(`/admin/projects/${project.id}/buildings`);
+      if (resBuildings.data?.success) {
+        setMediaBuildings(resBuildings.data.data);
+      }
       await fetch3DStatuses(project.id);
     } catch (err) {
       console.error('Failed to load project media', err);
       setProjectMedia({ project_image: null, building_images: {}, floor_plan_images: {} });
+      setMediaBuildings([]);
     } finally {
       setMediaLoading(false);
+    }
+  };
+
+  const refreshMediaModalData = async () => {
+    if (!selectedProjectForMedia) return;
+    try {
+      const resBuildings = await api.get(`/admin/projects/${selectedProjectForMedia.id}/buildings`);
+      if (resBuildings.data?.success) {
+        setMediaBuildings(resBuildings.data.data);
+      }
+      await fetch3DStatuses(selectedProjectForMedia.id);
+    } catch (err) {
+      console.error('Failed to refresh media modal data', err);
     }
   };
 
@@ -668,6 +684,7 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to start unit 3D model generation');
@@ -682,6 +699,7 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to regenerate unit 3D model');
@@ -695,33 +713,10 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to delete unit 3D model');
-    }
-  };
-
-  const handleSetupBuilding = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProjectForMedia || !newBName) return;
-    setIsConfiguringB(true);
-    try {
-      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/setup-building`, {
-        building_name: newBName,
-        floors_count: parseInt(newBFloors, 10),
-        units_per_floor: parseInt(newBUnits, 10),
-      });
-      alert(res.data.message);
-      setNewBName('');
-      await fetchData();
-      const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
-      if (mediaRes.data?.success) {
-        setProjectMedia(mediaRes.data.data);
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to setup building structure');
-    } finally {
-      setIsConfiguringB(false);
     }
   };
 
@@ -820,6 +815,13 @@ const AdminPanel: React.FC = () => {
         alert('Unit layout image uploaded successfully!');
         setSelectedUnit(prev => prev ? { ...prev, layout_image_url: res.data.data.image_url } : null);
         setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, layout_image_url: res.data.data.image_url } : u));
+        setMediaBuildings(prevBuildings => prevBuildings.map(b => ({
+          ...b,
+          floors: (b.floors || []).map((f: any) => ({
+            ...f,
+            units: (f.units || []).map((u: any) => u.id === unitId ? { ...u, layout_image_url: res.data.data.image_url } : u)
+          }))
+        })));
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Upload failed');
@@ -3390,80 +3392,12 @@ const AdminPanel: React.FC = () => {
                     Select a building to upload its rendering image and floor layouts. These floor plans should display the configuration of all apartments on that specific floor.
                   </p>
 
-                  {/* Building setup form */}
-                  <form onSubmit={handleSetupBuilding} style={{
-                    marginBottom: '24px',
-                    padding: '20px',
-                    background: 'rgba(59,130,246,0.03)',
-                    border: '1.5px solid rgba(59,130,246,0.1)',
-                    borderRadius: 'var(--radius-md)',
-                  }}>
-                    <strong style={{ fontSize: '0.85rem', color: 'var(--color-primary)', display: 'block', marginBottom: '12px' }}>
-                      🏗️ Setup Building/Block Structure (هيكلة وإضافة مبنى جديد)
-                    </strong>
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '15px',
-                      alignItems: 'flex-end'
-                    }}>
-                      <div style={{ flex: '2 1 200px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Building / Block Name (اسم البلوك/العمارة):</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Block A1, Block B"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBName}
-                          onChange={(e) => setNewBName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div style={{ flex: '1 1 100px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Total Floors (الأدوار):</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBFloors}
-                          onChange={(e) => setNewBFloors(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div style={{ flex: '1.2 1 120px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Apartments / Floor:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="20"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBUnits}
-                          onChange={(e) => setNewBUnits(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="btn-primary"
-                        style={{ padding: '8px 16px', fontSize: '0.8rem', height: 'auto', background: 'var(--color-primary)' }}
-                        disabled={isConfiguringB}
-                      >
-                        {isConfiguringB ? 'Configuring...' : 'Configure (هيكلة)'}
-                      </button>
-                    </div>
-                  </form>
-
                   {(() => {
-                    const uniqueBuildings = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id).map(u => u.building || 'Main Building')));
-
-                    if (uniqueBuildings.length === 0) {
+                    if (mediaBuildings.length === 0) {
                       return (
                         <div style={{ textAlign: 'center', padding: '30px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed rgba(0,0,0,0.08)' }}>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            No buildings configured yet. Use the form above to add a building and structure its floors/apartments.
+                            No buildings found in the Master Plan for this project. Please build them in the Master Plan first.
                           </span>
                         </div>
                       );
@@ -3471,16 +3405,17 @@ const AdminPanel: React.FC = () => {
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {uniqueBuildings.map((buildingName) => {
-                          const floors = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building'))).map(u => u.floor))).sort((a, b) => a - b);
+                        {mediaBuildings.map((building) => {
+                          const buildingName = building.name;
+                          const floors = (building.floors || []).map((f: any) => f.floor_number).sort((a: number, b: number) => a - b);
                           const bImage = projectMedia?.building_images?.[buildingName]?.image_url;
 
                           return (
-                            <div key={buildingName} style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '18px', background: '#fbfbfb' }}>
+                            <div key={building.id} style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '18px', background: '#fbfbfb' }}>
                               
                               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', alignItems: 'center', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '12px', marginBottom: '12px' }}>
                                 <div>
-                                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName}</strong>
+                                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName} {building.name_ar ? `(${building.name_ar})` : ''}</strong>
                                   <div style={{ marginTop: '8px' }}>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Upload Building Exterior Image:</label>
                                     <div style={{ marginTop: '4px' }}>
@@ -3686,48 +3621,13 @@ const AdminPanel: React.FC = () => {
                                 {floors.map((floorNum) => {
                                   const refKey = `${buildingName}|${floorNum}`;
                                   const fImage = projectMedia?.floor_plan_images?.[refKey]?.image_url;
-                                  const floorUnits = units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building')) && u.floor === floorNum);
+                                  const floorUnits = (building.floors || []).find((f: any) => f.floor_number === floorNum)?.units || [];
 
                                   return (
                                     <div key={floorNum} style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                                       {/* Floor plan row */}
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>Apartments:</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            defaultValue={floorUnits.length}
-                                            id={`units-count-${buildingName}-${floorNum}`}
-                                            style={{ width: '45px', padding: '2px 4px', fontSize: '0.72rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.15)' }}
-                                          />
-                                          <button
-                                            type="button"
-                                            className="btn-primary"
-                                            style={{ padding: '2px 6px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                            onClick={async () => {
-                                              const inputVal = (document.getElementById(`units-count-${buildingName}-${floorNum}`) as HTMLInputElement)?.value;
-                                              const newCount = parseInt(inputVal || '0', 10);
-                                              try {
-                                                const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/buildings/${buildingName}/floors/${floorNum}/setup-units`, {
-                                                  count: newCount
-                                                });
-                                                alert(res.data.message);
-                                                await fetchData();
-                                                const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
-                                                if (mediaRes.data?.success) {
-                                                  setProjectMedia(mediaRes.data.data);
-                                                }
-                                              } catch (err: any) {
-                                                alert(err.response?.data?.message || 'Failed to setup units count.');
-                                              }
-                                            }}
-                                          >
-                                            Set
-                                          </button>
-                                        </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map ({floorUnits.length} units)</span>
                                         <div>
                                           <label className="custom-file-upload small">
                                             <UploadCloud size={12} />
@@ -3760,7 +3660,7 @@ const AdminPanel: React.FC = () => {
                                           <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                                             Apartments Layout Plans (مخططات الشقق):
                                           </span>
-                                          {floorUnits.map((unit) => {
+                                          {floorUnits.map((unit: any) => {
                                             const uImage = unit.layout_image_url;
                                             return (
                                               <div key={unit.id} style={{ background: '#fcfcfc', border: '1px dashed rgba(0,0,0,0.04)', borderRadius: '4px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -3892,6 +3792,7 @@ const AdminPanel: React.FC = () => {
                                                               });
                                                               alert(res.data.message);
                                                               await fetchData();
+                                                              await refreshMediaModalData();
                                                             } catch (err: any) {
                                                               alert(err.response?.data?.message || 'Failed to copy layout');
                                                             }

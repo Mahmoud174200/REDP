@@ -464,6 +464,45 @@ class MasterPlanController extends Controller
         $building = Building::findOrFail($buildingId);
         $floor = BuildingFloor::where('building_id', $buildingId)->findOrFail($floorId);
 
+        if ($request->has('orientation')) {
+            $val = trim(mb_strtolower($request->input('orientation')));
+            $map = [
+                'بحري' => 'north',
+                'maritime' => 'north',
+                'north' => 'north',
+                'قبلي' => 'south',
+                'southern' => 'south',
+                'south' => 'south',
+                'شرق' => 'east',
+                'شرقي' => 'east',
+                'east' => 'east',
+                'غرب' => 'west',
+                'غربي' => 'west',
+                'west' => 'west',
+                'شمال شرق' => 'north_east',
+                'شمال شرقي' => 'north_east',
+                'north_east' => 'north_east',
+                'northeast' => 'north_east',
+                'شمال غرب' => 'north_west',
+                'شمال غربي' => 'north_west',
+                'north_west' => 'north_west',
+                'northwest' => 'north_west',
+                'جنوب شرق' => 'south_east',
+                'جنوب شرقي' => 'south_east',
+                'south_east' => 'south_east',
+                'southeast' => 'south_east',
+                'جنوب غرب' => 'south_west',
+                'جنوب غربي' => 'south_west',
+                'south_west' => 'south_west',
+                'southwest' => 'south_west',
+            ];
+            $mapped = $map[$val] ?? null;
+            if (!$mapped && in_array($val, ['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])) {
+                $mapped = $val;
+            }
+            $request->merge(['orientation' => $mapped]);
+        }
+
         $validated = $request->validate([
             'unit_number' => 'required|string|max:50',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
@@ -483,7 +522,7 @@ class MasterPlanController extends Controller
             'has_private_garden' => 'boolean',
             'has_private_parking' => 'boolean',
             'view_type' => 'nullable|string|max:100',
-            'orientation' => 'nullable|string|max:100',
+            'orientation' => ['nullable', Rule::in(['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])],
             'layout_description' => 'nullable|string',
             'phase' => 'nullable|string|max:100',
         ]);
@@ -553,6 +592,45 @@ class MasterPlanController extends Controller
     {
         $unit = Unit::findOrFail($unitId);
 
+        if ($request->has('orientation')) {
+            $val = trim(mb_strtolower($request->input('orientation')));
+            $map = [
+                'بحري' => 'north',
+                'maritime' => 'north',
+                'north' => 'north',
+                'قبلي' => 'south',
+                'southern' => 'south',
+                'south' => 'south',
+                'شرق' => 'east',
+                'شرقي' => 'east',
+                'east' => 'east',
+                'غرب' => 'west',
+                'غربي' => 'west',
+                'west' => 'west',
+                'شمال شرق' => 'north_east',
+                'شمال شرقي' => 'north_east',
+                'north_east' => 'north_east',
+                'northeast' => 'north_east',
+                'شمال غرب' => 'north_west',
+                'شمال غربي' => 'north_west',
+                'north_west' => 'north_west',
+                'northwest' => 'north_west',
+                'جنوب شرق' => 'south_east',
+                'جنوب شرقي' => 'south_east',
+                'south_east' => 'south_east',
+                'southeast' => 'south_east',
+                'جنوب غرب' => 'south_west',
+                'جنوب غربي' => 'south_west',
+                'south_west' => 'south_west',
+                'southwest' => 'south_west',
+            ];
+            $mapped = $map[$val] ?? null;
+            if (!$mapped && in_array($val, ['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])) {
+                $mapped = $val;
+            }
+            $request->merge(['orientation' => $mapped]);
+        }
+
         $validated = $request->validate([
             'unit_number' => 'required|string|max:50',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
@@ -572,7 +650,7 @@ class MasterPlanController extends Controller
             'has_private_garden' => 'boolean',
             'has_private_parking' => 'boolean',
             'view_type' => 'nullable|string|max:100',
-            'orientation' => 'nullable|string|max:100',
+            'orientation' => ['nullable', Rule::in(['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])],
             'layout_description' => 'nullable|string',
             'phase' => 'nullable|string|max:100',
         ]);

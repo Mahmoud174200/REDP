@@ -47,6 +47,8 @@ class PublicLandingController extends Controller
         $releasedPhases = $project->released_phases; // Calls the array cast/accessor (defaults to ['Phase 1'])
 
         $units = Unit::where('project_id', $projectId)
+            ->whereNotNull('building_id')
+            ->where('building_id', '!=', '')
             ->whereIn('status', ['available', 'coming_soon'])
             ->whereIn('phase', $releasedPhases)
             ->get();
@@ -227,6 +229,8 @@ class PublicLandingController extends Controller
         $releasedPhases = $project->released_phases;
 
         $units = Unit::where('project_id', $projectId)
+            ->whereNotNull('building_id')
+            ->where('building_id', '!=', '')
             ->whereIn('phase', $releasedPhases)
             ->orderBy('building')
             ->orderBy('floor')
