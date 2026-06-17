@@ -480,7 +480,44 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/units/{unitId}/regenerate-3d', [$tripoCtrl, 'regenerateUnit3D']);
         Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
+<<<<<<< HEAD
+
+        // ── Master Plan Module ──
+        $mpCtrl = \App\Http\Controllers\Admin\MasterPlanController::class;
+
+        // Master Plan Overview & Land Info
+        Route::get('/projects/{projectId}/master-plan', [$mpCtrl, 'getMasterPlan']);
+        Route::put('/projects/{projectId}/master-plan/land', [$mpCtrl, 'updateLandInfo']);
+        Route::get('/projects/{projectId}/master-plan/summary', [$mpCtrl, 'getSummary']);
+
+        // Buildings CRUD
+        Route::get('/projects/{projectId}/buildings', [$mpCtrl, 'getBuildings']);
+        Route::post('/projects/{projectId}/buildings', [$mpCtrl, 'createBuilding']);
+        Route::put('/projects/{projectId}/buildings/{buildingId}', [$mpCtrl, 'updateBuilding']);
+        Route::delete('/projects/{projectId}/buildings/{buildingId}', [$mpCtrl, 'deleteBuilding']);
+
+        // Building Floors CRUD
+        Route::get('/buildings/{buildingId}/floors', [$mpCtrl, 'getFloors']);
+        Route::post('/buildings/{buildingId}/floors', [$mpCtrl, 'createFloor']);
+        Route::put('/buildings/{buildingId}/floors/{floorId}', [$mpCtrl, 'updateFloor']);
+        Route::delete('/buildings/{buildingId}/floors/{floorId}', [$mpCtrl, 'deleteFloor']);
+
+        // Auto-generate units for a floor
+        Route::post('/buildings/{buildingId}/floors/{floorId}/generate-units', [$mpCtrl, 'generateUnitsForFloor']);
+
+        // Individual Units CRUD (detailed, for Master Plan)
+        Route::post('/master-plan/buildings/{buildingId}/floors/{floorId}/units', [$mpCtrl, 'createSingleUnit']);
+        Route::put('/master-plan/units/{unitId}', [$mpCtrl, 'updateSingleUnit']);
+        Route::delete('/master-plan/units/{unitId}', [$mpCtrl, 'deleteSingleUnit']);
+
+        // Project Amenities CRUD
+        Route::get('/projects/{projectId}/amenities', [$mpCtrl, 'getAmenities']);
+        Route::post('/projects/{projectId}/amenities', [$mpCtrl, 'createAmenity']);
+        Route::put('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'updateAmenity']);
+        Route::delete('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'deleteAmenity']);
+=======
         Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
+>>>>>>> 85f2cf9a9d05064999765876930bbbf24157e5e3
     });
 
     // ══════════════════════════════════════════════════════════

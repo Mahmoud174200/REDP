@@ -1549,6 +1549,9 @@ const AdminPanel: React.FC = () => {
                         <button onClick={() => openProjectPlansModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-primary)', borderColor: 'rgba(50, 71, 58, 0.2)' }}>
                           <ClipboardList size={12} /> Plans
                         </button>
+                        <button onClick={() => window.location.href = `/admin/master-plan/${p.id}`} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: '#059669', borderColor: 'rgba(5, 150, 105, 0.2)', background: 'rgba(5, 150, 105, 0.05)' }}>
+                          <Layers size={12} /> Master Plan
+                        </button>
                         <button onClick={() => openProjectMediaModal(p)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.2)' }}>
                           <Monitor size={12} /> Media
                         </button>
