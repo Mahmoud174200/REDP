@@ -3573,9 +3573,19 @@ const AdminPanel: React.FC = () => {
 
                                     if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
                                       return (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                          <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            style={{ padding: '4px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
+                                            onClick={() => handleDelete3D(building3D.media_id, buildingName)}
+                                          >
+                                            Cancel / Reset
+                                          </button>
                                         </div>
                                       );
                                     }
