@@ -1229,40 +1229,56 @@ const Overview: React.FC = () => {
                       width: '320px',
                       height: '200px',
                       borderRadius: '16px',
-                      background: 'linear-gradient(135deg, rgba(31,41,55,0.95) 0%, rgba(17,24,39,0.98) 100%)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      boxShadow: '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
+                      background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                      border: '1.5px solid rgba(197, 168, 128, 0.45)',
+                      boxShadow: '0 12px 32px rgba(0, 0, 60, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
                       position: 'relative',
                       padding: '16px',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
                       overflow: 'hidden',
-                      fontFamily: 'Inter, sans-serif'
+                      fontFamily: 'Outfit, Inter, sans-serif'
                     }}>
                       <div style={{
                         position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%)',
                         pointerEvents: 'none'
                       }} />
                       
+                      {/* Diagonal Glass Sheen */}
+                      <div style={{
+                        position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
+                        background: 'linear-gradient(45deg, rgba(255,255,255,0) 45%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 55%)',
+                        pointerEvents: 'none'
+                      }} />
+
                       {/* Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', zIndex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
-                          <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '2px', color: '#10b981', textTransform: 'uppercase' }}>REDP ACCESS</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', paddingBottom: '8px', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img 
+                            src="/mountain_view_logo.png" 
+                            alt="Mountain View" 
+                            style={{ 
+                              height: '18px', 
+                              width: 'auto', 
+                              objectFit: 'contain',
+                              filter: 'brightness(0) invert(1)' 
+                            }} 
+                          />
                         </div>
-                        <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>SMART BADGE</span>
+                        <span style={{ fontSize: '0.62rem', color: '#C5A880', fontWeight: 800, letterSpacing: '1px' }}>RESIDENT ACCESS / بطاقة مقيم</span>
                       </div>
                       
                       {/* Main */}
                       <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginTop: '10px', flex: 1, zIndex: 1 }}>
                         <div style={{
-                          width: '64px',
-                          height: '76px',
+                          width: '66px',
+                          height: '78px',
                           borderRadius: '8px',
-                          border: '2px solid rgba(255,255,255,0.15)',
-                          background: 'rgba(255,255,255,0.05)',
+                          border: '2px solid #C5A880',
+                          background: 'rgba(255,255,255,0.08)',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
                           overflow: 'hidden',
                           display: 'flex',
                           alignItems: 'center',
@@ -1278,33 +1294,62 @@ const Overview: React.FC = () => {
                         </div>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, textAlign: 'left' }}>
-                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f3f4f6', lineHeight: 1.2 }}>{member.name}</div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{member.name}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', fontWeight: 700, textTransform: 'capitalize' }}>
+                            <span style={{ 
+                              fontSize: '0.6rem', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              background: 'rgba(197, 168, 128, 0.2)', 
+                              color: '#FFE0B2', 
+                              border: '1px solid rgba(197, 168, 128, 0.3)',
+                              fontWeight: 700, 
+                              textTransform: 'capitalize' 
+                            }}>
                               {member.relationship}
                             </span>
-                            <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.4)' }}>MEMBER</span>
+                            <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.5)', fontWeight: 650 }}>MEMBER</span>
                           </div>
                           {member.national_id && (
-                            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
-                              ID: <span style={{ color: '#d1d5db', fontFamily: 'monospace' }}>{member.national_id}</span>
+                            <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                              ID / الهوية: <span style={{ color: '#FFE0B2', fontFamily: 'monospace', fontWeight: 600 }}>{member.national_id}</span>
                             </div>
                           )}
                         </div>
                       </div>
                       
                       {/* Footer */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', zIndex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px', zIndex: 1 }}>
                         <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Unit / الوحدة</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f3f4f6' }}>{unitInfo?.unit_number || 'N/A'}</div>
+                          <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Unit / الوحدة</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff' }}>{unitInfo?.unit_number || 'N/A'}</div>
                         </div>
                         
+                        {/* Metallic Gold Chip */}
                         <div style={{
-                          width: '24px', height: '18px', borderRadius: '4px',
-                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                          opacity: 0.85, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)'
-                        }} />
+                          width: '32px',
+                          height: '24px',
+                          borderRadius: '5px',
+                          background: 'linear-gradient(135deg, #FFE0B2 0%, #FFA726 50%, #FB8C00 100%)',
+                          position: 'relative',
+                          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.3)',
+                          border: '1px solid rgba(0,0,0,0.15)',
+                          opacity: 0.9
+                        }}>
+                          <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{ position: 'absolute', left: '30%', top: 0, bottom: 0, width: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{ position: 'absolute', left: '70%', top: 0, bottom: 0, width: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{ position: 'absolute', top: '30%', left: 0, right: 0, height: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{ position: 'absolute', top: '70%', left: 0, right: 0, height: '1px', background: 'rgba(0,0,0,0.2)' }} />
+                          <div style={{
+                            position: 'absolute',
+                            top: '25%', left: '28%', right: '28%', bottom: '25%',
+                            borderRadius: '2px',
+                            border: '1px solid rgba(0,0,0,0.15)',
+                            background: 'transparent'
+                          }} />
+                        </div>
                       </div>
                     </div>
                     
@@ -1313,33 +1358,52 @@ const Overview: React.FC = () => {
                       width: '320px',
                       height: '200px',
                       borderRadius: '16px',
-                      background: 'linear-gradient(135deg, rgba(17,24,39,0.98) 0%, rgba(10,15,30,0.99) 100%)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      boxShadow: '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+                      background: 'linear-gradient(135deg, #001A70 0%, #000B21 100%)',
+                      border: '1.5px solid rgba(197, 168, 128, 0.45)',
+                      boxShadow: '0 12px 32px rgba(0, 0, 60, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
                       position: 'relative',
                       padding: '16px',
                       display: 'flex',
                       justifyContent: 'space-between',
                       gap: '12px',
                       overflow: 'hidden',
-                      fontFamily: 'Inter, sans-serif'
+                      fontFamily: 'Outfit, Inter, sans-serif'
                     }}>
+                      <div style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)',
+                        pointerEvents: 'none'
+                      }} />
+
                       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, zIndex: 1, textAlign: 'left' }}>
                         <div>
-                          <div style={{ fontWeight: 800, letterSpacing: '1px', fontSize: '0.62rem', color: '#10b981', marginBottom: '8px' }}>
-                            REDP RESIDENCE
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                            <img 
+                              src="/mountain_view_logo.png" 
+                              alt="Mountain View" 
+                              style={{ 
+                                height: '14px', 
+                                width: 'auto', 
+                                objectFit: 'contain',
+                                filter: 'brightness(0) invert(1)' 
+                              }} 
+                            />
+                            <span style={{ fontSize: '0.55rem', color: '#C5A880', fontWeight: 850, letterSpacing: '1px' }}>REDP RESIDENCE</span>
                           </div>
+                          
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Project / المشروع</span>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f3f4f6' }}>{unitInfo?.project_name || 'N/A'}</span>
+                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Project / المشروع</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ffffff' }}>{unitInfo?.project_name || 'N/A'}</span>
                             
-                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginTop: '4px' }}>Owner / المالك</span>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f3f4f6' }}>{loggedInUser.name}</span>
+                            <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: '4px' }}>Owner / المالك</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ffffff' }}>{loggedInUser.name}</span>
                           </div>
                         </div>
                         
-                        <div style={{ fontSize: '0.48rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.3 }}>
-                          This card is non-transferable and remains property of REDP Communities. Scan QR for access log validation.
+                        <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.35 }}>
+                          This card is non-transferable and remains property of Mountain View Communities. Scan QR for access log validation.
+                          <br />
+                          هذه البطاقة شخصية ومخصصة لمجتمعات ماونتن فيو. يرجى إبراز الرمز للتحقق الأمني.
                         </div>
                       </div>
                       
@@ -1347,17 +1411,18 @@ const Overview: React.FC = () => {
                         <div style={{
                           padding: '6px',
                           background: '#ffffff',
-                          borderRadius: '8px',
-                          width: '88px',
-                          height: '88px',
+                          borderRadius: '10px',
+                          border: '2px solid #C5A880',
+                          width: '90px',
+                          height: '90px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
                         }}>
-                          <img src={qrCodeUrl} alt="Security QR Code" style={{ width: '76px', height: '76px' }} />
+                          <img src={qrCodeUrl} alt="Security QR Code" style={{ width: '78px', height: '78px' }} />
                         </div>
-                        <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', marginTop: '8px', fontWeight: 600, letterSpacing: '1px' }}>
+                        <span style={{ fontSize: '0.5rem', color: '#C5A880', marginTop: '8px', fontWeight: 700, letterSpacing: '1.2px' }}>
                           SCAN ACCESS
                         </span>
                       </div>
