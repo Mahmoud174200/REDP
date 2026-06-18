@@ -446,6 +446,36 @@ const AdminPanel: React.FC = () => {
     fetchData();
   }, []);
 
+  // Automated polling for 3D model status when processing or pending
+  useEffect(() => {
+    if (!showMediaModal || !selectedProjectForMedia) return;
+
+    const hasActive = building3DStatuses.some(
+      status => status.model_3d_status === 'pending' || status.model_3d_status === 'processing'
+    );
+
+    if (!hasActive) return;
+
+    // Poll every 15 seconds
+    const interval = setInterval(async () => {
+      console.log('Automated polling for 3D model status...');
+      try {
+        const res = await api.get(`/admin/projects/${selectedProjectForMedia.id}/3d-status`);
+        if (res.data?.success) {
+          setBuilding3DStatuses(res.data.data || []);
+        }
+        const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+        if (mediaRes.data?.success) {
+          setProjectMedia(mediaRes.data.data);
+        }
+      } catch (err) {
+        console.error('Polling failed', err);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [showMediaModal, selectedProjectForMedia, building3DStatuses]);
+
   // ── User Handlers ──
   const openAddUserModal = () => {
     setFormUserName('');
@@ -3573,19 +3603,43 @@ const AdminPanel: React.FC = () => {
 
                                     if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
                                       return (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
                                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
                                           </div>
-                                          <button
-                                            type="button"
-                                            className="btn-secondary"
-                                            style={{ padding: '4px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
-                                            onClick={() => handleDelete3D(building3D.media_id, buildingName)}
-                                          >
-                                            Cancel / Reset
-                                          </button>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            ⏱ Estimated: ~2 minutes. Will auto-refresh every 15s or click Refresh.
+                                          </span>
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                              type="button"
+                                              className="btn-primary"
+                                              style={{ padding: '4px 12px', fontSize: '0.7rem' }}
+                                              onClick={async () => {
+                                                if (selectedProjectForMedia) {
+                                                  const res = await api.get(`/admin/projects/${selectedProjectForMedia.id}/3d-status`);
+                                                  if (res.data?.success) {
+                                                    setBuilding3DStatuses([...res.data.data]);
+                                                  }
+                                                  const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+                                                  if (mediaRes.data?.success) {
+                                                    setProjectMedia(mediaRes.data.data);
+                                                  }
+                                                }
+                                              }}
+                                            >
+                                              🔄 Refresh Status
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn-secondary"
+                                              style={{ padding: '4px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
+                                              onClick={() => handleDelete3D(building3D.media_id, buildingName)}
+                                            >
+                                              Cancel / Reset
+                                            </button>
+                                          </div>
                                         </div>
                                       );
                                     }
