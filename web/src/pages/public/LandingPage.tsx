@@ -1110,8 +1110,7 @@ const LandingPage: React.FC = () => {
 
                   <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                     <button className="btn-luxury-secondary" onClick={() => {
-                      setSelectedProjectId(project.id);
-                      document.getElementById('units-catalog')?.scrollIntoView({ behavior: 'smooth' });
+                      navigate('/unit-selection');
                     }} style={{
                       flex: 1, fontSize: '0.8rem', padding: '12px 14px', justifyContent: 'center'
                     }}>
@@ -1129,130 +1128,6 @@ const LandingPage: React.FC = () => {
             })}
           </div>
         )}
-
-        {/* ───────────────────────────────────────────────────
-           Units Catalog Detail Browser
-           ─────────────────────────────────────────────────── */}
-        <div id="units-catalog" className="mv-card" style={{ padding: 40, background: 'rgba(255, 255, 255, 0.82)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, alignItems: 'center', marginBottom: 32, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 24 }}>
-            <div>
-              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', letterSpacing: '0.18em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-                {lang === 'en' ? 'LIVE AVAILABILITY' : 'متاح حالياً'}
-              </span>
-              <h3 style={{ fontSize: '1.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 12, color: '#001A70', fontFamily: 'var(--font-title)', margin: 0 }}>
-                <Building size={24} color="#003DA6" />
-                {t.unitsTitle} {selectedProjectObj ? ` - ${selectedProjectObj.name}` : ''}
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: '#5c6c7f', fontWeight: 500, marginTop: 6, marginBottom: 0 }}>
-                {t.unitsSubtitle}
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#5c6c7f' }}>
-                {lang === 'en' ? 'Select Compound' : 'اختر الكمبوند'}:
-              </span>
-              <select
-                style={{
-                  padding: '10px 20px', borderRadius: '12px', border: '1.5px solid rgba(0, 61, 166, 0.15)',
-                  background: '#ffffff', fontSize: '0.85rem', fontWeight: 700, color: '#003DA6', outline: 'none',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.01)', transition: 'all 0.3s ease'
-                }}
-                value={selectedProjectId}
-                onChange={e => setSelectedProjectId(e.target.value)}
-              >
-                {projects.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {loadingUnits ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-              <div className="animate-spin" style={{
-                width: 32, height: 32, border: '3.5px solid rgba(0, 61, 166, 0.15)',
-                borderTopColor: '#003DA6', borderRadius: '50%'
-              }} />
-            </div>
-          ) : !selectedProjectId ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#5c6c7f', fontSize: '0.88rem' }}>
-              <Info size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              {t.unitPlaceholder}
-            </div>
-          ) : units.length === 0 ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#5c6c7f', fontSize: '0.88rem' }}>
-              <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              {t.unitEmpty}
-            </div>
-          ) : (
-            <div className="mv-table-container" style={{ overflowX: 'auto' }}>
-              <table className="mv-table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'start' }}>{t.unitNo}</th>
-                    <th style={{ textAlign: 'start' }}>{t.unitType}</th>
-                    <th style={{ textAlign: 'start' }}>{t.unitArea}</th>
-                    <th style={{ textAlign: 'start' }}>{t.unitBedrooms}/{t.unitBathrooms}</th>
-                    <th style={{ textAlign: 'end' }}>{t.unitPrice}</th>
-                    <th style={{ width: 150 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {units.map((unit: any) => (
-                    <tr key={unit.id}>
-                      <td style={{ fontWeight: 800, fontSize: '0.88rem', color: '#003DA6' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span>{unit.building} - {unit.unit_number}</span>
-                          {unit.status === 'coming_soon' && (
-                            <span style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 700,
-                              background: '#FFF3CD',
-                              color: '#856404',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {lang === 'en' ? 'Soon' : 'قريباً'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ fontWeight: 600, color: '#0f172a' }}>{unit.type}</td>
-                      <td style={{ color: '#5c6c7f' }}>{parseFloat(unit.area).toFixed(0)} m²</td>
-                      <td style={{ color: '#5c6c7f' }}>
-                        {unit.bedrooms} <span style={{ opacity: 0.65 }}>Beds</span> / {unit.bathrooms} <span style={{ opacity: 0.65 }}>Baths</span>
-                      </td>
-                      <td style={{ fontSize: '0.92rem', fontWeight: 800, textAlign: 'end', color: '#003DA6' }}>
-                        EGP {parseFloat(unit.price).toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {unit.status === 'coming_soon' ? (
-                          <button disabled style={{
-                            fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px',
-                            background: '#f1f5f9', color: '#94a3b8', border: '1px solid #e2e8f0', cursor: 'not-allowed',
-                            fontWeight: 700
-                          }}>
-                            {t.unitActionComingSoon}
-                          </button>
-                        ) : (
-                          <button className="btn-luxury-primary" onClick={() => openEoiModal(selectedProjectObj, unit)} style={{
-                            fontSize: '0.75rem', padding: '8px 16px', borderRadius: '8px'
-                          }}>
-                            {t.unitAction}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </section>
 
       {/* ───────────────────────────────────────────────────
