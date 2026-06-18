@@ -97,6 +97,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/v1/auth/profile', [AuthController::class, 'profile']);
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/v1/client/eoi-invitation', [\App\Http\Controllers\PublicLandingController::class, 'getClientEoiInvitation']);
 
     // ══════════════════════════════════════════════════════════
     // 🔶 TIERED SALES RBAC MODULE
@@ -248,6 +249,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi-reservations/stats', [EoiReservationController::class, 'stats']);
         Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
         Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
+        Route::post('/eoi-reservations/invite-batch', [EoiReservationController::class, 'inviteBatch']);
         Route::get('/eoi-reservations/{id}', [EoiReservationController::class, 'show']);
         Route::post('/eoi-reservations/{id}/approve', [EoiReservationController::class, 'approve']);
         Route::post('/eoi-reservations/{id}/reject', [EoiReservationController::class, 'reject']);

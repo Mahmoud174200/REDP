@@ -12,6 +12,7 @@ class Notification extends Model
     protected $fillable = [
         'id',
         'user_id',
+        'lead_id',
         'channel', // 'email', 'sms', 'whatsapp', 'push'
         'recipient',
         'title',
@@ -22,5 +23,10 @@ class Notification extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function lead()
+    {
+        return $this->belongsTo(Lead::class);
     }
 }

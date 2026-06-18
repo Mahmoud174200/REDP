@@ -71,6 +71,240 @@ class EoiEmailService
     }
 
     /**
+     * Send project invitation email with login credentials to the client.
+     */
+    public static function sendInvitationEmail(EoiReservation $reservation, string $password): void
+    {
+        $content = self::buildInvitationEmailContent(
+            $reservation->client_name,
+            $reservation->order_number,
+            $reservation->queue_number,
+            $reservation->client_email,
+            $password,
+            $reservation->project_id
+        );
+
+        NotificationService::send(
+            $reservation->lead_id,
+            'email',
+            $reservation->client_email,
+            "Mountain View — You're Invited to Select Your Unit!",
+            $content
+        );
+    }
+
+    /**
+     * Send unit reservation confirmation and contract signature deadline (Email 3).
+     */
+    public static function sendUnitReservedEmail(\App\Models\Reservation $reservation, int $deadlineHours): void
+    {
+        $unit = $reservation->unit;
+        $project = $unit ? $unit->project : null;
+        $client = $reservation->client;
+        $lead = \App\Models\Lead::where('email', $client?->email)->first();
+        $leadId = $lead ? $lead->id : null;
+
+        $content = self::buildUnitReservedEmailContent(
+            $client ? $client->name : 'Valued Client',
+            $unit ? $unit->unit_number : 'Selected Unit',
+            $project ? $project->name : 'Mountain View Project',
+            $deadlineHours,
+            $reservation->expires_at?->format('F j, Y \a\t g:i A') ?? now()->addHours($deadlineHours)->format('F j, Y \a\t g:i A')
+        );
+
+        NotificationService::send(
+            $leadId,
+            'email',
+            $client ? $client->email : $lead?->email,
+            "Mountain View — Unit Reserved: {$unit->unit_number}",
+            $content
+        );
+    }
+
+    /**
+     * Build HTML content for invitation email.
+     */
+    private static function buildInvitationEmailContent(
+        string $clientName,
+        string $orderNumber,
+        int $queueNumber,
+        string $email,
+        string $password,
+        string $projectId
+    ): string {
+        $loginUrl = "http://localhost:5173/client-login?project=" . $projectId;
+        return <<<HTML
+        <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
+                
+                <!-- Header / Logo Area -->
+                <div style="background: linear-gradient(135deg, #001A70 0%, #003DA6 100%); padding: 40px; text-align: center; position: relative;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(197, 168, 128, 0.15) 0%, transparent 60%);"></div>
+                    <h1 style="color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; position: relative; z-index: 2;">
+                        MOUNTAIN VIEW
+                    </h1>
+                    <p style="color: #C5A880; font-family: 'Outfit', Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; margin: 6px 0 0 0; position: relative; z-index: 2;">
+                        Luxury Living Redefined
+                    </p>
+                </div>
+
+                <!-- Body Content -->
+                <div style="padding: 40px 35px; background: #ffffff;">
+                    
+                    <!-- Confirmation Title -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2 style="font-family: 'Outfit', Arial, sans-serif; font-size: 20px; font-weight: 800; color: #001A70; margin: 0;">
+                            It's Your Turn to Reserve!
+                        </h2>
+                        <p style="color: #64748B; font-size: 13px; margin: 6px 0 0 0;">
+                            Based on your EOI priority position, you are now invited to select your unit.
+                        </p>
+                    </div>
+
+                    <!-- Greeting -->
+                    <p style="color: #0F172A; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                        Dear <strong>{$clientName}</strong>,
+                    </p>
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                        We are thrilled to invite you to select and reserve your unit. Based on your EOI queue priority order (Queue Number: <strong>#{$queueNumber}</strong>), your turn is now active.
+                    </p>
+
+                    <!-- Credentials Card -->
+                    <div style="background: #F8FAFC; border-radius: 16px; border: 1.5px solid rgba(0, 61, 166, 0.06); padding: 24px; margin-bottom: 30px;">
+                        <h3 style="font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 800; color: #003DA6; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 16px 0;">
+                            Portal Access Credentials
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500;">Login Email</td>
+                                <td style="padding: 10px 0; color: #0F172A; font-weight: 600; font-size: 14px; text-align: right;">{$email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500; border-top: 1px dashed rgba(0, 61, 166, 0.1);">Temporary Password</td>
+                                <td style="padding: 10px 0; color: #003DA6; font-weight: 800; font-size: 14px; text-align: right; border-top: 1px dashed rgba(0, 61, 166, 0.1); font-family: monospace;">{$password}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Action Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{$loginUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                            Log In & Select Your Unit Now
+                        </a>
+                    </div>
+
+                    <p style="color: #64748B; font-size: 12.5px; line-height: 1.6; margin: 0; text-align: center;">
+                        Please log in to pick your building, floor, and unit. Once you select a unit, it will be blocked for you temporarily.
+                    </p>
+
+                </div>
+
+                <!-- Footer -->
+                <div style="background: #F8FAFC; border-top: 1px solid rgba(0, 61, 166, 0.05); padding: 30px 40px; text-align: center;">
+                    <p style="color: #001A70; font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px 0;">
+                        Mountain View Developments
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; line-height: 1.5; margin: 0;">
+                        © 2026 Mountain View Developments. All rights reserved.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+        HTML;
+    }
+
+    /**
+     * Build HTML content for unit reserved email.
+     */
+    private static function buildUnitReservedEmailContent(
+        string $clientName,
+        string $unitNumber,
+        string $projectName,
+        int $deadlineHours,
+        string $expiryDate
+    ): string {
+        return <<<HTML
+        <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
+                
+                <!-- Header / Logo Area -->
+                <div style="background: linear-gradient(135deg, #001A70 0%, #003DA6 100%); padding: 40px; text-align: center; position: relative;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(197, 168, 128, 0.15) 0%, transparent 60%);"></div>
+                    <h1 style="color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; position: relative; z-index: 2;">
+                        MOUNTAIN VIEW
+                    </h1>
+                    <p style="color: #C5A880; font-family: 'Outfit', Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; margin: 6px 0 0 0; position: relative; z-index: 2;">
+                        Luxury Living Redefined
+                    </p>
+                </div>
+
+                <!-- Body Content -->
+                <div style="padding: 40px 35px; background: #ffffff;">
+                    
+                    <!-- Confirmation Icon and Title -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(34, 197, 94, 0.1); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                            <span style="color: #22c55e; font-size: 24px; font-weight: bold; line-height: 1;">✓</span>
+                        </div>
+                        <h2 style="font-family: 'Outfit', Arial, sans-serif; font-size: 20px; font-weight: 800; color: #001A70; margin: 0;">
+                            Unit Reserved Successfully
+                        </h2>
+                        <p style="color: #64748B; font-size: 13px; margin: 6px 0 0 0;">
+                            Your unit hold is active. Please complete contract signing before the deadline.
+                        </p>
+                    </div>
+
+                    <!-- Greeting -->
+                    <p style="color: #0F172A; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                        Dear <strong>{$clientName}</strong>,
+                    </p>
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                        You have successfully selected and reserved **Unit {$unitNumber}** in **{$projectName}**. 
+                    </p>
+
+                    <!-- Expiry Alert Card -->
+                    <div style="background: rgba(239, 68, 68, 0.03); border: 1.5px solid rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 24px; margin-bottom: 30px;">
+                        <h3 style="font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
+                            ⚠️ Contracting Signature Deadline
+                        </h3>
+                        <p style="color: #475569; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px 0;">
+                            Please note that this unit hold is temporary. You are required to sign the official contract and complete the reservation protocol at our offices within the allocated window of **{$deadlineHours} hours**.
+                        </p>
+                        <table style="width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid rgba(239, 68, 68, 0.08);">
+                            <tr>
+                                <td style="padding: 10px 12px; color: #64748B; font-size: 13px; font-weight: 500;">Reserved Unit</td>
+                                <td style="padding: 10px 12px; color: #0F172A; font-weight: 700; font-size: 13.5px; text-align: right;">Unit {$unitNumber}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 12px; color: #64748B; font-size: 13px; font-weight: 500; border-top: 1px solid rgba(0, 0, 0, 0.05);">Expires On</td>
+                                <td style="padding: 10px 12px; color: #ef4444; font-weight: 800; font-size: 13.5px; text-align: right; border-top: 1px solid rgba(0, 0, 0, 0.05);">{$expiryDate}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <p style="color: #64748B; font-size: 13px; line-height: 1.6; margin: 0 0 30px 0; text-align: center;">
+                        <strong>Important Note:</strong> If the contract is not signed and the initial down payment finalized by the expiration date above, **your unit hold will be cancelled automatically**, and the unit will be released back to the public market.
+                    </p>
+
+                </div>
+
+                <!-- Footer -->
+                <div style="background: #F8FAFC; border-top: 1px solid rgba(0, 61, 166, 0.05); padding: 30px 40px; text-align: center;">
+                    <p style="color: #001A70; font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px 0;">
+                        Mountain View Developments
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; line-height: 1.5; margin: 0;">
+                        © 2026 Mountain View Developments. All rights reserved.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+        HTML;
+    }
+
+    /**
      * Build HTML content for approval email.
      */
     private static function buildApprovalEmailContent(

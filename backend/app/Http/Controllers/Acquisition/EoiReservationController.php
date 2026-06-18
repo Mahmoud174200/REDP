@@ -353,4 +353,96 @@ class EoiReservationController extends Controller
             'data'    => $reservation->fresh(),
         ]);
     }
+
+    /**
+     * POST /api/v1/acquisition/eoi-reservations/invite-batch
+     * Invite a batch of approved EOI reservations to reserve their unit (FIFO order).
+     */
+    public function inviteBatch(Request $request): JsonResponse
+    {
+        $fields = $request->validate([
+            'project_id'                 => 'required|uuid',
+            'count'                      => 'required|integer|min:1|max:500',
+            'contracting_deadline_hours' => 'required|integer|min:1|max:720',
+        ]);
+
+        $projectId = $fields['project_id'];
+        $count = (int) $fields['count'];
+        $deadlineHours = (int) $fields['contracting_deadline_hours'];
+
+        // Fetch approved reservations that haven't been invited yet, ordered by queue_number (FIFO)
+        $reservations = EoiReservation::where('project_id', $projectId)
+            ->where('status', EoiReservation::STATUS_APPROVED)
+            ->whereNull('invited_at')
+            ->orderByRaw('queue_number IS NULL, queue_number ASC')
+            ->limit($count)
+            ->get();
+
+        if ($reservations->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No approved EOI reservations found that are eligible for invitation.',
+            ], 404);
+        }
+
+        $invitedClients = [];
+
+        foreach ($reservations as $reservation) {
+            DB::transaction(function () use ($reservation, $deadlineHours, &$invitedClients) {
+                // Find or create User account for client login
+                $user = \App\Models\User::where('email', $reservation->client_email)->first();
+                $generatedPassword = null;
+
+                if (!$user) {
+                    $generatedPassword = Str::random(10);
+                    $user = \App\Models\User::create([
+                        'id'        => (string) Str::uuid(),
+                        'name'      => $reservation->client_name,
+                        'email'     => $reservation->client_email,
+                        'phone'     => $reservation->client_phone,
+                        'password'  => bcrypt($generatedPassword),
+                        'role'      => 'client',
+                        'status'    => 'active',
+                    ]);
+                } else {
+                    $generatedPassword = Str::random(10);
+                    $user->update([
+                        'password'  => bcrypt($generatedPassword),
+                    ]);
+                }
+
+                // Update reservation record with invitation details
+                $reservation->update([
+                    'invited_at'                 => now(),
+                    'contracting_deadline_hours' => $deadlineHours,
+                ]);
+
+                // Send Email 2 (Invitation with temp password)
+                try {
+                    EoiEmailService::sendInvitationEmail($reservation, $generatedPassword);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send invitation email: " . $e->getMessage());
+                }
+
+                $invitedClients[] = [
+                    'name'         => $reservation->client_name,
+                    'email'        => $reservation->client_email,
+                    'queue_number' => $reservation->queue_number,
+                ];
+            });
+        }
+
+        // Log audit trail
+        AuditLogService::log('EOI_INVITE_BATCH', $request->user()?->id, [
+            'project_id'                 => $projectId,
+            'count'                      => count($invitedClients),
+            'contracting_deadline_hours' => $deadlineHours,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully invited ' . count($invitedClients) . ' clients.',
+            'data'    => $invitedClients,
+        ]);
+    }
 }
