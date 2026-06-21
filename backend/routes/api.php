@@ -471,7 +471,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/units/{unitId}/regenerate-3d', [$tripoCtrl, 'regenerateUnit3D']);
         Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
-<<<<<<< HEAD
+        Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
 
         // ── Master Plan Module ──
         $mpCtrl = \App\Http\Controllers\Admin\MasterPlanController::class;
@@ -506,9 +506,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/projects/{projectId}/amenities', [$mpCtrl, 'createAmenity']);
         Route::put('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'updateAmenity']);
         Route::delete('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'deleteAmenity']);
-=======
-        Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
->>>>>>> 85f2cf9a9d05064999765876930bbbf24157e5e3
     });
 
     // ══════════════════════════════════════════════════════════
