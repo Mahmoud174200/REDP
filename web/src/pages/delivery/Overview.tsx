@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Users, QrCode, ShieldCheck, Car, Key, Sparkles, Plus, Calendar, AlertTriangle, ArrowRight, CheckCircle, UserPlus, Wrench, DollarSign, RefreshCw, X, Home, CreditCard, Phone, Trash2, Clock, Zap, Droplets, Hammer, Paintbrush, Wind, Send, Tag, ChevronRight, CircleDot, Eye, Bell, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -436,12 +435,12 @@ const Overview: React.FC = () => {
   const fmtCurrency = (val: number) => new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(val);
 
   const serviceIcons: Record<string, React.ReactNode> = {
-    electrician: <Zap size={18} style={{ color: '#f59e0b' }} />,
-    plumber: <Droplets size={18} style={{ color: '#3b82f6' }} />,
-    carpenter: <Hammer size={18} style={{ color: '#8b5cf6' }} />,
-    painter: <Paintbrush size={18} style={{ color: '#ec4899' }} />,
-    ac_technician: <Wind size={18} style={{ color: '#06b6d4' }} />,
-    general: <Wrench size={18} style={{ color: '#6b7280' }} />,
+    electrician: <i className="fa-solid fa-bolt" style={{ color: '#f59e0b', fontSize: '16px' }}></i>,
+    plumber: <i className="fa-solid fa-faucet-drip" style={{ color: '#3b82f6', fontSize: '16px' }}></i>,
+    carpenter: <i className="fa-solid fa-hammer" style={{ color: '#8b5cf6', fontSize: '16px' }}></i>,
+    painter: <i className="fa-solid fa-paintbrush" style={{ color: '#ec4899', fontSize: '16px' }}></i>,
+    ac_technician: <i className="fa-solid fa-wind" style={{ color: '#06b6d4', fontSize: '16px' }}></i>,
+    general: <i className="fa-solid fa-screwdriver-wrench" style={{ color: '#6b7280', fontSize: '16px' }}></i>,
   };
 
   const statusColors: Record<string, string> = {
@@ -481,7 +480,7 @@ const Overview: React.FC = () => {
       boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '10px',
       animation: 'slideInRight 0.3s ease'
     }}>
-      {toast.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+      {toast.type === 'success' ? <i className="fa-solid fa-circle-check" style={{ fontSize: '18px' }}></i> : <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '18px' }}></i>}
       {toast.msg}
     </div>
   ) : null;
@@ -510,7 +509,7 @@ const Overview: React.FC = () => {
             background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px',
             width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: 'var(--text-muted)'
-          }}><X size={16} /></button>
+          }}><i className="fa-solid fa-xmark" style={{ fontSize: '16px' }}></i></button>
         </div>
         <div style={{ padding: '24px' }}>{children}</div>
       </div>
@@ -530,7 +529,7 @@ const Overview: React.FC = () => {
         <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Key style={{ color: 'var(--color-success)', width: '32px', height: '32px' }} />
+              <i className="fa-solid fa-key" style={{ color: 'var(--color-success)', fontSize: '32px' }}></i>
               🔑 Handover & Inspection Control Hub
             </h1>
             <p>Monitor quality control checklists, inspect units, and manage scheduled handovers.</p>
@@ -544,7 +543,7 @@ const Overview: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Building2 style={{ color: 'var(--color-primary)' }} />
+              <i className="fa-solid fa-building" style={{ color: 'var(--color-primary)', fontSize: '24px' }}></i>
             </div>
             <div>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Total Projects</span>
@@ -554,7 +553,7 @@ const Overview: React.FC = () => {
 
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle style={{ color: 'var(--color-success)' }} />
+              <i className="fa-solid fa-circle-check" style={{ color: 'var(--color-success)', fontSize: '24px' }}></i>
             </div>
             <div>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Handed Over Units</span>
@@ -564,7 +563,7 @@ const Overview: React.FC = () => {
 
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Key style={{ color: 'var(--color-warning)' }} />
+              <i className="fa-solid fa-key" style={{ color: 'var(--color-warning)', fontSize: '24px' }}></i>
             </div>
             <div>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Pending Handovers</span>
@@ -574,7 +573,7 @@ const Overview: React.FC = () => {
 
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <AlertTriangle style={{ color: 'var(--color-danger)' }} />
+              <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--color-danger)', fontSize: '24px' }}></i>
             </div>
             <div>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Active QC Snags</span>
@@ -590,11 +589,11 @@ const Overview: React.FC = () => {
           <div className="glass-panel" style={{ padding: '25px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar style={{ color: 'var(--color-primary)' }} />
+                <i className="fa-solid fa-calendar-days" style={{ color: 'var(--color-primary)', fontSize: '20px' }}></i>
                 Scheduled Handovers List (جدول مواعيد تسليم الوحدات)
               </h2>
               <Link to="/delivery/handover" className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                Go to Control Desk <ArrowRight size={14} />
+                Go to Control Desk <i className="fa-solid fa-arrow-right" style={{ fontSize: '14px' }}></i>
               </Link>
             </div>
 
@@ -641,7 +640,7 @@ const Overview: React.FC = () => {
           {/* Right Panel: Recent Snags */}
           <div className="glass-panel" style={{ padding: '25px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle style={{ color: 'var(--color-danger)' }} />
+              <i className="fa-solid fa-triangle-exclamation" style={{ color: 'var(--color-danger)', fontSize: '20px' }}></i>
               Recent Defects & QC Snags (الملاحظات والعيوب المكتشفة مؤخراً)
             </h2>
 
@@ -681,16 +680,16 @@ const Overview: React.FC = () => {
   // ═══════════════════════════════════════════════════════════════
 
   const tabs = [
-    { id: 'overview', label: 'My Unit', icon: <Home size={16} /> },
-    { id: 'contract', label: 'Contract (العقد)', icon: <ShieldCheck size={16} /> },
-    { id: 'payments', label: 'Payments (الأقساط)', icon: <CreditCard size={16} /> },
-    { id: 'family', label: 'Family', icon: <Users size={16} /> },
-    { id: 'vehicles', label: 'Vehicles', icon: <Car size={16} /> },
-    { id: 'services', label: 'Services', icon: <Wrench size={16} /> },
-    { id: 'notifications', label: 'Notifications (الإشعارات)', icon: <Bell size={16} /> },
-    { id: 'files', label: 'Files (الملفات)', icon: <FileText size={16} /> },
-    { id: 'guests', label: 'Guest Passes', icon: <QrCode size={16} /> },
-    { id: 'resale', label: 'Resale', icon: <RefreshCw size={16} /> },
+    { id: 'overview', label: 'My Unit', icon: <i className="fa-solid fa-house" style={{ fontSize: '14px' }}></i> },
+    { id: 'contract', label: 'Contract (العقد)', icon: <i className="fa-solid fa-file-contract" style={{ fontSize: '14px' }}></i> },
+    { id: 'payments', label: 'Payments (الأقساط)', icon: <i className="fa-solid fa-credit-card" style={{ fontSize: '14px' }}></i> },
+    { id: 'family', label: 'Family', icon: <i className="fa-solid fa-users" style={{ fontSize: '14px' }}></i> },
+    { id: 'vehicles', label: 'Vehicles', icon: <i className="fa-solid fa-car" style={{ fontSize: '14px' }}></i> },
+    { id: 'services', label: 'Services', icon: <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '14px' }}></i> },
+    { id: 'notifications', label: 'Notifications (الإشعارات)', icon: <i className="fa-solid fa-bell" style={{ fontSize: '14px' }}></i> },
+    { id: 'files', label: 'Files (الملفات)', icon: <i className="fa-solid fa-file-lines" style={{ fontSize: '14px' }}></i> },
+    { id: 'guests', label: 'Guest Passes', icon: <i className="fa-solid fa-qrcode" style={{ fontSize: '14px' }}></i> },
+    { id: 'resale', label: 'Resale', icon: <i className="fa-solid fa-arrows-rotate" style={{ fontSize: '14px' }}></i> },
   ];
 
   return (
@@ -698,54 +697,96 @@ const Overview: React.FC = () => {
       <ToastNotification />
 
       {/* ═══ HEADER ═══ */}
-      <div className="glass-panel" style={{ padding: '28px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="glass-panel" style={{
+        padding: '28px 30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(16, 185, 129, 0.02) 100%)',
+        border: '1px solid rgba(16, 185, 129, 0.15)',
+        borderRadius: '16px'
+      }}>
         <div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Home style={{ color: 'var(--color-success)', width: '30px', height: '30px' }} />
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
+            <i className="fa-solid fa-house-user" style={{ color: 'var(--color-success)', fontSize: '26px' }}></i>
             🏠 Homeowner Portal
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Manage your unit, family, vehicles, payments, and service requests — all in one place.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', fontWeight: 500 }}>
+            Manage your unit configurations, family members, guest passes, and service tickets in real-time.
           </p>
         </div>
-        <button onClick={refreshDashboard} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <RefreshCw size={14} /> Refresh
+        <button onClick={refreshDashboard} className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '12px', cursor: 'pointer' }}>
+          <i className="fa-solid fa-rotate" style={{ fontSize: '12px' }}></i> Refresh Dashboard
         </button>
       </div>
 
       {/* ═══ UNIT SUMMARY CARD ═══ */}
       {unitInfo && (
         <div className="glass-panel" style={{
-          padding: '24px 30px',
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(59,130,246,0.04) 100%)',
-          borderLeft: '4px solid var(--color-success)'
+          padding: '28px 30px',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(59, 130, 246, 0.04) 100%)',
+          borderLeft: '5px solid var(--color-success)',
+          borderTop: '1px solid rgba(16, 185, 129, 0.1)',
+          borderRight: '1px solid rgba(59, 130, 246, 0.1)',
+          borderBottom: '1px solid rgba(59, 130, 246, 0.1)',
+          borderRadius: '16px',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)'
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '20px', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unit</span>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginTop: '2px' }}>{unitInfo.unit_number}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '24px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-success)' }}>
+                <i className="fa-solid fa-building" style={{ fontSize: '18px' }}></i>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unit Code</span>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-main)' }}>{unitInfo.unit_number}</h3>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project</span>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px' }}>{unitInfo.project_name}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                <i className="fa-solid fa-city" style={{ fontSize: '18px' }}></i>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Compound</span>
+                <h3 style={{ fontSize: '1rem', fontWeight: 750, marginTop: '2px', color: 'var(--text-main)' }}>{unitInfo.project_name}</h3>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</span>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px', textTransform: 'capitalize' }}>{unitInfo.type} • {unitInfo.bedrooms}BR / {unitInfo.bathrooms}BA</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a78bfa' }}>
+                <i className="fa-solid fa-layer-group" style={{ fontSize: '18px' }}></i>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Specifications</span>
+                <h3 style={{ fontSize: '0.92rem', fontWeight: 750, marginTop: '2px', color: 'var(--text-main)', textTransform: 'capitalize' }}>
+                  {unitInfo.type} • {unitInfo.bedrooms}BR / {unitInfo.bathrooms}BA
+                </h3>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Area</span>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px' }}>{unitInfo.area} m² • Floor {unitInfo.floor}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)' }}>
+                <i className="fa-solid fa-compass" style={{ fontSize: '18px' }}></i>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Area Size</span>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 750, marginTop: '2px', color: 'var(--text-main)' }}>
+                  {unitInfo.area} m² • Floor {unitInfo.floor}
+                </h3>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Delivery Date</span>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px', color: 'var(--color-success)' }}>
-                {unitInfo.handover_date ? new Date(unitInfo.handover_date).toLocaleDateString('en-GB') : unitInfo.project_delivery_date ? new Date(unitInfo.project_delivery_date).toLocaleDateString('en-GB') : '—'}
-              </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-success)' }}>
+                <i className="fa-solid fa-calendar-check" style={{ fontSize: '18px' }}></i>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Handover Date</span>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 750, marginTop: '2px', color: 'var(--color-success)' }}>
+                  {unitInfo.handover_date ? new Date(unitInfo.handover_date).toLocaleDateString('en-GB') : unitInfo.project_delivery_date ? new Date(unitInfo.project_delivery_date).toLocaleDateString('en-GB') : '—'}
+                </h3>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</span>
-              <span className={`badge badge-${unitInfo.status === 'sold' ? 'success' : unitInfo.status === 'reserved' ? 'warning' : 'primary'}`} style={{ marginTop: '6px', display: 'inline-block' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Property Status</span>
+              <span className={`badge badge-${unitInfo.status === 'sold' ? 'success' : unitInfo.status === 'reserved' ? 'warning' : 'primary'}`} style={{ marginTop: '6px', padding: '4px 12px', borderRadius: '20px', fontWeight: 700, fontSize: '0.68rem' }}>
                 {unitInfo.status.toUpperCase()}
               </span>
             </div>
@@ -755,22 +796,24 @@ const Overview: React.FC = () => {
 
       {/* ═══ TAB NAVIGATION ═══ */}
       <div style={{
-        display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)',
-        borderRadius: '14px', padding: '5px', border: '1px solid rgba(255,255,255,0.06)',
-        overflowX: 'auto'
+        display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.02)',
+        borderRadius: '16px', padding: '6px', border: '1px solid rgba(255,255,255,0.06)',
+        overflowX: 'auto',
+        scrollbarWidth: 'none'
       }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '10px 18px', borderRadius: '10px', border: 'none',
-              background: activeTab === tab.id ? 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(59,130,246,0.15))' : 'transparent',
+              padding: '12px 20px', borderRadius: '12px', border: 'none',
+              background: activeTab === tab.id ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'transparent',
               color: activeTab === tab.id ? 'var(--text-main)' : 'var(--text-muted)',
-              fontWeight: activeTab === tab.id ? 700 : 500, fontSize: '0.82rem',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
-              transition: 'all 0.2s ease', whiteSpace: 'nowrap',
-              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(16,185,129,0.15)' : 'none'
+              fontWeight: activeTab === tab.id ? 700 : 500, fontSize: '0.85rem',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', whiteSpace: 'nowrap',
+              boxShadow: activeTab === tab.id ? '0 4px 14px rgba(16,185,129,0.1)' : 'none',
+              borderBottom: activeTab === tab.id ? '1px solid rgba(16,185,129,0.2)' : 'none'
             }}
           >
             {tab.icon} {tab.label}
@@ -906,7 +949,7 @@ const Overview: React.FC = () => {
           {/* Financial Quick View */}
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={18} style={{ color: 'var(--color-success)' }} /> Financial Summary
+              <i className="fa-solid fa-coins" style={{ color: 'var(--color-success)', fontSize: '16px' }}></i> Financial Summary
             </h3>
             {financialSummary ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -947,14 +990,14 @@ const Overview: React.FC = () => {
           {/* Quick Stats */}
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={18} style={{ color: '#f59e0b' }} /> Quick Stats
+              <i className="fa-solid fa-circle-info" style={{ color: '#f59e0b', fontSize: '16px' }}></i> Quick Stats
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               {[
-                { label: 'Family Members', value: familyMembers.length, icon: <Users size={20} />, color: '#8b5cf6' },
-                { label: 'Vehicles', value: vehicles.length, icon: <Car size={20} />, color: '#3b82f6' },
-                { label: 'Service Requests', value: serviceRequests.length, icon: <Wrench size={20} />, color: '#f59e0b' },
-                { label: 'Guest Passes', value: activePasses.length, icon: <QrCode size={20} />, color: '#10b981' },
+                { label: 'Family Members', value: familyMembers.length, icon: <i className="fa-solid fa-users" style={{ fontSize: '18px' }}></i>, color: '#8b5cf6' },
+                { label: 'Vehicles', value: vehicles.length, icon: <i className="fa-solid fa-car" style={{ fontSize: '18px' }}></i>, color: '#3b82f6' },
+                { label: 'Service Requests', value: serviceRequests.length, icon: <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '18px' }}></i>, color: '#f59e0b' },
+                { label: 'Guest Passes', value: activePasses.length, icon: <i className="fa-solid fa-qrcode" style={{ fontSize: '18px' }}></i>, color: '#10b981' },
               ].map((stat, i) => (
                 <div key={i} style={{
                   padding: '16px', borderRadius: '12px',
@@ -972,7 +1015,7 @@ const Overview: React.FC = () => {
           {/* Recent Activity */}
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={18} style={{ color: 'var(--color-primary)' }} /> Recent Activity
+              <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-primary)', fontSize: '16px' }}></i> Recent Activity
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {serviceRequests.slice(0, 3).map(sr => (
@@ -980,7 +1023,7 @@ const Overview: React.FC = () => {
                   padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', gap: '12px'
                 }}>
-                  {serviceIcons[sr.service_type] || <Wrench size={18} />}
+                  {serviceIcons[sr.service_type] || <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '16px', color: '#6b7280' }}></i>}
                   <div style={{ flex: 1 }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{sr.title}</span>
                     <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -1009,7 +1052,7 @@ const Overview: React.FC = () => {
       {activeTab === 'contract' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} /> Contract Details (تفاصيل العقد)
+            <i className="fa-solid fa-shield-halved" style={{ fontSize: '20px', color: 'var(--color-primary)' }}></i> Contract Details (تفاصيل العقد)
           </h2>
 
           {contractInfo ? (
@@ -1055,7 +1098,7 @@ const Overview: React.FC = () => {
                       className="btn-primary"
                       style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <FileText size={15} /> Download Contract PDF / تحميل العقد
+                      <i className="fa-solid fa-file-pdf" style={{ fontSize: '15px' }}></i> Download Contract PDF / تحميل العقد
                     </a>
                   </div>
                 )}
@@ -1063,7 +1106,7 @@ const Overview: React.FC = () => {
             </div>
           ) : (
             <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <ShieldCheck size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <i className="fa-solid fa-shield-halved" style={{ fontSize: '48px', color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }}></i>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No active contract found for this account.</p>
             </div>
           )}
@@ -1076,12 +1119,12 @@ const Overview: React.FC = () => {
       {activeTab === 'notifications' && (
         <div>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Bell size={20} style={{ color: '#f59e0b' }} /> Inbox Notifications (الإشعارات والرسائل)
+            <i className="fa-solid fa-bell" style={{ fontSize: '20px', color: '#f59e0b' }}></i> Inbox Notifications (الإشعارات والرسائل)
           </h2>
 
           {notifications.length === 0 ? (
             <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <Bell size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <i className="fa-solid fa-bell" style={{ fontSize: '48px', color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }}></i>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No notifications in your inbox.</p>
             </div>
           ) : (
@@ -1099,7 +1142,7 @@ const Overview: React.FC = () => {
                     color: n.channel === 'email' ? 'var(--color-primary)' : 'var(--color-success)',
                     flexShrink: 0
                   }}>
-                    <Bell size={18} />
+                    <i className="fa-solid fa-bell" style={{ fontSize: '18px' }}></i>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: '8px' }}>
@@ -1139,7 +1182,7 @@ const Overview: React.FC = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <FileText size={20} style={{ color: 'var(--color-success)' }} /> My Vault Files (الملفات والمستندات)
+              <i className="fa-solid fa-file-lines" style={{ fontSize: '20px', color: 'var(--color-success)' }}></i> My Vault Files (الملفات والمستندات)
             </h2>
             <input
               type="text"
@@ -1153,7 +1196,7 @@ const Overview: React.FC = () => {
 
           {files.filter(f => f.title.toLowerCase().includes(fileSearch.toLowerCase())).length === 0 ? (
             <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <FileText size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <i className="fa-solid fa-file-lines" style={{ fontSize: '48px', color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }}></i>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No documents found matching your search.</p>
             </div>
           ) : (
@@ -1168,7 +1211,7 @@ const Overview: React.FC = () => {
                     background: 'rgba(16,185,129,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--color-success)', flexShrink: 0
                   }}>
-                    <FileText size={20} />
+                    <i className="fa-solid fa-file-lines" style={{ fontSize: '20px' }}></i>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h4 style={{ fontSize: '0.88rem', fontWeight: 750, marginBottom: '6px', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.title}>
@@ -1192,7 +1235,7 @@ const Overview: React.FC = () => {
                         className="btn-secondary"
                         style={{ padding: '6px 12px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
-                        <Eye size={12} /> View Document / عرض
+                        <i className="fa-solid fa-eye" style={{ fontSize: '12px' }}></i> View Document / عرض
                       </a>
                     </div>
                   </div>
@@ -1208,94 +1251,184 @@ const Overview: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'family' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={20} style={{ color: '#8b5cf6' }} /> Family Members (أفراد الأسرة)
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}>
+              <i className="fa-solid fa-users" style={{ fontSize: '22px', color: '#8b5cf6' }}></i> Family Members (أفراد الأسرة)
             </h2>
-            <button onClick={() => setShowFamilyForm(true)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <UserPlus size={14} /> Add Member
+            <button onClick={() => setShowFamilyForm(true)} className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderRadius: '12px' }}>
+              <i className="fa-solid fa-user-plus" style={{ fontSize: '16px' }}></i> Add Member
             </button>
           </div>
 
           {familyMembers.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <Users size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No family members added yet.</p>
-              <button onClick={() => setShowFamilyForm(true)} className="btn-primary" style={{ marginTop: '16px', padding: '10px 20px', fontSize: '0.82rem' }}>
-                <UserPlus size={14} /> Add Your First Family Member
+            <div className="glass-panel" style={{ padding: '60px 40px', textAlign: 'center', border: '1px dashed rgba(139, 92, 246, 0.25)', borderRadius: '16px' }}>
+              <i className="fa-solid fa-users" style={{ fontSize: '56px', color: '#8b5cf6', marginBottom: '16px', opacity: 0.5 }}></i>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>No family members added yet.</p>
+              <button onClick={() => setShowFamilyForm(true)} className="btn-primary" style={{ marginTop: '20px', padding: '12px 24px', fontSize: '0.85rem', borderRadius: '12px', cursor: 'pointer' }}>
+                <i className="fa-solid fa-user-plus" style={{ fontSize: '16px' }}></i> Add Your First Family Member
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
               {familyMembers.map(member => (
                 <div key={member.id} className="glass-panel" style={{
-                  padding: '20px', display: 'flex', gap: '16px', alignItems: 'start',
-                  borderLeft: '3px solid #8b5cf6'
-                }}>
-                  <div style={{
-                    width: '48px', height: '48px', borderRadius: '12px',
-                    background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1.4rem', flexShrink: 0, overflow: 'hidden'
-                  }}>
-                    {member.photo_url ? (
-                      <img 
-                        src={getPhotoUrl(member.photo_url) || ''} 
-                        alt={member.name} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                          const parent = (e.target as HTMLElement).parentElement;
-                          if (parent) {
-                            const span = document.createElement('span');
-                            span.innerText = relationEmoji[member.relationship] || '👤';
-                            span.style.fontSize = '1.4rem';
-                            parent.appendChild(span);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span>{relationEmoji[member.relationship] || '👤'}</span>
-                    )}
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(139, 92, 246, 0.15)',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(139, 92, 246, 0.02) 100%)',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  position: 'relative'
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 24px rgba(139, 92, 246, 0.1)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139, 92, 246, 0.15)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.03)';
+                }}
+                >
+                  {/* Top Header Row with photo & name */}
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <div style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      border: '2px solid rgba(139, 92, 246, 0.3)',
+                      background: 'rgba(139, 92, 246, 0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      boxShadow: '0 4px 10px rgba(139, 92, 246, 0.1)'
+                    }}>
+                      {member.photo_url ? (
+                        <img 
+                          src={getPhotoUrl(member.photo_url) || ''} 
+                          alt={member.name} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                            const parent = (e.target as HTMLElement).parentElement;
+                            if (parent) {
+                              const span = document.createElement('span');
+                              span.innerText = relationEmoji[member.relationship] || '👤';
+                              span.style.fontSize = '1.8rem';
+                              parent.appendChild(span);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '1.8rem' }}>{relationEmoji[member.relationship] || '👤'}</span>
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {member.name}
+                      </h4>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 750,
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: 'rgba(139, 92, 246, 0.12)',
+                        color: '#FFE0B2',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        textTransform: 'uppercase',
+                        display: 'inline-block',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {relationEmoji[member.relationship]} {member.relationship}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '4px' }}>{member.name}</h4>
-                    <span style={{
-                      fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '6px',
-                      background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', textTransform: 'capitalize'
-                    }}>{member.relationship}</span>
-                    {member.phone && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={12} /> {member.phone}
-                      </div>
-                    )}
-                    {member.national_id && (
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                        ID: {member.national_id}
-                      </div>
-                    )}
+
+                  {/* Body with structured metadata */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.04)',
+                    fontSize: '0.8rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                      <i className="fa-solid fa-phone" style={{ fontSize: '14px', color: '#8b5cf6', flexShrink: 0 }}></i>
+                      <span style={{ fontWeight: 600, fontSize: '0.75rem', width: '85px', display: 'inline-block' }}>Phone:</span>
+                      <strong style={{ color: 'var(--text-main)' }}>{member.phone || '—'}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                      <i className="fa-solid fa-id-card" style={{ fontSize: '14px', color: '#8b5cf6', flexShrink: 0 }}></i>
+                      <span style={{ fontWeight: 600, fontSize: '0.75rem', width: '85px', display: 'inline-block' }}>National ID:</span>
+                      <strong style={{ color: 'var(--text-main)', fontFamily: 'monospace' }}>{member.national_id || '—'}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                      <i className="fa-solid fa-calendar" style={{ fontSize: '14px', color: '#8b5cf6', flexShrink: 0 }}></i>
+                      <span style={{ fontWeight: 600, fontSize: '0.75rem', width: '85px', display: 'inline-block' }}>Date of Birth:</span>
+                      <strong style={{ color: 'var(--text-main)' }}>
+                        {member.date_of_birth ? new Date(member.date_of_birth).toLocaleDateString('en-GB') : '—'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Footer buttons row */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
                     <button 
                       onClick={() => setSelectedMemberForId(member)}
                       className="btn-secondary" 
                       style={{ 
-                        marginTop: '10px', 
-                        padding: '4px 10px', 
-                        fontSize: '0.72rem', 
+                        flex: 1,
+                        padding: '8px 12px', 
+                        fontSize: '0.75rem', 
                         display: 'inline-flex', 
                         alignItems: 'center', 
+                        justifyContent: 'center',
                         gap: '6px',
+                        borderRadius: '10px',
                         border: '1px solid rgba(139,92,246,0.3)',
                         background: 'rgba(139,92,246,0.05)',
-                        color: '#a78bfa'
+                        color: '#a78bfa',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <QrCode size={13} /> Generate Smart ID Card
+                      <i className="fa-solid fa-qrcode" style={{ fontSize: '14px' }}></i> Smart Access Badge
+                    </button>
+                    
+                    <button 
+                      onClick={() => handleRemoveFamily(member.id)} 
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.08)', 
+                        border: '1px solid rgba(239, 68, 68, 0.2)', 
+                        borderRadius: '10px',
+                        width: '34px', 
+                        height: '34px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        cursor: 'pointer', 
+                        color: '#ef4444', 
+                        flexShrink: 0,
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Remove Member"
+                    >
+                      <i className="fa-solid fa-trash-can" style={{ fontSize: '15px' }}></i>
                     </button>
                   </div>
-                  <button onClick={() => handleRemoveFamily(member.id)} style={{
-                    background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '8px',
-                    width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#ef4444', flexShrink: 0
-                  }}><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
@@ -1355,7 +1488,7 @@ const Overview: React.FC = () => {
                   />
                 </div>
                 <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px' }} disabled={formLoading}>
-                  <UserPlus size={16} /> {formLoading ? 'Adding...' : 'Add Family Member'}
+                  <i className="fa-solid fa-user-plus" style={{ fontSize: '16px' }}></i> {formLoading ? 'Adding...' : 'Add Family Member'}
                 </button>
               </form>
             </Modal>
@@ -1597,57 +1730,123 @@ const Overview: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'vehicles' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Car size={20} style={{ color: '#3b82f6' }} /> Registered Vehicles (السيارات المسجلة)
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+              <i className="fa-solid fa-car" style={{ fontSize: '22px', color: '#3b82f6' }}></i> Registered Vehicles (السيارات المسجلة)
             </h2>
-            <button onClick={() => setShowVehicleForm(true)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Plus size={14} /> Add Vehicle
+            <button onClick={() => setShowVehicleForm(true)} className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderRadius: '12px' }}>
+              <i className="fa-solid fa-plus" style={{ fontSize: '16px' }}></i> Add Vehicle
             </button>
           </div>
 
           {vehicles.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <Car size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No vehicles registered yet.</p>
-              <button onClick={() => setShowVehicleForm(true)} className="btn-primary" style={{ marginTop: '16px', padding: '10px 20px', fontSize: '0.82rem' }}>
-                <Plus size={14} /> Register Your First Vehicle
+            <div className="glass-panel" style={{ padding: '60px 40px', textAlign: 'center', border: '1px dashed rgba(59, 130, 246, 0.25)', borderRadius: '16px' }}>
+              <i className="fa-solid fa-car" style={{ fontSize: '56px', color: '#3b82f6', marginBottom: '16px', opacity: 0.5 }}></i>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>No vehicles registered yet.</p>
+              <button onClick={() => setShowVehicleForm(true)} className="btn-primary" style={{ marginTop: '20px', padding: '12px 24px', fontSize: '0.85rem', borderRadius: '12px', cursor: 'pointer' }}>
+                <i className="fa-solid fa-plus" style={{ fontSize: '16px' }}></i> Register Your First Vehicle
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
               {vehicles.map(veh => (
                 <div key={veh.id} className="glass-panel" style={{
-                  padding: '20px', display: 'flex', gap: '16px', alignItems: 'start',
-                  borderLeft: '3px solid #3b82f6'
-                }}>
+                  padding: '24px',
+                  display: 'flex',
+                  gap: '16px',
+                  alignItems: 'center',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(59, 130, 246, 0.15)',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(59, 130, 246, 0.02) 100%)',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  position: 'relative'
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 24px rgba(59, 130, 246, 0.1)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59, 130, 246, 0.15)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.03)';
+                }}
+                >
                   <div style={{
-                    width: '48px', height: '48px', borderRadius: '12px',
-                    background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '14px',
+                    background: 'rgba(59, 130, 246, 0.12)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 10px rgba(59, 130, 246, 0.1)'
                   }}>
-                    <Car size={22} style={{ color: '#3b82f6' }} />
+                    <i className="fa-solid fa-car" style={{ fontSize: '24px', color: '#3b82f6' }}></i>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '4px' }}>
-                      {veh.make} {veh.model} {veh.year ? `(${veh.year})` : ''}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {veh.make} {veh.model}
                     </h4>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <span style={{
-                        fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '6px',
-                        background: 'rgba(59,130,246,0.1)', color: '#3b82f6'
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(59, 130, 246, 0.08)',
+                        color: '#FFE0B2',
+                        border: '1px solid rgba(59, 130, 246, 0.15)'
                       }}>🎨 {veh.color}</span>
+                      
                       <span style={{
-                        fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '6px',
-                        background: 'rgba(245,158,11,0.1)', color: '#f59e0b'
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(245, 158, 11, 0.08)',
+                        color: '#FFE0B2',
+                        border: '1px solid rgba(245, 158, 11, 0.15)',
+                        fontFamily: 'monospace'
                       }}>🔢 {veh.plate_number}</span>
+                      
+                      {veh.year && (
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          color: 'var(--text-muted)'
+                        }}>📅 {veh.year}</span>
+                      )}
                     </div>
                   </div>
-                  <button onClick={() => handleRemoveVehicle(veh.id)} style={{
-                    background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '8px',
-                    width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#ef4444', flexShrink: 0
-                  }}><Trash2 size={14} /></button>
+                  
+                  <button 
+                    onClick={() => handleRemoveVehicle(veh.id)} 
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)', 
+                      border: '1px solid rgba(239, 68, 68, 0.2)', 
+                      borderRadius: '10px',
+                      width: '34px', 
+                      height: '34px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      cursor: 'pointer', 
+                      color: '#ef4444', 
+                      flexShrink: 0,
+                      transition: 'all 0.2s ease',
+                      marginLeft: 'auto'
+                    }}
+                    title="Remove Vehicle"
+                  >
+                    <i className="fa-solid fa-trash-can" style={{ fontSize: '15px' }}></i>
+                  </button>
                 </div>
               ))}
             </div>
@@ -1682,7 +1881,7 @@ const Overview: React.FC = () => {
                   <input type="text" className="form-control" value={vehPlate} onChange={e => setVehPlate(e.target.value)} placeholder="e.g. أ ب ج 1234" required />
                 </div>
                 <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px' }} disabled={formLoading}>
-                  <Car size={16} /> {formLoading ? 'Registering...' : 'Register Vehicle'}
+                  <i className="fa-solid fa-car" style={{ fontSize: '16px' }}></i> {formLoading ? 'Registering...' : 'Register Vehicle'}
                 </button>
               </form>
             </Modal>
@@ -1695,28 +1894,64 @@ const Overview: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'payments' && (
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CreditCard size={20} style={{ color: '#10b981' }} /> Payment Schedule & History (جدول الأقساط)
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)' }}>
+            <i className="fa-solid fa-credit-card" style={{ fontSize: '22px', color: '#10b981' }}></i> Payment Schedule & History (جدول الأقساط)
           </h2>
 
           {/* Payment Summary Cards */}
           {financialSummary && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-              <div className="glass-panel" style={{ padding: '20px', borderLeft: '3px solid #10b981' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Total Contract Value</span>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '4px' }}>{fmtCurrency(financialSummary.total_amount)}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+              <div className="glass-panel" style={{
+                padding: '24px',
+                borderLeft: '4px solid #10b981',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(16, 185, 129, 0.02) 100%)',
+                borderRadius: '16px',
+                borderTop: '1px solid rgba(16, 185, 129, 0.1)',
+                borderRight: '1px solid rgba(16, 185, 129, 0.1)',
+                borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)'
+              }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Contract Value</span>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-main)' }}>{fmtCurrency(financialSummary.total_amount)}</h3>
               </div>
-              <div className="glass-panel" style={{ padding: '20px', borderLeft: '3px solid #3b82f6' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Total Paid</span>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: 'var(--color-success)' }}>{fmtCurrency(financialSummary.paid_amount)}</h3>
+              <div className="glass-panel" style={{
+                padding: '24px',
+                borderLeft: '4px solid #3b82f6',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(59, 130, 246, 0.02) 100%)',
+                borderRadius: '16px',
+                borderTop: '1px solid rgba(59, 130, 246, 0.1)',
+                borderRight: '1px solid rgba(59, 130, 246, 0.1)',
+                borderBottom: '1px solid rgba(59, 130, 246, 0.1)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)'
+              }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Paid</span>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '8px', color: 'var(--color-success)' }}>{fmtCurrency(financialSummary.paid_amount)}</h3>
               </div>
-              <div className="glass-panel" style={{ padding: '20px', borderLeft: '3px solid #f59e0b' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Outstanding Balance</span>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: 'var(--color-warning)' }}>{fmtCurrency(financialSummary.outstanding)}</h3>
+              <div className="glass-panel" style={{
+                padding: '24px',
+                borderLeft: '4px solid #f59e0b',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(245, 158, 11, 0.02) 100%)',
+                borderRadius: '16px',
+                borderTop: '1px solid rgba(245, 158, 11, 0.1)',
+                borderRight: '1px solid rgba(245, 158, 11, 0.1)',
+                borderBottom: '1px solid rgba(245, 158, 11, 0.1)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)'
+              }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Outstanding Balance</span>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '8px', color: 'var(--color-warning)' }}>{fmtCurrency(financialSummary.outstanding)}</h3>
               </div>
-              <div className="glass-panel" style={{ padding: '20px', borderLeft: `3px solid ${financialSummary.overdue_installments > 0 ? '#ef4444' : '#10b981'}` }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Overdue Installments</span>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: financialSummary.overdue_installments > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+              <div className="glass-panel" style={{
+                padding: '24px',
+                borderLeft: `4px solid ${financialSummary.overdue_installments > 0 ? '#ef4444' : '#10b981'}`,
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, ${financialSummary.overdue_installments > 0 ? 'rgba(239, 68, 68, 0.02)' : 'rgba(16, 185, 129, 0.02)'} 100%)`,
+                borderRadius: '16px',
+                borderTop: `1px solid ${financialSummary.overdue_installments > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}`,
+                borderRight: `1px solid ${financialSummary.overdue_installments > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}`,
+                borderBottom: `1px solid ${financialSummary.overdue_installments > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'}`,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)'
+              }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overdue Installments</span>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginTop: '8px', color: financialSummary.overdue_installments > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
                   {financialSummary.overdue_installments}
                 </h3>
               </div>
@@ -1724,7 +1959,7 @@ const Overview: React.FC = () => {
           )}
 
           {/* Installments Table */}
-          <div className="glass-panel" style={{ padding: '24px' }}>
+          <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
             {payments.length === 0 ? (
               <p style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 No installment data available. You may not have a payment plan set up yet.
@@ -1734,11 +1969,11 @@ const Overview: React.FC = () => {
                 <table className="premium-table">
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Amount</th>
-                      <th>Due Date</th>
-                      <th>Paid Date</th>
-                      <th>Status</th>
+                      <th style={{ padding: '14px 18px', borderBottom: '2px solid rgba(255,255,255,0.06)', fontSize: '0.75rem', fontWeight: 800 }}>#</th>
+                      <th style={{ padding: '14px 18px', borderBottom: '2px solid rgba(255,255,255,0.06)', fontSize: '0.75rem', fontWeight: 800 }}>Amount</th>
+                      <th style={{ padding: '14px 18px', borderBottom: '2px solid rgba(255,255,255,0.06)', fontSize: '0.75rem', fontWeight: 800 }}>Due Date</th>
+                      <th style={{ padding: '14px 18px', borderBottom: '2px solid rgba(255,255,255,0.06)', fontSize: '0.75rem', fontWeight: 800 }}>Paid Date</th>
+                      <th style={{ padding: '14px 18px', borderBottom: '2px solid rgba(255,255,255,0.06)', fontSize: '0.75rem', fontWeight: 800 }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1751,27 +1986,39 @@ const Overview: React.FC = () => {
                         partial: 'Partial / دفع جزئي',
                       };
                       return (
-                        <tr key={p.id} style={{ background: status === 'overdue' ? 'rgba(239,68,68,0.05)' : 'transparent' }}>
-                          <td><strong>{p.installment_number || '—'}</strong></td>
-                          <td>
+                        <tr key={p.id} style={{ 
+                          background: status === 'overdue' ? 'rgba(239,68,68,0.03)' : 'transparent',
+                          transition: 'background 0.2s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = status === 'overdue' ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.02)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = status === 'overdue' ? 'rgba(239,68,68,0.03)' : 'transparent'; }}
+                        >
+                          <td style={{ padding: '16px 18px', fontSize: '0.85rem' }}><strong>{p.installment_number || '—'}</strong></td>
+                          <td style={{ padding: '16px 18px', fontSize: '0.85rem' }}>
                             {status === 'partial' ? (
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <strong>{fmtCurrency(p.amount)}</strong>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                <strong style={{ color: 'var(--text-main)' }}>{fmtCurrency(p.amount)}</strong>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                                   Paid: {fmtCurrency(p.paid_amount || 0)}
                                 </span>
                               </div>
                             ) : (
-                              <strong>{fmtCurrency(p.amount)}</strong>
+                              <strong style={{ color: 'var(--text-main)' }}>{fmtCurrency(p.amount)}</strong>
                             )}
                           </td>
-                          <td>{p.due_date || '—'}</td>
-                          <td>{p.paid_at || '—'}</td>
-                          <td>
+                          <td style={{ padding: '16px 18px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.due_date || '—'}</td>
+                          <td style={{ padding: '16px 18px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.paid_at || '—'}</td>
+                          <td style={{ padding: '16px 18px' }}>
                             <span style={{
-                              fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px',
+                              fontSize: '0.7rem', 
+                              fontWeight: 750, 
+                              padding: '4px 12px', 
+                              borderRadius: '20px',
                               background: status === 'overdue' ? 'rgba(239,68,68,0.12)' : `${statusColors[status] || '#6b7280'}15`,
                               color: status === 'overdue' ? '#ef4444' : statusColors[status] || '#6b7280',
+                              border: status === 'overdue' ? '1px solid rgba(239,68,68,0.2)' : `1px solid ${statusColors[status]}25`,
+                              display: 'inline-block',
+                              letterSpacing: '0.3px'
                             }}>
                               {labelMap[status] || status.toUpperCase()}
                             </span>
@@ -1792,71 +2039,122 @@ const Overview: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'services' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Wrench size={20} style={{ color: '#f59e0b' }} /> Service Requests (طلبات الخدمة)
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+              <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '22px', color: '#f59e0b' }}></i> Service Requests (طلبات الخدمة)
             </h2>
-            <button onClick={() => setShowServiceForm(true)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Plus size={14} /> New Request
+            <button onClick={() => setShowServiceForm(true)} className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', borderRadius: '12px' }}>
+              <i className="fa-solid fa-plus" style={{ fontSize: '16px' }}></i> New Request
             </button>
           </div>
 
           {/* Service Type Quick Actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px', marginBottom: '30px' }}>
             {[
-              { type: 'electrician', label: 'Electrician (كهربائي)', icon: <Zap size={24} />, color: '#f59e0b' },
-              { type: 'plumber', label: 'Plumber (سباك)', icon: <Droplets size={24} />, color: '#3b82f6' },
-              { type: 'carpenter', label: 'Carpenter (نجار)', icon: <Hammer size={24} />, color: '#8b5cf6' },
-              { type: 'ac_technician', label: 'AC Tech (تكييف)', icon: <Wind size={24} />, color: '#06b6d4' },
-              { type: 'painter', label: 'Painter (دهان)', icon: <Paintbrush size={24} />, color: '#ec4899' },
-              { type: 'general', label: 'General (عام)', icon: <Wrench size={24} />, color: '#6b7280' },
+              { type: 'electrician', label: 'Electrician (كهربائي)', icon: <i className="fa-solid fa-bolt" style={{ fontSize: '24px' }}></i>, color: '#f59e0b' },
+              { type: 'plumber', label: 'Plumber (سباك)', icon: <i className="fa-solid fa-droplet" style={{ fontSize: '24px' }}></i>, color: '#3b82f6' },
+              { type: 'carpenter', label: 'Carpenter (نجار)', icon: <i className="fa-solid fa-hammer" style={{ fontSize: '24px' }}></i>, color: '#8b5cf6' },
+              { type: 'ac_technician', label: 'AC Tech (تكييف)', icon: <i className="fa-solid fa-wind" style={{ fontSize: '24px' }}></i>, color: '#06b6d4' },
+              { type: 'painter', label: 'Painter (دهان)', icon: <i className="fa-solid fa-paintbrush" style={{ fontSize: '24px' }}></i>, color: '#ec4899' },
+              { type: 'general', label: 'General (عام)', icon: <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '24px' }}></i>, color: '#6b7280' },
             ].map(s => (
               <button key={s.type} onClick={() => { setSrvType(s.type); setShowServiceForm(true); }} style={{
-                padding: '20px 14px', borderRadius: '14px', border: `1px solid ${s.color}20`,
-                background: `${s.color}08`, cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: '10px', transition: 'all 0.2s ease', color: 'var(--text-main)'
+                padding: '24px 16px', 
+                borderRadius: '16px', 
+                border: `1px solid rgba(255,255,255,0.06)`,
+                background: `linear-gradient(135deg, rgba(255,255,255,0.02) 0%, ${s.color}05 100%)`, 
+                cursor: 'pointer', 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                gap: '12px', 
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)', 
+                color: 'var(--text-main)',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.02)'
               }}
-                onMouseEnter={e => { (e.target as HTMLElement).style.transform = 'translateY(-2px)'; (e.target as HTMLElement).style.boxShadow = `0 4px 16px ${s.color}20`; }}
-                onMouseLeave={e => { (e.target as HTMLElement).style.transform = ''; (e.target as HTMLElement).style.boxShadow = ''; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = `${s.color}40`;
+                e.currentTarget.style.boxShadow = `0 8px 24px ${s.color}15`;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = '';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.02)';
+              }}
               >
-                <div style={{ color: s.color }}>{s.icon}</div>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600, textAlign: 'center' }}>{s.label}</span>
+                <div style={{ 
+                  color: s.color, 
+                  background: `${s.color}12`, 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  border: `1px solid ${s.color}25`
+                }}>{s.icon}</div>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, textAlign: 'center' }}>{s.label}</span>
               </button>
             ))}
           </div>
 
           {/* Service Requests List */}
           {serviceRequests.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <Wrench size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No service requests yet. Click any service type above to get started.</p>
+            <div className="glass-panel" style={{ padding: '60px 40px', textAlign: 'center', border: '1px dashed rgba(245, 158, 11, 0.25)', borderRadius: '16px' }}>
+              <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '56px', color: '#f59e0b', marginBottom: '16px', opacity: 0.5 }}></i>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>No service requests yet. Click any service type above to get started.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {serviceRequests.map(sr => (
                 <div key={sr.id} className="glass-panel" style={{
-                  padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px',
-                  borderLeft: `3px solid ${statusColors[sr.status] || '#6b7280'}`
-                }}>
+                  padding: '20px 24px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '20px',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderLeft: `4px solid ${statusColors[sr.status] || '#6b7280'}`,
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+                >
                   <div style={{
-                    width: '42px', height: '42px', borderRadius: '10px',
+                    width: '48px', 
+                    height: '48px', 
+                    borderRadius: '12px',
                     background: `${statusColors[sr.status] || '#6b7280'}10`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    border: `1px solid ${statusColors[sr.status]}20`,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    flexShrink: 0
                   }}>
-                    {serviceIcons[sr.service_type] || <Wrench size={18} />}
+                    {serviceIcons[sr.service_type] || <i className="fa-solid fa-screwdriver-wrench" style={{ fontSize: '20px' }}></i>}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{sr.title}</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '3px' }}>{sr.description.substring(0, 80)}{sr.description.length > 80 ? '...' : ''}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>{sr.title}</h4>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.4 }}>{sr.description}</p>
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                     <span style={{
-                      fontSize: '0.65rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px',
+                      fontSize: '0.68rem', 
+                      fontWeight: 750, 
+                      padding: '4px 12px', 
+                      borderRadius: '20px',
                       background: `${statusColors[sr.status] || '#6b7280'}15`,
-                      color: statusColors[sr.status] || '#6b7280', textTransform: 'uppercase'
+                      color: statusColors[sr.status] || '#6b7280', 
+                      border: `1px solid ${statusColors[sr.status]}25`,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.3px',
+                      display: 'inline-block'
                     }}>{sr.status.replace('_', ' ')}</span>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      {new Date(sr.created_at).toLocaleDateString()}
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {new Date(sr.created_at).toLocaleDateString('en-GB')}
                     </div>
                   </div>
                 </div>
@@ -1897,7 +2195,7 @@ const Overview: React.FC = () => {
                   </select>
                 </div>
                 <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px' }} disabled={formLoading}>
-                  <Send size={16} /> {formLoading ? 'Submitting...' : 'Submit Service Request'}
+                  <i className="fa-solid fa-paper-plane" style={{ fontSize: '16px' }}></i> {formLoading ? 'Submitting...' : 'Submit Service Request'}
                 </button>
               </form>
             </Modal>
@@ -1913,7 +2211,7 @@ const Overview: React.FC = () => {
           {/* Pass Creator */}
           <div className="glass-panel" style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <QrCode style={{ color: 'var(--color-success)' }} /> Request Guest Pass
+              <i className="fa-solid fa-qrcode" style={{ color: 'var(--color-success)', fontSize: '20px' }}></i> Request Guest Pass
             </h2>
 
             <form onSubmit={handleCreatePass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1930,7 +2228,7 @@ const Overview: React.FC = () => {
                 <input type="text" className="form-control" value={carPlate} onChange={e => setCarPlate(e.target.value)} placeholder="e.g. س ص ع 9876" />
               </div>
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} disabled={passLoading}>
-                <QrCode size={16} /> {passLoading ? 'Generating...' : 'Generate Entry QR'}
+                <i className="fa-solid fa-qrcode" style={{ fontSize: '16px' }}></i> {passLoading ? 'Generating...' : 'Generate Entry QR'}
               </button>
             </form>
 
@@ -1938,7 +2236,7 @@ const Overview: React.FC = () => {
               <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
                 <h4 style={{ color: 'var(--color-success)', fontWeight: 700, fontSize: '0.9rem' }}>QR Code Generated!</h4>
                 <div style={{ padding: '16px', background: '#ffffff', borderRadius: 'var(--radius-sm)', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <QrCode style={{ color: '#0b0f19', width: '80px', height: '80px' }} />
+                  <i className="fa-solid fa-qrcode" style={{ color: '#0b0f19', fontSize: '80px' }}></i>
                 </div>
                 <div style={{ textAlign: 'center', fontSize: '0.75rem' }}>
                   <h4 style={{ fontWeight: 600 }}>{generatedPass.name}</h4>
@@ -1951,7 +2249,7 @@ const Overview: React.FC = () => {
           {/* Visitor Log */}
           <div className="glass-panel" style={{ padding: '28px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Key style={{ color: 'var(--color-secondary)' }} /> Active Guest Passes Log
+              <i className="fa-solid fa-key" style={{ color: 'var(--color-secondary)', fontSize: '20px' }}></i> Active Guest Passes Log
             </h2>
             <table className="premium-table">
               <thead>
@@ -1984,14 +2282,14 @@ const Overview: React.FC = () => {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RefreshCw size={20} style={{ color: '#ec4899' }} /> Resale Requests (طلبات إعادة البيع)
+              <i className="fa-solid fa-arrows-rotate" style={{ fontSize: '20px', color: '#ec4899' }}></i> Resale Requests (طلبات إعادة البيع)
             </h2>
             {unitInfo && (
               <button onClick={() => setShowResaleForm(true)} className="btn-primary" style={{
                 padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px',
                 background: 'linear-gradient(135deg, #ec4899, #be185d)'
               }}>
-                <RefreshCw size={14} /> Request Resale
+                <i className="fa-solid fa-arrows-rotate" style={{ fontSize: '14px' }}></i> Request Resale
               </button>
             )}
           </div>
@@ -2011,7 +2309,7 @@ const Overview: React.FC = () => {
           {/* Resale Requests List */}
           {resaleRequests.length === 0 ? (
             <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <RefreshCw size={48} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }} />
+              <i className="fa-solid fa-arrows-rotate" style={{ fontSize: '48px', color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.3 }}></i>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>You haven't submitted any resale requests yet.</p>
             </div>
           ) : (
@@ -2078,7 +2376,7 @@ const Overview: React.FC = () => {
                   width: '100%', justifyContent: 'center', padding: '12px', marginTop: '6px',
                   background: 'linear-gradient(135deg, #ec4899, #be185d)'
                 }} disabled={formLoading}>
-                  <Send size={16} /> {formLoading ? 'Submitting...' : 'Submit Resale Request'}
+                  <i className="fa-solid fa-paper-plane" style={{ fontSize: '16px' }}></i> {formLoading ? 'Submitting...' : 'Submit Resale Request'}
                 </button>
               </form>
             </Modal>
