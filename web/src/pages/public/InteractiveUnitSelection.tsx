@@ -923,7 +923,7 @@ const InteractiveUnitSelection: React.FC = () => {
                 }}
               >
                 <img
-                  src={projectMedia.project_image}
+                  src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
                   alt="Master Plan Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }}
                 />
@@ -3100,7 +3100,7 @@ const InteractiveUnitSelection: React.FC = () => {
             {/* Master Plan Image container */}
             <div style={{ flex: 1, position: 'relative', background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0, 61, 166, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
               <img
-                src={projectMedia.project_image}
+                src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
                 alt="Master Plan Fullscreen"
                 style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               />

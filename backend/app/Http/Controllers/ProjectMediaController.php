@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class ProjectMediaController extends Controller
 {
     /**
-     * Upload project master plan image.
+     * Upload project cover image (landing page).
      */
     public function uploadProjectImage(Request $request, string $projectId): JsonResponse
     {
@@ -29,6 +29,31 @@ class ProjectMediaController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Project image uploaded successfully.',
+            'data' => [
+                'image_url' => asset('storage/' . $path),
+                'path' => $path,
+            ],
+        ]);
+    }
+
+    /**
+     * Upload project master plan image.
+     */
+    public function uploadMasterPlanImage(Request $request, string $projectId): JsonResponse
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,jpg,png,webp|max:10240', // 10MB max
+        ]);
+
+        $project = Project::findOrFail($projectId);
+
+        $path = $request->file('image')->store('projects/' . $projectId . '/master_plan', 'public');
+
+        $project->update(['master_plan_image_url' => $path]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project master plan image uploaded successfully.',
             'data' => [
                 'image_url' => asset('storage/' . $path),
                 'path' => $path,
@@ -285,7 +310,8 @@ class ProjectMediaController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'project_image' => $project->image_url ? asset('storage/' . $project->image_url) : null,
+                'project_image' => $project->master_plan_image_url ? (str_starts_with($project->master_plan_image_url, 'http') ? $project->master_plan_image_url : asset('storage/' . $project->master_plan_image_url)) : null,
+                'cover_image' => $project->image_url ? (str_starts_with($project->image_url, 'http') ? $project->image_url : asset('storage/' . $project->image_url)) : null,
                 'building_images' => $buildingImages,
                 'floor_plan_images' => $floorPlanImages,
             ],

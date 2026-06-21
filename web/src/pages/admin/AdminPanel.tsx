@@ -26,6 +26,7 @@ interface ProjectItem {
   total_units: number;
   status: string; // 'planning', 'active', 'completed'
   created_at: string;
+  image_url?: string | null;
 }
 
 interface UnitItem {
@@ -233,7 +234,7 @@ const AdminPanel: React.FC = () => {
 
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
-  const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
+  const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; cover_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
   const [mediaBuildings, setMediaBuildings] = useState<any[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
@@ -273,6 +274,9 @@ const AdminPanel: React.FC = () => {
   const [formProjName, setFormProjName] = useState('');
   const [formProjLocation, setFormProjLocation] = useState('');
   const [formProjStatus, setFormProjStatus] = useState('planning');
+  const [formProjImage, setFormProjImage] = useState<string | null>(null);
+  const [selectedProjectImageFile, setSelectedProjectImageFile] = useState<File | null>(null);
+  const [uploadingProjImage, setUploadingProjImage] = useState(false);
 
   // Unit Form
   const [formUnitProjId, setFormUnitProjId] = useState('');
@@ -549,6 +553,8 @@ const AdminPanel: React.FC = () => {
     setFormProjName('');
     setFormProjLocation('');
     setFormProjStatus('planning');
+    setFormProjImage(null);
+    setSelectedProjectImageFile(null);
     setProjectModalMode('add');
     setShowProjectModal(true);
   };
@@ -558,6 +564,8 @@ const AdminPanel: React.FC = () => {
     setFormProjName(proj.name);
     setFormProjLocation(proj.location);
     setFormProjStatus(proj.status);
+    setFormProjImage((proj as any).image_url || null);
+    setSelectedProjectImageFile(null);
     setProjectModalMode('edit');
     setShowProjectModal(true);
   };
@@ -565,25 +573,40 @@ const AdminPanel: React.FC = () => {
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let projectId = selectedProject?.id;
       if (projectModalMode === 'add') {
-        await api.post('/admin/projects', {
+        const res = await api.post('/admin/projects', {
           name: formProjName,
           location: formProjLocation,
           status: formProjStatus
         });
+        projectId = res.data.data.id;
         alert('Project created successfully!');
-      } else if (selectedProject) {
-        await api.put(`/admin/projects/${selectedProject.id}`, {
+      } else if (selectedProject && projectId) {
+        await api.put(`/admin/projects/${projectId}`, {
           name: formProjName,
           location: formProjLocation,
           status: formProjStatus
         });
         alert('Project updated successfully!');
       }
+
+      if (selectedProjectImageFile && projectId) {
+        setUploadingProjImage(true);
+        const formData = new FormData();
+        formData.append('image', selectedProjectImageFile);
+        await api.post(`/admin/projects/${projectId}/image`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
       setShowProjectModal(false);
       fetchData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to submit project');
+    } finally {
+      setUploadingProjImage(false);
+      setSelectedProjectImageFile(null);
     }
   };
 
@@ -632,7 +655,7 @@ const AdminPanel: React.FC = () => {
       await fetch3DStatuses(project.id);
     } catch (err) {
       console.error('Failed to load project media', err);
-      setProjectMedia({ project_image: null, building_images: {}, floor_plan_images: {} });
+      setProjectMedia({ project_image: null, cover_image: null, building_images: {}, floor_plan_images: {} });
       setMediaBuildings([]);
     } finally {
       setMediaLoading(false);
@@ -758,12 +781,35 @@ const AdminPanel: React.FC = () => {
 
     setUploadingMediaKey('project');
     try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/master-plan-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert('Project master plan image uploaded successfully!');
+        setProjectMedia(prev => prev ? { ...prev, project_image: res.data.data.image_url } : null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  };
+
+  const handleUploadProjectCoverImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProjectForMedia || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingMediaKey('cover');
+    try {
       const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data?.success) {
-        alert('Project image uploaded successfully!');
-        setProjectMedia(prev => prev ? { ...prev, project_image: res.data.data.image_url } : null);
+        alert('Project cover image uploaded successfully!');
+        setProjectMedia(prev => prev ? { ...prev, cover_image: res.data.data.image_url } : null);
+        fetchData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Upload failed');
@@ -1569,7 +1615,22 @@ const AdminPanel: React.FC = () => {
               ) : (
                 filteredProjects.map((p) => (
                   <tr key={p.id}>
-                    <td><strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{p.name}</strong></td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url.startsWith('http') ? p.image_url : `http://127.0.0.1:8000/storage/${p.image_url}`}
+                            alt={p.name}
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-glass)' }}
+                          />
+                        ) : (
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(50, 71, 58, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                            <Building2 size={18} />
+                          </div>
+                        )}
+                        <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{p.name}</strong>
+                      </div>
+                    </td>
                     <td>{p.location}</td>
                     <td><span style={{ fontWeight: 700 }}>{p.total_units} units</span></td>
                     <td>
@@ -2782,6 +2843,35 @@ const AdminPanel: React.FC = () => {
                   <option value="completed">Completed & Handed Over</option>
                 </select>
               </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Project Cover Image / صورة غلاف المشروع</label>
+                <div style={{ marginTop: '4px' }}>
+                  <label className="custom-file-upload full-width">
+                    <UploadCloud size={16} />
+                    <span>{selectedProjectImageFile ? selectedProjectImageFile.name : 'Choose Cover Image / اختر صورة الغلاف'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setSelectedProjectImageFile(e.target.files[0]);
+                          setFormProjImage(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {uploadingProjImage && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading image...</span>}
+                {formProjImage && (
+                  <div style={{ marginTop: '10px' }}>
+                    <img
+                      src={formProjImage.startsWith('blob:') || formProjImage.startsWith('http') ? formProjImage : `http://127.0.0.1:8000/storage/${formProjImage}`}
+                      alt="Project Cover Preview"
+                      style={{ width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}
+                    />
+                  </div>
+                )}
+              </div>
 
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>
                 {projectModalMode === 'add' ? 'Create Project' : 'Save Changes'}
@@ -3372,15 +3462,17 @@ const AdminPanel: React.FC = () => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                 
-                {/* 1. Project Master Plan Image */}
-                <div style={{ padding: '20px', background: 'rgba(0,61,166,0.03)', border: '1.5px solid rgba(0,61,166,0.08)', borderRadius: 'var(--radius-md)' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 12px 0' }}>
-                    1. Compound Master Plan Image (المخطط العام للكمبوند)
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                        This image represents the overall layout of the project compound and is displayed to the user in the first stage of the interactive 3D Unit Selector.
+                {/* 1. Project-level Media (Master Plan & Cover Image) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  
+                  {/* Compound Master Plan Image */}
+                  <div style={{ padding: '20px', background: 'rgba(0,61,166,0.03)', border: '1.5px solid rgba(0,61,166,0.08)', borderRadius: 'var(--radius-md)' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 12px 0' }}>
+                      Compound Master Plan Image (المخطط العام للكمبوند)
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, minHeight: '36px' }}>
+                        This image represents the compound layout diagram and is shown to the user on the interactive 3D selector page.
                       </p>
                       <div style={{ marginTop: '4px' }}>
                         <label className="custom-file-upload full-width">
@@ -3393,24 +3485,64 @@ const AdminPanel: React.FC = () => {
                           />
                         </label>
                       </div>
-                      {uploadingMediaKey === 'project' && <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading master plan...</span>}
-                    </div>
-                    <div>
-                      {projectMedia?.project_image ? (
-                        <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', overflow: 'hidden' }}>
-                          <img
-                            src={projectMedia.project_image}
-                            alt="Master Plan"
-                            style={{ width: '100%', maxHeight: '120px', objectFit: 'contain' }}
-                          />
-                        </div>
-                      ) : (
-                        <div style={{ height: '100px', background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--text-muted)' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No Master Plan Image</span>
-                        </div>
-                      )}
+                      {uploadingMediaKey === 'project' && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading master plan...</span>}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+                        {projectMedia?.project_image ? (
+                          <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', overflow: 'hidden', width: '100%' }}>
+                            <img
+                              src={projectMedia.project_image}
+                              alt="Master Plan"
+                              style={{ width: '100%', maxHeight: '110px', objectFit: 'contain' }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ height: '110px', width: '100%', background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--text-muted)' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No Master Plan Image</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Project Cover Image */}
+                  <div style={{ padding: '20px', background: 'rgba(197,168,128,0.05)', border: '1.5px solid rgba(197,168,128,0.2)', borderRadius: 'var(--radius-md)' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#9a7a4c', margin: '0 0 12px 0' }}>
+                      Project Cover Image (صورة غلاف المشروع)
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, minHeight: '36px' }}>
+                        This image represents the luxury exterior rendering photo shown on the main homepage card for this project.
+                      </p>
+                      <div style={{ marginTop: '4px' }}>
+                        <label className="custom-file-upload full-width" style={{ borderColor: 'rgba(197,168,128,0.3)', color: '#9a7a4c' }}>
+                          <UploadCloud size={16} style={{ color: '#9a7a4c' }} />
+                          <span>Choose Cover Image / اختر صورة الغلاف</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleUploadProjectCoverImage}
+                          />
+                        </label>
+                      </div>
+                      {uploadingMediaKey === 'cover' && <span style={{ fontSize: '0.72rem', color: '#9a7a4c' }}>Uploading cover image...</span>}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+                        {projectMedia?.cover_image ? (
+                          <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(197,168,128,0.2)', overflow: 'hidden', width: '100%' }}>
+                            <img
+                              src={projectMedia.cover_image}
+                              alt="Project Cover"
+                              style={{ width: '100%', maxHeight: '110px', objectFit: 'contain' }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ height: '110px', width: '100%', background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--text-muted)' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No Cover Image</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
                 {/* 2. Building & Floor Plan Images */}

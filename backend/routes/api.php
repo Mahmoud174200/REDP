@@ -462,6 +462,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // Project Media Upload (Images at all levels)
         $mediaCtrl = \App\Http\Controllers\ProjectMediaController::class;
         Route::post('/projects/{projectId}/image', [$mediaCtrl, 'uploadProjectImage']);
+        Route::post('/projects/{projectId}/master-plan-image', [$mediaCtrl, 'uploadMasterPlanImage']);
         Route::post('/projects/{projectId}/building-image', [$mediaCtrl, 'uploadBuildingImage']);
         Route::post('/projects/{projectId}/floor-plan-image', [$mediaCtrl, 'uploadFloorPlanImage']);
         Route::post('/units/{unitId}/image', [$mediaCtrl, 'uploadUnitImage']);

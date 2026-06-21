@@ -250,12 +250,280 @@ const galleryImages = [
   }
 ];
 
+const getProjectCoverImage = (project: any) => {
+  if (project.image_url) {
+    if (project.image_url.startsWith('http')) {
+      if (!project.image_url.includes('placeholder')) {
+        return project.image_url;
+      }
+    } else if (!project.image_url.includes('placeholder')) {
+      // It's a local storage relative path
+      return `http://127.0.0.1:8000/storage/${project.image_url}`;
+    }
+  }
+  
+  // Fallback mapping based on project name (case-insensitive)
+  const name = (project.name || '').toLowerCase();
+  if (name.includes('creek')) {
+    return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'; // Creek/Lagoon curves
+  }
+  if (name.includes('lagoon') || name.includes('water')) {
+    return 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'; // Beachfront villa
+  }
+  if (name.includes('park') || name.includes('green') || name.includes('club')) {
+    return 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'; // Parkside apartments
+  }
+  if (name.includes('mansion') || name.includes('villa')) {
+    return 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80'; // Villa at sunset
+  }
+  // Default high-end luxury real estate photo
+  return 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80';
+};
+
+const getProjectMarketingDescription = (project: any, lang: 'en' | 'ar') => {
+  const name = (project.name || '').toLowerCase();
+  
+  if (name.includes('creek')) {
+    return lang === 'en' 
+      ? 'An elite botanical resort nestled around breathtaking crystal lagoons and curated garden structures. Offering unrivaled privacy, private beaches, bespoke boutique clubs, and modern automation, Creekview is the pinnacle of exclusive luxury in New Cairo.'
+      : 'منتجع بيئي فاخر يمتد حول بحيرات كريستالية ساحرة ومناظر طبيعية منسقة بعناية. يقدم مشروع "كريك فيو" خصوصية لا تضاهى، وشواطئ خاصة، ونوادي حصرية، ونظم تشغيل ذكية، ليمثل قمة العيش الفاخر في القاهرة الجديدة.';
+  }
+  
+  // Default fallback marketing text
+  return lang === 'en'
+    ? 'Discover a prestigious sanctuary where luxury architectural planning meets sprawling natural reserves. Crafted for those who demand ultimate luxury, privacy, custom payment plans, and superior investment security.'
+    : 'اكتشف ملاذاً عقارياً استثنائياً يجمع بين التصميم المعماري الفاخر والطبيعة الخلابة. صُمم خصيصاً لأصحاب الذوق الرفيع الراغبين في الخصوصية التامة، وخطط السداد المرنة، وأمان الاستثمار طويل الأجل.';
+};
+
+const getProjectAmenities = (project: any, lang: 'en' | 'ar') => {
+  const name = (project.name || '').toLowerCase();
+  
+  if (name.includes('creek')) {
+    return lang === 'en'
+      ? [
+          'Lush Botanical Gardens & Landscapes',
+          'Crystal Lagoons & Sandy Beaches',
+          'Bespoke Premium Boutique Clubhouse',
+          'Advanced Smart Home Automation'
+        ]
+      : [
+          'حدائق نباتية ومساحات خضراء خلابة',
+          'بحيرات كريستالية وشواطئ رملية خاصة',
+          'كلوب هاوس ونادي صحي حركي حصري',
+          'أنظمة تحكم منزلي ذكية ومتطورة'
+        ];
+  }
+  
+  return lang === 'en'
+    ? [
+        'Expansive Natural Parks & Trails',
+        'Premium Infinity Swimming Pools',
+        'Multi-purpose Sports & Fitness Hub',
+        '24/7 Signature Security & Guarding'
+      ]
+    : [
+        'متنزهات طبيعية ومسارات مشي واسعة',
+        'حمامات سباحة غير متناهية فاخرة',
+        'مجمع رياضي وصحي متكامل الخدمات',
+        'أنظمة أمن وحراسة ذكية على مدار الساعة'
+      ];
+};
+
+const ProjectImageSlider: React.FC<{ project: any; coverImg: string }> = ({ project, coverImg }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Collect images
+  const images = React.useMemo(() => {
+    const list = [coverImg];
+    
+    // Add master plan if present
+    if (project.master_plan_image_url) {
+      const mpUrl = project.master_plan_image_url.startsWith('http')
+        ? project.master_plan_image_url
+        : `http://127.0.0.1:8000/storage/${project.master_plan_image_url}`;
+      list.push(mpUrl);
+    }
+    
+    // Luxury fallbacks to make a full gallery
+    list.push('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80');
+    list.push('https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=80');
+    list.push('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80');
+    return list;
+  }, [coverImg, project.master_plan_image_url]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handleDotClick = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    setCurrentIndex(index);
+  };
+
+  return (
+    <div 
+      className="luxury-project-slider-wrapper"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        position: 'relative',
+        height: '380px',
+        width: '100%',
+        overflow: 'hidden',
+        background: '#000c24',
+      }}
+    >
+      {/* Slides */}
+      {images.map((imgUrl, idx) => (
+        <div
+          key={idx}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            opacity: idx === currentIndex ? 1 : 0,
+            transition: 'opacity 1s ease-in-out',
+            zIndex: idx === currentIndex ? 1 : 0,
+            pointerEvents: idx === currentIndex ? 'auto' : 'none'
+          }}
+        >
+          <img
+            src={imgUrl}
+            alt={`Slide ${idx + 1}`}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: idx === currentIndex ? 'scale(1.06)' : 'scale(1.0)',
+              transition: idx === currentIndex ? 'transform 10s ease-out' : 'none'
+            }}
+          />
+        </div>
+      ))}
+
+      {/* Dark overlay for text contrast and premium feel */}
+      <div 
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to top, rgba(0,10,40,0.85) 0%, rgba(0,10,40,0.2) 50%, rgba(0,10,40,0.4) 100%)',
+          zIndex: 2,
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* Left/Right Arrows */}
+      <button
+        type="button"
+        onClick={handlePrev}
+        style={{
+          position: 'absolute',
+          left: '16px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'rgba(0,15,61,0.75)',
+          border: '1px solid rgba(197,168,128,0.3)',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#C5A880',
+          cursor: 'pointer',
+          zIndex: 3,
+          opacity: isHovered ? 1 : 0,
+          transition: 'opacity 0.3s ease, background 0.2s ease',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#003DA6'; e.currentTarget.style.color = '#ffffff'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,15,61,0.75)'; e.currentTarget.style.color = '#C5A880'; }}
+      >
+        <ArrowLeft size={16} />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleNext}
+        style={{
+          position: 'absolute',
+          right: '16px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'rgba(0,15,61,0.75)',
+          border: '1px solid rgba(197,168,128,0.3)',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#C5A880',
+          cursor: 'pointer',
+          zIndex: 3,
+          opacity: isHovered ? 1 : 0,
+          transition: 'opacity 0.3s ease, background 0.2s ease',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#003DA6'; e.currentTarget.style.color = '#ffffff'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,15,61,0.75)'; e.currentTarget.style.color = '#C5A880'; }}
+      >
+        <ArrowRight size={16} />
+      </button>
+
+      {/* Dots Indicator */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '8px',
+          zIndex: 3
+        }}
+      >
+        {images.map((_, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={(e) => handleDotClick(e, idx)}
+            style={{
+              width: idx === currentIndex ? '24px' : '8px',
+              height: '8px',
+              borderRadius: '999px',
+              border: 'none',
+              background: idx === currentIndex ? '#C5A880' : 'rgba(255,255,255,0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   
   // Basic states
   const [lang, setLang] = useState<'en' | 'ar'>('en');
   const [projects, setProjects] = useState<any[]>([]);
+  const [activeProjectIndex, setActiveProjectIndex] = useState(0);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [units, setUnits] = useState<any[]>([]);
   const [loadingProjects, setLoadingProjects] = useState<boolean>(true);
@@ -312,6 +580,7 @@ const LandingPage: React.FC = () => {
       const res = await api.get('/v1/public/projects');
       if (res.data?.success) {
         setProjects(res.data.data || []);
+        setActiveProjectIndex(0);
         if (res.data.data?.length > 0) {
           setSelectedProjectId(res.data.data[0].id);
         }
@@ -794,6 +1063,129 @@ const LandingPage: React.FC = () => {
             font-size: 2.6rem !important;
           }
         }
+
+        /* Luxury Projects Section Design Styles */
+        .luxury-projects-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 48px;
+          margin-bottom: 54px;
+        }
+        
+        @keyframes projectCardFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .luxury-project-card {
+          position: relative;
+          display: flex;
+          flex-direction: row;
+          height: auto;
+          border-radius: 32px;
+          overflow: hidden;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+          border: 1px solid rgba(197, 168, 128, 0.25);
+          background: linear-gradient(135deg, #001233 0%, #00071c 100%);
+          transition: transform 0.5s cubic-bezier(0.25, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.25, 1, 0.3, 1), border-color 0.5s ease;
+          animation: projectCardFadeIn 0.5s cubic-bezier(0.25, 1, 0.3, 1) forwards;
+        }
+        
+        .luxury-project-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 24px 60px rgba(0, 61, 166, 0.3);
+          border-color: rgba(197, 168, 128, 0.6);
+        }
+        
+        .luxury-project-image-side {
+          width: 52%;
+          display: flex;
+          flex-direction: column;
+          align-self: stretch;
+          border-inline-end: 1px solid rgba(197, 168, 128, 0.15);
+          background: rgba(0, 10, 40, 0.2);
+        }
+        
+        .luxury-project-left-details {
+          padding: 30px 40px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          background: rgba(0, 10, 40, 0.3);
+          flex-grow: 1;
+        }
+        
+        .luxury-project-info-side {
+          width: 48%;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          align-self: stretch;
+        }
+        
+        .luxury-project-status-badge {
+          display: inline-block;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          padding: 6px 14px;
+          border-radius: 999px;
+          background: rgba(197, 168, 128, 0.95);
+          color: #00153D;
+          text-transform: uppercase;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Project Switching Navigation Controls */
+        .luxury-control-arrow {
+          background: none;
+          border: 1.5px solid #C5A880;
+          border-radius: 50%;
+          width: 46px;
+          height: 46px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #C5A880;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .luxury-control-arrow:hover {
+          background: #C5A880;
+          color: #001233;
+          box-shadow: 0 6px 15px rgba(197, 168, 128, 0.3);
+          transform: scale(1.05);
+        }
+        
+        @media (max-width: 992px) {
+          .luxury-project-card {
+            flex-direction: column !important;
+            height: auto !important;
+          }
+          .luxury-project-image-side {
+            width: 100% !important;
+            height: auto !important;
+            border-inline-end: none !important;
+          }
+          .luxury-project-slider-wrapper {
+            height: 300px !important;
+          }
+          .luxury-project-left-details {
+            padding: 24px 20px !important;
+          }
+          .luxury-project-info-side {
+            width: 100% !important;
+            padding: 32px 20px !important;
+          }
+        }
       `}} />
 
       {/* ───────────────────────────────────────────────────
@@ -815,7 +1207,6 @@ const LandingPage: React.FC = () => {
 
         <div className="topbar-links" style={{ display: 'flex', gap: 32 }}>
           <a href="#projects" className="mv-nav-link">{t.navProjects}</a>
-          <a href="/unit-selection" className="mv-nav-link" style={{ color: '#003DA6', fontWeight: 800 }}>{t.navUnitSelection}</a>
           <a href="#gallery" className="mv-nav-link">{t.navGallery}</a>
           <a href="#faq" className="mv-nav-link">{t.navFaq}</a>
           <a href="#contact" className="mv-nav-link">{t.navContact}</a>
@@ -1052,80 +1443,240 @@ const LandingPage: React.FC = () => {
             }} />
           </div>
         ) : (
-          <div className="grid-cards" style={{ gap: 32, marginBottom: 54 }}>
-            {projects.map((project: any) => {
-              const hasUnits = project.units_count > 0;
-              return (
-                <div key={project.id} className="mv-card" style={{
-                  padding: 32, display: 'flex', flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                      <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#001A70', fontFamily: 'var(--font-title)' }}>{project.name}</h3>
-                      <span className="badge" style={{
-                        fontSize: '0.68rem',
-                        background: project.status === 'active' ? 'rgba(22, 163, 74, 0.08)' : 'rgba(0, 61, 166, 0.05)',
-                        color: project.status === 'active' ? '#16a34a' : '#003DA6',
-                        border: project.status === 'active' ? '1px solid rgba(22, 163, 74, 0.2)' : '1px solid rgba(0, 61, 166, 0.2)',
-                        padding: '6px 12px', borderRadius: '999px', fontWeight: 700
-                      }}>
-                        {project.status.toUpperCase()}
-                      </span>
-                    </div>
+          <div>
+            {/* Elegant tabs switcher if there are multiple projects */}
+            {projects.length > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '32px', flexWrap: 'wrap' }}>
+                {projects.map((proj: any, idx: number) => (
+                  <button
+                    key={proj.id}
+                    type="button"
+                    onClick={() => setActiveProjectIndex(idx)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: idx === activeProjectIndex ? '#003DA6' : '#8a9ab0',
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      padding: '10px 20px',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.3s ease',
+                      fontFamily: 'var(--font-title)',
+                      letterSpacing: '0.02em'
+                    }}
+                  >
+                    {proj.name}
+                    {idx === activeProjectIndex && (
+                      <span style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: '20%',
+                        width: '60%',
+                        height: '3px',
+                        background: 'linear-gradient(90deg, #003DA6 0%, #C5A880 100%)',
+                        borderRadius: '99px'
+                      }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
-                        <MapPin size={16} color="#003DA6" />
-                        <span>{t.projectLocation}: <strong style={{ color: '#0f172a' }}>{project.location}</strong></span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
-                        <Calendar size={16} color="#003DA6" />
-                        <span>{t.projectDelivery}: <strong style={{ color: '#0f172a' }}>{project.delivery_date}</strong></span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.88rem', color: '#5c6c7f' }}>
-                        <Compass size={16} color="#003DA6" />
-                        <span>{t.projectAvailable}: <strong style={{ color: hasUnits ? '#16a34a' : '#ef4444' }}>
-                          {hasUnits ? `${project.units_count} ${lang === 'en' ? 'Units' : 'وحدة'}` : t.projectNoUnits}
-                        </strong></span>
-                      </div>
-                    </div>
+            {/* Premium centered visual track switcher with previous/next buttons */}
+            {projects.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', marginBottom: '36px' }}>
+                {/* Prev Project Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectIndex((prev) => (prev - 1 + projects.length) % projects.length)}
+                  className="luxury-control-arrow"
+                  aria-label="Previous Project"
+                >
+                  <ArrowLeft size={18} />
+                </button>
 
-                    {project.payment_plans && project.payment_plans.length > 0 && (
-                      <div style={{ borderTop: '1px solid rgba(0, 61, 166, 0.08)', paddingTop: 20, marginBottom: 28 }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C5A880', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 12 }}>
-                          {t.projectPlans}
+                {/* Progress Track Indicator */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#C5A880', fontWeight: 800, fontFamily: 'var(--font-title)', letterSpacing: '0.1em' }}>
+                    {String(activeProjectIndex + 1).padStart(2, '0')} / {String(projects.length).padStart(2, '0')}
+                  </span>
+                  <div style={{ width: '120px', height: '2px', background: 'rgba(197, 168, 128, 0.2)', position: 'relative', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      height: '100%',
+                      width: `${100 / projects.length}%`,
+                      background: 'linear-gradient(90deg, #003DA6, #C5A880)',
+                      transform: `translateX(${activeProjectIndex * 100}%)`,
+                      transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.3, 1)',
+                      borderRadius: '2px'
+                    }} />
+                  </div>
+                </div>
+
+                {/* Next Project Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveProjectIndex((prev) => (prev + 1) % projects.length)}
+                  className="luxury-control-arrow"
+                  aria-label="Next Project"
+                >
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* Slider container wrapping the active card */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '1250px', margin: '0 auto' }}>
+              {/* Active Project Card */}
+              {projects[activeProjectIndex] && (
+                <div key={projects[activeProjectIndex].id} className="luxury-project-card">
+                  {/* Left Side: Images Gallery / Slideshow & Technical Specs */}
+                  <div className="luxury-project-image-side">
+                    <ProjectImageSlider 
+                      project={projects[activeProjectIndex]} 
+                      coverImg={getProjectCoverImage(projects[activeProjectIndex])} 
+                    />
+                    
+                    {/* Left Details Container: Specs & Plans */}
+                    <div className="luxury-project-left-details">
+                      {/* Specs Details Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', borderBottom: '1.5px solid rgba(255,255,255,0.08)', paddingBottom: '20px', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(197, 168, 128, 0.1)', border: '1px solid rgba(197, 168, 128, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C5A880', flexShrink: 0 }}>
+                            <Calendar size={18} />
+                          </div>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.projectDelivery}</span>
+                            <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>{projects[activeProjectIndex].delivery_date}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: projects[activeProjectIndex].units_count > 0 ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: projects[activeProjectIndex].units_count > 0 ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: projects[activeProjectIndex].units_count > 0 ? '#22c55e' : '#ef4444', flexShrink: 0 }}>
+                            <Compass size={18} />
+                          </div>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.projectAvailable}</span>
+                            <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: projects[activeProjectIndex].units_count > 0 ? '#22c55e' : '#ef4444' }}>
+                              {projects[activeProjectIndex].units_count > 0 ? `${projects[activeProjectIndex].units_count} ${lang === 'en' ? 'Units' : 'وحدة'}` : t.projectNoUnits}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payment Plans Showcase */}
+                      {projects[activeProjectIndex].payment_plans && projects[activeProjectIndex].payment_plans.length > 0 && (
+                        <div>
+                          <span style={{ display: 'block', fontSize: '0.72rem', color: '#C5A880', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, marginBottom: '12px' }}>
+                            {t.projectPlans}
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {projects[activeProjectIndex].payment_plans.slice(0, 2).map((plan: any) => (
+                              <div key={plan.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(197, 168, 128, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)', padding: '12px 18px', borderRadius: '14px', border: '1px solid rgba(197, 168, 128, 0.15)' }}>
+                                <span style={{ fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.95)', fontWeight: 600 }}>
+                                  {lang === 'ar' ? (plan.name_ar || plan.name) : plan.name}
+                                </span>
+                                <strong style={{ fontSize: '0.82rem', color: '#C5A880', fontWeight: 700 }}>
+                                  {plan.down_payment_pct}% DP / {plan.installments}m
+                                </strong>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Side: Marketing Info, Amenities Showcase, EOI Button */}
+                  <div className="luxury-project-info-side">
+                    <div>
+                      {/* Top Row: Status Badge & Project Type */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <span className="luxury-project-status-badge">
+                          {projects[activeProjectIndex].status === 'active' 
+                            ? (lang === 'en' ? 'Active Phase' : 'مرحلة نشطة')
+                            : (lang === 'en' ? projects[activeProjectIndex].status.toUpperCase() : 'قريباً')
+                          }
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {project.payment_plans.slice(0, 3).map((plan: any) => (
-                            <div key={plan.id} style={{ fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', color: '#5c6c7f' }}>
-                              <span>• {lang === 'ar' ? (plan.name_ar || plan.name) : plan.name}</span>
-                              <strong style={{ color: '#0f172a' }}>{plan.down_payment_pct}% DP / {plan.installments}m</strong>
+                        <span style={{ fontSize: '0.75rem', color: '#C5A880', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                          {projects[activeProjectIndex].project_type || (lang === 'en' ? 'Luxury Compound' : 'كمبوند فاخر')}
+                        </span>
+                      </div>
+
+                      {/* Project Title & Location */}
+                      <h3 style={{ fontSize: '2.2rem', fontFamily: 'var(--font-title)', fontWeight: 800, color: '#ffffff', margin: '0 0 10px 0', letterSpacing: '-0.02em' }}>
+                        {projects[activeProjectIndex].name}
+                      </h3>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#C5A880', fontWeight: 700, marginBottom: '20px' }}>
+                        <MapPin size={15} />
+                        <span>{projects[activeProjectIndex].location}</span>
+                      </div>
+
+                      {/* Persuasive marketing copy */}
+                      <p style={{ fontSize: '0.92rem', lineHeight: '1.8', color: 'rgba(255, 255, 255, 0.78)', margin: '0 0 24px 0', fontWeight: 500 }}>
+                        {getProjectMarketingDescription(projects[activeProjectIndex], lang)}
+                      </p>
+
+                      {/* Premium Amenities list */}
+                      <div style={{ margin: '24px 0' }}>
+                        <span style={{ display: 'block', fontSize: '0.72rem', color: '#C5A880', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, marginBottom: '12px' }}>
+                          {lang === 'en' ? 'Signature Premium Amenities' : 'المرافق والخدمات الفاخرة'}
+                        </span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 20px' }}>
+                          {getProjectAmenities(projects[activeProjectIndex], lang).map((amenity: string, idx: number) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 550 }}>
+                              <CheckCircle size={14} color="#C5A880" style={{ flexShrink: 0 }} />
+                              <span>{amenity}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                    <button className="btn-luxury-secondary" onClick={() => {
-                      navigate('/unit-selection');
-                    }} style={{
-                      flex: 1, fontSize: '0.8rem', padding: '12px 14px', justifyContent: 'center'
-                    }}>
-                      <Layers size={15} color="#003DA6" />
-                      {t.viewUnits}
-                    </button>
-                    <button className="btn-luxury-primary" onClick={() => openEoiModal(project)} style={{
-                      fontSize: '0.8rem', padding: '12px 24px'
-                    }}>
-                      {t.heroCta}
-                    </button>
+                    {/* Booking EOI CTA button ONLY */}
+                    <div style={{ marginTop: '16px' }}>
+                      <button
+                        type="button"
+                        className="btn-luxury-drawer-primary"
+                        onClick={() => openEoiModal(projects[activeProjectIndex])}
+                        style={{
+                          width: '100%',
+                          padding: '16px 24px',
+                          fontSize: '0.88rem',
+                          borderRadius: '16px',
+                          background: 'linear-gradient(135deg, #d4af37 0%, #C5A880 50%, #aa7c11 100%)',
+                          boxShadow: '0 8px 24px rgba(197, 168, 128, 0.25)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          border: 'none',
+                          color: '#000c24',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 12px 30px rgba(197, 168, 128, 0.45)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(197, 168, 128, 0.25)';
+                        }}
+                      >
+                        <CreditCard size={16} />
+                        <span>{t.heroCta}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
         )}
       </section>

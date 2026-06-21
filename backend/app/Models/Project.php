@@ -18,6 +18,7 @@ class Project extends Model
         'delivery_date',
         'released_phases',
         'image_url',
+        'master_plan_image_url',
         // Master Plan fields
         'land_area',
         'land_area_unit',
