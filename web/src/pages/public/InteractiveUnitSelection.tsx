@@ -1086,159 +1086,145 @@ const InteractiveUnitSelection: React.FC = () => {
             </span>
           </div>
 
-<<<<<<< HEAD
           {/* Master Plan Image with Interactive Hotspots */}
-          <div style={{
-            position: 'relative',
-            minHeight: 450,
-            width: '100%',
-            borderRadius: 20,
-            overflow: 'hidden',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(0,61,166,0.08)',
-            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)',
-          }}>
-            <div style={{ position: 'relative', display: 'inline-block', width: '100%', height: '100%', maxWidth: '800px' }}>
-              <img
-                src={projectMedia.project_image}
-                alt="Master Plan"
-                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', maxHeight: '550px' }}
-                draggable={false}
-              />
+          {hotspots.length > 0 && (
+            <div style={{
+              position: 'relative',
+              minHeight: 450,
+              width: '100%',
+              borderRadius: 20,
+              overflow: 'hidden',
+              background: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(0,61,166,0.08)',
+              boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)',
+              marginBottom: 24,
+            }}>
+              <div style={{ position: 'relative', display: 'inline-block', width: '100%', height: '100%', maxWidth: '800px' }}>
+                <img
+                  src={projectMedia.project_image}
+                  alt="Master Plan"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', maxHeight: '550px' }}
+                  draggable={false}
+                />
 
-              {/* Hotspot Pins */}
-              {hotspots.map((h: any) => {
-                // Color code based on availability status
-                let statusColor = '#22c55e'; // green (available)
-                if (h.availability_status === 'sold_out') {
-                  statusColor = '#ef4444'; // red
-                } else if (h.availability_status === 'limited') {
-                  statusColor = '#f59e0b'; // amber/orange
-                } else if (h.availability_status === 'empty') {
-                  statusColor = '#94a3b8'; // grey
-                }
+                {/* Hotspot Pins */}
+                {hotspots.map((h: any) => {
+                  // Color code based on availability status
+                  let statusColor = '#22c55e'; // green (available)
+                  if (h.availability_status === 'sold_out') {
+                    statusColor = '#ef4444'; // red
+                  } else if (h.availability_status === 'limited') {
+                    statusColor = '#f59e0b'; // amber/orange
+                  } else if (h.availability_status === 'empty') {
+                    statusColor = '#94a3b8'; // grey
+                  }
 
-                return (
-                  <div
-                    key={h.id}
-                    onClick={() => {
-                      const b = buildings.find(item => item.name === h.building?.name);
-                      if (b) {
-                        handleSelectBuilding(b);
-                      }
-                    }}
-                    style={{
-                      position: 'absolute',
-                      left: `${h.x_percent}%`,
-                      top: `${h.y_percent}%`,
-                      transform: 'translate(-50%, -100%)',
-                      cursor: 'pointer',
-                      zIndex: 20,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                    }}
-                  >
-                    {/* Animated Pulsing Pin */}
-                    <div style={{
-                      position: 'relative',
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50% 50% 50% 0',
-                      background: statusColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                      transform: 'rotate(-45deg)',
-                      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.transform = 'rotate(-45deg) scale(1.2) translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
+                  return (
+                    <div
+                      key={h.id}
+                      onClick={() => {
+                        const b = buildings.find(item => item.name === h.building?.name);
+                        if (b) {
+                          handleSelectBuilding(b);
+                        }
                       }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = 'rotate(-45deg) scale(1) translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                      style={{
+                        position: 'absolute',
+                        left: `${h.x_percent}%`,
+                        top: `${h.y_percent}%`,
+                        transform: 'translate(-50%, -100%)',
+                        cursor: 'pointer',
+                        zIndex: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
                       }}
                     >
-                      <MapPin
-                        size={16}
-                        color="#fff"
-                        style={{ transform: 'rotate(45deg)' }}
-                      />
-                      
-                      {/* Pulse Ring */}
-                      {h.availability_status !== 'sold_out' && (
-                        <div style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          width: '100%',
-                          height: '100%',
-                          borderRadius: 'inherit',
-                          border: `2.5px solid ${statusColor}`,
-                          animation: 'client-pin-glow 2s infinite',
-                          pointerEvents: 'none',
-                        }} />
-                      )}
-                    </div>
+                      {/* Animated Pulsing Pin */}
+                      <div style={{
+                        position: 'relative',
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50% 50% 50% 0',
+                        background: statusColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                        transform: 'rotate(-45deg)',
+                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.transform = 'rotate(-45deg) scale(1.2) translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform = 'rotate(-45deg) scale(1) translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                        }}
+                      >
+                        <MapPin
+                          size={16}
+                          color="#fff"
+                          style={{ transform: 'rotate(45deg)' }}
+                        />
+                        
+                        {/* Pulse Ring */}
+                        {h.availability_status !== 'sold_out' && (
+                          <div style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: 'inherit',
+                            border: `2.5px solid ${statusColor}`,
+                            animation: 'client-pin-glow 2s infinite',
+                            pointerEvents: 'none',
+                          }} />
+                        )}
+                      </div>
 
-                    {/* Floating Label */}
-                    <div style={{
-                      background: 'rgba(15, 23, 42, 0.95)',
-                      backdropFilter: 'blur(8px)',
-                      color: '#fff',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '5px 10px',
-                      borderRadius: 8,
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      whiteSpace: 'nowrap',
-                      marginTop: 6,
-                      boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 2,
-                    }}>
-                      <span>{h.label || h.building?.name}</span>
-                      <span style={{ fontSize: '0.62rem', fontWeight: 600, opacity: 0.85 }}>
-                        {h.units_summary?.available} / {h.units_summary?.total} {t.availableUnits || 'Available'}
-                      </span>
+                      {/* Floating Label */}
+                      <div style={{
+                        background: 'rgba(15, 23, 42, 0.95)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#fff',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '5px 10px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        whiteSpace: 'nowrap',
+                        marginTop: 6,
+                        boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}>
+                        <span>{h.label || h.building?.name}</span>
+                        <span style={{ fontSize: '0.62rem', fontWeight: 600, opacity: 0.85 }}>
+                          {h.units_summary?.available} / {h.units_summary?.total} {t.availableUnits || 'Available'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              
+              <style>{`
+                @keyframes client-pin-glow {
+                  0% { transform: scale(1); opacity: 1; }
+                  100% { transform: scale(1.8); opacity: 0; }
+                }
+              `}</style>
             </div>
-            
-            <style>{`
-              @keyframes client-pin-glow {
-                0% { transform: scale(1); opacity: 1; }
-                100% { transform: scale(1.8); opacity: 0; }
-              }
-            `}</style>
-          </div>
-        </div>
-      )}
+          )}
 
-      {buildings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-          <Building size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
-          <p>{t.noBuildings}</p>
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))`,
-          gap: 32,
-          perspective: '1500px',
-        }}>
-          {buildings.map((building, idx) => {
-=======
           {buildings.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
               <Building size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
@@ -1247,8 +1233,7 @@ const InteractiveUnitSelection: React.FC = () => {
           ) : (
             <div className="us3d-buildings-grid">
               {buildings.map((building, idx) => {
->>>>>>> 998908e691db0dc92e62b17456ae7ae53137e6ca
-            const availPct = building.total_units > 0 ? (building.available_units / building.total_units * 100) : 0;
+                const availPct = building.total_units > 0 ? (building.available_units / building.total_units * 100) : 0;
             const model3D = building3DModels[building.name];
             const has3DModel = model3D?.status === 'completed' && model3D?.model_url;
             const is3DActive = active3DBuilding === building.name;
