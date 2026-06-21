@@ -198,6 +198,36 @@ const Overview: React.FC = () => {
   const [resalePrice, setResalePrice] = useState('');
   const [resaleReason, setResaleReason] = useState('');
 
+  // EOI 5% Payment state & submit
+  const [eoiReservation, setEoiReservation] = useState<any | null>(null);
+  const [fivePercentFile, setFivePercentFile] = useState<File | null>(null);
+  const [isFivePercentUploading, setIsFivePercentUploading] = useState(false);
+
+  const handleFivePercentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fivePercentFile || !eoiReservation) return;
+    setIsFivePercentUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('receipt', fivePercentFile);
+
+      const res = await api.post(`/v1/delivery/eoi-reservations/${eoiReservation.id}/pay-five-percent`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      if (res.data?.success) {
+        showToast('تم رفع إيصال الدفع بنجاح لتأكيد الـ 5%! / Receipt uploaded successfully!');
+        setFivePercentFile(null);
+        fetchData(userRole);
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to upload receipt.', 'error');
+    } finally {
+      setIsFivePercentUploading(false);
+    }
+  };
+
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
@@ -231,6 +261,7 @@ const Overview: React.FC = () => {
           setContractInfo(res.data.contract || null);
           setNotifications(res.data.notifications || []);
           setFiles(res.data.files || []);
+          setEoiReservation(res.data.eoi_reservation || null);
         }
       } else {
         // Fetch handover officer dashboard
@@ -751,7 +782,127 @@ const Overview: React.FC = () => {
       {/* TAB: MY UNIT OVERVIEW */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+          {/* EOI 5% Payment Card */}
+          {eoiReservation && eoiReservation.invited_at && (
+            <div className="glass-panel" style={{
+              padding: '24px 30px',
+              borderLeft: '4px solid ' + (eoiReservation.five_percent_paid ? 'var(--color-success)' : 'var(--color-warning)'),
+              background: eoiReservation.five_percent_paid
+                ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(59,130,246,0.03) 100%)'
+                : 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(239,68,68,0.03) 100%)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {!eoiReservation.five_percent_paid ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-warning)' }}>
+                    <AlertTriangle size={24} />
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>⚠️ دفعة تأكيد الحجز (5%) مطلوبة / 5% Down Payment Required</h3>
+                  </div>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
+                    لتأكيد حجز وحدتك بنجاح، يُرجى دفع مبلغ 5% من إجمالي ثمن الشقة ورفع إيصال الدفع خلال مهلة أقصاها أسبوع من تاريخ استلام الدعوة. بعد الدفع، سيمكنك الذهاب للشركة لتوقيع العقد وتحديد خطة الدفع.
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '10px', padding: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.03)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Apartment Price / سعر الشقة</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Required 5% Down Payment / المبلغ المطلوب (5%)</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-primary)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0) * 0.05)}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Time Remaining / المهلة المتبقية</span>
+                      <strong style={{ fontSize: '1rem', color: 'var(--color-danger)' }}>{(() => {
+                        if (!eoiReservation.invited_at) return '';
+                        const invitedDate = new Date(eoiReservation.invited_at);
+                        const deadlineHours = eoiReservation.contracting_deadline_hours || 168;
+                        const deadlineDate = new Date(invitedDate.getTime() + deadlineHours * 60 * 60 * 1000);
+                        const diffMs = deadlineDate.getTime() - Date.now();
+                        if (diffMs <= 0) return 'Expired / منتهية';
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        return diffDays > 0 ? `${diffDays}d ${diffHours}h left` : `${diffHours}h left`;
+                      })()}</strong>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleFivePercentSubmit} style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginTop: '10px' }}>
+                    <div style={{ flex: 1, minWidth: '220px' }}>
+                      <input 
+                        type="file" 
+                        accept=".jpg,.jpeg,.png,.pdf" 
+                        onChange={e => setFivePercentFile(e.target.files?.[0] || null)} 
+                        style={{ display: 'none' }}
+                        id="five-percent-receipt-input"
+                        required
+                      />
+                      <label 
+                        htmlFor="five-percent-receipt-input"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '10px 16px',
+                          borderRadius: '10px',
+                          border: '1.5px dashed rgba(50, 71, 58, 0.25)',
+                          background: 'rgba(255,255,255,0.4)',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          color: 'var(--text-main)'
+                        }}
+                      >
+                        <FileText size={16} />
+                        {fivePercentFile ? fivePercentFile.name : 'اختر إيصال الدفع (صورة أو PDF) / Select Receipt'}
+                      </label>
+                    </div>
+                    <button 
+                      type="submit" 
+                      className="btn-primary" 
+                      style={{ background: 'var(--color-primary)', borderColor: 'var(--color-primary)', padding: '10px 24px', fontSize: '0.82rem' }}
+                      disabled={!fivePercentFile || isFivePercentUploading}
+                    >
+                      {isFivePercentUploading ? 'جاري الرفع... / Uploading...' : 'رفع إيصال الدفع وتأكيد الحجز / Upload Receipt'}
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)' }}>
+                    <CheckCircle size={24} />
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>✅ تم سداد دفعة الـ 5% وتأكيد الحجز بنجاح / 5% Paid Successfully</h3>
+                  </div>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
+                    لقد تم تسجيل سداد دفعة الـ 5% بنجاح. يرجى التوجه لمقر الشركة لتوقيع العقد النهائي واختيار نظام السداد المناسب لك (كاش أو تقسيط) بالتنسيق مع مسؤول المبيعات.
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '10px', padding: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.03)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Amount Paid / المبلغ المدفوع (5%)</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-success)' }}>{fmtCurrency(parseFloat(eoiReservation.five_percent_amount || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Payment Date / تاريخ السداد</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{eoiReservation.five_percent_paid_at ? new Date(eoiReservation.five_percent_paid_at).toLocaleDateString('en-GB') : '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Status / الحالة</span>
+                      <span className="badge badge-success" style={{ display: 'inline-block', marginTop: '4px' }}>PAID / تم الدفع</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', width: '100%' }}>
           {/* Financial Quick View */}
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -849,6 +1000,7 @@ const Overview: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════ */}

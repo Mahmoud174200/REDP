@@ -127,7 +127,7 @@ class ContractController extends Controller
         }
 
         $request->validate([
-            'type' => 'nullable|string|in:sale,reservation,installment',
+            'type' => 'nullable|string|in:sale,reservation,installment,cash',
             'total_installments' => 'nullable|integer|min:1|max:120',
             'notes' => 'nullable|string',
             'schedule' => 'nullable|array',
@@ -152,6 +152,18 @@ class ContractController extends Controller
                 }
             }
         }
+
+        // Validate minimum down payment for installment plans
+        if ($type === 'installment' && $unit && $unit->min_down_payment !== null) {
+            $minDp = (float) $unit->min_down_payment;
+            if ($dpAmount < $minDp) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "The down payment (" . number_format($dpAmount) . " EGP) is less than the minimum required down payment for this unit (" . number_format($minDp) . " EGP).",
+                ], 400);
+            }
+        }
+
         $totalPaidToday += $dpAmount;
 
         // Create the contract

@@ -44,6 +44,7 @@ class Unit extends Model
         'tripo_error_msg',
         'model_generated_at',
         'price',
+        'min_down_payment',
         'status', // 'available', 'reserved', 'sold', 'hidden', 'coming_soon', 'frozen'
         'handover_date',
         'phase',
@@ -55,6 +56,7 @@ class Unit extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'min_down_payment' => 'decimal:2',
         'area' => 'decimal:2',
         'net_area' => 'decimal:2',
         'balcony_area' => 'decimal:2',

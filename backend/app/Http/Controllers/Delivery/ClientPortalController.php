@@ -72,6 +72,12 @@ class ClientPortalController extends Controller
             ->limit(5)
             ->get();
 
+        // Fetch EOI reservation of the logged-in client (by email or phone)
+        $eoiReservation = \App\Models\EoiReservation::where('client_email', $user->email)
+            ->orWhere('client_phone', $user->phone)
+            ->with(['unit.project'])
+            ->first();
+
         return response()->json([
             'success' => true,
             'owner' => '🟢 Delivery & Infra',
@@ -82,6 +88,7 @@ class ClientPortalController extends Controller
                 'active_visitor_passes' => 3 // Simulated count for visitor passes
             ],
             'recent_notifications' => $notifications,
+            'eoi_reservation' => $eoiReservation,
             'compound_status' => [
                 'water_supply' => 'Normal',
                 'power_grid' => 'Stable',
@@ -173,5 +180,58 @@ class ClientPortalController extends Controller
             'message' => 'Workflow rule compiled and stored in active runtime templates.',
             'data' => $wf
         ], 201);
+    }
+
+    /**
+     * Submit 5% down payment receipt for EOI reservation.
+     */
+    public function payFivePercent(Request $request, string $id)
+    {
+        $request->validate([
+            'receipt' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+        ]);
+
+        $reservation = \App\Models\EoiReservation::findOrFail($id);
+
+        // Handle receipt upload
+        $receiptPath = $request->file('receipt')->store('eoi-receipts', 'public');
+
+        // Calculate 5% amount if unit exists
+        $amount = 0.00;
+        if ($reservation->unit) {
+            $amount = (float) $reservation->unit->price * 0.05;
+        }
+
+        $reservation->update([
+            'five_percent_paid' => true,
+            'five_percent_amount' => $amount,
+            'five_percent_receipt_path' => $receiptPath,
+            'five_percent_paid_at' => now(),
+        ]);
+
+        // Find standard Reservation for this client & unit and extend expiration to allow contract signing
+        $stdRes = \App\Models\Reservation::where('client_id', $request->user()->id)
+            ->where('unit_id', $reservation->unit_id)
+            ->where('status', 'confirmed')
+            ->first();
+
+        if ($stdRes) {
+            $stdRes->update([
+                'payment_receipt_path' => $receiptPath,
+                'expires_at' => now()->addDays(7), // Extend hold by 7 days for office visit & contract signing
+            ]);
+        }
+
+        // Log audit trail
+        AuditLogService::log('EOI_FIVE_PERCENT_PAID', $request->user()->id, [
+            'eoi_reservation_id' => $reservation->id,
+            'amount' => $amount,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => '5% down payment receipt uploaded successfully.',
+            'data' => $reservation->fresh()->load('unit.project'),
+        ]);
     }
 }

@@ -351,6 +351,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::middleware('role:client')->group(function () {
             Route::post('/gate-code', [ClientPortalController::class, 'requestGateCode']);
             Route::post('/tickets', [VendorController::class, 'storeTicket']);
+            Route::post('/eoi-reservations/{id}/pay-five-percent', [ClientPortalController::class, 'payFivePercent']);
 
             // ── Homeowner Portal (H.9) ──
             $homeCtrl = \App\Http\Controllers\Delivery\HomeownerPortalController::class;

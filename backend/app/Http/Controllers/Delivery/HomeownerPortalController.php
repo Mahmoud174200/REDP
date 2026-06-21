@@ -43,7 +43,13 @@ class HomeownerPortalController extends Controller
             ->with('unit.project')
             ->first();
 
-        $unit = $contract?->unit ?? $reservation?->unit;
+        // Fetch EOI Reservation
+        $eoiReservation = \App\Models\EoiReservation::where('client_email', $user->email)
+            ->orWhere('client_phone', $user->phone)
+            ->with(['unit.project'])
+            ->first();
+
+        $unit = $contract?->unit ?? $reservation?->unit ?? $eoiReservation?->unit;
 
         // Family Members
         $familyMembers = FamilyMember::where('user_id', $userId)->orderBy('created_at', 'desc')->get();
@@ -189,6 +195,7 @@ class HomeownerPortalController extends Controller
             'resale_requests' => $resaleRequests,
             'notifications' => $notifications,
             'files' => $files,
+            'eoi_reservation' => $eoiReservation,
         ]);
     }
 

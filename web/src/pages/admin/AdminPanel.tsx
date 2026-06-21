@@ -44,6 +44,7 @@ interface UnitItem {
   view_type?: string;
   building?: string;
   layout_description?: string;
+  min_down_payment?: number;
 }
 
 interface LeadItem {
@@ -287,6 +288,7 @@ const AdminPanel: React.FC = () => {
   const [formUnitViewType, setFormUnitViewType] = useState('garden');
   const [formUnitBuilding, setFormUnitBuilding] = useState('');
   const [formUnitLayoutDescription, setFormUnitLayoutDescription] = useState('');
+  const [formUnitMinDownPayment, setFormUnitMinDownPayment] = useState('0');
 
   // Lead Form
   const [formLeadFirstName, setFormLeadFirstName] = useState('');
@@ -1028,6 +1030,7 @@ const AdminPanel: React.FC = () => {
     setFormUnitViewType('garden');
     setFormUnitBuilding('');
     setFormUnitLayoutDescription('');
+    setFormUnitMinDownPayment('0');
     setUnitModalMode('add');
     setShowUnitModal(true);
   };
@@ -1046,6 +1049,7 @@ const AdminPanel: React.FC = () => {
     setFormUnitViewType(unit.view_type || 'garden');
     setFormUnitBuilding(unit.building || '');
     setFormUnitLayoutDescription(unit.layout_description || '');
+    setFormUnitMinDownPayment(unit.min_down_payment ? unit.min_down_payment.toString() : '0');
     setUnitModalMode('edit');
     setShowUnitModal(true);
   };
@@ -1059,6 +1063,7 @@ const AdminPanel: React.FC = () => {
         floor: parseInt(formUnitFloor),
         type: formUnitType,
         price: parseFloat(formUnitPrice),
+        min_down_payment: formUnitMinDownPayment ? parseFloat(formUnitMinDownPayment) : 0,
         status: formUnitStatus,
         area: parseFloat(formUnitArea),
         bedrooms: parseInt(formUnitBedrooms),
@@ -2870,7 +2875,7 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">View Type</label>
                   <select className="form-control" value={formUnitViewType} onChange={e => setFormUnitViewType(e.target.value)}>
@@ -2884,6 +2889,10 @@ const AdminPanel: React.FC = () => {
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Selling Price (EGP)</label>
                   <input type="number" className="form-control" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} required />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Min Down Payment (EGP)</label>
+                  <input type="number" className="form-control" value={formUnitMinDownPayment} onChange={e => setFormUnitMinDownPayment(e.target.value)} required />
                 </div>
               </div>
 

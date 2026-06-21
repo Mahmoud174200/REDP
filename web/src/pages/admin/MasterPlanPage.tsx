@@ -78,6 +78,7 @@ interface UnitItem {
   has_private_garden?: boolean;
   has_private_parking?: boolean;
   view_type?: string | null;
+  min_down_payment?: number | null;
   orientation?: string | null;
   price: number;
   status: string;
@@ -472,6 +473,7 @@ const MasterPlanPage: React.FC = () => {
   const [fUnitOrientation, setFUnitOrientation] = useState('');
   const [fUnitLayoutDesc, setFUnitLayoutDesc] = useState('');
   const [fUnitPhase, setFUnitPhase] = useState('Phase 1');
+  const [fUnitMinDownPayment, setFUnitMinDownPayment] = useState('0');
 
   // Detailed Floor Form states
   const [fFloorNumber, setFFloorNumber] = useState('0');
@@ -533,6 +535,7 @@ const MasterPlanPage: React.FC = () => {
   const [fGUPrice, setFGUPrice] = useState('2500000');
   const [fGUFinishing, setFGUFinishing] = useState('fully_finished');
   const [fGUPrefix, setFGUPrefix] = useState('');
+  const [fGUMinDownPayment, setFGUMinDownPayment] = useState('0');
 
   // ── Data Fetching ──
   const fetchMasterPlan = useCallback(async () => {
@@ -698,11 +701,11 @@ const MasterPlanPage: React.FC = () => {
     }
   };
 
-  // ── GENERATE UNITS HANDLER ──
   const openGenUnitsModal = (building: Building, floor: BuildingFloor) => {
     setSelectedBuilding(building);
     setSelectedFloor(floor);
     setFGUPrefix(building.name.charAt(0).toUpperCase());
+    setFGUMinDownPayment('0');
     setShowGenUnitsModal(true);
   };
 
@@ -718,6 +721,7 @@ const MasterPlanPage: React.FC = () => {
         bathrooms: parseInt(fGUBathrooms),
         living_rooms: parseInt(fGULivingRooms),
         price: parseFloat(fGUPrice),
+        min_down_payment: fGUMinDownPayment ? parseFloat(fGUMinDownPayment) : 0,
         finishing_type: fGUFinishing,
         unit_number_prefix: fGUPrefix,
       });
@@ -827,6 +831,7 @@ const MasterPlanPage: React.FC = () => {
     setFUnitOrientation('');
     setFUnitLayoutDesc('');
     setFUnitPhase('Phase 1');
+    setFUnitMinDownPayment('0');
     setUnitModalMode('add');
     setShowUnitModal(true);
   };
@@ -856,6 +861,7 @@ const MasterPlanPage: React.FC = () => {
     setFUnitOrientation(u.orientation || '');
     setFUnitLayoutDesc(u.layout_description || '');
     setFUnitPhase(u.phase || 'Phase 1');
+    setFUnitMinDownPayment(u.min_down_payment ? u.min_down_payment.toString() : '0');
     setUnitModalMode('edit');
     setShowUnitModal(true);
   };
@@ -867,6 +873,7 @@ const MasterPlanPage: React.FC = () => {
       unit_number: fUnitNumber,
       type: fUnitType,
       price: parseFloat(fUnitPrice),
+      min_down_payment: fUnitMinDownPayment ? parseFloat(fUnitMinDownPayment) : 0,
       status: fUnitStatus,
       area: parseFloat(fUnitArea),
       net_area: fUnitNetArea ? parseFloat(fUnitNetArea) : null,
@@ -1518,6 +1525,10 @@ const MasterPlanPage: React.FC = () => {
                   <input style={styles.input} type="number" step="0.01" value={fGUPrice} onChange={e => setFGUPrice(e.target.value)} required />
                 </div>
                 <div style={styles.formGroup}>
+                  <label style={styles.label}>Min Down Payment (EGP) *</label>
+                  <input style={styles.input} type="number" step="0.01" value={fGUMinDownPayment} onChange={e => setFGUMinDownPayment(e.target.value)} required />
+                </div>
+                <div style={styles.formGroup}>
                   <label style={styles.label}>Finishing</label>
                   <select style={styles.select} value={fGUFinishing} onChange={e => setFGUFinishing(e.target.value)}>
                     {Object.entries(finishingLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -1661,6 +1672,10 @@ const MasterPlanPage: React.FC = () => {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Price (EGP) *</label>
                   <input style={styles.input} type="number" step="0.01" value={fUnitPrice} onChange={e => setFUnitPrice(e.target.value)} required />
+                </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Min Down Payment (EGP) *</label>
+                  <input style={styles.input} type="number" step="0.01" value={fUnitMinDownPayment} onChange={e => setFUnitMinDownPayment(e.target.value)} required />
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Status *</label>
