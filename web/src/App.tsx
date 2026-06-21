@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/auth/Login';
+import ClientLogin from './pages/auth/ClientLogin';
 import DashboardLayout from './components/DashboardLayout';
 import LandingPage from './pages/public/LandingPage';
 import InteractiveUnitSelection from './pages/public/InteractiveUnitSelection';
@@ -121,7 +122,10 @@ const HomeRedirect: React.FC = () => {
   if (user.role === 'finance_officer') {
     return <Navigate to="/finance/inventory" replace />;
   }
-  if (user.role === 'handover_officer' || user.role === 'delivery_engineer' || user.role === 'client') {
+  if (user.role === 'client') {
+    return <Navigate to="/unit-selection" replace />;
+  }
+  if (user.role === 'handover_officer' || user.role === 'delivery_engineer') {
     return <Navigate to="/delivery/overview" replace />;
   }
   if (user.role === 'executive') {
@@ -150,6 +154,7 @@ const App: React.FC = () => {
       <Routes>
         {/* 🔓 Authentication Portal */}
         <Route path="/login" element={<Login />} />
+        <Route path="/client-login" element={<ClientLogin />} />
 
         {/* 🏠 Public Landing Page */}
         <Route path="/" element={<LandingPage />} />

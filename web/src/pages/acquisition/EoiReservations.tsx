@@ -28,6 +28,7 @@ interface EoiReservation {
   payment_method: string;
   payment_amount: string;
   receipt_path: string;
+  passport_path?: string | null;
   status: 'pending_review' | 'approved' | 'rejected';
   order_number: string | null;
   queue_number: number | null;
@@ -35,6 +36,8 @@ interface EoiReservation {
   review_notes: string | null;
   reviewed_at: string | null;
   email_sent_at: string | null;
+  invited_at?: string | null;
+  contracting_deadline_hours?: number | null;
   created_at: string;
   updated_at: string;
   lead?: { id: string; first_name: string; last_name: string; email: string; phone: string };
@@ -151,6 +154,12 @@ const EoiReservations: React.FC = () => {
   const [rejectModal, setRejectModal] = useState<EoiReservation | null>(null);
   const [detailModal, setDetailModal] = useState<EoiReservation | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+
+  // Batch Invitation States
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteCount, setInviteCount] = useState(1);
+  const [inviteDeadlineHours, setInviteDeadlineHours] = useState(48);
+  const [inviting, setInviting] = useState(false);
 
   // Submit form state
   const [formStep, setFormStep] = useState(1);
@@ -398,6 +407,30 @@ const EoiReservations: React.FC = () => {
     } catch (err: any) {
       addToast(err.response?.data?.message || 'Failed to reject.', 'error');
     }
+  };
+
+  const handleInviteBatch = async () => {
+    if (!selectedQueueProject) {
+      addToast('Please select a project first.', 'error');
+      return;
+    }
+    setInviting(true);
+    try {
+      const res = await api.post('/acquisition/eoi-reservations/invite-batch', {
+        project_id: selectedQueueProject,
+        count: inviteCount,
+        contracting_deadline_hours: inviteDeadlineHours,
+      });
+      if (res.data.success) {
+        addToast(res.data.message || `Successfully invited ${inviteCount} clients!`, 'success');
+        setInviteModalOpen(false);
+        fetchQueue(selectedQueueProject);
+        fetchStats();
+      }
+    } catch (err: any) {
+      addToast(err.response?.data?.message || 'Failed to send batch invitations.', 'error');
+    }
+    setInviting(false);
   };
 
   // ── File upload handler ──
@@ -910,6 +943,15 @@ const EoiReservations: React.FC = () => {
                     >
                       <Eye style={{ width: '13px', height: '13px' }} /> Receipt
                     </button>
+                    {item.passport_path && (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setReceiptModal(getReceiptUrl(item.passport_path))}
+                        style={{ padding: '8px 14px', fontSize: '0.75rem' }}
+                      >
+                        <Eye style={{ width: '13px', height: '13px' }} /> Passport
+                      </button>
+                    )}
                     <button
                       className="btn-primary"
                       onClick={() => { setApproveModal(item); setReviewNotes(''); }}
@@ -1038,6 +1080,14 @@ const EoiReservations: React.FC = () => {
                               >
                                 <FileText style={{ width: '12px', height: '12px' }} /> Receipt
                               </button>
+                              {item.passport_path && (
+                                <button
+                                  onClick={() => setReceiptModal(getReceiptUrl(item.passport_path))}
+                                  style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', transition: 'var(--transition-smooth)' }}
+                                >
+                                  <FileText style={{ width: '12px', height: '12px' }} /> Passport
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1089,6 +1139,31 @@ const EoiReservations: React.FC = () => {
                 ))}
               </select>
             </div>
+            {selectedQueueProject && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-glass)', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginRight: '20px' }}>Approved in Queue: <strong>{queueList.length}</strong></span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Eligible for Unit Selection: <strong style={{ color: queueList.filter(item => !item.invited_at).length > 0 ? '#d0941e' : 'inherit' }}>{queueList.filter(item => !item.invited_at).length}</strong></span>
+                </div>
+                {queueList.filter(item => !item.invited_at).length > 0 && (
+                  <button
+                    onClick={() => {
+                      setInviteCount(Math.min(queueList.filter(item => !item.invited_at).length, 10));
+                      setInviteDeadlineHours(48);
+                      setInviteModalOpen(true);
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, var(--color-primary), #4a6b55)',
+                      color: '#fff', border: 'none', borderRadius: '9999px',
+                      padding: '8px 20px', fontSize: '0.82rem', fontWeight: 600,
+                      cursor: 'pointer', boxShadow: '0 4px 12px rgba(50,71,58,0.15)',
+                    }}
+                  >
+                    Invite Batch to Select Units
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {!selectedQueueProject ? (
@@ -1120,6 +1195,7 @@ const EoiReservations: React.FC = () => {
                     <th>Status</th>
                     <th>Location</th>
                     <th>Approved Date</th>
+                    <th>Invited</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1168,6 +1244,15 @@ const EoiReservations: React.FC = () => {
                         </td>
                         <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {item.reviewed_at ? formatDate(item.reviewed_at) : formatDate(item.created_at)}
+                        </td>
+                        <td>
+                          {item.invited_at ? (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 600 }} title={`Deadline: ${item.contracting_deadline_hours}h`}>
+                              ✓ {formatDate(item.invited_at)}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1425,7 +1510,9 @@ const EoiReservations: React.FC = () => {
             <button onClick={() => setReceiptModal(null)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.6)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X style={{ width: '16px', height: '16px' }} />
             </button>
-            <h3 style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', marginBottom: '16px' }}>Payment Receipt</h3>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', marginBottom: '16px' }}>
+              {receiptModal.includes('eoi-passports') ? 'Passport Document' : 'Payment Receipt'}
+            </h3>
             <div style={{ textAlign: 'center', maxHeight: '70vh', overflow: 'auto' }}>
               {receiptModal.endsWith('.pdf') ? (
                 <iframe src={receiptModal} style={{ width: '100%', height: '60vh', border: 'none', borderRadius: '12px' }} />
@@ -1560,13 +1647,90 @@ const EoiReservations: React.FC = () => {
               ))}
             </div>
 
-            <button
-              className="btn-secondary"
-              onClick={() => setReceiptModal(getReceiptUrl(detailModal.receipt_path))}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              <Eye style={{ width: '14px', height: '14px' }} /> View Payment Receipt
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => setReceiptModal(getReceiptUrl(detailModal.receipt_path))}
+                style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Eye style={{ width: '14px', height: '14px' }} /> View Receipt
+              </button>
+              {detailModal.passport_path && (
+                <button
+                  className="btn-secondary"
+                  onClick={() => setReceiptModal(getReceiptUrl(detailModal.passport_path))}
+                  style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Eye style={{ width: '14px', height: '14px' }} /> View Passport
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Batch Modal */}
+      {inviteModalOpen && (
+        <div className="modal-backdrop" onClick={() => setInviteModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '90%', padding: '32px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #4a6b55)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', boxShadow: '0 8px 20px rgba(50, 71, 58, 0.2)' }}>
+                <Users style={{ width: '28px', height: '28px', color: '#fff' }} />
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.15rem', fontWeight: 700 }}>Invite Batch to Select Units</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '6px' }}>
+                Send access credentials to the top FIFO clients in the queue.
+              </p>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Number of Clients to Invite *</label>
+              <input
+                className="form-control"
+                type="number"
+                min={1}
+                max={queueList.filter(item => !item.invited_at).length}
+                value={inviteCount}
+                onChange={e => setInviteCount(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px', paddingLeft: '4px' }}>
+                Maximum eligible: {queueList.filter(item => !item.invited_at).length} approved clients.
+              </p>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Contracting Hold Deadline (Hours) *</label>
+              <input
+                className="form-control"
+                type="number"
+                min={1}
+                max={720}
+                value={inviteDeadlineHours}
+                onChange={e => setInviteDeadlineHours(Math.max(1, parseInt(e.target.value) || 48))}
+              />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px', paddingLeft: '4px' }}>
+                Clients will have this time to select a unit and sign the contract before the hold expires.
+              </p>
+            </div>
+
+            <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(50, 71, 58, 0.05)', border: '1px solid rgba(50, 71, 58, 0.15)', marginBottom: '24px' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--color-primary)', fontWeight: 500, margin: 0, lineHeight: 1.5 }}>
+                ✓ Selected clients will receive Email 2 containing a temporary password and a login link.<br />
+                ✓ Clients will be chosen in strict order of queue priority.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="btn-secondary" onClick={() => setInviteModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button
+                className="btn-primary"
+                onClick={handleInviteBatch}
+                disabled={inviting}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                {inviting ? 'Sending...' : 'Send Invitations'}
+              </button>
+            </div>
           </div>
         </div>
       )}

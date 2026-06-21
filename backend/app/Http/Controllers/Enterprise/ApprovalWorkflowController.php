@@ -186,6 +186,7 @@ class ApprovalWorkflowController extends Controller
                 ['key' => 'refund', 'label' => 'Refund Processing'],
                 ['key' => 'contract_amendment', 'label' => 'Contract Amendment'],
                 ['key' => 'rescheduling', 'label' => 'Installment Rescheduling'],
+                ['key' => 'contract', 'label' => 'Contract & Payment Plan Approval'],
             ]
         ]);
     }

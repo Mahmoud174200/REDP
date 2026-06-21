@@ -5,7 +5,7 @@ import {
   Building, Layers, MapPin, ArrowRight, ArrowLeft, ChevronRight,
   ChevronLeft, Home, Eye, Maximize, DollarSign, Compass, CheckCircle,
   Lock, X, Globe, Menu, Shield, Loader, ArrowUpRight, Square,
-  ChevronDown, Phone, Mail, User, CreditCard, Hash
+  ChevronDown, Phone, Mail, User, CreditCard, Hash, Info
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════
@@ -94,6 +94,19 @@ const translations = {
     model3DProcessing: 'Generating 3D...',
     model3DFailed: '3D Generation Failed',
     interactHint: 'Click & drag to rotate • Scroll to zoom',
+    eoiLocationLabel: 'Select Your Location',
+    eoiLocationInside: 'Inside Egypt 🇪🇬',
+    eoiLocationOutside: 'Outside Egypt 🌍',
+    eoiPaymentMethodLabel: 'Select Payment Method',
+    eoiPaymentMethodBank: 'Local Bank Transfer',
+    eoiPaymentMethodInstapay: 'InstaPay Transfer',
+    eoiPaymentMethodIntlBank: 'International Bank Transfer',
+    eoiReceiptUpload: 'Upload Payment Receipt (Required) *',
+    eoiPassportUpload: 'Upload Passport (Required for Outside Egypt) *',
+    eoiBankDetailsTitle: 'Bank Account Transfer Details',
+    eoiInstapayDetailsTitle: 'InstaPay Details',
+    eoiUploadHint: 'Accepts PDF, JPG, PNG up to 10MB',
+    cancel: 'Cancel',
   },
   ar: {
     pageTitle: 'اختيار الوحدات التفاعلي',
@@ -177,6 +190,19 @@ const translations = {
     model3DProcessing: 'جارٍ إنشاء النموذج...',
     model3DFailed: 'فشل إنشاء النموذج',
     interactHint: 'اسحب للتدوير • مرر للتكبير',
+    eoiLocationLabel: 'تحديد موقعك الحالي',
+    eoiLocationInside: 'داخل مصر 🇪🇬',
+    eoiLocationOutside: 'خارج مصر 🌍',
+    eoiPaymentMethodLabel: 'اختر طريقة الدفع',
+    eoiPaymentMethodBank: 'تحويل بنكي محلي',
+    eoiPaymentMethodInstapay: 'تحويل عبر InstaPay',
+    eoiPaymentMethodIntlBank: 'تحويل بنكي دولي',
+    eoiReceiptUpload: 'رفع إيصال الدفع (مطلوب) *',
+    eoiPassportUpload: 'رفع صورة جواز السفر (مطلوب لخارج مصر) *',
+    eoiBankDetailsTitle: 'بيانات الحساب البنكي للتحويل',
+    eoiInstapayDetailsTitle: 'بيانات حساب InstaPay',
+    eoiUploadHint: 'الملفات المقبولة: PDF, JPG, PNG حتى 10 ميجابايت',
+    cancel: 'إلغاء',
   }
 };
 
@@ -266,6 +292,7 @@ const InteractiveUnitSelection: React.FC = () => {
     floor_plan_images: Record<string, { image_url: string }>;
   } | null>(null);
   const [hoveredFloor, setHoveredFloor] = useState<FloorData | null>(null);
+  const [hotspots, setHotspots] = useState<any[]>([]);
 
   // 3D Model state
   const [building3DModels, setBuilding3DModels] = useState<Record<string, { status: string; model_url: string | null }>>({});
@@ -283,23 +310,37 @@ const InteractiveUnitSelection: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unitView3D, setUnitView3D] = useState(false);
+  const [eoiInvitation, setEoiInvitation] = useState<any>(null);
 
   useEffect(() => {
-    setUnitView3D(false);
+    if (selectedUnit) {
+      setUnitView3D(!selectedUnit.layout_image_url && selectedUnit.model_3d_status === 'completed');
+    } else {
+      setUnitView3D(false);
+    }
   }, [selectedUnit]);
 
   // Reservation form
   const [reserveForm, setReserveForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', national_id: ''
   });
+  const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [reserveStep, setReserveStep] = useState<1 | 2>(1);
   const [reserveProcessing, setReserveProcessing] = useState(false);
   const [reserveResult, setReserveResult] = useState<any>(null);
   const [reserveError, setReserveError] = useState('');
 
   // Init
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem('redp_token'));
+    const loggedIn = !!localStorage.getItem('redp_token');
+    setIsLoggedIn(loggedIn);
     loadProjects();
+    if (loggedIn) {
+      fetchInvitationStatus();
+    }
 
     // Load Google Model Viewer script
     if (!document.querySelector('script[src*="model-viewer"]')) {
@@ -335,6 +376,17 @@ const InteractiveUnitSelection: React.FC = () => {
     setLoading(false);
   };
 
+  const fetchInvitationStatus = async () => {
+    try {
+      const res = await api.get('/v1/client/eoi-invitation');
+      if (res.data?.success) {
+        setEoiInvitation(res.data.data);
+      }
+    } catch (err) {
+      console.error('No active EOI invitation found or client not invited.');
+    }
+  };
+
   const handleSelectProject = async (projectId: string) => {
     setLoading(true);
     setAnimating(true);
@@ -363,11 +415,23 @@ const InteractiveUnitSelection: React.FC = () => {
         console.error('Error fetching 3D models:', err3D);
       }
 
+      // Fetch interactive map hotspots
+      let hotspotsList: any[] = [];
+      try {
+        const mapRes = await api.get(`/v1/public/projects/${projectId}/interactive-map`);
+        if (mapRes.data?.success) {
+          hotspotsList = mapRes.data.data.hotspots || [];
+        }
+      } catch (mapErr) {
+        console.error('Error fetching interactive map hotspots:', mapErr);
+      }
+
       if (res.data?.success) {
         setSelectedProject(res.data.data.project);
         setBuildings(res.data.data.buildings || []);
         setProjectMedia(mediaData);
         setBuilding3DModels(models3D);
+        setHotspots(hotspotsList);
         setActive3DBuilding(null);
         setTimeout(() => {
           setCurrentStep('buildings');
@@ -419,31 +483,98 @@ const InteractiveUnitSelection: React.FC = () => {
   const openReserveModal = () => {
     setShowReserveModal(true);
     setReserveForm({ first_name: '', last_name: '', email: '', phone: '', national_id: '' });
+    setClientLocation('');
+    setPaymentMethod('');
+    setReceiptFile(null);
+    setPassportFile(null);
+    setReserveStep(1);
     setReserveError('');
     setReserveResult(null);
   };
 
   const handleReserveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reserveForm.first_name || !reserveForm.last_name || !reserveForm.email || !reserveForm.phone) {
-      setReserveError(t.fillRequired);
+    if (reserveStep === 1) {
+      if (!reserveForm.first_name || !reserveForm.last_name || !reserveForm.email || !reserveForm.phone) {
+        setReserveError(t.fillRequired);
+        return;
+      }
+      setReserveError('');
+      setReserveStep(2);
       return;
     }
+
+    if (!clientLocation) {
+      setReserveError(lang === 'en' ? 'Please select your location.' : 'يرجى تحديد موقعك.');
+      return;
+    }
+    if (!paymentMethod) {
+      setReserveError(lang === 'en' ? 'Please select a payment method.' : 'يرجى تحديد طريقة الدفع.');
+      return;
+    }
+    if (!receiptFile) {
+      setReserveError(lang === 'en' ? 'Please upload the payment receipt.' : 'يرجى رفع إيصال الدفع.');
+      return;
+    }
+    if (clientLocation === 'outside_egypt' && !passportFile) {
+      setReserveError(lang === 'en' ? 'Please upload your passport.' : 'يرجى رفع صورة جواز السفر.');
+      return;
+    }
+
     setReserveProcessing(true);
     setReserveError('');
     try {
-      const payload = {
-        first_name: reserveForm.first_name,
-        last_name: reserveForm.last_name,
-        email: reserveForm.email,
-        phone: reserveForm.phone,
-        national_id: reserveForm.national_id || undefined,
+      const formData = new FormData();
+      formData.append('first_name', reserveForm.first_name);
+      formData.append('last_name', reserveForm.last_name);
+      formData.append('email', reserveForm.email);
+      formData.append('phone', reserveForm.phone);
+      if (reserveForm.national_id) {
+        formData.append('national_id', reserveForm.national_id);
+      }
+      formData.append('project_id', selectedProject?.id || '');
+      formData.append('unit_id', selectedUnit?.id || '');
+      formData.append('eoi_amount', '50000.00');
+      formData.append('client_location', clientLocation);
+      formData.append('payment_method', paymentMethod);
+      formData.append('receipt', receiptFile);
+      if (passportFile) {
+        formData.append('passport', passportFile);
+      }
+
+      const res = await api.post('/v1/public/eoi/submit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data?.success) {
+        setReserveResult(res.data);
+        // Update unit status locally
+        if (selectedFloor && selectedUnit) {
+          const updatedUnits = selectedFloor.units.map(u =>
+            u.id === selectedUnit.id ? { ...u, status: 'reserved' } : u
+          );
+          setSelectedFloor({ ...selectedFloor, units: updatedUnits, available_units: selectedFloor.available_units - 1 });
+          setSelectedUnit({ ...selectedUnit, status: 'reserved' });
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setReserveError(err.response?.data?.message || t.errorOccurred);
+    }
+    setReserveProcessing(false);
+  };
+
+  const handleReserveSubmitLoggedIn = async () => {
+    setReserveProcessing(true);
+    setReserveError('');
+    try {
+      const res = await api.post('/v1/public/eoi/submit', {
         project_id: selectedProject?.id,
         unit_id: selectedUnit?.id,
-        eoi_amount: 50000.00,
-        notes: `Interactive Unit Selection — Unit ${selectedUnit?.unit_number}, ${selectedBuilding?.name}, Floor ${selectedFloor?.floor}`
-      };
-      const res = await api.post('/v1/public/eoi/submit', payload);
+      });
+
       if (res.data?.success) {
         setReserveResult(res.data);
         // Update unit status locally
@@ -756,17 +887,140 @@ const InteractiveUnitSelection: React.FC = () => {
 
           </div>
 
-          {/* Master Plan Image */}
+          {/* Master Plan Image with Interactive Hotspots */}
           <div style={{
-            height: 320, width: '100%', borderRadius: 16, overflow: 'hidden',
-            background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid rgba(0,61,166,0.05)',
+            position: 'relative',
+            minHeight: 450,
+            width: '100%',
+            borderRadius: 20,
+            overflow: 'hidden',
+            background: '#f8fafc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(0,61,166,0.08)',
+            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)',
           }}>
-            <img
-              src={projectMedia.project_image}
-              alt="Master Plan"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            />
+            <div style={{ position: 'relative', display: 'inline-block', width: '100%', height: '100%', maxWidth: '800px' }}>
+              <img
+                src={projectMedia.project_image}
+                alt="Master Plan"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', maxHeight: '550px' }}
+                draggable={false}
+              />
+
+              {/* Hotspot Pins */}
+              {hotspots.map((h: any) => {
+                // Color code based on availability status
+                let statusColor = '#22c55e'; // green (available)
+                if (h.availability_status === 'sold_out') {
+                  statusColor = '#ef4444'; // red
+                } else if (h.availability_status === 'limited') {
+                  statusColor = '#f59e0b'; // amber/orange
+                } else if (h.availability_status === 'empty') {
+                  statusColor = '#94a3b8'; // grey
+                }
+
+                return (
+                  <div
+                    key={h.id}
+                    onClick={() => {
+                      const b = buildings.find(item => item.name === h.building?.name);
+                      if (b) {
+                        handleSelectBuilding(b);
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: `${h.x_percent}%`,
+                      top: `${h.y_percent}%`,
+                      transform: 'translate(-50%, -100%)',
+                      cursor: 'pointer',
+                      zIndex: 20,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {/* Animated Pulsing Pin */}
+                    <div style={{
+                      position: 'relative',
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50% 50% 50% 0',
+                      background: statusColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                      transform: 'rotate(-45deg)',
+                      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'rotate(-45deg) scale(1.2) translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'rotate(-45deg) scale(1) translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                      }}
+                    >
+                      <MapPin
+                        size={16}
+                        color="#fff"
+                        style={{ transform: 'rotate(45deg)' }}
+                      />
+                      
+                      {/* Pulse Ring */}
+                      {h.availability_status !== 'sold_out' && (
+                        <div style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 'inherit',
+                          border: `2.5px solid ${statusColor}`,
+                          animation: 'client-pin-glow 2s infinite',
+                          pointerEvents: 'none',
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Floating Label */}
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      backdropFilter: 'blur(8px)',
+                      color: '#fff',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      padding: '5px 10px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      whiteSpace: 'nowrap',
+                      marginTop: 6,
+                      boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                    }}>
+                      <span>{h.label || h.building?.name}</span>
+                      <span style={{ fontSize: '0.62rem', fontWeight: 600, opacity: 0.85 }}>
+                        {h.units_summary?.available} / {h.units_summary?.total} {t.availableUnits || 'Available'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <style>{`
+              @keyframes client-pin-glow {
+                0% { transform: scale(1); opacity: 1; }
+                100% { transform: scale(1.8); opacity: 0; }
+              }
+            `}</style>
           </div>
         </div>
       )}
@@ -1553,7 +1807,7 @@ const InteractiveUnitSelection: React.FC = () => {
         </div>
 
         {/* Unit Layout Image or 3D Model */}
-        {selectedUnit.layout_image_url && (
+        {(selectedUnit.layout_image_url || selectedUnit.model_3d_status === 'completed') && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
@@ -1561,7 +1815,7 @@ const InteractiveUnitSelection: React.FC = () => {
               </span>
               
               {/* 3D Model Toggle for Unit */}
-              {selectedUnit.model_3d_status === 'completed' && (
+              {selectedUnit.model_3d_status === 'completed' && selectedUnit.layout_image_url && (
                 <button
                   type="button"
                   onClick={() => setUnitView3D(!unitView3D)}
@@ -1586,15 +1840,15 @@ const InteractiveUnitSelection: React.FC = () => {
               <div style={{
                 height: 280, width: '100%', position: 'relative',
                 borderRadius: 14, overflow: 'hidden',
-                background: 'linear-gradient(135deg, #f0f4f8 0%, #e8ecf0 100%)',
-                border: '1px solid rgba(0,61,166,0.08)',
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                border: '1px solid rgba(197,168,128,0.35)',
               }}>
                 {/* @ts-ignore */}
                 <model-viewer
                   src={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/v1') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 7) : ((import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').endsWith('/api') ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').substring(0, (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').length - 4) : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'))}/api/v1/public/units/${selectedUnit.id}/3d-model/file`}
                   camera-controls
                   auto-rotate
-                  shadow-intensity="1"
+                  shadow-intensity="2.0"
                   exposure="1.2"
                   environment-image="neutral"
                   style={{ width: '100%', height: '100%', '--poster-color': 'transparent' } as any}
@@ -1636,21 +1890,24 @@ const InteractiveUnitSelection: React.FC = () => {
                   {t.interactHint}
                 </div>
               </div>
-            ) : (
-              <div style={{
-                background: '#fff', borderRadius: 14, padding: 8,
-                border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
-                cursor: 'zoom-in'
-              }}
-                onClick={() => window.open(selectedUnit.layout_image_url?.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`, '_blank')}
-              >
-                <img
-                  src={selectedUnit.layout_image_url.startsWith('http') ? selectedUnit.layout_image_url : `http://127.0.0.1:8000/storage/${selectedUnit.layout_image_url}`}
-                  alt={`Unit ${selectedUnit.unit_number} Layout`}
-                  style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
-                />
-              </div>
-            )}
+            ) : selectedUnit.layout_image_url ? (() => {
+              const imgUrl = selectedUnit.layout_image_url;
+              return (
+                <div style={{
+                  background: '#fff', borderRadius: 14, padding: 8,
+                  border: '1px solid rgba(0,61,166,0.08)', overflow: 'hidden',
+                  cursor: 'zoom-in'
+                }}
+                  onClick={() => window.open(imgUrl.startsWith('http') ? imgUrl : `http://127.0.0.1:8000/storage/${imgUrl}`, '_blank')}
+                >
+                  <img
+                    src={imgUrl.startsWith('http') ? imgUrl : `http://127.0.0.1:8000/storage/${imgUrl}`}
+                    alt={`Unit ${selectedUnit.unit_number} Layout`}
+                    style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+                  />
+                </div>
+              );
+            })() : null}
           </div>
         )}
 
@@ -1750,6 +2007,28 @@ const InteractiveUnitSelection: React.FC = () => {
   /* ─── Reservation Modal ─── */
   const renderReserveModal = () => {
     if (!showReserveModal || !selectedUnit) return null;
+
+    const inputStyle = {
+      width: '100%',
+      padding: '12px 16px',
+      borderRadius: '12px',
+      border: '1.5px solid rgba(0, 61, 166, 0.12)',
+      fontSize: '0.9rem',
+      color: '#0f172a',
+      background: '#fff',
+      outline: 'none',
+      transition: 'all 0.3s ease',
+      boxSizing: 'border-box' as const,
+    };
+
+    const labelStyle = {
+      display: 'block',
+      fontSize: '0.78rem',
+      fontWeight: 800,
+      color: '#1e293b',
+      marginBottom: 8,
+    };
+
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -1773,198 +2052,617 @@ const InteractiveUnitSelection: React.FC = () => {
           maxHeight: '90vh',
           overflowY: 'auto',
         }}>
-          {/* Success State */}
-          {reserveResult ? (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 24px',
-                animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
-              }}>
-                <CheckCircle size={40} style={{ color: '#fff' }} />
-              </div>
-              <h3 style={{
-                fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
-                color: '#0f172a', marginBottom: 12,
-              }}>
-                {t.successTitle}
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24 }}>
-                {t.successDesc}
-              </p>
-              <div style={{
-                fontSize: '2.5rem', fontWeight: 800, color: '#003DA6',
-                fontFamily: 'var(--font-title)',
-                padding: '16px 32px',
-                background: 'rgba(0,61,166,0.05)',
-                borderRadius: 16,
-                display: 'inline-block',
-                marginBottom: 28,
-              }}>
-                #{reserveResult.queue_number}
-              </div>
-              <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #003DA6, #001A70)',
-                color: '#fff', border: 'none',
-                padding: '14px 24px', borderRadius: 999,
-                fontFamily: 'var(--font-title)', fontWeight: 700,
-                fontSize: '0.95rem', cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
-              }}>
-                {t.close}
-              </button>
-            </div>
-          ) : (
-            /* Form State */
-            <form onSubmit={handleReserveSubmit}>
-              <h3 style={{
-                fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800,
-                color: '#0f172a', marginBottom: 8,
-              }}>
-                {t.confirmReservation}
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: 24 }}>
-                {t.confirmDesc}
-              </p>
-
-              {/* Unit summary */}
-              <div style={{
-                background: 'rgba(0,61,166,0.04)',
-                borderRadius: 16, padding: '16px 20px',
-                marginBottom: 24,
-                border: '1px solid rgba(0,61,166,0.08)',
-                display: 'flex', alignItems: 'center', gap: 16,
-              }}>
+          {isLoggedIn ? (
+            /* Logged in Flow */
+            reserveResult ? (
+              <div style={{ textAlign: 'center' }}>
                 <div style={{
-                  width: 48, height: 48, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
+                  margin: '0 auto 24px',
+                  animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
                 }}>
-                  {selectedUnit.unit_number}
+                  <CheckCircle size={40} style={{ color: '#fff' }} />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
-                    {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                    {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
-                  </div>
-                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
+                  color: '#0f172a', marginBottom: 12,
+                }}>
+                  {lang === 'en' ? 'Unit Reserved!' : 'تم حجز الوحدة!'}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.6 }}>
+                  {lang === 'en'
+                    ? `You have successfully reserved Unit ${selectedUnit.unit_number}. A confirmation email has been sent to you with the hold expiration details.`
+                    : `تم حجز الوحدة ${selectedUnit.unit_number} بنجاح. تم إرسال بريد إلكتروني لتأكيد تفاصيل فترة حجز الوحدة.`}
+                </p>
+                <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  color: '#fff', border: 'none',
+                  padding: '14px 24px', borderRadius: 999,
+                  fontFamily: 'var(--font-title)', fontWeight: 700,
+                  fontSize: '0.95rem', cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                }}>
+                  {t.close}
+                </button>
               </div>
+            ) : (
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>
+                  {lang === 'en' ? 'Confirm Reservation Hold' : 'تأكيد فترة حجز الوحدة'}
+                </h3>
 
-              {/* Form fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>{t.firstName} *</label>
-                  <input value={reserveForm.first_name} onChange={e => setReserveForm(prev => ({ ...prev, first_name: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '11px 16px',
-                      background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,61,166,0.12)',
-                      borderRadius: 12, fontSize: '0.88rem', color: '#0f172a',
-                      transition: 'all 0.3s ease', outline: 'none', boxSizing: 'border-box',
-                    }}
-                    onFocus={e => { e.target.style.borderColor = '#003DA6'; e.target.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                    onBlur={e => { e.target.style.borderColor = 'rgba(0,61,166,0.12)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>{t.lastName} *</label>
-                  <input value={reserveForm.last_name} onChange={e => setReserveForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '11px 16px',
-                      background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,61,166,0.12)',
-                      borderRadius: 12, fontSize: '0.88rem', color: '#0f172a',
-                      transition: 'all 0.3s ease', outline: 'none', boxSizing: 'border-box',
-                    }}
-                    onFocus={e => { e.target.style.borderColor = '#003DA6'; e.target.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                    onBlur={e => { e.target.style.borderColor = 'rgba(0,61,166,0.12)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>{t.email} *</label>
-                <input type="email" value={reserveForm.email} onChange={e => setReserveForm(prev => ({ ...prev, email: e.target.value }))}
-                  style={{
-                    width: '100%', padding: '11px 16px',
-                    background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,61,166,0.12)',
-                    borderRadius: 12, fontSize: '0.88rem', color: '#0f172a',
-                    transition: 'all 0.3s ease', outline: 'none', boxSizing: 'border-box',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#003DA6'; e.target.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(0,61,166,0.12)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>{t.phone} *</label>
-                <input type="tel" value={reserveForm.phone} onChange={e => setReserveForm(prev => ({ ...prev, phone: e.target.value }))}
-                  style={{
-                    width: '100%', padding: '11px 16px',
-                    background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,61,166,0.12)',
-                    borderRadius: 12, fontSize: '0.88rem', color: '#0f172a',
-                    transition: 'all 0.3s ease', outline: 'none', boxSizing: 'border-box',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#003DA6'; e.target.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(0,61,166,0.12)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 4, display: 'block' }}>{t.nationalId}</label>
-                <input value={reserveForm.national_id} onChange={e => setReserveForm(prev => ({ ...prev, national_id: e.target.value }))}
-                  style={{
-                    width: '100%', padding: '11px 16px',
-                    background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(0,61,166,0.12)',
-                    borderRadius: 12, fontSize: '0.88rem', color: '#0f172a',
-                    transition: 'all 0.3s ease', outline: 'none', boxSizing: 'border-box',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#003DA6'; e.target.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(0,61,166,0.12)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-
-              {reserveError && (
+                {/* Unit summary */}
                 <div style={{
-                  background: 'rgba(239,68,68,0.08)',
-                  color: '#dc2626',
-                  padding: '12px 16px',
-                  borderRadius: 12,
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  marginBottom: 16,
-                  border: '1px solid rgba(239,68,68,0.15)',
+                  background: 'rgba(0,61,166,0.04)',
+                  borderRadius: 16, padding: '14px 18px',
+                  marginBottom: 20,
+                  border: '1px solid rgba(0,61,166,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 16,
                 }}>
-                  {reserveError}
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
+                    flexShrink: 0
+                  }}>
+                    {selectedUnit.unit_number}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem' }}>
+                      {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                      {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <button type="submit" disabled={reserveProcessing} style={{
-                width: '100%',
-                background: reserveProcessing ? '#94a3b8' : 'linear-gradient(135deg, #22c55e, #16a34a)',
-                color: '#fff', border: 'none',
-                padding: '15px 24px', borderRadius: 999,
-                fontFamily: 'var(--font-title)', fontWeight: 700,
-                fontSize: '0.95rem',
-                cursor: reserveProcessing ? 'wait' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                boxShadow: reserveProcessing ? 'none' : '0 6px 20px rgba(34,197,94,0.3)',
-                transition: 'all 0.3s ease',
-              }}>
-                {reserveProcessing ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    {t.processing}
-                  </>
+                {!(eoiInvitation && eoiInvitation.project_id === selectedProject?.id) ? (
+                  <div style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: 20, textAlign: 'center', fontWeight: 600 }}>
+                    {lang === 'en'
+                      ? 'You do not have an active approved EOI invitation for this project.'
+                      : 'ليس لديك دعوة حجز نشطة معتمدة لهذا المشروع.'}
+                  </div>
                 ) : (
-                  <>
-                    <Shield size={18} />
-                    {t.confirmReservation}
-                  </>
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ color: '#334155', fontSize: '0.9rem', lineHeight: 1.5, margin: '0 0 12px 0' }}>
+                      {lang === 'en'
+                        ? `Welcome back, ${eoiInvitation.client_name}. You are eligible to reserve this unit based on your priority queue number (#${eoiInvitation.queue_number}).`
+                        : `مرحباً بك، ${eoiInvitation.client_name}. أنت مؤهل لحجز هذه الوحدة بناءً على رقم أسبقية الحجز الخاص بك (#${eoiInvitation.queue_number}).`}
+                    </p>
+                    <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', padding: 14, borderRadius: 12 }}>
+                      <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0, fontWeight: 700 }}>
+                        ⚠️ {lang === 'en' ? 'Contracting Signature Hold' : 'فترة صلاحية حجز العقد'}
+                      </p>
+                      <p style={{ color: '#475569', fontSize: '0.8rem', margin: '6px 0 0 0', lineHeight: 1.4 }}>
+                        {lang === 'en'
+                          ? `Once confirmed, this unit will be reserved for you for exactly ${eoiInvitation.contracting_deadline_hours} hours. You must sign the contract within this period, or the unit will be released.`
+                          : `بمجرد التأكيد، سيتم حجز هذه الوحدة لك لمدة ${eoiInvitation.contracting_deadline_hours} ساعة بالضبط. يجب عليك توقيع العقد خلال هذه الفترة، وإلا سيتم إلغاء الحجز.`}
+                      </p>
+                    </div>
+                  </div>
                 )}
-              </button>
-            </form>
+
+                {reserveError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 16, fontWeight: 600 }}>
+                    {reserveError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowReserveModal(false)}
+                    disabled={reserveProcessing}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: 999, border: '1px solid #cbd5e1',
+                      background: '#fff', color: '#475569', fontWeight: 700, cursor: 'pointer'
+                    }}
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReserveSubmitLoggedIn}
+                    disabled={reserveProcessing || !(eoiInvitation && eoiInvitation.project_id === selectedProject?.id)}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: 999, border: 'none',
+                      background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                      color: '#fff', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(0,61,166,0.2)'
+                    }}
+                  >
+                    {reserveProcessing ? (lang === 'en' ? 'Processing...' : 'جاري معالجة...') : (lang === 'en' ? 'Confirm Reserve' : 'تأكيد الحجز')}
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            /* Guest Flow */
+            reserveResult ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  animation: 'us3d-successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
+                }}>
+                  <CheckCircle size={40} style={{ color: '#fff' }} />
+                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 800,
+                  color: '#0f172a', marginBottom: 12,
+                }}>
+                  {t.successTitle}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.6 }}>
+                  {lang === 'en'
+                    ? 'Your reservation request and receipt have been submitted successfully. An accountant will review your payment shortly to approve your queue number.'
+                    : 'تم إرسال طلب الحجز وإيصال التحويل بنجاح. سيقوم المحاسب بمراجعة عملية الدفع قريباً لتأكيد رقم الأسبقية الخاص بك.'}
+                </p>
+                <div style={{
+                  fontSize: '1.15rem', fontWeight: 800, color: '#003DA6',
+                  fontFamily: 'var(--font-title)',
+                  padding: '12px 24px',
+                  background: 'rgba(0,61,166,0.05)',
+                  borderRadius: 16,
+                  display: 'inline-block',
+                  marginBottom: 28,
+                }}>
+                  {lang === 'en' ? 'PENDING REVIEW' : 'قيد المراجعة'}
+                </div>
+                <button onClick={() => { setShowReserveModal(false); setShowUnitPanel(false); }} style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                  color: '#fff', border: 'none',
+                  padding: '14px 24px', borderRadius: 999,
+                  fontFamily: 'var(--font-title)', fontWeight: 700,
+                  fontSize: '0.95rem', cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                }}>
+                  {t.close}
+                </button>
+              </div>
+            ) : (
+              /* Form State */
+              <form onSubmit={handleReserveSubmit}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{
+                    fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800,
+                    color: '#0f172a', margin: 0,
+                  }}>
+                    {t.confirmReservation}
+                  </h3>
+                  {reserveStep === 2 && (
+                    <button type="button" onClick={() => setReserveStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
+                      {lang === 'en' ? '← Back' : '← رجوع'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Unit summary */}
+                <div style={{
+                  background: 'rgba(0,61,166,0.04)',
+                  borderRadius: 16, padding: '14px 18px',
+                  marginBottom: 20,
+                  border: '1px solid rgba(0,61,166,0.08)',
+                  display: 'flex', alignItems: 'center', gap: 16,
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: 'linear-gradient(135deg, #003DA6, #001A70)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 800, fontFamily: 'var(--font-title)',
+                    flexShrink: 0
+                  }}>
+                    {selectedUnit.unit_number}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem' }}>
+                      {selectedBuilding?.name} — {t.floor} {selectedUnit.floor}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                      {selectedUnit.area && `${selectedUnit.area} ${t.sqm} · `}{formatPrice(selectedUnit.price)} {t.egp}
+                    </div>
+                  </div>
+                </div>
+
+                {/* STEP 1: Personal Info */}
+                {reserveStep === 1 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
+                      {lang === 'en' ? '1. Personal Contact Info' : '1. البيانات الشخصية للاتصال'}
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{t.firstName} *</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          value={reserveForm.first_name}
+                          onChange={e => setReserveForm({ ...reserveForm, first_name: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{t.lastName} *</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          value={reserveForm.last_name}
+                          onChange={e => setReserveForm({ ...reserveForm, last_name: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={labelStyle}>{t.email} *</label>
+                      <input
+                        style={inputStyle}
+                        type="email"
+                        required
+                        value={reserveForm.email}
+                        onChange={e => setReserveForm({ ...reserveForm, email: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={labelStyle}>{t.phone} *</label>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        required
+                        placeholder="+201..."
+                        value={reserveForm.phone}
+                        onChange={e => setReserveForm({ ...reserveForm, phone: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 24 }}>
+                      <label style={labelStyle}>{t.nationalId}</label>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        placeholder="29001011234567"
+                        value={reserveForm.national_id}
+                        onChange={e => setReserveForm({ ...reserveForm, national_id: e.target.value })}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '14px 24px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                      }}
+                    >
+                      {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
+                      <Arrow size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2: Location, Method, and File Uploads */}
+                {reserveStep === 2 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
+                      {lang === 'en' ? '2. Confirm Payment & Upload Documents' : '2. تأكيد الدفع ورفع الملفات'}
+                    </h4>
+
+                    {/* Location Selection */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={labelStyle}>{t.eoiLocationLabel} *</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientLocation('inside_egypt');
+                            setPaymentMethod('bank_transfer');
+                          }}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'inside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'inside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
+                            color: '#1e293b',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          {t.eoiLocationInside}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientLocation('outside_egypt');
+                            setPaymentMethod('international_bank_transfer');
+                          }}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${clientLocation === 'outside_egypt' ? '#003DA6' : 'rgba(0,61,166,0.1)'}`,
+                            background: clientLocation === 'outside_egypt' ? 'rgba(0,61,166,0.03)' : '#fff',
+                            color: '#1e293b',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          {t.eoiLocationOutside}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Payment Method Selection */}
+                    {clientLocation === 'inside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={labelStyle}>{t.eoiPaymentMethodLabel} *</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('bank_transfer')}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'bank_transfer' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'bank_transfer' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.eoiPaymentMethodBank}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('instapay')}
+                            style={{
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: `2px solid ${paymentMethod === 'instapay' ? '#003DA6' : 'rgba(0,61,166,0.08)'}`,
+                              background: paymentMethod === 'instapay' ? 'rgba(0,61,166,0.02)' : '#fff',
+                              color: '#1e293b',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.eoiPaymentMethodInstapay}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {clientLocation === 'outside_egypt' && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={labelStyle}>{t.eoiPaymentMethodLabel}</label>
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: '2px solid #003DA6',
+                            background: 'rgba(0,61,166,0.02)',
+                            color: '#1e293b',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <Globe size={14} color="#003DA6" />
+                          {t.eoiPaymentMethodIntlBank}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Transfer Details Card */}
+                    {clientLocation && (
+                      <div>
+                        {paymentMethod === 'bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB)<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev<br/>
+                              <strong>Account No:</strong> 100045678912<br/>
+                              <strong>IBAN:</strong> EG12000300000000100045678912<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'international_bank_transfer' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiBankDetailsTitle} (USD / EUR)</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>Bank Name:</strong> Commercial International Bank (CIB) Egypt<br/>
+                              <strong>Account Name:</strong> Mountain View Real Estate Dev Intl<br/>
+                              <strong>Account No (USD):</strong> 100099887766<br/>
+                              <strong>IBAN:</strong> EG89000300000000100099887766<br/>
+                              <strong>SWIFT Code:</strong> COIBEGCX
+                            </div>
+                          </div>
+                        )}
+                        {paymentMethod === 'instapay' && (
+                          <div style={{ background: 'rgba(0, 61, 166, 0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(0, 61, 166, 0.08)', marginBottom: 14 }}>
+                            <h5 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#003DA6', margin: '0 0 8px 0', fontFamily: 'var(--font-title)' }}>{t.eoiInstapayDetailsTitle}</h5>
+                            <div style={{ fontSize: '0.72rem', color: '#334155', lineHeight: 1.6 }}>
+                              <strong>InstaPay Address:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'rgba(0,61,166,0.08)', padding: '2px 6px', borderRadius: 4 }}>mountainview@instapay</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* File Upload fields */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={labelStyle}>{t.eoiReceiptUpload}</label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              required
+                              onChange={e => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  setReceiptFile(e.target.files[0]);
+                                }
+                              }}
+                              style={{ display: 'none' }}
+                              id="reserve-receipt-file-input"
+                            />
+                            <label
+                              htmlFor="reserve-receipt-file-input"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '12px 16px',
+                                border: '2px dashed rgba(0,61,166,0.15)',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                background: '#fff',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
+                              onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
+                            >
+                              <Info size={18} color="#003DA6" />
+                              <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                {receiptFile ? receiptFile.name : t.eoiUploadHint}
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {clientLocation === 'outside_egypt' && (
+                          <div style={{ marginBottom: 20 }}>
+                            <label style={labelStyle}>{t.eoiPassportUpload}</label>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                required={clientLocation === 'outside_egypt'}
+                                onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    setPassportFile(e.target.files[0]);
+                                  }
+                                }}
+                                style={{ display: 'none' }}
+                                id="reserve-passport-file-input"
+                              />
+                              <label
+                                htmlFor="reserve-passport-file-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '12px 16px',
+                                  border: '2px dashed rgba(0,61,166,0.15)',
+                                  borderRadius: '10px',
+                                  cursor: 'pointer',
+                                  background: '#fff',
+                                  transition: 'all 0.2s',
+                                }}
+                                onMouseOver={e => e.currentTarget.style.borderColor = '#003DA6'}
+                                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(0,61,166,0.15)'}
+                              >
+                                <Info size={18} color="#003DA6" />
+                                <span style={{ fontSize: '0.78rem', color: '#5c6c7f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                  {passportFile ? passportFile.name : t.eoiUploadHint}
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {reserveError && (
+                      <div style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        color: '#dc2626',
+                        padding: '12px 16px',
+                        borderRadius: 12,
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        marginBottom: 16,
+                        border: '1px solid rgba(239,68,68,0.15)',
+                      }}>
+                        {reserveError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={reserveProcessing}
+                      style={{
+                        width: '100%',
+                        background: reserveProcessing ? '#94a3b8' : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '15px 24px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: reserveProcessing ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 10,
+                        boxShadow: reserveProcessing ? 'none' : '0 6px 20px rgba(34,197,94,0.3)',
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      {reserveProcessing ? (
+                        <>
+                          <Loader size={18} className="animate-spin" />
+                          {lang === 'en' ? 'Processing Reservation...' : 'جاري معالجة الحجز...'}
+                        </>
+                      ) : (
+                        <>
+                          <Shield size={18} />
+                          {t.confirmReservation}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </form>
+            )
           )}
         </div>
       </div>
@@ -2287,8 +2985,8 @@ const InteractiveUnitSelection: React.FC = () => {
       {fullscreenModelUrl && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,15,61,0.7)',
-          backdropFilter: 'blur(12px)',
+          background: 'rgba(15, 23, 42, 0.85)',
+          backdropFilter: 'blur(16px)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           zIndex: 3000,
           animation: 'us3d-modalFade 0.3s ease forwards',
@@ -2298,12 +2996,13 @@ const InteractiveUnitSelection: React.FC = () => {
         >
           <div 
             style={{
-              background: '#ffffff',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              border: '1.5px solid rgba(197, 168, 128, 0.35)',
               borderRadius: 28,
               padding: '24px',
               maxWidth: '90vw', width: '100%',
               height: '85vh',
-              boxShadow: '0 30px 70px rgba(0,15,61,0.25)',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.5)',
               display: 'flex', flexDirection: 'column',
               animation: 'us3d-modalSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
               position: 'relative',
@@ -2311,33 +3010,33 @@ const InteractiveUnitSelection: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(0,61,166,0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#003DA6', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(197, 168, 128, 0.15)', paddingBottom: '12px' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#C5A880', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 🧊 {lang === 'ar' ? 'معاينة ثلاثية الأبعاد تفاعلية' : 'Interactive 3D Preview'} — {fullscreenModelTitle}
               </h3>
               <button 
                 onClick={() => { setFullscreenModelUrl(null); setFullscreenModelTitle(''); }}
                 style={{ 
-                  background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', 
+                  background: 'rgba(255, 255, 255, 0.08)', border: 'none', cursor: 'pointer', 
                   width: '36px', height: '36px', borderRadius: '50%', 
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#64748b', transition: 'all 0.3s ease' 
+                  color: '#94a3b8', transition: 'all 0.3s ease' 
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.color = '#f87171'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* 3D Model Viewer container */}
-            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 16, overflow: 'hidden', border: '1.5px solid rgba(0,61,166,0.08)' }}>
+            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(135deg, #090d16 0%, #111827 100%)', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(197, 168, 128, 0.25)' }}>
               {/* @ts-ignore */}
               <model-viewer
                 src={fullscreenModelUrl}
                 camera-controls
                 auto-rotate
-                shadow-intensity="1.5"
+                shadow-intensity="2.0"
                 exposure="1.2"
                 environment-image="neutral"
                 style={{

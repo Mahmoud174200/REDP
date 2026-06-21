@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Building;
 use App\Models\BuildingFloor;
+use App\Models\BuildingHotspot;
 use App\Models\ProjectAmenity;
 use App\Models\Unit;
 use Illuminate\Http\Request;
@@ -464,6 +465,45 @@ class MasterPlanController extends Controller
         $building = Building::findOrFail($buildingId);
         $floor = BuildingFloor::where('building_id', $buildingId)->findOrFail($floorId);
 
+        if ($request->has('orientation')) {
+            $val = trim(mb_strtolower($request->input('orientation')));
+            $map = [
+                'بحري' => 'north',
+                'maritime' => 'north',
+                'north' => 'north',
+                'قبلي' => 'south',
+                'southern' => 'south',
+                'south' => 'south',
+                'شرق' => 'east',
+                'شرقي' => 'east',
+                'east' => 'east',
+                'غرب' => 'west',
+                'غربي' => 'west',
+                'west' => 'west',
+                'شمال شرق' => 'north_east',
+                'شمال شرقي' => 'north_east',
+                'north_east' => 'north_east',
+                'northeast' => 'north_east',
+                'شمال غرب' => 'north_west',
+                'شمال غربي' => 'north_west',
+                'north_west' => 'north_west',
+                'northwest' => 'north_west',
+                'جنوب شرق' => 'south_east',
+                'جنوب شرقي' => 'south_east',
+                'south_east' => 'south_east',
+                'southeast' => 'south_east',
+                'جنوب غرب' => 'south_west',
+                'جنوب غربي' => 'south_west',
+                'south_west' => 'south_west',
+                'southwest' => 'south_west',
+            ];
+            $mapped = $map[$val] ?? null;
+            if (!$mapped && in_array($val, ['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])) {
+                $mapped = $val;
+            }
+            $request->merge(['orientation' => $mapped]);
+        }
+
         $validated = $request->validate([
             'unit_number' => 'required|string|max:50',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
@@ -483,7 +523,7 @@ class MasterPlanController extends Controller
             'has_private_garden' => 'boolean',
             'has_private_parking' => 'boolean',
             'view_type' => 'nullable|string|max:100',
-            'orientation' => 'nullable|string|max:100',
+            'orientation' => ['nullable', Rule::in(['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])],
             'layout_description' => 'nullable|string',
             'phase' => 'nullable|string|max:100',
         ]);
@@ -553,6 +593,45 @@ class MasterPlanController extends Controller
     {
         $unit = Unit::findOrFail($unitId);
 
+        if ($request->has('orientation')) {
+            $val = trim(mb_strtolower($request->input('orientation')));
+            $map = [
+                'بحري' => 'north',
+                'maritime' => 'north',
+                'north' => 'north',
+                'قبلي' => 'south',
+                'southern' => 'south',
+                'south' => 'south',
+                'شرق' => 'east',
+                'شرقي' => 'east',
+                'east' => 'east',
+                'غرب' => 'west',
+                'غربي' => 'west',
+                'west' => 'west',
+                'شمال شرق' => 'north_east',
+                'شمال شرقي' => 'north_east',
+                'north_east' => 'north_east',
+                'northeast' => 'north_east',
+                'شمال غرب' => 'north_west',
+                'شمال غربي' => 'north_west',
+                'north_west' => 'north_west',
+                'northwest' => 'north_west',
+                'جنوب شرق' => 'south_east',
+                'جنوب شرقي' => 'south_east',
+                'south_east' => 'south_east',
+                'southeast' => 'south_east',
+                'جنوب غرب' => 'south_west',
+                'جنوب غربي' => 'south_west',
+                'south_west' => 'south_west',
+                'southwest' => 'south_west',
+            ];
+            $mapped = $map[$val] ?? null;
+            if (!$mapped && in_array($val, ['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])) {
+                $mapped = $val;
+            }
+            $request->merge(['orientation' => $mapped]);
+        }
+
         $validated = $request->validate([
             'unit_number' => 'required|string|max:50',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
@@ -572,7 +651,7 @@ class MasterPlanController extends Controller
             'has_private_garden' => 'boolean',
             'has_private_parking' => 'boolean',
             'view_type' => 'nullable|string|max:100',
-            'orientation' => 'nullable|string|max:100',
+            'orientation' => ['nullable', Rule::in(['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'])],
             'layout_description' => 'nullable|string',
             'phase' => 'nullable|string|max:100',
         ]);
@@ -743,6 +822,193 @@ class MasterPlanController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
+    // 📍 BUILDING HOTSPOTS (Interactive Map)
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Get all hotspots for a project.
+     */
+    public function getHotspots($projectId)
+    {
+        $hotspots = BuildingHotspot::where('project_id', $projectId)
+            ->with(['building' => function ($q) {
+                $q->withCount('units');
+            }])
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $hotspots
+        ]);
+    }
+
+    /**
+     * Create a new hotspot (pin a building on the master plan image).
+     */
+    public function createHotspot(Request $request, $projectId)
+    {
+        Project::findOrFail($projectId);
+
+        $validated = $request->validate([
+            'building_id' => 'required|uuid|exists:buildings,id',
+            'x_percent' => 'required|numeric|min:0|max:100',
+            'y_percent' => 'required|numeric|min:0|max:100',
+            'label' => 'nullable|string|max:255',
+            'pin_color' => 'nullable|string|max:20',
+        ]);
+
+        // Check building belongs to this project
+        $building = Building::where('id', $validated['building_id'])
+            ->where('project_id', $projectId)
+            ->firstOrFail();
+
+        // Check if building already has a hotspot
+        $existing = BuildingHotspot::where('project_id', $projectId)
+            ->where('building_id', $validated['building_id'])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => "Building '{$building->name}' already has a hotspot. Update or delete it first."
+            ], 422);
+        }
+
+        $hotspot = BuildingHotspot::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $projectId,
+            'building_id' => $validated['building_id'],
+            'x_percent' => $validated['x_percent'],
+            'y_percent' => $validated['y_percent'],
+            'label' => $validated['label'] ?? null,
+            'pin_color' => $validated['pin_color'] ?? '#003DA6',
+        ]);
+
+        $hotspot->load('building');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Hotspot created successfully.',
+            'data' => $hotspot
+        ], 201);
+    }
+
+    /**
+     * Update hotspot position or label.
+     */
+    public function updateHotspot(Request $request, $projectId, $hotspotId)
+    {
+        $hotspot = BuildingHotspot::where('project_id', $projectId)->findOrFail($hotspotId);
+
+        $validated = $request->validate([
+            'x_percent' => 'nullable|numeric|min:0|max:100',
+            'y_percent' => 'nullable|numeric|min:0|max:100',
+            'label' => 'nullable|string|max:255',
+            'pin_color' => 'nullable|string|max:20',
+        ]);
+
+        $hotspot->update(array_filter($validated, fn($v) => $v !== null));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Hotspot updated successfully.',
+            'data' => $hotspot->load('building')
+        ]);
+    }
+
+    /**
+     * Delete a hotspot.
+     */
+    public function deleteHotspot($projectId, $hotspotId)
+    {
+        $hotspot = BuildingHotspot::where('project_id', $projectId)->findOrFail($hotspotId);
+        $hotspot->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Hotspot deleted successfully.'
+        ]);
+    }
+
+    /**
+     * Public: Get the interactive map data for a project.
+     * Returns the master plan image + hotspots with building details & availability.
+     */
+    public function getInteractiveMap($projectId)
+    {
+        $project = Project::with('media')->findOrFail($projectId);
+
+        // Get the master plan image from project media
+        $masterPlanMedia = $project->media->where('media_type', 'project_image')->first();
+        $masterPlanImageUrl = $masterPlanMedia
+            ? asset('storage/' . $masterPlanMedia->file_path)
+            : null;
+
+        // Get hotspots with building data
+        $hotspots = BuildingHotspot::where('project_id', $projectId)
+            ->with('building')
+            ->get()
+            ->map(function ($hotspot) {
+                $building = $hotspot->building;
+                if (!$building) return null;
+
+                $units = Unit::where('building_id', $building->id)->get();
+                $totalUnits = $units->count();
+                $available = $units->where('status', 'available')->count();
+                $sold = $units->where('status', 'sold')->count();
+                $reserved = $units->where('status', 'reserved')->count();
+
+                // Get building image from media
+                $buildingMedia = $building->project->media
+                    ->where('media_type', 'building_image')
+                    ->where('building_name', $building->name)
+                    ->first();
+
+                return [
+                    'id' => $hotspot->id,
+                    'x_percent' => $hotspot->x_percent,
+                    'y_percent' => $hotspot->y_percent,
+                    'label' => $hotspot->label ?? $building->name,
+                    'pin_color' => $hotspot->pin_color,
+                    'building' => [
+                        'id' => $building->id,
+                        'name' => $building->name,
+                        'name_ar' => $building->name_ar,
+                        'type' => $building->type,
+                        'total_floors' => $building->total_floors,
+                        'status' => $building->status,
+                        'image_url' => $buildingMedia
+                            ? asset('storage/' . $buildingMedia->file_path)
+                            : null,
+                    ],
+                    'units_summary' => [
+                        'total' => $totalUnits,
+                        'available' => $available,
+                        'sold' => $sold,
+                        'reserved' => $reserved,
+                        'occupancy_percent' => $totalUnits > 0
+                            ? round(($sold + $reserved) / $totalUnits * 100, 1)
+                            : 0,
+                    ],
+                    'availability_status' => $totalUnits === 0
+                        ? 'empty'
+                        : ($available === 0 ? 'sold_out' : ($available < $totalUnits * 0.3 ? 'limited' : 'available')),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'project_name' => $project->name,
+                'master_plan_image' => $masterPlanImageUrl,
+                'hotspots' => $hotspots,
+            ]
+        ]);
+    }
+
+    // ══════════════════════════════════════════════════════════
     // 🔧 HELPERS
     // ══════════════════════════════════════════════════════════
 
@@ -806,7 +1072,7 @@ class MasterPlanController extends Controller
         $project->update([
             'total_buildings_count' => $buildings->count(),
             'total_built_area' => $buildings->sum('total_built_area'),
-            'total_units' => $project->units()->count(),
+            'total_units' => $project->units()->whereNotNull('building_id')->count(),
             'density_per_feddan' => $this->calculateDensity($project),
         ]);
     }
@@ -830,7 +1096,7 @@ class MasterPlanController extends Controller
         $feddanCount = $landAreaSqm / 4200;
         if ($feddanCount <= 0) return null;
 
-        $totalUnits = $project->units()->count();
+        $totalUnits = $project->units()->whereNotNull('building_id')->count();
         return round($totalUnits / $feddanCount, 2);
     }
 }

@@ -82,6 +82,11 @@ class Project extends Model
         return $this->hasMany(ProjectMedia::class);
     }
 
+    public function hotspots()
+    {
+        return $this->hasMany(BuildingHotspot::class);
+    }
+
     // ── Accessors ──
 
     /**
@@ -90,7 +95,7 @@ class Project extends Model
     public function getMasterPlanSummaryAttribute(): array
     {
         $buildings = $this->buildings;
-        $units = $this->units;
+        $units = $this->units()->whereNotNull('building_id')->get();
 
         $totalUnits = $units->count();
         $availableUnits = $units->where('status', 'available')->count();

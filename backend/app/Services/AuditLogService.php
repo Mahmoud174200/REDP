@@ -23,7 +23,7 @@ class AuditLogService
     /**
      * Record a general audit log entry.
      */
-    public static function log(string $action, ?string $userId, array $details = []): AuditLog
+    public static function log(string $action, ?string $userId, array $details = [], ?array $oldValues = null, ?array $newValues = null): AuditLog
     {
         $userAgent = request()->header('User-Agent');
         $ip = request()->ip() ?: '127.0.0.1';
@@ -72,6 +72,8 @@ class AuditLogService
             'geo_location' => $geoLocation,
             'session_id' => $sessionId,
             'details' => $details,
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
         ]);
     }
 

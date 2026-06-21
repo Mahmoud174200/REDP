@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, TrendingDown, CreditCard, Clock, CheckCircle, AlertCircle, ArrowUpRight, ArrowDownRight, DollarSign, Calendar, BarChart3 } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, CreditCard, Clock, CheckCircle, AlertCircle, ArrowUpRight, ArrowDownRight, DollarSign, Calendar, BarChart3, Users, Building } from 'lucide-react';
 import api from '../../services/api';
 
 interface PaymentEntry {
   id: string;
   contract_number: string;
+  client_id: string;
   client_name: string;
   unit_number: string;
+  project_id: string;
   project_name: string;
+  phase: string;
+  unit_type: string;
   installment_number: number;
   amount: number;
   penalty_amount: number;
@@ -24,16 +28,52 @@ const Payments: React.FC = () => {
   const [selectedGateway, setSelectedGateway] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [dashboardStats, setDashboardStats] = useState({
+  
+  // Filter States
+  const [filterYear, setFilterYear] = useState('2026');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterProject, setFilterProject] = useState('all');
+  const [filterPhase, setFilterPhase] = useState('all');
+  const [filterUnitType, setFilterUnitType] = useState('all');
+  const [filterCustomer, setFilterCustomer] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Filter Dropdown Lists (loaded dynamically from contracts metadata)
+  const [projectsList, setProjectsList] = useState<{ id: string; name: string }[]>([]);
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [phasesList, setPhasesList] = useState<string[]>([]);
+  const [unitTypesList, setUnitTypesList] = useState<string[]>([]);
+
+  const [dashboardStats, setDashboardStats] = useState<any>({
     total_revenue: 0,
-    pending_amount: 0,
-    overdue_amount: 0,
-    overdue_count: 0,
+    total_collected: 0,
+    total_outstanding: 0,
     cash_balance: 0,
     bank_balance: 0,
+    this_month_revenue: 0,
+    monthly_revenue_data: Array(12).fill(0),
+    yearly_revenue_data: {} as Record<number, number>,
+    
+    // Customer statistics
+    regular_customers: 0,
+    overdue_customers: 0,
+    average_overdue_days: 0,
+    total_penalties: 0,
+    pending_penalties: 0,
+
+    // Unit statistics
+    available_units: 0,
+    reserved_units: 0,
+    sold_units: 0,
+    withdrawn_units: 0,
+
+    // Forecasting / expected outlays
+    expected_cash_flows: {} as Record<string, number>,
+    upcoming_installments_sum: 0,
     this_month_expected: 0,
     next_month_expected: 0,
     this_year_expected: 0,
+    
     compound_stats: [] as any[]
   });
 
@@ -48,19 +88,73 @@ const Payments: React.FC = () => {
   const [collectNotes, setCollectNotes] = useState('');
   const [isCollecting, setIsCollecting] = useState(false);
 
-  const fetchData = async () => {
+  // Load contracts metadata to populate filter options on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const contractsRes = await api.get('/v1/finance/contracts');
+        if (contractsRes.data?.success && contractsRes.data.data) {
+          const contracts = contractsRes.data.data;
+          const projectsMap = new Map<string, string>();
+          const clientsMap = new Map<string, string>();
+          const phasesSet = new Set<string>();
+          const unitTypesSet = new Set<string>();
+          
+          contracts.forEach((c: any) => {
+            if (c.unit?.project) {
+              projectsMap.set(c.unit.project.id, c.unit.project.name);
+            }
+            if (c.client) {
+              clientsMap.set(c.client.id, c.client.name);
+            }
+            if (c.unit?.phase) {
+              phasesSet.add(c.unit.phase);
+            }
+            if (c.unit?.type) {
+              unitTypesSet.add(c.unit.type);
+            }
+          });
+          
+          setProjectsList(Array.from(projectsMap.entries()).map(([id, name]) => ({ id, name })));
+          setClientsList(Array.from(clientsMap.entries()).map(([id, name]) => ({ id, name })));
+          setPhasesList(Array.from(phasesSet));
+          setUnitTypesList(Array.from(unitTypesSet));
+        }
+      } catch (err) {
+        console.error('Failed to fetch contracts metadata for filters:', err);
+      }
+    };
+    fetchMetadata();
+  }, []);
+
+  const fetchData = async (filters: any) => {
     setIsLoading(true);
     try {
+      // Build query string for dashboard stats
+      const params = new URLSearchParams();
+      params.append('year', filters.year);
+      if (filters.month) params.append('month', filters.month);
+      if (filters.project_id && filters.project_id !== 'all') params.append('project_id', filters.project_id);
+      if (filters.phase && filters.phase !== 'all') params.append('phase', filters.phase);
+      if (filters.unit_type && filters.unit_type !== 'all') params.append('unit_type', filters.unit_type);
+      if (filters.client_id && filters.client_id !== 'all') params.append('client_id', filters.client_id);
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+
+      // Fetch payment ledger records & dashboard stats
       const payRes = await api.get('/v1/finance/payments');
-      const dashRes = await api.get('/v1/finance/dashboard');
+      const dashRes = await api.get(`/v1/finance/dashboard?${params.toString()}`);
 
       if (payRes.data?.success) {
         const mapped = payRes.data.data.map((p: any) => ({
           id: p.id,
           contract_number: p.contract?.contract_number || 'N/A',
+          client_id: p.contract?.client?.id || '',
           client_name: p.contract?.client?.name || 'N/A',
           unit_number: p.contract?.unit?.unit_number || 'N/A',
+          project_id: p.contract?.unit?.project?.id || '',
           project_name: p.contract?.unit?.project?.name || 'N/A',
+          phase: p.contract?.unit?.phase || '',
+          unit_type: p.contract?.unit?.type || '',
           installment_number: p.installment_number,
           amount: parseFloat(p.amount) || 0,
           penalty_amount: parseFloat(p.penalty_amount) || 0,
@@ -84,9 +178,18 @@ const Payments: React.FC = () => {
     }
   };
 
+  // Trigger fetch when any filter state changes
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData({
+      year: filterYear,
+      month: filterMonth,
+      project_id: filterProject,
+      phase: filterPhase,
+      unit_type: filterUnitType,
+      client_id: filterCustomer,
+      status: filterStatus
+    });
+  }, [filterYear, filterMonth, filterProject, filterPhase, filterUnitType, filterCustomer, filterStatus]);
 
   const handlePrintReceipt = (payment: any) => {
     const receiptWindow = window.open('', '_blank');
@@ -413,7 +516,15 @@ const Payments: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message || 'Payment collected successfully.');
         setShowCollectModal(false);
-        fetchData(); // Refresh list & KPIs
+        fetchData({
+          year: filterYear,
+          month: filterMonth,
+          project_id: filterProject,
+          phase: filterPhase,
+          unit_type: filterUnitType,
+          client_id: filterCustomer,
+          status: filterStatus
+        }); // Refresh list & KPIs
         
         // Print Receipt Automatically
         const printedPayment = {
@@ -432,6 +543,49 @@ const Payments: React.FC = () => {
     }
   };
 
+  // Client-side filtering for ledger table based on unified filter states
+  const filtered = payments.filter(p => {
+    const matchGateway = selectedGateway === 'all' || p.gateway === selectedGateway;
+    
+    // Status filter
+    let matchStatus = true;
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'overdue') {
+        matchStatus = p.status === 'pending' && new Date(p.due_date) < new Date();
+      } else {
+        matchStatus = p.status === filterStatus;
+      }
+    }
+    
+    // Year filter
+    let matchYear = true;
+    if (filterYear) {
+      const dateToCheck = p.paid_at ? new Date(p.paid_at) : new Date(p.due_date);
+      matchYear = dateToCheck.getFullYear().toString() === filterYear;
+    }
+    
+    // Month filter
+    let matchMonth = true;
+    if (filterMonth) {
+      const dateToCheck = p.paid_at ? new Date(p.paid_at) : new Date(p.due_date);
+      matchMonth = (dateToCheck.getMonth() + 1).toString() === filterMonth;
+    }
+    
+    // Project filter
+    const matchProject = filterProject === 'all' || p.project_id === filterProject;
+    
+    // Phase filter
+    const matchPhase = filterPhase === 'all' || p.phase === filterPhase;
+    
+    // Unit Type filter
+    const matchUnitType = filterUnitType === 'all' || p.unit_type === filterUnitType;
+    
+    // Customer filter
+    const matchCustomer = filterCustomer === 'all' || p.client_id === filterCustomer;
+
+    return matchGateway && matchStatus && matchYear && matchMonth && matchProject && matchPhase && matchUnitType && matchCustomer;
+  });
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
@@ -441,24 +595,35 @@ const Payments: React.FC = () => {
     );
   }
 
-  const filtered = payments.filter(p => {
-    const matchGateway = selectedGateway === 'all' || p.gateway === selectedGateway;
-    const matchStatus = selectedStatus === 'all' || p.status === selectedStatus;
-    return matchGateway && matchStatus;
-  });
-
-  // KPI calculations
-  const totalRevenue = dashboardStats.total_revenue;
+  // Display aggregates from backend dashboard response
+  const totalCollected = dashboardStats.total_collected || 0;
+  const totalOutstanding = dashboardStats.total_outstanding || 0;
+  const totalRevenue = dashboardStats.total_revenue || 0;
   const cashBalance = dashboardStats.cash_balance || 0;
   const bankBalance = dashboardStats.bank_balance || 0;
-  const pendingAmount = dashboardStats.pending_amount;
-  const overdueAmount = dashboardStats.overdue_amount;
-  const paidCount = payments.filter(p => p.status === 'paid').length;
-  const overdueCount = payments.filter(p => p.status === 'pending' && new Date(p.due_date) < new Date()).length;
+  
+  const regularCustomers = dashboardStats.regular_customers || 0;
+  const overdueCustomers = dashboardStats.overdue_customers || 0;
+  const averageOverdueDays = dashboardStats.average_overdue_days || 0;
+  const totalPenalties = dashboardStats.total_penalties || 0;
+  const pendingPenalties = dashboardStats.pending_penalties || 0;
+  
+  const availableUnits = dashboardStats.available_units || 0;
+  const reservedUnits = dashboardStats.reserved_units || 0;
+  const soldUnits = dashboardStats.sold_units || 0;
+  const withdrawnUnits = dashboardStats.withdrawn_units || 0;
+  
+  const thisMonthExpected = dashboardStats.this_month_expected || 0;
+  const nextMonthExpected = dashboardStats.next_month_expected || 0;
+  const thisYearExpected = dashboardStats.this_year_expected || 0;
+  const upcomingInstallmentsSum = dashboardStats.upcoming_installments_sum || 0;
 
-  // Monthly revenue data for chart
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-  const monthlyData = [0, 6800000, 437500, 387500, 0, 212500];
+  const paidCount = filtered.filter(p => p.status === 'paid').length;
+  const overdueCount = filtered.filter(p => p.status === 'pending' && new Date(p.due_date) < new Date()).length;
+
+  // Monthly revenue chart setup
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyData = dashboardStats.monthly_revenue_data || Array(12).fill(0);
   const maxMonthly = Math.max(...monthlyData, 1);
 
   return (
@@ -478,46 +643,327 @@ const Payments: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
-        {[
-          { label: 'Total Outlays', value: `${(totalRevenue / 1000000).toFixed(2)}M`, sub: `${paidCount} payments`, icon: <DollarSign size={20} />, color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)' },
-          { label: 'Cash in Treasury', value: `${(cashBalance / 1000000).toFixed(2)}M`, sub: '💵 Physical Cash Desk', icon: <Wallet size={20} />, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-          { label: 'Bank Balance', value: `${(bankBalance / 1000000).toFixed(2)}M`, sub: '🏛️ Bank/Gateways', icon: <CreditCard size={20} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
-          { label: 'Pending Amount', value: `${(pendingAmount / 1000000).toFixed(2)}M`, sub: `${payments.filter(p => p.status === 'pending').length} remaining`, icon: <Clock size={20} />, color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.08)' },
-          { label: 'Overdue Amount', value: `${(overdueAmount / 1000000).toFixed(2)}M`, sub: `${overdueCount} delayed`, icon: <AlertCircle size={20} />, color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.08)' },
-        ].map((card, i) => (
-          <div key={i} className="glass-panel" style={{ padding: '20px 16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</span>
-              <div style={{ padding: '6px', borderRadius: 'var(--radius-sm)', background: card.bg }}>
-                <div style={{ color: card.color }}>{card.icon}</div>
-              </div>
-            </div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: card.color }}>{card.value} EGP</h3>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{card.sub}</span>
+      {/* Dynamic Multi-Criteria Filters Panel */}
+      <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
+          <TrendingUp size={16} style={{ color: 'var(--color-primary)' }} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Multi-Criteria Financial Filters</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+          {/* Year */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Fiscal Year</label>
+            <select className="form-control" value={filterYear} onChange={e => setFilterYear(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
           </div>
-        ))}
+
+          {/* Month */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Month</label>
+            <select className="form-control" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="">All Months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+
+          {/* Project */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Project</label>
+            <select className="form-control" value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="all">All Projects</option>
+              {projectsList.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Phase */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Phase</label>
+            <select className="form-control" value={filterPhase} onChange={e => setFilterPhase(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="all">All Phases</option>
+              {phasesList.map(ph => (
+                <option key={ph} value={ph}>{ph}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Unit Type */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Unit Type</label>
+            <select className="form-control" value={filterUnitType} onChange={e => setFilterUnitType(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="all">All Types</option>
+              {unitTypesList.map(ut => (
+                <option key={ut} value={ut} style={{ textTransform: 'capitalize' }}>{ut}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Customer */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Customer</label>
+            <select className="form-control" value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="all">All Customers</option>
+              {clientsList.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Payment Status */}
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Payment Status</label>
+            <select className="form-control" value={filterStatus} onChange={e => {
+              setFilterStatus(e.target.value);
+              setSelectedStatus(e.target.value);
+            }} style={{ fontSize: '0.8rem', height: '38px', padding: '6px 12px' }}>
+              <option value="all">All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="overdue">Overdue</option>
+              <option value="partial">Partial Payment</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={() => {
+                setFilterYear('2026');
+                setFilterMonth('');
+                setFilterProject('all');
+                setFilterPhase('all');
+                setFilterUnitType('all');
+                setFilterCustomer('all');
+                setFilterStatus('all');
+                setSelectedStatus('all');
+                setSelectedGateway('all');
+              }} 
+              style={{ fontSize: '0.75rem', height: '38px', width: '100%', justifyContent: 'center' }}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Expected Collections & Forecasts */}
-      <div className="glass-panel" style={{ padding: '24px' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <TrendingUp size={18} style={{ color: 'var(--color-success)' }} />
-          Expected Collections & Forecasts / تدفقات التحصيل المتوقعة والمستقبلية
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      {/* Section 1: Revenue & Treasury KPIs */}
+      <div>
+        <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
+          Revenue & Treasury Metrics
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
           {[
-            { label: 'Expected This Month / المتوقع تحصيله هذا الشهر', value: dashboardStats.this_month_expected || 0, color: 'var(--color-primary)', bg: 'rgba(50, 71, 58, 0.04)' },
-            { label: 'Expected Next Month / المتوقع تحصيله الشهر القادم', value: dashboardStats.next_month_expected || 0, color: 'var(--color-success)', bg: 'rgba(46, 125, 50, 0.04)' },
-            { label: 'Remaining Current Year Expected / المستحقات الجارية لهذه السنة', value: dashboardStats.this_year_expected || 0, color: 'var(--color-warning)', bg: 'rgba(208, 148, 30, 0.04)' },
+            { label: 'Portfolio Value', value: `${((totalCollected + totalOutstanding) / 1000000).toFixed(2)}M`, sub: `Collected + Outstanding`, icon: <DollarSign size={20} />, color: 'var(--color-primary)', bg: 'rgba(50, 71, 58, 0.08)' },
+            { label: 'Total Collected', value: `${(totalCollected / 1000000).toFixed(2)}M`, sub: `${paidCount} payments paid`, icon: <CheckCircle size={20} />, color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)' },
+            { label: 'Total Outstanding', value: `${(totalOutstanding / 1000000).toFixed(2)}M`, sub: `Active contracts backlog`, icon: <Clock size={20} />, color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.08)' },
+            { label: 'Treasury Cash Desk', value: `${(cashBalance / 1000000).toFixed(2)}M`, sub: `💵 Physical desk cash`, icon: <Wallet size={20} />, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+            { label: 'Bank & Gateways', value: `${(bankBalance / 1000000).toFixed(2)}M`, sub: `🏛️ Stripe, Fawry & Transfers`, icon: <CreditCard size={20} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
           ].map((card, i) => (
-            <div key={i} style={{ padding: '16px 20px', borderRadius: 'var(--radius-sm)', background: card.bg, border: '1px solid var(--border-glass)' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>{card.label}</span>
-              <h4 style={{ fontSize: '1.3rem', fontWeight: 800, color: card.color, marginTop: '8px', marginBottom: '4px' }}>
-                {(card.value).toLocaleString()} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>EGP</span>
+            <div key={i} className="glass-panel" style={{ padding: '20px 16px', borderLeft: `4px solid ${card.color}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</span>
+                <div style={{ padding: '6px', borderRadius: 'var(--radius-sm)', background: card.bg }}>
+                  <div style={{ color: card.color }}>{card.icon}</div>
+                </div>
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: card.color }}>{card.value} EGP</h3>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{card.sub}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 2: Customer Delinquency & Inventory Status */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
+        {/* Customer Stats Card */}
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={18} style={{ color: 'var(--color-primary)' }} />
+            Customer Delinquency & Delay Penalty Analytics
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ padding: '12px 16px', background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-sm)' }}>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Regular Customers</span>
+              <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-success)', margin: '4px 0' }}>{regularCustomers}</h4>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>0 overdue payments</span>
+            </div>
+            <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.04)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-sm)' }}>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Late Customers</span>
+              <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-danger)', margin: '4px 0' }}>{overdueCustomers}</h4>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>1+ overdue payments</span>
+            </div>
+            <div style={{ padding: '12px 16px', background: 'rgba(245, 158, 11, 0.04)', border: '1px solid rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-sm)' }}>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Average Overdue Days</span>
+              <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-warning)', margin: '4px 0' }}>{averageOverdueDays} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>Days</span></h4>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Avg delay index</span>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255, 255, 255, 0.35)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+              <div>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Late Penalties Collected</span>
+                <h5 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-success)', margin: '2px 0' }}>{totalPenalties.toLocaleString()} EGP</h5>
+              </div>
+              <span style={{ fontSize: '1.2rem' }}>💰</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255, 255, 255, 0.35)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}>
+              <div>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Pending Penalty Receivables</span>
+                <h5 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-danger)', margin: '2px 0' }}>{pendingPenalties.toLocaleString()} EGP</h5>
+              </div>
+              <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory Unit Stats Card */}
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building size={18} style={{ color: 'var(--color-secondary)' }} />
+            Unit Inventory & Withdrawal Ledger
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', height: 'calc(100% - 36px)' }}>
+            {[
+              { label: 'Available', value: availableUnits, color: 'var(--color-primary)', bg: 'rgba(50, 71, 58, 0.04)', sub: 'Ready for resale' },
+              { label: 'Reserved', value: reservedUnits, color: 'var(--color-warning)', bg: 'rgba(245, 158, 11, 0.04)', sub: 'Hold deposit active' },
+              { label: 'Sold', value: soldUnits, color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.04)', sub: 'Contract signed' },
+              { label: 'Withdrawn', value: withdrawnUnits, color: 'var(--color-danger)', bg: 'rgba(239, 68, 68, 0.04)', sub: 'Repossessed contracts' },
+            ].map((st, i) => (
+              <div key={i} style={{ padding: '10px 14px', background: st.bg, border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{st.label} Units</span>
+                <h4 style={{ fontSize: '1.4rem', fontWeight: 900, color: st.color, margin: '2px 0' }}>{st.value}</h4>
+                <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>{st.sub}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3: Cash Flow Forecasting timeline */}
+      <div className="glass-panel" style={{ padding: '24px' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <TrendingUp size={18} style={{ color: 'var(--color-success)' }} />
+          Expected Liquidity Flow & Cash Forecasting (Next 12 Months)
+        </h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
+          Aggregated future receivables from active payment schedules. Hover to inspect monthly forecast metrics.
+        </p>
+        
+        {/* Forecast Timeline */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          overflowX: 'auto', 
+          padding: '8px 4px 16px 4px',
+          scrollbarWidth: 'thin',
+          msOverflowStyle: 'none'
+        }}>
+          {(() => {
+            const expectedCashFlows = dashboardStats.expected_cash_flows || {};
+            const forecastMonths = Object.keys(expectedCashFlows).sort();
+            const maxForecastVal = Math.max(...Object.values(expectedCashFlows) as number[], 1);
+            
+            if (forecastMonths.length === 0) {
+              return (
+                <div style={{ width: '100%', padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No pending future installments found for forecasting.
+                </div>
+              );
+            }
+            
+            return forecastMonths.map(monthStr => {
+              const val = expectedCashFlows[monthStr] || 0;
+              const percent = Math.max(8, (val / maxForecastVal) * 100);
+              
+              // Format month string e.g. "2026-06" -> "Jun 2026"
+              const parts = monthStr.split('-');
+              let formattedMonth = monthStr;
+              if (parts.length === 2) {
+                const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                formattedMonth = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+              }
+              
+              return (
+                <div 
+                  key={monthStr} 
+                  style={{ 
+                    flex: '0 0 110px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    background: 'rgba(255,255,255,0.25)', 
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '12px 8px',
+                    transition: 'transform 0.2s ease, background-color 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.45)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-main)' }}>{formattedMonth}</span>
+                  
+                  {/* Visual Bar Indicator */}
+                  <div style={{ width: '12px', height: '60px', background: 'rgba(0,0,0,0.04)', borderRadius: '6px', position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div style={{ 
+                      width: '100%', 
+                      height: `${percent}%`, 
+                      background: val > 0 ? 'linear-gradient(180deg, var(--color-success), rgba(16,185,129,0.3))' : 'transparent', 
+                      borderRadius: '6px' 
+                    }} />
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-success)' }}>
+                      {val >= 1000000 ? `${(val / 1000000).toFixed(1)}M` : val >= 1000 ? `${Math.round(val / 1000)}k` : val}
+                    </span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>EGP</span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+
+        {/* Forecast KPI summaries */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '16px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px' }}>
+          {[
+            { label: 'Expected This Month', value: thisMonthExpected, color: 'var(--color-primary)', bg: 'rgba(50, 71, 58, 0.04)' },
+            { label: 'Expected Next Month', value: nextMonthExpected, color: 'var(--color-success)', bg: 'rgba(16, 185, 129, 0.04)' },
+            { label: 'Fiscal Year Target', value: thisYearExpected, color: 'var(--color-warning)', bg: 'rgba(245, 158, 11, 0.04)' },
+            { label: 'Total Future Backlog', value: upcomingInstallmentsSum, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)' },
+          ].map((card, i) => (
+            <div key={i} style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: card.bg, border: '1px solid var(--border-glass)' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)' }}>{card.label}</span>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: card.color, marginTop: '4px', marginBottom: '2px' }}>
+                {card.value.toLocaleString()} <span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)' }}>EGP</span>
               </h4>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Estimated liquidity flow</span>
+              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>Scheduled liquidity</span>
             </div>
           ))}
         </div>
@@ -529,7 +975,7 @@ const Payments: React.FC = () => {
         <div className="glass-panel" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BarChart3 size={18} style={{ color: 'var(--color-primary)' }} />
-            Monthly Revenue (2026)
+            Monthly Revenue ({filterYear})
           </h3>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '200px', paddingBottom: '30px', position: 'relative' }}>
             {monthlyData.map((val, i) => (
@@ -559,11 +1005,11 @@ const Payments: React.FC = () => {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {[
-              { name: 'Cash', count: payments.filter(p => p.gateway === 'cash').length, color: '#10b981', amount: payments.filter(p => p.gateway === 'cash' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
-              { name: 'Stripe', count: payments.filter(p => p.gateway === 'stripe').length, color: '#635BFF', amount: payments.filter(p => p.gateway === 'stripe' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
-              { name: 'Fawry', count: payments.filter(p => p.gateway === 'fawry').length, color: '#FF6B35', amount: payments.filter(p => p.gateway === 'fawry' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
-              { name: 'Bank Transfer', count: payments.filter(p => p.gateway === 'bank_transfer').length, color: '#3b82f6', amount: payments.filter(p => p.gateway === 'bank_transfer' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
-              { name: 'EOI Deposit', count: payments.filter(p => p.gateway === 'eoi_deposit').length, color: '#f59e0b', amount: payments.filter(p => p.gateway === 'eoi_deposit' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
+              { name: 'Cash', count: filtered.filter(p => p.gateway === 'cash').length, color: '#10b981', amount: filtered.filter(p => p.gateway === 'cash' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
+              { name: 'Stripe', count: filtered.filter(p => p.gateway === 'stripe').length, color: '#635BFF', amount: filtered.filter(p => p.gateway === 'stripe' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
+              { name: 'Fawry', count: filtered.filter(p => p.gateway === 'fawry').length, color: '#FF6B35', amount: filtered.filter(p => p.gateway === 'fawry' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
+              { name: 'Bank Transfer', count: filtered.filter(p => p.gateway === 'bank_transfer').length, color: '#3b82f6', amount: filtered.filter(p => p.gateway === 'bank_transfer' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
+              { name: 'EOI Deposit', count: filtered.filter(p => p.gateway === 'eoi_deposit').length, color: '#f59e0b', amount: filtered.filter(p => p.gateway === 'eoi_deposit' && p.status === 'paid').reduce((a, p) => a + p.amount, 0) },
             ].map((gw, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: gw.color, flexShrink: 0 }} />
@@ -694,15 +1140,9 @@ const Payments: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Payments Ledger Local Filter */}
       <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', minWidth: '80px' }}>Filter by:</span>
-        <select className="form-control" value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} style={{ width: '160px', fontSize: '0.85rem' }}>
-          <option value="all">All Status</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
-        </select>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', minWidth: '150px' }}>Local Ledger Gateway:</span>
         <select className="form-control" value={selectedGateway} onChange={e => setSelectedGateway(e.target.value)} style={{ width: '180px', fontSize: '0.85rem' }}>
           <option value="all">All Gateways</option>
           <option value="cash">Cash</option>
@@ -711,6 +1151,9 @@ const Payments: React.FC = () => {
           <option value="bank_transfer">Bank Transfer</option>
           <option value="eoi_deposit">EOI Deposit</option>
         </select>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          Showing {filtered.length} of {payments.length} transactions
+        </span>
       </div>
 
       {/* Payments Table */}
@@ -817,7 +1260,7 @@ const Payments: React.FC = () => {
               {selectedPayment.penalty_amount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.08)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.15)', marginTop: '4px' }}>
                   <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>
-                    ⚠️ Late Penalty (10%): {selectedPayment.penalty_amount.toLocaleString()} EGP
+                    ⚠️ Late Penalty: {selectedPayment.penalty_amount.toLocaleString()} EGP
                   </span>
                   <button
                     type="button"
@@ -834,7 +1277,15 @@ const Payments: React.FC = () => {
                               penalty_amount: 0,
                               penalty_waived: true
                             });
-                            fetchData();
+                            fetchData({
+                              year: filterYear,
+                              month: filterMonth,
+                              project_id: filterProject,
+                              phase: filterPhase,
+                              unit_type: filterUnitType,
+                              client_id: filterCustomer,
+                              status: filterStatus
+                            });
                           }
                         } catch (err: any) {
                           alert(err.response?.data?.message || 'Failed to waive penalty.');

@@ -553,6 +553,7 @@ class Tripo3DController extends Controller
     {
         $request->validate([
             'file' => 'required|file|max:20480', // 20MB max
+            'grid_json' => 'nullable|string',
         ]);
 
         $unit = Unit::findOrFail($unitId);
@@ -571,6 +572,11 @@ class Tripo3DController extends Controller
         $localPath = "3d-models/units/{$unit->id}.glb";
         Storage::disk('public')->put($localPath, file_get_contents($file));
 
+        // Save grid JSON if provided
+        if ($request->has('grid_json')) {
+            Storage::disk('public')->put("3d-models/units/{$unit->id}_grid.json", $request->input('grid_json'));
+        }
+
         $unit->update([
             'model_3d_status' => 'completed',
             'model_3d_url' => $localPath,
@@ -584,5 +590,98 @@ class Tripo3DController extends Controller
             'message' => "Custom 3D model uploaded successfully for unit {$unit->unit_number}.",
             'model_url' => url("/api/v1/public/units/{$unit->id}/3d-model/file"),
         ]);
+    }
+
+    /**
+     * Get the saved 3D floor plan grid layout JSON for a unit.
+     */
+    public function getUnit3DGrid(string $unitId): JsonResponse
+    {
+        $localPath = "3d-models/units/{$unitId}_grid.json";
+        
+        if (Storage::disk('public')->exists($localPath)) {
+            $json = Storage::disk('public')->get($localPath);
+            return response()->json([
+                'success' => true,
+                'grid' => json_decode($json, true),
+            ])->header('Access-Control-Allow-Origin', '*');
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'No saved grid layout found for this unit.',
+        ], 404);
+    }
+
+    /**
+     * Autodetect floor plan walls, windows, and doors from unit layout image using Gemini.
+     *
+     * POST /v1/admin/units/{unitId}/autodetect-layout
+     */
+    public function autodetectUnitLayout(string $unitId, \App\Services\GeminiService $geminiService): JsonResponse
+    {
+        $unit = Unit::findOrFail($unitId);
+
+        if (!$unit->layout_image_url) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No layout image uploaded for this unit. Please upload a 2D layout image first.',
+            ], 422);
+        }
+
+        try {
+            // Extend PHP execution time for this AI-heavy operation (up to 5 minutes)
+            set_time_limit(300);
+
+            $gridSize = 28;
+            $detectedMatrix = $geminiService->autodetectFloorPlanGrid($unit->layout_image_url, $gridSize);
+
+            // Map the detected 28x28 matrix (0-3 values) into the editor's grid cell structure:
+            $grid = [];
+            for ($r = 0; $r < $gridSize; $r++) {
+                $row = [];
+                for ($c = 0; $c < $gridSize; $c++) {
+                    $cellValue = $detectedMatrix[$r][$c] ?? 0;
+                    
+                    $type = 'empty';
+                    if ($cellValue == 1) {
+                        $type = 'wall';
+                    } elseif ($cellValue == 2) {
+                        $type = 'window';
+                    } elseif ($cellValue == 3) {
+                        $type = 'door';
+                    }
+
+                    $row[] = [
+                        'type' => $type,
+                        'floor' => 'default',
+                        'furniture' => null,
+                        'rotation' => 0
+                    ];
+                }
+                $grid[] = $row;
+            }
+
+            // Save the newly autodetected grid structure to storage so it defaults to this next time
+            $localPath = "3d-models/units/{$unit->id}_grid.json";
+            Storage::disk('public')->put($localPath, json_encode($grid));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'AI autodetected floor plan layout successfully.',
+                'grid' => $grid
+            ])->header('Access-Control-Allow-Origin', '*');
+
+        } catch (\Exception $e) {
+            Log::error('tripo.autodetect.failed', [
+                'unit_id' => $unitId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze floor plan layout: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

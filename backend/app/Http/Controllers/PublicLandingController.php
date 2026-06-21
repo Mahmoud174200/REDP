@@ -6,6 +6,8 @@ use App\Models\Project;
 use App\Models\Unit;
 use App\Models\Lead;
 use App\Models\EoiQueue;
+use App\Models\EoiReservation;
+use App\Models\Reservation;
 use App\Models\Interaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +49,8 @@ class PublicLandingController extends Controller
         $releasedPhases = $project->released_phases; // Calls the array cast/accessor (defaults to ['Phase 1'])
 
         $units = Unit::where('project_id', $projectId)
+            ->whereNotNull('building_id')
+            ->where('building_id', '!=', '')
             ->whereIn('status', ['available', 'coming_soon'])
             ->whereIn('phase', $releasedPhases)
             ->get();
@@ -58,24 +62,178 @@ class PublicLandingController extends Controller
     }
 
     /**
+     * Get the logged-in client's active EOI invitation details.
+     */
+    public function getClientEoiInvitation(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        // Find approved and invited EOI reservation
+        $invitation = EoiReservation::where(function ($q) use ($user) {
+                $q->where('client_email', $user->email)
+                  ->orWhere('client_phone', $user->phone);
+            })
+            ->where('status', EoiReservation::STATUS_APPROVED)
+            ->whereNotNull('invited_at')
+            ->first();
+
+        if (!$invitation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active invitation found.',
+            ], 444);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $invitation->id,
+                'project_id' => $invitation->project_id,
+                'client_name' => $invitation->client_name,
+                'client_email' => $invitation->client_email,
+                'client_phone' => $invitation->client_phone,
+                'queue_number' => $invitation->queue_number,
+                'contracting_deadline_hours' => $invitation->contracting_deadline_hours,
+                'invited_at' => $invitation->invited_at,
+            ],
+        ]);
+    }
+
+    /**
      * Submit an EOI (Expression of Interest) priority queue request.
      */
     public function submitEoi(Request $request): JsonResponse
     {
+        $user = auth()->guard('sanctum')->user();
+        $isUnitReservation = false;
+        $eoiRes = null;
+
+        if ($user && $request->filled('unit_id')) {
+            $eoiRes = EoiReservation::where('project_id', $request->input('project_id'))
+                ->where(function ($q) use ($user) {
+                    $q->where('client_email', $user->email)
+                      ->orWhere('client_phone', $user->phone);
+                })
+                ->where('status', EoiReservation::STATUS_APPROVED)
+                ->whereNotNull('invited_at')
+                ->first();
+
+            if ($eoiRes) {
+                $isUnitReservation = true;
+            }
+        }
+
+        if ($isUnitReservation) {
+            $fields = $request->validate([
+                'project_id' => 'required|uuid|exists:projects,id',
+                'unit_id'    => 'required|uuid|exists:units,id',
+            ]);
+
+            try {
+                $result = DB::transaction(function () use ($fields, $user, $eoiRes) {
+                    $unit = Unit::where('id', $fields['unit_id'])
+                        ->where('project_id', $fields['project_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if ($unit->status !== 'available') {
+                        throw new \Exception('This unit is no longer available. / هذه الوحدة لم تعد متاحة.');
+                    }
+
+                    $unit->update(['status' => 'reserved']);
+                    $eoiRes->update(['unit_id' => $unit->id]);
+
+                    $deadlineHours = $eoiRes->contracting_deadline_hours ?: 48;
+                    $reservation = Reservation::create([
+                        'id' => (string) Str::uuid(),
+                        'unit_id' => $unit->id,
+                        'client_id' => $user->id,
+                        'eoi_amount' => $eoiRes->payment_amount,
+                        'status' => 'confirmed',
+                        'expires_at' => now()->addHours($deadlineHours),
+                        'payment_receipt_path' => $eoiRes->receipt_path,
+                    ]);
+
+                    event(new \App\Events\Finance\UnitStatusChanged($unit->id, 'available', 'reserved', $user->id));
+                    event(new \App\Events\ReservationConfirmed($reservation->id, $reservation->unit_id, $reservation->client_id));
+
+                    return [
+                        'reservation' => $reservation,
+                        'deadline_hours' => $deadlineHours,
+                    ];
+                });
+
+                try {
+                    \App\Services\EoiEmailService::sendUnitReservedEmail($result['reservation'], $result['deadline_hours']);
+                } catch (\Throwable $emailEx) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send unit reserved email: " . $emailEx->getMessage());
+                }
+
+                \App\Services\AuditLogService::log('UNIT_RESERVE_EOI', $user->id, [
+                    'unit_id' => $fields['unit_id'],
+                    'reservation_id' => $result['reservation']->id,
+                    'eoi_reservation_id' => $eoiRes->id,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Unit reserved successfully. / تم حجز الوحدة بنجاح.',
+                    'data' => $result['reservation'],
+                ], 201);
+
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+        }
+
         $fields = $request->validate([
-            'first_name'  => 'required|string|max:255',
-            'last_name'   => 'required|string|max:255',
-            'email'       => 'required|email|max:255',
-            'phone'       => 'required|string|max:255',
-            'national_id' => 'nullable|string|max:255',
-            'project_id'  => 'required|uuid|exists:projects,id',
-            'unit_id'     => 'nullable|uuid|exists:units,id',
-            'eoi_amount'  => 'nullable|numeric|min:0',
-            'notes'       => 'nullable|string|max:1000',
+            'first_name'      => 'required|string|max:255',
+            'last_name'       => 'required|string|max:255',
+            'email'           => 'required|email|max:255',
+            'phone'           => 'required|string|max:255',
+            'national_id'     => 'nullable|string|max:255',
+            'project_id'      => 'required|uuid|exists:projects,id',
+            'unit_id'         => 'nullable|uuid|exists:units,id',
+            'eoi_amount'      => 'nullable|numeric|min:0',
+            'client_location'  => 'required|string|in:inside_egypt,outside_egypt',
+            'payment_method'   => 'required|string|in:cash,bank_transfer,cheque,international_bank_transfer,instapay',
+            'receipt'          => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+            'passport'         => 'required_if:client_location,outside_egypt|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
         ]);
 
+        // Validate payment method matches location
+        if (!EoiReservation::isValidPaymentMethod($fields['client_location'], $fields['payment_method'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payment method for the selected location.',
+                'errors'  => [
+                    'payment_method' => [
+                        $fields['client_location'] === 'inside_egypt'
+                            ? 'Inside Egypt: Only Cash, Bank Transfer, Cheque, or InstaPay are accepted.'
+                            : 'Outside Egypt: Only International Bank Transfer is accepted.'
+                    ],
+                ],
+            ], 422);
+        }
+
         try {
-            $result = DB::transaction(function () use ($fields) {
+            // Handle files first (before database transaction)
+            $receiptPath = $request->file('receipt')->store('eoi-receipts', 'public');
+            $passportPath = null;
+            if ($request->hasFile('passport')) {
+                $passportPath = $request->file('passport')->store('eoi-passports', 'public');
+            }
+
+            $result = DB::transaction(function () use ($fields, $receiptPath, $passportPath) {
                 // Find or create lead by email/phone
                 $lead = Lead::where('email', $fields['email'])
                     ->orWhere('phone', $fields['phone'])
@@ -95,10 +253,16 @@ class PublicLandingController extends Controller
                     ]);
                 }
 
+                if ($passportPath) {
+                    $lead->update([
+                        'passport_path' => $passportPath,
+                    ]);
+                }
+
                 // Check for duplicate EOI
-                $existing = EoiQueue::where('lead_id', $lead->id)
+                $existing = EoiReservation::where('lead_id', $lead->id)
                     ->where('project_id', $fields['project_id'])
-                    ->whereIn('status', ['pending', 'confirmed'])
+                    ->whereIn('status', [EoiReservation::STATUS_PENDING_REVIEW, EoiReservation::STATUS_APPROVED])
                     ->first();
 
                 if ($existing) {
@@ -109,19 +273,20 @@ class PublicLandingController extends Controller
                     ];
                 }
 
-                // Calculate priority score
-                $priorityScore = microtime(true);
-                $queueNumber = EoiQueue::where('project_id', $fields['project_id'])->count() + 1;
-
-                $eoi = EoiQueue::create([
-                    'id'             => (string) Str::uuid(),
-                    'lead_id'        => $lead->id,
-                    'project_id'     => $fields['project_id'],
-                    'queue_number'   => $queueNumber,
-                    'priority_score' => $priorityScore,
-                    'status'         => EoiQueue::STATUS_PENDING,
-                    'eoi_amount'     => $fields['eoi_amount'] ?? 50000.00,
-                    'notes'          => $fields['notes'] ?? ($fields['unit_id'] ? "Reserved Unit: {$fields['unit_id']}" : null),
+                $eoi = EoiReservation::create([
+                    'id'              => (string) Str::uuid(),
+                    'lead_id'         => $lead->id,
+                    'project_id'      => $fields['project_id'],
+                    'unit_id'         => $fields['unit_id'] ?? null,
+                    'client_name'     => $fields['first_name'] . ' ' . $fields['last_name'],
+                    'client_email'    => $fields['email'],
+                    'client_phone'    => $fields['phone'],
+                    'client_location' => $fields['client_location'],
+                    'payment_method'  => $fields['payment_method'],
+                    'payment_amount'  => $fields['eoi_amount'] ?? 50000.00,
+                    'receipt_path'    => $receiptPath,
+                    'passport_path'   => $passportPath,
+                    'status'          => EoiReservation::STATUS_PENDING_REVIEW,
                 ]);
 
                 // Optional: If a unit is specified, we can temporarily block it or note it
@@ -142,17 +307,17 @@ class PublicLandingController extends Controller
 
             if ($result['duplicate']) {
                 return response()->json([
-                    'success'      => true,
-                    'message'      => "You already have an active reservation queue ticket #{$result['queue_number']}.",
+                    'success'      => false,
+                    'message'      => 'An active reservation already exists for these contact details. / يوجد بالفعل طلب حجز نشط مسجل لبيانات الاتصال هذه.',
                     'queue_number' => $result['queue_number'],
                     'data'         => $result['data'],
-                ], 200);
+                ], 409);
             }
 
             return response()->json([
                 'success'      => true,
-                'message'      => "Expression of Interest submitted. Your priority queue number is #{$result['queue_number']}.",
-                'queue_number' => $result['queue_number'],
+                'message'      => "Expression of Interest submitted successfully. Your payment receipt is pending review.",
+                'queue_number' => null,
                 'data'         => $result['data'],
             ], 201);
 
@@ -227,6 +392,8 @@ class PublicLandingController extends Controller
         $releasedPhases = $project->released_phases;
 
         $units = Unit::where('project_id', $projectId)
+            ->whereNotNull('building_id')
+            ->where('building_id', '!=', '')
             ->whereIn('phase', $releasedPhases)
             ->orderBy('building')
             ->orderBy('floor')

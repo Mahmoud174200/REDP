@@ -41,6 +41,16 @@ const Handover: React.FC = () => {
   const [handoverDate, setHandoverDate] = useState<string>('');
   const [projectDeliveryDate, setProjectDeliveryDate] = useState<string>('');
 
+  // Extended Handover States
+  const [clientInfo, setClientInfo] = useState<any | null>(null);
+  const [contractInfo, setContractInfo] = useState<any | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<any | null>(null);
+  const [handoverReport, setHandoverReport] = useState<string>('');
+  const [handoverImages, setHandoverImages] = useState<string[]>([]);
+  const [handoverStatus, setHandoverStatus] = useState<string>('pending');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+
   const userStr = localStorage.getItem('redp_user');
   const user = userStr ? JSON.parse(userStr) : { role: 'handover_officer' };
   const canEditDates = user.role === 'admin' || user.role === 'handover_officer' || user.role === 'project_manager';
@@ -83,7 +93,19 @@ const Handover: React.FC = () => {
           setUnitDetails(res.data.unit);
           setHandoverDate(res.data.unit.handover_date || '');
           setProjectDeliveryDate(res.data.unit.project_delivery_date || '');
+          setHandoverReport(res.data.unit.handover_report || '');
+          setHandoverImages(res.data.unit.handover_images || []);
+          setHandoverStatus(res.data.unit.handover_status || 'pending');
+          if (res.data.unit.handover_status === 'signed_off') {
+            setSigned(true);
+          } else {
+            setSigned(false);
+          }
         }
+        
+        setClientInfo(res.data.client || null);
+        setContractInfo(res.data.contract || null);
+        setPaymentStatus(res.data.payment_status || null);
       }
     } catch (err) {
       console.error('Failed to fetch checklist:', err);
@@ -132,18 +154,8 @@ const Handover: React.FC = () => {
   useEffect(() => {
     if (selectedUnitId) {
       fetchChecklist(selectedUnitId);
-      setSigned(false);
     }
   }, [selectedUnitId]);
-
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
-        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
-      </div>
-    );
-  }
 
   const handleAddSnag = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,6 +189,53 @@ const Handover: React.FC = () => {
     }
   };
 
+  const handleSaveReport = async () => {
+    if (!selectedUnitId) return;
+    setIsSavingReport(true);
+    try {
+      const res = await api.post(`/v1/delivery/units/${selectedUnitId}/report`, {
+        report: handoverReport
+      });
+      if (res.data && res.data.success) {
+        alert('Handover minutes draft saved successfully!');
+        if (handoverStatus === 'pending') {
+          setHandoverStatus('scheduled');
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error saving handover report.');
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0 || !selectedUnitId) return;
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', fileList[0]);
+
+    try {
+      const res = await api.post(`/v1/delivery/units/${selectedUnitId}/images`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      if (res.data && res.data.success) {
+        setHandoverImages(res.data.images);
+        alert('Handover photo uploaded successfully!');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error uploading file.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const simulateSignature = async () => {
     if (!selectedUnitId) {
       alert('Please select a unit.');
@@ -189,6 +248,8 @@ const Handover: React.FC = () => {
       });
       if (res.data && res.data.success) {
         setSigned(true);
+        setHandoverStatus('signed_off');
+        alert('Handover sign-off certificate verified and sealed successfully!');
       }
     } catch (err: any) {
       console.error('Failed to sign off handover:', err);
@@ -198,6 +259,14 @@ const Handover: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -216,23 +285,93 @@ const Handover: React.FC = () => {
         </div>
       </div>
 
-      {/* Unit Selector */}
-      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <label className="form-label" style={{ marginBottom: 0, whiteSpace: 'nowrap', fontWeight: 700 }}>Select Compound Unit for Inspection:</label>
-        <select
-          className="form-control"
-          value={selectedUnitId}
-          onChange={(e) => setSelectedUnitId(e.target.value)}
-          style={{ maxWidth: '400px', fontSize: '0.85rem' }}
-        >
-          <option value="">-- Choose a Unit --</option>
-          {units.map((unit) => (
-            <option key={unit.id} value={unit.id}>
-              {unit.unit_number} ({unit.type})
-            </option>
-          ))}
-        </select>
+      {/* Unit Selector & Status Badge */}
+      <div className="glass-panel" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+          <label className="form-label" style={{ marginBottom: 0, whiteSpace: 'nowrap', fontWeight: 700 }}>Select Unit for Handover Verification:</label>
+          <select
+            className="form-control"
+            value={selectedUnitId}
+            onChange={(e) => setSelectedUnitId(e.target.value)}
+            style={{ maxWidth: '400px', fontSize: '0.85rem' }}
+          >
+            <option value="">-- Choose a Unit --</option>
+            {units.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.unit_number} ({unit.type})
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedUnitId && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Handover Status:</span>
+            <span className={`badge badge-${handoverStatus === 'signed_off' ? 'success' : handoverStatus === 'scheduled' ? 'warning' : 'primary'}`} style={{ textTransform: 'uppercase', fontSize: '0.75rem', padding: '4px 10px' }}>
+              {handoverStatus === 'signed_off' ? 'Signed Off / تم التسليم' : handoverStatus === 'scheduled' ? 'Scheduled / تم التجديد' : 'Pending / قيد المراجعة'}
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Customer, Property & Financial Verification Hub */}
+      {selectedUnitId && clientInfo && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          {/* Customer Profile */}
+          <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid var(--color-primary)' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              👤 Customer Profile (بيانات العميل)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Name:</span> <strong>{clientInfo.name}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Phone:</span> {clientInfo.phone}</div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Email:</span> {clientInfo.email}</div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>National ID:</span> {clientInfo.national_id}</div>
+            </div>
+          </div>
+
+          {/* Property Details */}
+          <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid var(--color-secondary)' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🏢 Property Specification (بيانات الوحدة)
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Unit:</span> <strong>Unit {unitDetails?.number} ({unitDetails?.type})</strong></div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Building & Floor:</span> Building {unitDetails?.building}, Floor {unitDetails?.floor}</div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Area & Specs:</span> {unitDetails?.area} sqm | {unitDetails?.bedrooms} Bed | {unitDetails?.bathrooms} Bath</div>
+              <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>View:</span> <span style={{ textTransform: 'capitalize' }}>{unitDetails?.view_type}</span></div>
+            </div>
+          </div>
+
+          {/* Contract & Financial Verification */}
+          <div className="glass-panel" style={{ padding: '24px', borderLeft: `4px solid ${paymentStatus?.status === 'overdue' ? 'var(--color-danger)' : 'var(--color-success)'}` }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📄 Contract & Ledger (العقد وحالة السداد)
+            </h3>
+            {contractInfo && paymentStatus ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+                <div><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Contract Number:</span> <strong>{contractInfo.contract_number}</strong></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span><span style={{ color: 'var(--text-muted)' }}>Price:</span> <strong>{paymentStatus.total_amount.toLocaleString()} EGP</strong></span>
+                  <span><span style={{ color: 'var(--text-muted)' }}>Paid:</span> <strong style={{ color: 'var(--color-success)' }}>{paymentStatus.paid_amount.toLocaleString()} EGP</strong></span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span><span style={{ color: 'var(--text-muted)' }}>Outstanding:</span> <strong style={{ color: 'var(--color-warning)' }}>{paymentStatus.outstanding.toLocaleString()} EGP</strong></span>
+                  <span className={`badge badge-${paymentStatus.status === 'overdue' ? 'danger' : 'success'}`} style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
+                    {paymentStatus.status === 'overdue' ? 'Overdue / متأخر' : 'Paid / منتظم'}
+                  </span>
+                </div>
+                {paymentStatus.status === 'overdue' && (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--color-danger)', fontWeight: 700, background: 'rgba(239,68,68,0.08)', padding: '4px 8px', borderRadius: '4px', marginTop: '2px' }}>
+                    ⚠️ Overdue: {paymentStatus.overdue_amount.toLocaleString()} EGP ({paymentStatus.overdue_count} installments)
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No contract details registered for this unit.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Handover & Project Schedule Panel */}
       {unitDetails && (
@@ -301,57 +440,99 @@ const Handover: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px', alignItems: 'start' }}>
         
-        {/* QC Checklist */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CheckCircle style={{ color: 'var(--color-success)' }} />
-            Unit Inspection Checksheets (QC-A01)
-          </h2>
+        {/* QC Checklist & Uploads */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          
+          {/* Inspection Checksheets */}
+          <div className="glass-panel" style={{ padding: '30px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <CheckCircle style={{ color: 'var(--color-success)' }} />
+              Unit Inspection Checksheets (QC-A01)
+            </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {checklist.map((item) => (
-              <div 
-                key={item.id} 
-                className="glass-panel" 
-                style={{
-                  padding: '18px 24px', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  borderColor: item.passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
-                }}
-              >
-                <div>
-                  <h4 style={{ fontWeight: 600, fontSize: '0.95rem', color: item.passed ? 'var(--text-main)' : 'var(--color-danger)' }}>{item.item}</h4>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Class Check ID: qc_{item.id}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {checklist.map((item) => (
+                <div 
+                  key={item.id} 
+                  className="glass-panel" 
+                  style={{
+                    padding: '18px 24px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderColor: item.passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
+                  }}
+                >
+                  <div>
+                    <h4 style={{ fontWeight: 600, fontSize: '0.95rem', color: item.passed ? 'var(--text-main)' : 'var(--color-danger)' }}>{item.item}</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Class Check ID: qc_{item.id}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      onClick={() => setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, passed: true } : c))}
+                      className="btn-secondary" 
+                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: item.passed ? 'var(--color-success)' : 'var(--border-glass)', background: item.passed ? 'rgba(16,185,129,0.1)' : 'transparent' }}
+                    >
+                      Passed
+                    </button>
+                    <button 
+                      onClick={() => setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, passed: false } : c))}
+                      className="btn-secondary" 
+                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: !item.passed ? 'var(--color-danger)' : 'var(--border-glass)', background: !item.passed ? 'rgba(239,68,68,0.1)' : 'transparent' }}
+                    >
+                      Failed
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={() => setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, passed: true } : c))}
-                    className="btn-secondary" 
-                    style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: item.passed ? 'var(--color-success)' : 'var(--border-glass)', background: item.passed ? 'rgba(16,185,129,0.1)' : 'transparent' }}
-                  >
-                    Passed
-                  </button>
-                  <button 
-                    onClick={() => setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, passed: false } : c))}
-                    className="btn-secondary" 
-                    style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: !item.passed ? 'var(--color-danger)' : 'var(--border-glass)', background: !item.passed ? 'rgba(239,68,68,0.1)' : 'transparent' }}
-                  >
-                    Failed
-                  </button>
-                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upload Handover Pictures */}
+          <div className="glass-panel" style={{ padding: '30px' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📸 Upload Handover Pictures (رفع صور التسليم)
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Upload and save visual QC snag items or final unit key delivery photos.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* File Input */}
+              <div style={{ border: '2px dashed var(--border-glass)', borderRadius: 'var(--radius-sm)', padding: '20px', textAlign: 'center', background: 'rgba(255,255,255,0.05)', position: 'relative' }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  disabled={isUploading || signed}
+                />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  {isUploading ? 'Uploading Handover photo...' : '＋ Click to Choose or Drag Property Photo'}
+                </span>
+                <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>PNG, JPG or JPEG up to 10MB</span>
               </div>
-            ))}
+
+              {/* Handover Image Gallery */}
+              {handoverImages.length === 0 ? (
+                <div style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '10px' }}>No handover/inspection photos uploaded yet.</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
+                  {handoverImages.map((imgUrl, idx) => (
+                    <a key={idx} href={imgUrl} target="_blank" rel="noreferrer" style={{ width: '100%', height: '80px', borderRadius: '6px', border: '1px solid var(--border-glass)', overflow: 'hidden', display: 'block', position: 'relative' }}>
+                      <img src={imgUrl} alt={`QC Handover ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Client Digital Signature */}
-          <div className="glass-panel" style={{ marginTop: '30px', padding: '24px', border: '1px dashed var(--border-glass)', background: 'rgba(59,130,246,0.02)' }}>
+          <div className="glass-panel" style={{ padding: '24px', border: '1px dashed var(--border-glass)', background: 'rgba(59,130,246,0.02)' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <FileSignature style={{ color: 'var(--color-primary)' }} />
               Client Handover Sign-off Canvas
             </h3>
-            <p style={{ fontSize: '0.8rem', marginBottom: '20px' }}>Simulates Section H.17 quality guarantee digital signature log verification.</p>
+            <p style={{ fontSize: '0.8rem', marginBottom: '20px' }}>Digital sign-off locks keys receipt and confirms property acceptance.</p>
 
             {signed ? (
               <div style={{ padding: '20px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
@@ -360,6 +541,11 @@ const Handover: React.FC = () => {
                   HANDOVER COMPLETED & SIGNED OFF
                 </span>
                 <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Timeline locked and keys receipt released.</p>
+                {unitDetails?.handover_signature && (
+                  <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Signature Certificate: Sealed successfully.
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -368,7 +554,7 @@ const Handover: React.FC = () => {
                   {signing ? (
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Writing digital certificate key...</span>
                   ) : (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'cursive' }}>Sign here...</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'cursive' }}>Sign here / توقيع المستلم...</span>
                   )}
                   {signing && <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '10px', height: '10px', background: 'var(--color-primary)', borderRadius: '50%' }}></div>}
                 </div>
@@ -383,9 +569,38 @@ const Handover: React.FC = () => {
           </div>
         </div>
 
-        {/* Snag Report logger */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           
+          {/* Handover Report / Minutes */}
+          <div className="glass-panel" style={{ padding: '30px' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📝 Handover Minutes / Report (محضر الاستلام)
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Write or edit official inspection handover logs, keys transfer records, and QC resolutions.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <textarea
+                className="form-control"
+                style={{ height: '180px', resize: 'none', fontSize: '0.85rem' }}
+                value={handoverReport}
+                onChange={(e) => setHandoverReport(e.target.value)}
+                placeholder="محضر استلام الوحدة السكنية: تم اليوم فحص الوحدة والتأكد من سلامة التشطيبات والمرافق وتسليم المفاتيح للمالك بدون ملاحظات..."
+                disabled={signed}
+              />
+              {!signed && (
+                <button
+                  onClick={handleSaveReport}
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                  disabled={isSavingReport}
+                >
+                  {isSavingReport ? 'Saving report...' : 'Save Report Draft (حفظ المسودة)'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* QC Defect Logger */}
           <div className="glass-panel" style={{ padding: '30px' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <AlertTriangle style={{ color: 'var(--color-danger)' }} />
@@ -425,7 +640,7 @@ const Handover: React.FC = () => {
                 </select>
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={signed}>
                 Log Snag Defect
               </button>
             </form>
@@ -454,7 +669,6 @@ const Handover: React.FC = () => {
         </div>
 
       </div>
-
     </div>
   );
 };

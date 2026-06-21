@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+console.log('VITE_API_BASE_URL is:', import.meta.env.VITE_API_BASE_URL);
+
 // Instantiate pre-configured communications client pointing to Laravel API
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1',
@@ -9,11 +11,18 @@ const api = axios.create({
   }
 });
 
+console.log('Axios baseURL is set to:', api.defaults.baseURL);
+
+
 // Request interceptor injecting Sanctum tokens automatically and disabling caching for GET requests
 api.interceptors.request.use((config) => {
   // Strip duplicate /v1 prefix if present (since baseURL already includes /v1)
   if (config.url) {
     config.url = config.url.replace(/^\/?v1\//, '/');
+    // Ensure relative URL doesn't have a leading slash so it merges correctly with baseURL subpath
+    if (config.url.startsWith('/')) {
+      config.url = config.url.substring(1);
+    }
   }
 
   const token = localStorage.getItem('redp_token');

@@ -66,8 +66,10 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/projects/{projectId}/3d-models', [\App\Http\Controllers\Tripo3DController::class, 'publicModels']);
     Route::get('/3d-models/{mediaId}/file', [\App\Http\Controllers\Tripo3DController::class, 'serveModelFile']);
     Route::get('/units/{unitId}/3d-model/file', [\App\Http\Controllers\Tripo3DController::class, 'serveUnitModelFile']);
+    Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
+    Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
 });
 
 // ── 🟠 Public Webhooks (Acquisition) ──
@@ -96,6 +98,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/v1/auth/profile', [AuthController::class, 'profile']);
     Route::post('/v1/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/v1/client/eoi-invitation', [\App\Http\Controllers\PublicLandingController::class, 'getClientEoiInvitation']);
 
     // ══════════════════════════════════════════════════════════
     // 🔶 TIERED SALES RBAC MODULE
@@ -247,6 +250,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi-reservations/stats', [EoiReservationController::class, 'stats']);
         Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
         Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
+        Route::post('/eoi-reservations/invite-batch', [EoiReservationController::class, 'inviteBatch']);
         Route::get('/eoi-reservations/{id}', [EoiReservationController::class, 'show']);
         Route::post('/eoi-reservations/{id}/approve', [EoiReservationController::class, 'approve']);
         Route::post('/eoi-reservations/{id}/reject', [EoiReservationController::class, 'reject']);
@@ -300,6 +304,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/dashboard', [PaymentController::class, 'getDashboard']);
             Route::post('/payments/{id}/collect', [PaymentController::class, 'collectPayment']);
             Route::post('/payments/{id}/waive-penalty', [PaymentController::class, 'waivePenalty']);
+            Route::post('/contracts/{contractId}/penalty-settings', [PaymentController::class, 'updatePenaltySettings']);
 
             // Collections & debt management
             Route::get('/collections', [CollectionController::class, 'getQueue']);
@@ -319,7 +324,9 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/contracts/{id}', [ContractController::class, 'show']);
             Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
             Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
+            Route::post('/contracts/{id}/submit-approval', [ContractController::class, 'submitForApproval']);
             Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
+            Route::post('/contracts/{id}/escalate-withdrawal', [ContractController::class, 'escalateWithdrawal']);
             Route::get('/contracts/{id}/pdf', [ContractController::class, 'downloadPdf']);
         });
     });
@@ -371,6 +378,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
+            Route::post('/units/{unitId}/report', [HandoverController::class, 'saveHandoverReport']);
+            Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
             Route::put('/projects/{projectId}/delivery-date', [HandoverController::class, 'updateDeliveryDate']);
         });
@@ -431,6 +440,10 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'getAuditLogs']);
         Route::delete('/audit-logs', [\App\Http\Controllers\Admin\AdminController::class, 'clearAuditLogs']);
 
+        // Notifications Broadcast and Schedule Scan Triggers
+        Route::post('/notifications/broadcast', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'broadcastUpdate']);
+        Route::post('/notifications/run-schedule-checks', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'runScheduleCheckups']);
+
         // Upload Branding Logo/Icon
         Route::post('/upload-branding', [\App\Http\Controllers\Admin\AdminController::class, 'uploadBranding']);
 
@@ -472,6 +485,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::delete('/units/{unitId}/3d-model', [$tripoCtrl, 'deleteUnit3D']);
         Route::post('/units/{unitId}/copy-3d-from', [$tripoCtrl, 'copyUnit3D']);
         Route::post('/units/{unitId}/upload-3d-model', [$tripoCtrl, 'uploadCustomUnit3DModel']);
+        Route::get('/units/{unitId}/3d-model/grid', [$tripoCtrl, 'getUnit3DGrid']);
+        Route::post('/units/{unitId}/autodetect-layout', [$tripoCtrl, 'autodetectUnitLayout']);
 
         // ── Master Plan Module ──
         $mpCtrl = \App\Http\Controllers\Admin\MasterPlanController::class;
@@ -506,6 +521,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/projects/{projectId}/amenities', [$mpCtrl, 'createAmenity']);
         Route::put('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'updateAmenity']);
         Route::delete('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'deleteAmenity']);
+
+        // Building Hotspots (Interactive Map)
+        Route::get('/projects/{projectId}/hotspots', [$mpCtrl, 'getHotspots']);
+        Route::post('/projects/{projectId}/hotspots', [$mpCtrl, 'createHotspot']);
+        Route::put('/projects/{projectId}/hotspots/{hotspotId}', [$mpCtrl, 'updateHotspot']);
+        Route::delete('/projects/{projectId}/hotspots/{hotspotId}', [$mpCtrl, 'deleteHotspot']);
     });
 
     // ══════════════════════════════════════════════════════════

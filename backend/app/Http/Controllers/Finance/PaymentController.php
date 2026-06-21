@@ -148,66 +148,190 @@ class PaymentController extends Controller
     /**
      * Get financial dashboard KPIs.
      */
-    public function getDashboard()
+    /**
+     * Get financial dashboard KPIs.
+     */
+    public function getDashboard(Request $request)
     {
         self::applyOverduePenalties();
-        $totalRevenue = Payment::where('status', 'paid')->sum('amount');
-        $pendingAmount = Payment::where('status', 'pending')->sum('amount');
-        $overduePayments = Payment::where('status', 'pending')
+
+        $year = (int) $request->input('year', now()->year);
+        $month = $request->input('month'); // optional (1-12)
+        $projectId = $request->input('project_id'); // optional
+        $phase = $request->input('phase'); // optional
+        $unitType = $request->input('unit_type'); // optional
+        $clientId = $request->input('client_id'); // optional
+        $paymentStatus = $request->input('status'); // optional ('all', 'paid', 'pending', 'overdue', 'partial')
+
+        // 1. Construct contract query based on filters
+        $contractQuery = Contract::query();
+        if ($clientId) {
+            $contractQuery->where('client_id', $clientId);
+        }
+        if ($projectId || $phase || $unitType) {
+            $contractQuery->whereHas('unit', function ($qu) use ($projectId, $phase, $unitType) {
+                if ($projectId) $qu->where('project_id', $projectId);
+                if ($phase) $qu->where('phase', $phase);
+                if ($unitType) $qu->where('type', $unitType);
+            });
+        }
+
+        $filteredContracts = $contractQuery->clone()
+            ->whereIn('status', ['active', 'pending_signature', 'completed', 'withdrawn'])
+            ->get();
+
+        // 2. Construct payment query based on filters
+        $paymentQuery = Payment::query()->whereHas('contract', function ($q) use ($projectId, $phase, $unitType, $clientId) {
+            if ($clientId) {
+                $q->where('client_id', $clientId);
+            }
+            if ($projectId || $phase || $unitType) {
+                $q->whereHas('unit', function ($qu) use ($projectId, $phase, $unitType) {
+                    if ($projectId) $qu->where('project_id', $projectId);
+                    if ($phase) $qu->where('phase', $phase);
+                    if ($unitType) $qu->where('type', $unitType);
+                });
+            }
+        });
+
+        // Apply payment status filter
+        if ($paymentStatus && $paymentStatus !== 'all') {
+            if ($paymentStatus === 'overdue') {
+                $paymentQuery->where('status', 'pending')->where('due_date', '<', now());
+            } else {
+                $paymentQuery->where('status', $paymentStatus);
+            }
+        }
+
+        // Apply month/year filters on payments where applicable
+        $revenueQuery = $paymentQuery->clone()->where('status', 'paid');
+        if ($month) {
+            $revenueQuery->whereMonth('paid_at', $month);
+        }
+        $revenueQuery->whereYear('paid_at', $year);
+
+        // Revenue KPI Metrics
+        $totalCollected = (float) $revenueQuery->sum('paid_amount');
+        $totalRevenue = (float) $paymentQuery->clone()->where('status', 'paid')->sum('amount'); // total paid in history matching filters
+
+        // Total outstanding (outstanding balance on active contracts matching filter)
+        $totalOutstanding = (float) $contractQuery->clone()
+            ->whereIn('status', ['active', 'pending_signature'])
+            ->get()
+            ->sum(fn($c) => max(0.0, (float) $c->total_amount - (float) $c->paid_amount));
+
+        // Cash vs Bank balances (filtered)
+        $cashBalance = (float) $revenueQuery->clone()->where('gateway', 'cash')->sum('paid_amount');
+        $bankBalance = (float) $revenueQuery->clone()->where('gateway', '!=', 'cash')->sum('paid_amount');
+
+        // Monthly revenue of selected year
+        $monthlyRevenue = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $monthlyRevenue[$m] = (float) $paymentQuery->clone()
+                ->where('status', 'paid')
+                ->whereYear('paid_at', $year)
+                ->whereMonth('paid_at', $m)
+                ->sum('paid_amount');
+        }
+
+        // Yearly revenue of last 5 years
+        $yearlyRevenue = [];
+        $currentYear = now()->year;
+        for ($y = $currentYear - 4; $y <= $currentYear; $y++) {
+            $yearlyRevenue[$y] = (float) $paymentQuery->clone()
+                ->where('status', 'paid')
+                ->whereYear('paid_at', $y)
+                ->sum('paid_amount');
+        }
+
+        // 3. Customer Statistics
+        // Fetch clients who have contracts matching our query
+        $clientIds = $contractQuery->clone()->pluck('client_id')->unique()->toArray();
+        
+        $regularCustomersCount = 0;
+        $overdueCustomersCount = 0;
+        $totalOverdueDays = 0;
+        $overduePaymentsCount = 0;
+
+        foreach ($clientIds as $cId) {
+            // Check if this customer has any overdue payments matching filters
+            $customerOverdue = Payment::whereHas('contract', fn($q) => $q->where('client_id', $cId))
+                ->where('status', 'pending')
+                ->where('due_date', '<', now())
+                ->get();
+
+            if ($customerOverdue->count() > 0) {
+                $overdueCustomersCount++;
+                foreach ($customerOverdue as $op) {
+                    $dueDate = \Carbon\Carbon::parse($op->due_date);
+                    $totalOverdueDays += max(0, now()->diffInDays($dueDate));
+                    $overduePaymentsCount++;
+                }
+            } else {
+                $regularCustomersCount++;
+            }
+        }
+
+        $avgOverdueDays = $overduePaymentsCount > 0 ? round($totalOverdueDays / $overduePaymentsCount, 1) : 0;
+        
+        // Total penalty fees collected
+        $totalPenalties = (float) $paymentQuery->clone()->where('status', 'paid')->sum('penalty_amount');
+        // Total pending penalties (applied but unpaid)
+        $pendingPenalties = (float) $paymentQuery->clone()
+            ->where('status', 'pending')
             ->where('due_date', '<', now())
-            ->get();
-        $overdueAmount = $overduePayments->sum('amount');
+            ->sum('penalty_amount');
 
-        $thisMonthRevenue = Payment::where('status', 'paid')
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
+        // 4. Units Statistics
+        $unitQuery = \App\Models\Unit::query();
+        if ($projectId) $unitQuery->where('project_id', $projectId);
+        if ($phase) $unitQuery->where('phase', $phase);
+        if ($unitType) $unitQuery->where('type', $unitType);
+
+        $availableUnits = $unitQuery->clone()->where('status', 'available')->count();
+        $reservedUnits = $unitQuery->clone()->where('status', 'reserved')->count();
+        $soldUnits = $unitQuery->clone()->where('status', 'sold')->count();
+        $withdrawnUnits = $contractQuery->clone()->where('status', 'withdrawn')->count();
+
+        // 5. Forecasting Cash Flows
+        // Expected future payments (status = pending and due date is in the future) grouped by month
+        $upcomingInstallmentsSum = (float) $paymentQuery->clone()
+            ->where('status', 'pending')
+            ->where('due_date', '>=', now())
             ->sum('amount');
 
-        $lastMonthRevenue = Payment::where('status', 'paid')
-            ->whereMonth('paid_at', now()->subMonth()->month)
-            ->whereYear('paid_at', now()->subMonth()->year)
-            ->sum('amount');
+        $expectedCashFlows = [];
+        // Group by month for the next 12 months
+        for ($i = 0; $i < 12; $i++) {
+            $targetDate = now()->addMonths($i);
+            $expectedCashFlows[$targetDate->format('Y-m')] = (float) $paymentQuery->clone()
+                ->where('status', 'pending')
+                ->whereYear('due_date', $targetDate->year)
+                ->whereMonth('due_date', $targetDate->month)
+                ->sum('amount');
+        }
 
-        $activeContracts = Contract::active()->count();
-        $completedContracts = Contract::where('status', 'completed')->count();
-
-        // Calculate Cash vs Bank balances
-        $cashBalance = Payment::where('status', 'paid')
-            ->where('gateway', 'cash')
-            ->sum('amount');
-        $bankBalance = Payment::where('status', 'paid')
-            ->where('gateway', '!=', 'cash')
-            ->sum('amount');
-
-        // Recent payments
-        $recentPayments = Payment::where('status', 'paid')
-            ->with('contract.client')
-            ->latest('paid_at')
-            ->take(10)
-            ->get();
-
-        // Expected collections
-        $thisMonthExpected = Payment::where('status', 'pending')
+        // Current month expected collections
+        $thisMonthExpected = (float) $paymentQuery->clone()
+            ->where('status', 'pending')
             ->whereMonth('due_date', now()->month)
             ->whereYear('due_date', now()->year)
             ->sum('amount');
 
-        $nextMonthExpected = Payment::where('status', 'pending')
+        $nextMonthExpected = (float) $paymentQuery->clone()
+            ->where('status', 'pending')
             ->whereMonth('due_date', now()->addMonth()->month)
             ->whereYear('due_date', now()->addMonth()->year)
             ->sum('amount');
 
-        $thisYearExpected = Payment::where('status', 'pending')
+        $thisYearExpected = (float) $paymentQuery->clone()
+            ->where('status', 'pending')
             ->whereYear('due_date', now()->year)
             ->sum('amount');
 
         // Compounds and units breakdown (H.3 / Outstanding collection segmentation)
-        $contracts = Contract::with(['client', 'unit.project'])
-            ->whereIn('status', ['active', 'pending_signature', 'completed'])
-            ->get();
-
         $compoundStats = [];
-        foreach ($contracts as $contract) {
+        foreach ($filteredContracts as $contract) {
             $projectName = $contract->unit->project->name ?? 'External Project / Landmark';
             $clientName = $contract->client->name ?? 'N/A';
             $unitNumber = $contract->unit->unit_number ?? 'N/A';
@@ -244,26 +368,56 @@ class PaymentController extends Controller
         }
         $compoundStats = array_values($compoundStats);
 
+        // Recent payments
+        $recentPayments = Payment::where('status', 'paid')
+            ->whereHas('contract', function ($q) use ($projectId, $phase, $unitType, $clientId) {
+                if ($clientId) $q->where('client_id', $clientId);
+                if ($projectId || $phase || $unitType) {
+                    $q->whereHas('unit', function ($qu) use ($projectId, $phase, $unitType) {
+                        if ($projectId) $qu->where('project_id', $projectId);
+                        if ($phase) $qu->where('phase', $phase);
+                        if ($unitType) $qu->where('type', $unitType);
+                    });
+                }
+            })
+            ->with('contract.client')
+            ->latest('paid_at')
+            ->take(10)
+            ->get();
+
         return response()->json([
             'success' => true,
             'owner' => '🔵 Finance Team (Finance)',
             'dashboard' => [
-                'total_revenue' => (float) $totalRevenue,
-                'pending_amount' => (float) $pendingAmount,
-                'overdue_amount' => (float) $overdueAmount,
-                'overdue_count' => $overduePayments->count(),
-                'this_month_revenue' => (float) $thisMonthRevenue,
-                'last_month_revenue' => (float) $lastMonthRevenue,
-                'month_over_month_change' => $lastMonthRevenue > 0
-                    ? round((($thisMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
-                    : 0,
-                'active_contracts' => $activeContracts,
-                'completed_contracts' => $completedContracts,
-                'cash_balance' => (float) $cashBalance,
-                'bank_balance' => (float) $bankBalance,
-                'this_month_expected' => (float) $thisMonthExpected,
-                'next_month_expected' => (float) $nextMonthExpected,
-                'this_year_expected' => (float) $thisYearExpected,
+                'total_revenue' => $totalRevenue,
+                'total_collected' => $totalCollected,
+                'total_outstanding' => $totalOutstanding,
+                'cash_balance' => $cashBalance,
+                'bank_balance' => $bankBalance,
+                'this_month_revenue' => $monthlyRevenue[(int)now()->format('m')],
+                'monthly_revenue_data' => array_values($monthlyRevenue),
+                'yearly_revenue_data' => $yearlyRevenue,
+                
+                // Customer statistics
+                'regular_customers' => $regularCustomersCount,
+                'overdue_customers' => $overdueCustomersCount,
+                'average_overdue_days' => $avgOverdueDays,
+                'total_penalties' => $totalPenalties,
+                'pending_penalties' => $pendingPenalties,
+
+                // Unit statistics
+                'available_units' => $availableUnits,
+                'reserved_units' => $reservedUnits,
+                'sold_units' => $soldUnits,
+                'withdrawn_units' => $withdrawnUnits,
+
+                // Forecasting / expected outlays
+                'expected_cash_flows' => $expectedCashFlows,
+                'upcoming_installments_sum' => $upcomingInstallmentsSum,
+                'this_month_expected' => $thisMonthExpected,
+                'next_month_expected' => $nextMonthExpected,
+                'this_year_expected' => $thisYearExpected,
+                
                 'compound_stats' => $compoundStats,
             ],
             'recent_payments' => $recentPayments,
@@ -334,10 +488,10 @@ class PaymentController extends Controller
 
         $payment = Payment::findOrFail($id);
 
-        if ($payment->status === 'paid') {
+        if ($payment->paid_amount >= $payment->amount) {
             return response()->json([
                 'success' => false,
-                'message' => 'This installment has already been paid.',
+                'message' => 'This installment has already been paid in full.',
             ], 400);
         }
 
@@ -348,47 +502,28 @@ class PaymentController extends Controller
         $transactionRef = $fields['transaction_reference'] ?? strtoupper(Str::random(16));
         $notes = $fields['notes'];
 
-        // Determine if this is a partial payment or full payment
-        $isPartial = $paidAmount < $originalAmount;
+        $remainingBase = $originalAmount - (float) $payment->paid_amount;
+        if ($paidAmount > $remainingBase) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Collected amount cannot exceed the remaining installment amount due (' . $remainingBase . ' EGP).',
+            ], 400);
+        }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $isPartial, $paidAmount, $originalAmount, $gateway, $transactionRef, $notes) {
-            if ($isPartial) {
-                // Partial payment:
-                // 1. Update current payment record to the collected amount, and mark as paid
-                $payment->update([
-                    'amount' => $paidAmount,
-                    'status' => 'paid',
-                    'paid_at' => now(),
-                    'gateway' => $gateway,
-                    'transaction_reference' => $transactionRef . ' (Partial)',
-                ]);
+        $currentPaidTotal = (float) $payment->paid_amount + $paidAmount;
+        $isPartial = $currentPaidTotal < $originalAmount;
 
-                // 2. Create a new pending payment record for the remainder
-                $remainder = $originalAmount - $paidAmount;
-                Payment::create([
-                    'id' => (string) Str::uuid(),
-                    'contract_id' => $payment->contract_id,
-                    'payment_plan_id' => $payment->payment_plan_id,
-                    'amount' => $remainder,
-                    'status' => 'pending',
-                    'due_date' => $payment->due_date,
-                    'installment_number' => $payment->installment_number,
-                    'transaction_reference' => 'Remainder of installment #' . $payment->installment_number,
-                ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $isPartial, $paidAmount, $currentPaidTotal, $gateway, $transactionRef, $notes) {
+            // Update current payment record to the collected amount
+            $payment->update([
+                'paid_amount' => $currentPaidTotal,
+                'paid_at' => now(),
+                'gateway' => $gateway,
+                'transaction_reference' => $transactionRef . ($isPartial ? ' (Partial)' : ''),
+            ]);
 
-                // Note: We do NOT decrement unpaid_installments because a remainder installment is still pending!
-            } else {
-                // Full payment:
-                // 1. Mark as paid
-                $payment->update([
-                    'amount' => $paidAmount, // in case they paid more or exact
-                    'status' => 'paid',
-                    'paid_at' => now(),
-                    'gateway' => $gateway,
-                    'transaction_reference' => $transactionRef,
-                ]);
-
-                // 2. Decrement unpaid installments on the plan
+            if (!$isPartial) {
+                // Decrement unpaid installments on the plan
                 $paymentPlan = $payment->paymentPlan;
                 if ($paymentPlan) {
                     $paymentPlan->decrement('unpaid_installments');
@@ -398,7 +533,7 @@ class PaymentController extends Controller
                 }
             }
 
-            // 3. Increment paid amount on the contract
+            // Increment paid amount on the contract
             $contract = $payment->contract;
             if ($contract) {
                 $contract->increment('paid_amount', $paidAmount);
@@ -439,29 +574,59 @@ class PaymentController extends Controller
         return response()->json([
             'success' => true,
             'message' => $isPartial 
-                ? 'Partial payment collected successfully. Remainder installment created.'
+                ? 'Partial payment collected successfully.'
                 : 'Payment collected successfully in full.',
             'data' => $payment,
         ]);
     }
 
     /**
-     * Apply late penalties (10%) to any overdue installments.
+     * Apply late penalties to any overdue installments.
      */
     public static function applyOverduePenalties()
     {
-        $overduePayments = Payment::where('status', 'pending')
-            ->where('due_date', '<', now()->toDateString())
-            ->where('penalty_amount', 0)
-            ->where('penalty_waived', false)
+        // Fetch global settings
+        $globalRate = (float) (\App\Models\SystemConfig::where('key', 'delay_penalty_percentage')->value('value') ?? 1.0);
+        $globalEnabled = filter_var(\App\Models\SystemConfig::where('key', 'delay_penalty_enabled')->value('value') ?? 'true', FILTER_VALIDATE_BOOLEAN);
+        $globalGrace = (int) (\App\Models\SystemConfig::where('key', 'delay_penalty_grace_days')->value('value') ?? 0);
+
+        // Retrieve all payments not fully paid and not waived
+        $payments = Payment::where('penalty_waived', false)
+            ->whereColumn('paid_amount', '<', 'amount')
+            ->with('paymentPlan')
             ->get();
 
-        foreach ($overduePayments as $payment) {
-            // Apply 10% late penalty
-            $penalty = round($payment->amount * 0.10, 2);
-            $payment->update([
-                'penalty_amount' => $penalty,
-            ]);
+        foreach ($payments as $payment) {
+            $plan = $payment->paymentPlan;
+
+            // Determine effective settings
+            $enabled = $plan && !is_null($plan->penalty_enabled) ? (bool) $plan->penalty_enabled : $globalEnabled;
+            $rate = $plan && !is_null($plan->penalty_rate) ? (float) $plan->penalty_rate : $globalRate;
+            $grace = $plan && !is_null($plan->grace_period_days) ? (int) $plan->grace_period_days : $globalGrace;
+
+            $remainingAmount = (float) ($payment->amount - $payment->paid_amount);
+
+            if ($enabled && $payment->due_date && $remainingAmount > 0) {
+                // Calculate threshold date: due date + grace days
+                $dueDate = \Carbon\Carbon::parse($payment->due_date);
+                $thresholdDate = $dueDate->copy()->addDays($grace);
+
+                if (now()->greaterThan($thresholdDate)) {
+                    // Apply late penalty on remaining unpaid amount
+                    $penalty = round($remainingAmount * ($rate / 100), 2);
+                    $payment->update([
+                        'penalty_amount' => $penalty,
+                    ]);
+                    continue;
+                }
+            }
+
+            // Reset penalty_amount to 0 if penalty is disabled/not overdue
+            if ($payment->penalty_amount > 0) {
+                $payment->update([
+                    'penalty_amount' => 0.00,
+                ]);
+            }
         }
     }
 
@@ -494,6 +659,51 @@ class PaymentController extends Controller
             'success' => true,
             'message' => 'Overdue penalty has been successfully waived.',
             'payment' => $payment,
+        ]);
+    }
+
+    /**
+     * Update delay penalty settings for a contract's payment plan.
+     */
+    public function updatePenaltySettings(Request $request, string $contractId)
+    {
+        $fields = $request->validate([
+            'penalty_enabled' => 'required|boolean',
+            'penalty_rate' => 'required|numeric|min:0|max:100',
+            'grace_period_days' => 'required|integer|min:0|max:365',
+        ]);
+
+        $contract = Contract::findOrFail($contractId);
+        $paymentPlan = $contract->paymentPlan;
+
+        if (!$paymentPlan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No payment plan found for this contract.',
+            ], 404);
+        }
+
+        $paymentPlan->update([
+            'penalty_enabled' => $fields['penalty_enabled'],
+            'penalty_rate' => $fields['penalty_rate'],
+            'grace_period_days' => $fields['grace_period_days'],
+        ]);
+
+        // Recalculate penalties immediately
+        self::applyOverduePenalties();
+
+        AuditLogService::log('PAYMENT_PLAN_PENALTY_CONFIG', $request->user()->id ?? null, [
+            'contract_id' => $contractId,
+            'payment_plan_id' => $paymentPlan->id,
+            'penalty_enabled' => $fields['penalty_enabled'],
+            'penalty_rate' => $fields['penalty_rate'],
+            'grace_period_days' => $fields['grace_period_days'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penalty settings updated successfully and penalties recalculated.',
+            'payment_plan' => $paymentPlan->fresh(),
         ]);
     }
 }

@@ -17,6 +17,7 @@ class FamilyMember extends Model
         'national_id',
         'phone',
         'date_of_birth',
+        'photo_url',
     ];
 
     protected $casts = [

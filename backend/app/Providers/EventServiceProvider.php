@@ -91,11 +91,13 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\ApprovalApproved::class => [
             [\App\Listeners\UpdateProcurementStatus::class, 'handleApproved'],
             [\App\Listeners\UpdatePayoutStatus::class, 'handleApproved'],
+            [\App\Listeners\UpdateContractApprovalStatus::class, 'handleApproved'],
         ],
 
         \App\Events\ApprovalRejected::class => [
             [\App\Listeners\UpdateProcurementStatus::class, 'handleRejected'],
             [\App\Listeners\UpdatePayoutStatus::class, 'handleRejected'],
+            [\App\Listeners\UpdateContractApprovalStatus::class, 'handleRejected'],
         ],
     ];
 

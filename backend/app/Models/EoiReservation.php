@@ -26,6 +26,46 @@ class EoiReservation extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected static function booted()
+    {
+        static::created(function ($eoiRes) {
+            $exists = EoiQueue::where('id', $eoiRes->id)->exists();
+            if (!$exists) {
+                $priorityScore = microtime(true);
+                $queueNumber = EoiQueue::where('project_id', $eoiRes->project_id)->count() + 1;
+
+                EoiQueue::create([
+                    'id' => $eoiRes->id,
+                    'lead_id' => $eoiRes->lead_id,
+                    'project_id' => $eoiRes->project_id,
+                    'queue_number' => $queueNumber,
+                    'priority_score' => $priorityScore,
+                    'status' => $eoiRes->status === self::STATUS_APPROVED ? EoiQueue::STATUS_CONFIRMED : ($eoiRes->status === self::STATUS_REJECTED ? EoiQueue::STATUS_CANCELLED : EoiQueue::STATUS_PENDING),
+                    'eoi_amount' => $eoiRes->payment_amount,
+                    'notes' => $eoiRes->review_notes ?: ($eoiRes->unit_id ? "Reserved Unit: {$eoiRes->unit_id}" : null),
+                ]);
+            }
+        });
+
+        static::updated(function ($eoiRes) {
+            $eoiQueue = EoiQueue::find($eoiRes->id);
+            if ($eoiQueue) {
+                $newStatus = null;
+                if ($eoiRes->status === self::STATUS_APPROVED && $eoiQueue->status !== EoiQueue::STATUS_CONFIRMED) {
+                    $newStatus = EoiQueue::STATUS_CONFIRMED;
+                } elseif ($eoiRes->status === self::STATUS_REJECTED && $eoiQueue->status !== EoiQueue::STATUS_CANCELLED) {
+                    $newStatus = EoiQueue::STATUS_CANCELLED;
+                }
+
+                if ($newStatus) {
+                    $eoiQueue->status = $newStatus;
+                    $eoiQueue->queue_number = $eoiRes->queue_number;
+                    $eoiQueue->saveQuietly();
+                }
+            }
+        });
+    }
+
     // ── Status Constants ──
     public const STATUS_PENDING_REVIEW = 'pending_review';
     public const STATUS_APPROVED       = 'approved';
@@ -40,6 +80,7 @@ class EoiReservation extends Model
     public const PAYMENT_BANK_TRANSFER              = 'bank_transfer';
     public const PAYMENT_CHEQUE                      = 'cheque';
     public const PAYMENT_INTERNATIONAL_BANK_TRANSFER = 'international_bank_transfer';
+    public const PAYMENT_INSTAPAY                   = 'instapay';
 
     /**
      * Payment methods available per location.
@@ -49,6 +90,7 @@ class EoiReservation extends Model
             self::PAYMENT_CASH,
             self::PAYMENT_BANK_TRANSFER,
             self::PAYMENT_CHEQUE,
+            self::PAYMENT_INSTAPAY,
         ],
         self::LOCATION_OUTSIDE_EGYPT => [
             self::PAYMENT_INTERNATIONAL_BANK_TRANSFER,
@@ -67,6 +109,7 @@ class EoiReservation extends Model
         'payment_method',
         'payment_amount',
         'receipt_path',
+        'passport_path',
         'status',
         'order_number',
         'queue_number',
@@ -74,6 +117,8 @@ class EoiReservation extends Model
         'review_notes',
         'reviewed_at',
         'email_sent_at',
+        'invited_at',
+        'contracting_deadline_hours',
     ];
 
     protected $casts = [
@@ -81,6 +126,8 @@ class EoiReservation extends Model
         'queue_number'   => 'integer',
         'reviewed_at'    => 'datetime',
         'email_sent_at'  => 'datetime',
+        'invited_at'     => 'datetime',
+        'contracting_deadline_hours' => 'integer',
         'created_at'     => 'datetime',
         'updated_at'     => 'datetime',
         'deleted_at'     => 'datetime',

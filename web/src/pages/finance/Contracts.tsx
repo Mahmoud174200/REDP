@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, XCircle, Search, Download, PenTool, Eye, X, AlertTriangle, Plus, Calendar, DollarSign, Wallet, CreditCard, CheckCircle2 } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle, Search, Download, PenTool, Eye, X, AlertTriangle, Plus, Calendar, DollarSign, Wallet, CreditCard, CheckCircle2, ToggleRight, ToggleLeft } from 'lucide-react';
 import api from '../../services/api';
 import { ToastContainer } from '../../components/Toast';
 
@@ -36,6 +36,14 @@ const Contracts: React.FC = () => {
   const [collectRef, setCollectRef] = useState('');
   const [collectNotes, setCollectNotes] = useState('');
   const [isCollecting, setIsCollecting] = useState(false);
+
+  // Late Penalty Configuration States
+  const [showPenaltySettingsModal, setShowPenaltySettingsModal] = useState(false);
+  const [penaltyEnabled, setPenaltyEnabled] = useState(true);
+  const [penaltyRate, setPenaltyRate] = useState('1');
+  const [penaltyGraceDays, setPenaltyGraceDays] = useState('0');
+  const [isSavingPenalty, setIsSavingPenalty] = useState(false);
+  const [isEscalating, setIsEscalating] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -418,7 +426,8 @@ const Contracts: React.FC = () => {
 
   const handleOpenCollect = (payment: any) => {
     setSelectedPaymentForCollection(payment);
-    setCollectAmount(payment.amount.toString());
+    const remaining = parseFloat(payment.amount) - (parseFloat(payment.paid_amount) || 0);
+    setCollectAmount(remaining.toString());
     setCollectGateway('cash');
     setCollectRef('');
     setCollectNotes('');
@@ -434,8 +443,9 @@ const Contracts: React.FC = () => {
       return;
     }
 
-    if (amountNum > parseFloat(selectedPaymentForCollection.amount)) {
-      showToast('Collected amount cannot exceed the scheduled installment amount.', 'error');
+    const remainingBase = parseFloat(selectedPaymentForCollection.amount) - (parseFloat(selectedPaymentForCollection.paid_amount) || 0);
+    if (amountNum > remainingBase) {
+      showToast('Collected amount cannot exceed the remaining installment amount due.', 'error');
       return;
     }
 
@@ -475,6 +485,85 @@ const Contracts: React.FC = () => {
     }
   };
 
+  const handlePenaltySettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContract) return;
+
+    const rateNum = parseFloat(penaltyRate);
+    const graceNum = parseInt(penaltyGraceDays);
+
+    if (isNaN(rateNum) || rateNum < 0) {
+      showToast('Please enter a valid penalty rate.', 'error');
+      return;
+    }
+
+    if (isNaN(graceNum) || graceNum < 0) {
+      showToast('Please enter a valid grace period.', 'error');
+      return;
+    }
+
+    setIsSavingPenalty(true);
+    try {
+      const res = await api.post(`/v1/finance/contracts/${selectedContract.id}/penalty-settings`, {
+        penalty_enabled: penaltyEnabled,
+        penalty_rate: rateNum,
+        grace_period_days: graceNum
+      });
+
+      if (res.data?.success) {
+        showToast('Penalty settings updated successfully.', 'success');
+        setShowPenaltySettingsModal(false);
+        // Refresh contract details modal
+        await handleViewContract(selectedContract.id);
+      } else {
+        showToast(res.data?.message || 'Error updating penalty settings.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Failed to update penalty settings:', err);
+      showToast(err.response?.data?.message || 'An error occurred.', 'error');
+    } finally {
+      setIsSavingPenalty(false);
+    }
+  };
+
+  const handleEscalateWithdrawal = async () => {
+    if (!selectedContract) return;
+    
+    const currentStage = selectedContract.withdrawal_status || 'none';
+    const isNextWithdrawn = currentStage === 'final_notice';
+
+    if (isNextWithdrawn) {
+      const confirmWithdraw = confirm(
+        "⚠️ WARNING: Are you sure you want to WITHDRAW this unit? This will cancel the contract, release the unit back to inventory (available), and terminate the payment plan. All payment records will be preserved for history. This action CANNOT be undone."
+      );
+      if (!confirmWithdraw) return;
+    } else {
+      const confirmEscalate = confirm(
+        `Are you sure you want to escalate the delinquency status of contract ${selectedContract.contract_number}?`
+      );
+      if (!confirmEscalate) return;
+    }
+
+    setIsEscalating(true);
+    try {
+      const res = await api.post(`/v1/finance/contracts/${selectedContract.id}/escalate-withdrawal`);
+      if (res.data?.success) {
+        showToast(res.data.message || 'Delinquency status escalated.', 'success');
+        // Refresh contract details
+        await handleViewContract(selectedContract.id);
+        // Refresh contracts table
+        await fetchContracts();
+      } else {
+        showToast(res.data?.message || 'Error escalating delinquency status.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Failed to escalate withdrawal:', err);
+      showToast(err.response?.data?.message || 'An error occurred.', 'error');
+    } finally {
+      setIsEscalating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
@@ -508,6 +597,7 @@ const Contracts: React.FC = () => {
       active: { class: 'badge-success', label: 'Active', icon: <CheckCircle size={12} />, color: 'var(--color-success)' },
       completed: { class: 'badge-info', label: 'Completed', icon: <CheckCircle size={12} />, color: 'var(--color-primary)' },
       cancelled: { class: 'badge-danger', label: 'Cancelled', icon: <XCircle size={12} />, color: 'var(--color-danger)' },
+      withdrawn: { class: 'badge-danger', label: 'Withdrawn', icon: <XCircle size={12} />, color: '#111827' },
     };
     return map[status] || map.draft;
   };
@@ -718,6 +808,145 @@ const Contracts: React.FC = () => {
               </div>
             </div>
 
+            {/* Late Penalty Settings summary panel card */}
+            <div style={{ 
+              padding: '20px', 
+              borderRadius: 'var(--radius-sm)', 
+              background: 'rgba(239, 68, 68, 0.03)', 
+              border: '1.5px solid rgba(239, 68, 68, 0.12)', 
+              marginBottom: '24px' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Late Penalty Settings / إعدادات غرامة التأخير
+                </span>
+                {selectedContract.status !== 'cancelled' && selectedContract.status !== 'completed' && (
+                  <button 
+                    type="button" 
+                    className="btn-secondary" 
+                    style={{ padding: '4px 10px', fontSize: '0.7rem' }}
+                    onClick={() => {
+                      const plan = selectedContract.payment_plan || selectedContract.paymentPlan;
+                      setPenaltyEnabled(plan?.penalty_enabled !== false);
+                      setPenaltyRate(plan?.penalty_rate !== null && plan?.penalty_rate !== undefined ? plan.penalty_rate.toString() : '1');
+                      setPenaltyGraceDays(plan?.grace_period_days !== null && plan?.grace_period_days !== undefined ? plan.grace_period_days.toString() : '0');
+                      setShowPenaltySettingsModal(true);
+                    }}
+                  >
+                    Adjust Settings / تعديل الإعدادات
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
+                <div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block' }}>Penalty Status / الحالة</span>
+                  <span className={`badge ${(selectedContract.payment_plan?.penalty_enabled !== false && selectedContract.paymentPlan?.penalty_enabled !== false) ? 'badge-danger' : 'badge-info'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.72rem', padding: '4px 8px' }}>
+                    {(selectedContract.payment_plan?.penalty_enabled !== false && selectedContract.paymentPlan?.penalty_enabled !== false) ? '⚠️ Enabled / نشط' : '🛡️ Disabled / معطل'}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block' }}>Penalty Rate / نسبة الغرامة</span>
+                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', display: 'block', marginTop: '6px' }}>
+                    {selectedContract.payment_plan?.penalty_rate !== null && selectedContract.payment_plan?.penalty_rate !== undefined 
+                      ? `${selectedContract.payment_plan.penalty_rate}%` 
+                      : selectedContract.paymentPlan?.penalty_rate !== null && selectedContract.paymentPlan?.penalty_rate !== undefined
+                      ? `${selectedContract.paymentPlan.penalty_rate}%`
+                      : '1% (System Default)'}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block' }}>Grace Period / فترة السماح</span>
+                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', display: 'block', marginTop: '6px' }}>
+                    {selectedContract.payment_plan?.grace_period_days !== null && selectedContract.payment_plan?.grace_period_days !== undefined 
+                      ? `${selectedContract.payment_plan.grace_period_days} Days` 
+                      : selectedContract.paymentPlan?.grace_period_days !== null && selectedContract.paymentPlan?.grace_period_days !== undefined
+                      ? `${selectedContract.paymentPlan.grace_period_days} Days`
+                      : '0 Days (System Default)'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Unit Withdrawal System Delinquency Escalation Panel */}
+            <div style={{ 
+              padding: '20px', 
+              borderRadius: 'var(--radius-sm)', 
+              background: 'rgba(239, 68, 68, 0.05)', 
+              border: '1.5px solid rgba(239, 68, 68, 0.2)', 
+              marginBottom: '24px' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Delinquency & Unit Withdrawal System / نظام المتأخرات وسحب الوحدات
+                </span>
+                {selectedContract.status !== 'cancelled' && selectedContract.status !== 'completed' && selectedContract.status !== 'withdrawn' && (
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    style={{ 
+                      padding: '6px 12px', 
+                      fontSize: '0.7rem', 
+                      background: (selectedContract.withdrawal_status === 'final_notice') ? 'var(--color-danger)' : 'var(--color-warning)',
+                      borderColor: (selectedContract.withdrawal_status === 'final_notice') ? 'var(--color-danger)' : 'var(--color-warning)',
+                      height: 'auto'
+                    }}
+                    onClick={handleEscalateWithdrawal}
+                    disabled={isEscalating}
+                  >
+                    {selectedContract.withdrawal_status === 'final_notice' ? 'Withdraw Unit / سحب الوحدة' : 'Escalate Stage / تصعيد المرحلة'}
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>Current Escalation Status:</span>
+                  {(() => {
+                    const stage = selectedContract.withdrawal_status || 'none';
+                    const stageConfigs: Record<string, { label: string; class: string; color: string }> = {
+                      none: { label: 'Normal / مستقر', class: 'badge-success', color: 'var(--color-success)' },
+                      reminder: { label: 'Reminder Sent / تم إرسال تذكير', class: 'badge-warning', color: 'var(--color-warning)' },
+                      warning: { label: 'Warning Sent / تم إرسال إنذار', class: 'badge-warning', color: '#f97316' },
+                      final_notice: { label: 'Final Notice Sent / إنذار نهائي بسحب الوحدة', class: 'badge-danger', color: 'var(--color-danger)' },
+                      withdrawn: { label: 'Unit Withdrawn / تم سحب الوحدة', class: 'badge-danger', color: '#111827' }
+                    };
+                    const cfg = stageConfigs[stage] || stageConfigs.none;
+                    return (
+                      <span className={`badge ${cfg.class}`} style={{ padding: '4px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        {cfg.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Delinquency progress steps */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', height: '6px', background: 'rgba(0,0,0,0.05)', borderRadius: '3px', marginTop: '6px' }}>
+                  {['none', 'reminder', 'warning', 'final_notice', 'withdrawn'].map((stage, idx) => {
+                    const stages = ['none', 'reminder', 'warning', 'final_notice', 'withdrawn'];
+                    const currentIdx = stages.indexOf(selectedContract.withdrawal_status || 'none');
+                    const isActive = idx <= currentIdx;
+                    const colors = ['#10b981', '#f59e0b', '#f97316', '#ef4444', '#111827'];
+                    return (
+                      <div 
+                        key={stage} 
+                        style={{ 
+                          height: '100%', 
+                          borderRadius: '3px', 
+                          background: isActive ? colors[idx] : 'transparent',
+                          transition: 'background 0.3s'
+                        }} 
+                      />
+                    );
+                  })}
+                </div>
+                
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  If customer defaults persist, progress the delinquency sequence. Transitioning past Final Notice initiates unit repossession, returns the unit to inventory, terminates the contract, and freezes the payment schedule while maintaining all transaction records.
+                </span>
+              </div>
+            </div>
+
             {/* Detailed Installments Table */}
             <div style={{ marginBottom: '24px' }}>
               <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
@@ -746,9 +975,11 @@ const Contracts: React.FC = () => {
                       </tr>
                     ) : (
                       selectedContract.payments.map((payment: any) => {
-                        const isOverdue = payment.status === 'pending' && new Date(payment.due_date) < new Date();
+                        const status = payment.status === 'pending'
+                          ? (new Date(payment.due_date) < new Date() ? 'overdue' : 'upcoming')
+                          : payment.status;
                         return (
-                          <tr key={payment.id} style={{ background: payment.status === 'paid' ? 'rgba(46, 125, 50, 0.05)' : 'transparent', transition: 'background-color 0.2s' }}>
+                          <tr key={payment.id} style={{ background: status === 'paid' ? 'rgba(46, 125, 50, 0.05)' : status === 'overdue' ? 'rgba(239, 68, 68, 0.02)' : 'transparent', transition: 'background-color 0.2s' }}>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', fontWeight: 600 }}>
                               {payment.installment_number === 0 ? 'Down Payment / مقدم' : `Month ${payment.installment_number}`}
                             </td>
@@ -757,7 +988,14 @@ const Contracts: React.FC = () => {
                             </td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)' }}>{payment.due_date}</td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
-                              {(parseFloat(payment.amount) || 0).toLocaleString()} EGP
+                              {status === 'partial' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{(parseFloat(payment.paid_amount) || 0).toLocaleString()} / {(parseFloat(payment.amount) || 0).toLocaleString()} EGP</span>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>({Math.round(((parseFloat(payment.paid_amount) || 0) / (parseFloat(payment.amount) || 1)) * 100)}% paid)</span>
+                                </div>
+                              ) : (
+                                <span>{(parseFloat(payment.amount) || 0).toLocaleString()} EGP</span>
+                              )}
                               {parseFloat(payment.penalty_amount) > 0 && (
                                 <div style={{ fontSize: '0.65rem', color: 'var(--color-danger)', fontWeight: 600, marginTop: '2px' }}>
                                   + {(parseFloat(payment.penalty_amount) || 0).toLocaleString()} EGP Late Fee
@@ -765,24 +1003,29 @@ const Contracts: React.FC = () => {
                               )}
                             </td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'center' }}>
-                              {payment.status === 'paid' && (
+                              {status === 'paid' && (
                                 <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
-                                  <CheckCircle size={10} /> Paid
+                                  <CheckCircle size={10} /> Paid / مدفوع
                                 </span>
                               )}
-                              {payment.status === 'pending' && !isOverdue && (
-                                <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
-                                  <Clock size={10} /> Pending
+                              {status === 'upcoming' && (
+                                <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(59,130,246,0.1)', color: 'var(--color-primary)' }}>
+                                  <Clock size={10} /> Upcoming / قادم
                                 </span>
                               )}
-                              {payment.status === 'pending' && isOverdue && (
+                              {status === 'overdue' && (
                                 <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
-                                  <AlertTriangle size={10} /> Overdue
+                                  <AlertTriangle size={10} /> Overdue / متأخر
+                                </span>
+                              )}
+                              {status === 'partial' && (
+                                <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', padding: '3px 8px', fontSize: '0.65rem' }}>
+                                  <Clock size={10} /> Partial / دفع جزئي
                                 </span>
                               )}
                             </td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)' }}>
-                              {payment.status === 'paid' ? (
+                              {(status === 'paid' || status === 'partial') ? (
                                 <div style={{ fontSize: '0.7rem' }}>
                                   <span style={{ textTransform: 'capitalize', fontWeight: 600, color: 'var(--color-primary)' }}>
                                     {payment.gateway ? payment.gateway.replace('_', ' ') : 'Manual'}
@@ -803,16 +1046,17 @@ const Contracts: React.FC = () => {
                               )}
                             </td>
                             <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-glass)', textAlign: 'center' }}>
-                              {payment.status === 'pending' ? (
+                              {status !== 'paid' && (
                                 <button
                                   type="button"
                                   className="btn-primary"
-                                  style={{ padding: '4px 8px', fontSize: '0.68rem', background: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                                  style={{ padding: '4px 8px', fontSize: '0.68rem', background: 'var(--color-success)', borderColor: 'var(--color-success)', marginBottom: status === 'partial' ? '4px' : '0' }}
                                   onClick={() => handleOpenCollect(payment)}
                                 >
-                                  <DollarSign size={10} /> تحصيل / Collect
+                                  <DollarSign size={10} /> {status === 'partial' ? 'Remainder' : 'تحصيل / Collect'}
                                 </button>
-                              ) : (
+                              )}
+                              {status === 'paid' ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                   <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '0.7rem' }}>✓ Done / تم الدفع</span>
                                   <button
@@ -824,6 +1068,17 @@ const Contracts: React.FC = () => {
                                     🖨️ Receipt / إيصال
                                   </button>
                                 </div>
+                              ) : (
+                                status === 'partial' && (
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    style={{ padding: '3px 6px', fontSize: '0.65rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.9)', display: 'block', margin: '0 auto' }}
+                                    onClick={() => handlePrintReceipt(payment)}
+                                  >
+                                    🖨️ Receipt / إيصال
+                                  </button>
+                                )
                               )}
                             </td>
                           </tr>
@@ -932,9 +1187,9 @@ const Contracts: React.FC = () => {
                   required
                   style={{ fontSize: '0.8rem' }}
                 />
-                {parseFloat(collectAmount) < parseFloat(selectedPaymentForCollection.amount) && (
+                {parseFloat(collectAmount) < (parseFloat(selectedPaymentForCollection.amount) - (parseFloat(selectedPaymentForCollection.paid_amount) || 0)) && (
                   <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)', marginTop: '4px', display: 'block' }}>
-                    ⚠️ Warning: This is a partial payment. A new pending installment of {(parseFloat(selectedPaymentForCollection.amount) - parseFloat(collectAmount)).toLocaleString()} EGP will be created for the remainder.
+                    ⚠️ Partial Payment: The installment status will update to "Partial Payment / دفع جزئي" without splitting the record. The remainder can be collected subsequently.
                   </span>
                 )}
               </div>
@@ -969,6 +1224,83 @@ const Contracts: React.FC = () => {
                 </button>
                 <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'var(--color-success)', borderColor: 'var(--color-success)' }} disabled={isCollecting}>
                   {isCollecting ? 'Recording...' : 'Confirm Receipt'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Penalty Settings Modal */}
+      {showPenaltySettingsModal && selectedContract && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }} onClick={() => setShowPenaltySettingsModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '480px', width: '100%', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <AlertTriangle size={18} style={{ color: 'var(--color-danger)' }} />
+                Late Penalty Settings (إعدادات غرامة التأخير)
+              </h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem', padding: 0 }} onClick={() => setShowPenaltySettingsModal(false)}>
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handlePenaltySettingsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Penalty Application Status</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPenaltyEnabled(!penaltyEnabled)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
+                  >
+                    {penaltyEnabled ? (
+                      <ToggleRight size={38} style={{ color: 'var(--color-success)' }} />
+                    ) : (
+                      <ToggleLeft size={38} style={{ color: 'var(--text-muted)' }} />
+                    )}
+                  </button>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {penaltyEnabled ? 'Enabled / نشط: Apply overdue interest.' : 'Disabled / معطل: Waive any dynamic late fee.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Late Penalty Rate (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className="form-control"
+                  value={penaltyRate}
+                  onChange={e => setPenaltyRate(e.target.value)}
+                  placeholder="e.g. 1.0"
+                  required
+                  disabled={!penaltyEnabled}
+                  style={{ fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem' }}>Grace Period (Days)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={penaltyGraceDays}
+                  onChange={e => setPenaltyGraceDays(e.target.value)}
+                  placeholder="e.g. 5"
+                  required
+                  disabled={!penaltyEnabled}
+                  style={{ fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowPenaltySettingsModal(false)}>
+                  Cancel / إلغاء
+                </button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={isSavingPenalty}>
+                  {isSavingPenalty ? 'Saving...' : 'Save Settings / حفظ'}
                 </button>
               </div>
             </form>

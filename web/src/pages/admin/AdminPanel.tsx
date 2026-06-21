@@ -82,6 +82,12 @@ interface AuditLogItem {
   details: any;
   created_at: string;
   user?: UserItem;
+  old_values?: any;
+  new_values?: any;
+  user_agent?: string | null;
+  device_type?: string | null;
+  browser?: string | null;
+  geo_location?: any;
 }
 
 interface SystemHealth {
@@ -115,6 +121,17 @@ const AdminPanel: React.FC = () => {
   const [showFloorPlanEditor, setShowFloorPlanEditor] = useState(false);
   const [editorUnitId, setEditorUnitId] = useState('');
   const [editorUnitNumber, setEditorUnitNumber] = useState('');
+  const [preview3DUnit, setPreview3DUnit] = useState<{ id: string; unitNumber: string; url: string } | null>(null);
+
+  // Load model-viewer script if needed
+  useEffect(() => {
+    if (!document.querySelector('script[src*="model-viewer"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js';
+      script.type = 'module';
+      document.head.appendChild(script);
+    }
+  }, []);
 
   // ── Database Lists States ──
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -125,6 +142,17 @@ const AdminPanel: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [activeSessions, setActiveSessions] = useState<SessionItem[]>([]);
+
+  // ── Broadcaster Desk States ──
+  const [broadcastProjectId, setBroadcastProjectId] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastChannels, setBroadcastChannels] = useState({ email: true, sms: false, whatsapp: false });
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [isCheckingSchedule, setIsCheckingSchedule] = useState(false);
+
+  // ── Audit Log Modal States ──
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogItem | null>(null);
 
   // ── Project Payment Plan States ──
   const [projectPlans, setProjectPlans] = useState<any[]>([]);
@@ -184,6 +212,9 @@ const AdminPanel: React.FC = () => {
     mail_host: 'smtp.mailtrap.io',
     mail_port: '2525',
     mail_username: '',
+    delay_penalty_percentage: '1',
+    delay_penalty_enabled: 'true',
+    delay_penalty_grace_days: '0',
     mail_password: '',
     mail_encryption: 'tls',
     mail_from_address: 'noreply@redp.com',
@@ -203,6 +234,7 @@ const AdminPanel: React.FC = () => {
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
   const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
+  const [mediaBuildings, setMediaBuildings] = useState<any[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
   const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
@@ -210,10 +242,7 @@ const AdminPanel: React.FC = () => {
   const [is3DGenerating, setIs3DGenerating] = useState<string | null>(null);
   const [buildingPreprocess, setBuildingPreprocess] = useState<Record<string, boolean>>({});
   const [unitPreprocess, setUnitPreprocess] = useState<Record<string, boolean>>({});
-  const [newBName, setNewBName] = useState('');
-  const [newBFloors, setNewBFloors] = useState('3');
-  const [newBUnits, setNewBUnits] = useState('4');
-  const [isConfiguringB, setIsConfiguringB] = useState(false);
+
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectModalMode, setProjectModalMode] = useState<'add' | 'edit'>('add');
@@ -417,6 +446,36 @@ const AdminPanel: React.FC = () => {
     fetchData();
   }, []);
 
+  // Automated polling for 3D model status when processing or pending
+  useEffect(() => {
+    if (!showMediaModal || !selectedProjectForMedia) return;
+
+    const hasActive = building3DStatuses.some(
+      status => status.model_3d_status === 'pending' || status.model_3d_status === 'processing'
+    );
+
+    if (!hasActive) return;
+
+    // Poll every 15 seconds
+    const interval = setInterval(async () => {
+      console.log('Automated polling for 3D model status...');
+      try {
+        const res = await api.get(`/admin/projects/${selectedProjectForMedia.id}/3d-status`);
+        if (res.data?.success) {
+          setBuilding3DStatuses(res.data.data || []);
+        }
+        const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+        if (mediaRes.data?.success) {
+          setProjectMedia(mediaRes.data.data);
+        }
+      } catch (err) {
+        console.error('Polling failed', err);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [showMediaModal, selectedProjectForMedia, building3DStatuses]);
+
   // ── User Handlers ──
   const openAddUserModal = () => {
     setFormUserName('');
@@ -566,12 +625,30 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         setProjectMedia(res.data.data);
       }
+      const resBuildings = await api.get(`/admin/projects/${project.id}/buildings`);
+      if (resBuildings.data?.success) {
+        setMediaBuildings(resBuildings.data.data);
+      }
       await fetch3DStatuses(project.id);
     } catch (err) {
       console.error('Failed to load project media', err);
       setProjectMedia({ project_image: null, building_images: {}, floor_plan_images: {} });
+      setMediaBuildings([]);
     } finally {
       setMediaLoading(false);
+    }
+  };
+
+  const refreshMediaModalData = async () => {
+    if (!selectedProjectForMedia) return;
+    try {
+      const resBuildings = await api.get(`/admin/projects/${selectedProjectForMedia.id}/buildings`);
+      if (resBuildings.data?.success) {
+        setMediaBuildings(resBuildings.data.data);
+      }
+      await fetch3DStatuses(selectedProjectForMedia.id);
+    } catch (err) {
+      console.error('Failed to refresh media modal data', err);
     }
   };
 
@@ -637,6 +714,7 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to start unit 3D model generation');
@@ -651,6 +729,7 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to regenerate unit 3D model');
@@ -664,33 +743,10 @@ const AdminPanel: React.FC = () => {
       if (res.data?.success) {
         alert(res.data.message);
         await fetchData();
+        await refreshMediaModalData();
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to delete unit 3D model');
-    }
-  };
-
-  const handleSetupBuilding = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProjectForMedia || !newBName) return;
-    setIsConfiguringB(true);
-    try {
-      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/setup-building`, {
-        building_name: newBName,
-        floors_count: parseInt(newBFloors, 10),
-        units_per_floor: parseInt(newBUnits, 10),
-      });
-      alert(res.data.message);
-      setNewBName('');
-      await fetchData();
-      const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
-      if (mediaRes.data?.success) {
-        setProjectMedia(mediaRes.data.data);
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to setup building structure');
-    } finally {
-      setIsConfiguringB(false);
     }
   };
 
@@ -789,6 +845,13 @@ const AdminPanel: React.FC = () => {
         alert('Unit layout image uploaded successfully!');
         setSelectedUnit(prev => prev ? { ...prev, layout_image_url: res.data.data.image_url } : null);
         setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, layout_image_url: res.data.data.image_url } : u));
+        setMediaBuildings(prevBuildings => prevBuildings.map(b => ({
+          ...b,
+          floors: (b.floors || []).map((f: any) => ({
+            ...f,
+            units: (f.units || []).map((u: any) => u.id === unitId ? { ...u, layout_image_url: res.data.data.image_url } : u)
+          }))
+        })));
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Upload failed');
@@ -1208,6 +1271,52 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastProjectId) {
+      alert('Please select a project first.');
+      return;
+    }
+    if (!broadcastMessage.trim()) {
+      alert('Please type a message to broadcast.');
+      return;
+    }
+    const channels = Object.keys(broadcastChannels).filter(key => broadcastChannels[key as keyof typeof broadcastChannels]);
+    if (channels.length === 0) {
+      alert('Please select at least one notification channel.');
+      return;
+    }
+    setIsBroadcasting(true);
+    try {
+      const res = await api.post('/admin/notifications/broadcast', {
+        project_id: broadcastProjectId,
+        message: broadcastMessage,
+        channels: channels
+      });
+      if (res.data?.success) {
+        alert(res.data.message || 'Broadcast sent successfully!');
+        setBroadcastMessage('');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send broadcast.');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const handleRunScheduleCheckups = async () => {
+    setIsCheckingSchedule(true);
+    try {
+      const res = await api.post('/admin/notifications/run-schedule-checks');
+      if (res.data?.success) {
+        alert(res.data.message + `\nUpcoming alerts sent: ${res.data.upcoming_alerts_sent}\nOverdue alerts sent: ${res.data.overdue_alerts_sent}`);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to run schedule checks.');
+    } finally {
+      setIsCheckingSchedule(false);
+    }
+  };
+
   // ── Filters & Search ──
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1281,7 +1390,6 @@ const AdminPanel: React.FC = () => {
         {[
           { id: 'users', label: 'Users', icon: Users },
           { id: 'projects', label: 'Projects', icon: Building2 },
-          { id: 'units', label: 'Units', icon: Layers },
           { id: 'leads', label: 'CRM Leads', icon: UserCheck },
           { id: 'tickets', label: 'Tickets', icon: AlertCircle },
           { id: 'sessions', label: 'Active Sessions', icon: Monitor },
@@ -1345,11 +1453,6 @@ const AdminPanel: React.FC = () => {
             {activeTab === 'projects' && (
               <button onClick={openAddProjectModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                 <Plus size={14} style={{ marginRight: '6px' }} /> Add Project
-              </button>
-            )}
-            {activeTab === 'units' && (
-              <button onClick={openAddUnitModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                <Plus size={14} style={{ marginRight: '6px' }} /> Add Unit
               </button>
             )}
             {activeTab === 'leads' && (
@@ -1502,59 +1605,7 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* ── Tab Content: UNITS ── */}
-      {activeTab === 'units' && (
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Unit Number</th>
-                <th>Project</th>
-                <th>Floor</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUnits.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No units found.</td>
-                </tr>
-              ) : (
-                filteredUnits.map((un) => (
-                  <tr key={un.id}>
-                    <td><strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>Unit {un.unit_number}</strong></td>
-                    <td>{un.project?.name || <span style={{ color: 'var(--text-muted)' }}>No Project</span>}</td>
-                    <td>Floor {un.floor}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{un.type}</td>
-                    <td style={{ fontWeight: 700 }}>EGP {Number(un.price).toLocaleString()}</td>
-                    <td>
-                      <span className={`badge ${un.status === 'available' ? 'badge-success' :
-                          un.status === 'reserved' ? 'badge-info' :
-                            un.status === 'sold' ? 'badge-danger' : 'badge-danger'
-                        }`} style={{ textTransform: 'uppercase' }}>
-                        {un.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => openEditUnitModal(un)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }}>
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button onClick={() => handleDeleteUnit(un.id)} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+
 
       {/* ── Tab Content: CRM LEADS ── */}
       {activeTab === 'leads' && (
@@ -1688,7 +1739,7 @@ const AdminPanel: React.FC = () => {
                 <th>Operator User</th>
                 <th>Event Action</th>
                 <th>IP Address</th>
-                <th>Event Payload Details</th>
+                <th>Payload Details & Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1704,9 +1755,18 @@ const AdminPanel: React.FC = () => {
                     <td><span className="badge badge-info" style={{ fontWeight: 800 }}>{log.action}</span></td>
                     <td style={{ fontSize: '0.75rem' }}>{log.ip_address || '—'}</td>
                     <td>
-                      <code style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', display: 'block', maxWidth: '350px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                        {JSON.stringify(log.details)}
-                      </code>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <code style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', display: 'block', maxWidth: '200px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                          {JSON.stringify(log.new_values || log.details || {})}
+                        </code>
+                        <button
+                          onClick={() => { setSelectedAuditLog(log); setShowAuditModal(true); }}
+                          className="btn-secondary"
+                          style={{ padding: '4px 8px', fontSize: '0.65rem', whiteSpace: 'nowrap' }}
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1929,6 +1989,7 @@ const AdminPanel: React.FC = () => {
 
       {/* ── Tab Content: CONFIGURATIONS ── */}
       {activeTab === 'configs' && (
+        <>
         <form onSubmit={handleSaveConfigs} className="glass-panel" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '35px' }}>
 
           {/* Section 1: Branding & Identity */}
@@ -2331,6 +2392,49 @@ const AdminPanel: React.FC = () => {
                   required
                 />
               </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Enable Late Payment Penalty (تفعيل غرامة التأخير)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => updateConfigKey('delay_penalty_enabled', (configs as any).delay_penalty_enabled === 'true' ? 'false' : 'true')}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
+                  >
+                    {(configs as any).delay_penalty_enabled === 'true' ? (
+                      <ToggleRight size={38} style={{ color: 'var(--color-success)' }} />
+                    ) : (
+                      <ToggleLeft size={38} style={{ color: 'var(--text-muted)' }} />
+                    )}
+                  </button>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {(configs as any).delay_penalty_enabled === 'true' ? 'Enabled: Apply late fees on overdue payments.' : 'Disabled: Cancel / do not apply late fees.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>Default Delay Penalty Rate (%) (نسبة الغرامة الافتراضية)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className="form-control"
+                  value={(configs as any).delay_penalty_percentage || ''}
+                  onChange={(e) => updateConfigKey('delay_penalty_percentage', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Default Penalty Grace Period (Days) (فترة السماح الافتراضية باليوم)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={(configs as any).delay_penalty_grace_days || ''}
+                  onChange={(e) => updateConfigKey('delay_penalty_grace_days', e.target.value)}
+                  required
+                />
+              </div>
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   ⚠️ System Maintenance Mode
@@ -2373,9 +2477,221 @@ const AdminPanel: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {/* 📢 Broadcaster & Alerts Desk */}
+        <div className="glass-panel" style={{ padding: '35px', marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, borderBottom: '1.5px solid var(--border-glass)', paddingBottom: '10px', marginBottom: '10px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📢 Broadcaster & Alerts Desk (لوحة البث والرسائل التنبيهية)
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Broadcast customized project updates directly to homeowners, or trigger a manual scan of upcoming/overdue installments.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
+            {/* Broadcast Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderRight: '1px solid var(--border-glass)', paddingRight: '30px' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                1. Project Update Broadcast (إرسال تحديث للملاك)
+              </h3>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Select Target Project</label>
+                <select 
+                  className="form-control" 
+                  value={broadcastProjectId} 
+                  onChange={e => setBroadcastProjectId(e.target.value)}
+                >
+                  <option value="">Choose Project...</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>Broadcast Message</label>
+                <textarea 
+                  className="form-control" 
+                  value={broadcastMessage} 
+                  onChange={e => setBroadcastMessage(e.target.value)} 
+                  placeholder="Enter important updates, construction progress, or announcements..." 
+                  style={{ minHeight: '100px', padding: '10px' }} 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Dispatch Channels</label>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.email} onChange={e => setBroadcastChannels(prev => ({ ...prev, email: e.target.checked }))} />
+                    <span>Email Gateway</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.sms} onChange={e => setBroadcastChannels(prev => ({ ...prev, sms: e.target.checked }))} />
+                    <span>SMS Gateway</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={broadcastChannels.whatsapp} onChange={e => setBroadcastChannels(prev => ({ ...prev, whatsapp: e.target.checked }))} />
+                    <span>WhatsApp Gateway</span>
+                  </label>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={handleSendBroadcast} 
+                className="btn-primary" 
+                style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}
+                disabled={isBroadcasting}
+              >
+                {isBroadcasting ? 'Broadcasting message...' : '🚀 Dispatch Broadcast'}
+              </button>
+            </div>
+
+            {/* Run Schedule Checkups */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                2. Installment Dues Checkup (فحص الأقساط المستحقة والتحصيل)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Manually scan all contract ledgers to detect:
+              </p>
+              <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 15px', padding: 0 }}>
+                <li style={{ marginBottom: '4px' }}>Upcoming installments due in the next 7 days (Sends Email/WhatsApp).</li>
+                <li>Overdue installments past their due date (Sends Email/SMS/WhatsApp with default 1% penalty).</li>
+              </ul>
+              <button 
+                type="button" 
+                onClick={handleRunScheduleCheckups} 
+                className="btn-secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '42px', color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                disabled={isCheckingSchedule}
+              >
+                {isCheckingSchedule ? 'Running checkup scan...' : '🔍 Trigger Dues Scan & Alerts'}
+              </button>
+            </div>
+          </div>
+        </div>
+        </>
       )}
 
       {/* ── MODALS CONTAINER ── */}
+
+      {/* 🔍 Audit Log Details Modal */}
+      {showAuditModal && selectedAuditLog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel animate-fade-in" style={{ maxWidth: '800px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', maxHeight: '85vh', overflowY: 'auto' }}>
+            <button onClick={() => { setShowAuditModal(false); setSelectedAuditLog(null); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={20} style={{ color: 'var(--color-primary)' }} />
+              Audit Log Details: {selectedAuditLog.action}
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+              {/* Operator and IP */}
+              <div style={{ padding: '14px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>OPERATOR DETAILS</strong>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <strong>User:</strong> {selectedAuditLog.user?.name || 'System / Guest'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({selectedAuditLog.user?.email || 'No email'})</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>IP Address:</strong> {selectedAuditLog.ip_address || '—'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Time:</strong> {selectedAuditLog.created_at}
+                </div>
+              </div>
+
+              {/* Browser and OS */}
+              <div style={{ padding: '14px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>CLIENT & LOCATION</strong>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <strong>Browser:</strong> {selectedAuditLog.browser || 'Unknown'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Device Type:</strong> {selectedAuditLog.device_type || 'Desktop'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                  <strong>Location:</strong> {selectedAuditLog.geo_location ? (
+                    `${selectedAuditLog.geo_location.city || ''}, ${selectedAuditLog.geo_location.country || ''} (Lat: ${selectedAuditLog.geo_location.lat}, Lng: ${selectedAuditLog.geo_location.lng})`
+                  ) : 'Unknown'}
+                </div>
+              </div>
+            </div>
+
+            {/* User Agent Raw */}
+            <div style={{ marginBottom: '20px' }}>
+              <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--text-muted)', marginBottom: '6px' }}>USER AGENT</strong>
+              <div style={{ fontSize: '0.75rem', background: '#f5f5f5', padding: '10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                {selectedAuditLog.user_agent || 'Unknown User Agent'}
+              </div>
+            </div>
+
+            {/* Old vs New Values Side-by-Side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+              {/* Old Values */}
+              <div>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--color-danger)', marginBottom: '6px' }}>🔴 OLD VALUES (ORIGINAL)</strong>
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.03)',
+                  border: '1px solid rgba(239, 68, 68, 0.15)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'pre-wrap',
+                  color: '#b91c1c'
+                }}>
+                  {selectedAuditLog.old_values ? (
+                    JSON.stringify(selectedAuditLog.old_values, null, 2)
+                  ) : (
+                    'No original state changes.'
+                  )}
+                </div>
+              </div>
+
+              {/* New Values */}
+              <div>
+                <strong style={{ fontSize: '0.8rem', display: 'block', color: 'var(--color-success)', marginBottom: '6px' }}>🟢 NEW VALUES (UPDATED)</strong>
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.03)',
+                  border: '1px solid rgba(16, 185, 129, 0.15)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'pre-wrap',
+                  color: '#047857'
+                }}>
+                  {selectedAuditLog.new_values ? (
+                    JSON.stringify(selectedAuditLog.new_values, null, 2)
+                  ) : selectedAuditLog.details ? (
+                    JSON.stringify(selectedAuditLog.details, null, 2)
+                  ) : (
+                    'No new updates.'
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '15px' }}>
+              <button onClick={() => { setShowAuditModal(false); setSelectedAuditLog(null); }} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 👤 User CRUD Modal */}
       {showUserModal && (
@@ -2411,14 +2727,13 @@ const AdminPanel: React.FC = () => {
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Security Role</label>
                   <select className="form-control" value={formUserRole} onChange={e => setFormUserRole(e.target.value)}>
-                    <option value="admin">System Admin</option>
-                    <option value="tele_sales">Tier 1: Tele-Sales Agent</option>
-                    <option value="broker">Tier 2: External Broker</option>
-                    <option value="company_sales">Tier 3: Company Sales Representative</option>
-                    <option value="sales_agent">Legacy Sales Agent</option>
-                    <option value="finance_officer">Finance Officer</option>
-                    <option value="delivery_engineer">Delivery Engineer</option>
-                    <option value="client">Client (Homeowner)</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="sales_team">Sales Team</option>
+                    <option value="customer_service">Customer Service</option>
+                    <option value="handover_team">Handover Team</option>
+                    <option value="homeowner">Homeowner</option>
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -3107,80 +3422,12 @@ const AdminPanel: React.FC = () => {
                     Select a building to upload its rendering image and floor layouts. These floor plans should display the configuration of all apartments on that specific floor.
                   </p>
 
-                  {/* Building setup form */}
-                  <form onSubmit={handleSetupBuilding} style={{
-                    marginBottom: '24px',
-                    padding: '20px',
-                    background: 'rgba(59,130,246,0.03)',
-                    border: '1.5px solid rgba(59,130,246,0.1)',
-                    borderRadius: 'var(--radius-md)',
-                  }}>
-                    <strong style={{ fontSize: '0.85rem', color: 'var(--color-primary)', display: 'block', marginBottom: '12px' }}>
-                      🏗️ Setup Building/Block Structure (هيكلة وإضافة مبنى جديد)
-                    </strong>
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '15px',
-                      alignItems: 'flex-end'
-                    }}>
-                      <div style={{ flex: '2 1 200px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Building / Block Name (اسم البلوك/العمارة):</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Block A1, Block B"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBName}
-                          onChange={(e) => setNewBName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div style={{ flex: '1 1 100px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Total Floors (الأدوار):</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBFloors}
-                          onChange={(e) => setNewBFloors(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div style={{ flex: '1.2 1 120px' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Apartments / Floor:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="20"
-                          className="form-control"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          value={newBUnits}
-                          onChange={(e) => setNewBUnits(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="btn-primary"
-                        style={{ padding: '8px 16px', fontSize: '0.8rem', height: 'auto', background: 'var(--color-primary)' }}
-                        disabled={isConfiguringB}
-                      >
-                        {isConfiguringB ? 'Configuring...' : 'Configure (هيكلة)'}
-                      </button>
-                    </div>
-                  </form>
-
                   {(() => {
-                    const uniqueBuildings = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id).map(u => u.building || 'Main Building')));
-
-                    if (uniqueBuildings.length === 0) {
+                    if (mediaBuildings.length === 0) {
                       return (
                         <div style={{ textAlign: 'center', padding: '30px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', border: '1.5px dashed rgba(0,0,0,0.08)' }}>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            No buildings configured yet. Use the form above to add a building and structure its floors/apartments.
+                            No buildings found in the Master Plan for this project. Please build them in the Master Plan first.
                           </span>
                         </div>
                       );
@@ -3188,16 +3435,17 @@ const AdminPanel: React.FC = () => {
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {uniqueBuildings.map((buildingName) => {
-                          const floors = Array.from(new Set(units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building'))).map(u => u.floor))).sort((a, b) => a - b);
+                        {mediaBuildings.map((building) => {
+                          const buildingName = building.name;
+                          const floors = (building.floors || []).map((f: any) => f.floor_number).sort((a: number, b: number) => a - b);
                           const bImage = projectMedia?.building_images?.[buildingName]?.image_url;
 
                           return (
-                            <div key={buildingName} style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '18px', background: '#fbfbfb' }}>
+                            <div key={building.id} style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '18px', background: '#fbfbfb' }}>
                               
                               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', alignItems: 'center', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '12px', marginBottom: '12px' }}>
                                 <div>
-                                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName}</strong>
+                                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>🏢 {buildingName} {building.name_ar ? `(${building.name_ar})` : ''}</strong>
                                   <div style={{ marginTop: '8px' }}>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Upload Building Exterior Image:</label>
                                     <div style={{ marginTop: '4px' }}>
@@ -3355,9 +3603,43 @@ const AdminPanel: React.FC = () => {
 
                                     if (building3D.model_3d_status === 'pending' || building3D.model_3d_status === 'processing') {
                                       return (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                          <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generating 3D model...</span>
+                                          </div>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            ⏱ Estimated: ~2 minutes. Will auto-refresh every 15s or click Refresh.
+                                          </span>
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button
+                                              type="button"
+                                              className="btn-primary"
+                                              style={{ padding: '4px 12px', fontSize: '0.7rem' }}
+                                              onClick={async () => {
+                                                if (selectedProjectForMedia) {
+                                                  const res = await api.get(`/admin/projects/${selectedProjectForMedia.id}/3d-status`);
+                                                  if (res.data?.success) {
+                                                    setBuilding3DStatuses([...res.data.data]);
+                                                  }
+                                                  const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+                                                  if (mediaRes.data?.success) {
+                                                    setProjectMedia(mediaRes.data.data);
+                                                  }
+                                                }
+                                              }}
+                                            >
+                                              🔄 Refresh Status
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btn-secondary"
+                                              style={{ padding: '4px 10px', fontSize: '0.7rem', color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
+                                              onClick={() => handleDelete3D(building3D.media_id, buildingName)}
+                                            >
+                                              Cancel / Reset
+                                            </button>
+                                          </div>
                                         </div>
                                       );
                                     }
@@ -3403,48 +3685,13 @@ const AdminPanel: React.FC = () => {
                                 {floors.map((floorNum) => {
                                   const refKey = `${buildingName}|${floorNum}`;
                                   const fImage = projectMedia?.floor_plan_images?.[refKey]?.image_url;
-                                  const floorUnits = units.filter(u => u.project_id === selectedProjectForMedia.id && (u.building === buildingName || (!u.building && buildingName === 'Main Building')) && u.floor === floorNum);
+                                  const floorUnits = (building.floors || []).find((f: any) => f.floor_number === floorNum)?.units || [];
 
                                   return (
                                     <div key={floorNum} style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#ffffff', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                                       {/* Floor plan row */}
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map</span>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>Apartments:</span>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            defaultValue={floorUnits.length}
-                                            id={`units-count-${buildingName}-${floorNum}`}
-                                            style={{ width: '45px', padding: '2px 4px', fontSize: '0.72rem', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.15)' }}
-                                          />
-                                          <button
-                                            type="button"
-                                            className="btn-primary"
-                                            style={{ padding: '2px 6px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                            onClick={async () => {
-                                              const inputVal = (document.getElementById(`units-count-${buildingName}-${floorNum}`) as HTMLInputElement)?.value;
-                                              const newCount = parseInt(inputVal || '0', 10);
-                                              try {
-                                                const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/buildings/${buildingName}/floors/${floorNum}/setup-units`, {
-                                                  count: newCount
-                                                });
-                                                alert(res.data.message);
-                                                await fetchData();
-                                                const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
-                                                if (mediaRes.data?.success) {
-                                                  setProjectMedia(mediaRes.data.data);
-                                                }
-                                              } catch (err: any) {
-                                                alert(err.response?.data?.message || 'Failed to setup units count.');
-                                              }
-                                            }}
-                                          >
-                                            Set
-                                          </button>
-                                        </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 2fr 1fr', gap: '15px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Floor {floorNum} layout map ({floorUnits.length} units)</span>
                                         <div>
                                           <label className="custom-file-upload small">
                                             <UploadCloud size={12} />
@@ -3477,7 +3724,7 @@ const AdminPanel: React.FC = () => {
                                           <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                                             Apartments Layout Plans (مخططات الشقق):
                                           </span>
-                                          {floorUnits.map((unit) => {
+                                          {floorUnits.map((unit: any) => {
                                             const uImage = unit.layout_image_url;
                                             return (
                                               <div key={unit.id} style={{ background: '#fcfcfc', border: '1px dashed rgba(0,0,0,0.04)', borderRadius: '4px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -3524,79 +3771,76 @@ const AdminPanel: React.FC = () => {
                                                 }}>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>3D Model:</span>
-                                                    {uImage ? (
-                                                      <>
-                                                        {unit.model_3d_status ? (
-                                                          <span style={{
-                                                            fontSize: '0.65rem',
-                                                            fontWeight: 700,
-                                                            color: unit.model_3d_status === 'completed' ? '#10b981' : unit.model_3d_status === 'failed' ? '#ef4444' : '#f59e0b'
-                                                          }}>
-                                                            {unit.model_3d_status.toUpperCase()}
-                                                          </span>
-                                                        ) : (
-                                                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NOT GENERATED</span>
-                                                        )}
-                                                        {unit.tripo_error_msg && (
-                                                          <span style={{ fontSize: '0.65rem', color: '#ef4444' }} title={unit.tripo_error_msg}>({unit.tripo_error_msg.substring(0, 25)}...)</span>
-                                                        )}
-                                                      </>
-                                                    ) : (
-                                                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NO IMAGE</span>
-                                                    )}
+                                                    <>
+                                                      {unit.model_3d_status ? (
+                                                        <span style={{
+                                                          fontSize: '0.65rem',
+                                                          fontWeight: 700,
+                                                          color: unit.model_3d_status === 'completed' ? '#10b981' : unit.model_3d_status === 'failed' ? '#ef4444' : '#f59e0b'
+                                                        }}>
+                                                          {unit.model_3d_status.toUpperCase()}
+                                                        </span>
+                                                      ) : (
+                                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>NOT GENERATED</span>
+                                                      )}
+                                                      {unit.tripo_error_msg && (
+                                                        <span style={{ fontSize: '0.65rem', color: '#ef4444' }} title={unit.tripo_error_msg}>({unit.tripo_error_msg.substring(0, 25)}...)</span>
+                                                      )}
+                                                    </>
                                                   </div>
 
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    {uImage && (
+                                                    <button
+                                                      type="button"
+                                                      className="btn-primary"
+                                                      style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
+                                                      onClick={() => {
+                                                        setEditorUnitId(unit.id);
+                                                        setEditorUnitNumber(unit.unit_number);
+                                                        setShowFloorPlanEditor(true);
+                                                      }}
+                                                    >
+                                                      ✍️ {unit.model_3d_status === 'completed' ? 'Edit 3D Plan' : 'Build 3D Plan'}
+                                                    </button>
+                                                    {unit.model_3d_status === 'completed' && (
                                                       <>
+                                                        {unit.model_3d_url && (
+                                                          <button
+                                                            type="button"
+                                                            className="btn-secondary"
+                                                            style={{ padding: '2px 8px', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
+                                                            onClick={() => {
+                                                              const url = unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`;
+                                                              setPreview3DUnit({
+                                                                id: unit.id,
+                                                                unitNumber: unit.unit_number,
+                                                                url
+                                                              });
+                                                            }}
+                                                          >
+                                                            View 3D
+                                                          </button>
+                                                        )}
                                                         <button
                                                           type="button"
-                                                          className="btn-primary"
-                                                          style={{ padding: '2px 8px', fontSize: '0.68rem', height: 'auto', background: 'var(--color-primary)' }}
-                                                          onClick={() => {
-                                                            setEditorUnitId(unit.id);
-                                                            setEditorUnitNumber(unit.unit_number);
-                                                            setShowFloorPlanEditor(true);
-                                                          }}
+                                                          className="btn-secondary"
+                                                          style={{ padding: '2px 8px', fontSize: '0.68rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', height: 'auto' }}
+                                                          onClick={() => handleDeleteUnit3D(unit.id)}
                                                         >
-                                                          ✍️ {unit.model_3d_status === 'completed' ? 'Edit 3D Plan' : 'Build 3D Plan'}
+                                                          Delete
                                                         </button>
-
-                                                        {unit.model_3d_status === 'completed' && (
-                                                          <>
-                                                            {unit.model_3d_url && (
-                                                              <a
-                                                                href={unit.model_3d_url.startsWith('http') ? unit.model_3d_url : `http://127.0.0.1:8000/api/v1/public/units/${unit.id}/3d-model/file`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="btn-secondary"
-                                                                style={{ padding: '2px 8px', fontSize: '0.68rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', height: 'auto' }}
-                                                              >
-                                                                View 3D
-                                                              </a>
-                                                            )}
-                                                            <button
-                                                              type="button"
-                                                              className="btn-secondary"
-                                                              style={{ padding: '2px 8px', fontSize: '0.68rem', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', height: 'auto' }}
-                                                              onClick={() => handleDeleteUnit3D(unit.id)}
-                                                            >
-                                                              Delete
-                                                            </button>
-                                                          </>
-                                                        )}
                                                       </>
                                                     )}
 
                                                     {/* Copy unit layout dropdown */}
                                                     {(() => {
-                                                      const otherUnitsWithLayout = units.filter(u =>
+                                                      const otherUnitsWith3D = units.filter(u =>
                                                         u.project_id === selectedProjectForMedia.id &&
                                                         u.id !== unit.id &&
-                                                        u.layout_image_url
+                                                        u.model_3d_status === 'completed'
                                                       );
 
-                                                      if (otherUnitsWithLayout.length === 0) return null;
+                                                      if (otherUnitsWith3D.length === 0) return null;
 
                                                       return (
                                                         <select
@@ -3612,13 +3856,14 @@ const AdminPanel: React.FC = () => {
                                                               });
                                                               alert(res.data.message);
                                                               await fetchData();
+                                                              await refreshMediaModalData();
                                                             } catch (err: any) {
                                                               alert(err.response?.data?.message || 'Failed to copy layout');
                                                             }
                                                           }}
                                                         >
                                                           <option value="">Copy Layout From...</option>
-                                                          {otherUnitsWithLayout.map(ou => (
+                                                          {otherUnitsWith3D.map(ou => (
                                                             <option key={ou.id} value={ou.id}>Unit {ou.unit_number} ({ou.building || 'Main'})</option>
                                                           ))}
                                                         </select>
@@ -3663,6 +3908,79 @@ const AdminPanel: React.FC = () => {
           onClose={() => setShowFloorPlanEditor(false)}
           onSuccess={fetchData}
         />
+      )}
+
+      {preview3DUnit && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.9)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          fontFamily: 'Inter, sans-serif'
+        }}>
+          <div style={{
+            background: '#0f172a',
+            border: '2px solid rgba(197, 168, 128, 0.4)',
+            borderRadius: '16px',
+            width: '90%',
+            maxWidth: '750px',
+            height: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            color: '#ffffff'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(30, 41, 59, 0.3)'
+            }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#C5A880', margin: 0 }}>
+                3D Model Preview - Unit {preview3DUnit.unitNumber}
+              </h3>
+              <button
+                onClick={() => setPreview3DUnit(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Model Viewer Container */}
+            <div style={{ flex: 1, position: 'relative', background: '#090d16' }}>
+              {/* @ts-ignore */}
+              <model-viewer
+                src={preview3DUnit.url}
+                camera-controls
+                auto-rotate
+                shadow-intensity="2.0"
+                exposure="0.95"
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
