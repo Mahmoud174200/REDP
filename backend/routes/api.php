@@ -69,6 +69,7 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
+    Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
 });
 
 // ── 🟠 Public Webhooks (Acquisition) ──
@@ -530,6 +531,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/projects/{projectId}/amenities', [$mpCtrl, 'createAmenity']);
         Route::put('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'updateAmenity']);
         Route::delete('/projects/{projectId}/amenities/{amenityId}', [$mpCtrl, 'deleteAmenity']);
+
+        // Building Hotspots (Interactive Map)
+        Route::get('/projects/{projectId}/hotspots', [$mpCtrl, 'getHotspots']);
+        Route::post('/projects/{projectId}/hotspots', [$mpCtrl, 'createHotspot']);
+        Route::put('/projects/{projectId}/hotspots/{hotspotId}', [$mpCtrl, 'updateHotspot']);
+        Route::delete('/projects/{projectId}/hotspots/{hotspotId}', [$mpCtrl, 'deleteHotspot']);
     });
 
     // ══════════════════════════════════════════════════════════

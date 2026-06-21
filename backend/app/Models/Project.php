@@ -84,6 +84,11 @@ class Project extends Model
         return $this->hasMany(ProjectMedia::class);
     }
 
+    public function hotspots()
+    {
+        return $this->hasMany(BuildingHotspot::class);
+    }
+
     // ── Accessors ──
 
     /**
