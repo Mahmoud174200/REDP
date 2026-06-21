@@ -301,6 +301,7 @@ const InteractiveUnitSelection: React.FC = () => {
   // Fullscreen 3D Viewer Modal State
   const [fullscreenModelUrl, setFullscreenModelUrl] = useState<string | null>(null);
   const [fullscreenModelTitle, setFullscreenModelTitle] = useState<string>('');
+  const [showMasterPlanLightbox, setShowMasterPlanLightbox] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -853,40 +854,239 @@ const InteractiveUnitSelection: React.FC = () => {
   /* ─── STEP 2: Building Selector (3D Tower Cards) ─── */
   const renderBuildingSelector = () => (
     <div style={{ animation: 'us3d-fadeSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards' }}>
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <h2 style={{
-          fontFamily: 'var(--font-title)', fontSize: '2rem', fontWeight: 800,
-          color: '#0f172a', marginBottom: 8,
+          fontFamily: 'var(--font-title)', fontSize: '2.2rem', fontWeight: 800,
+          background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          marginBottom: 12
         }}>
-          {t.selectBuilding}
+          {selectedProject?.name} — {t.selectBuilding}
         </h2>
-        <p style={{ color: '#64748b', fontSize: '0.95rem' }}>{t.selectBuildingDesc}</p>
+        <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 600, margin: '0 auto' }}>
+          {t.selectBuildingDesc}
+        </p>
       </div>
 
-      {/* 🗺️ Compound Master Plan Section */}
-      {projectMedia?.project_image && (
-        <div style={{
-          background: 'rgba(255,255,255,0.85)',
-          backdropFilter: 'blur(28px)',
-          border: '1.5px solid rgba(0,61,166,0.08)',
-          borderRadius: 24,
-          padding: 24,
-          marginBottom: 40,
-          boxShadow: '0 20px 50px -15px rgba(0,15,61,0.05)',
-          position: 'relative',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                🗺️ {lang === 'ar' ? 'المخطط العام للكمبوند' : 'Compound Master Plan'}
+      <div className="us3d-split-layout">
+        {/* 🗺️ Left Column: Sticky Master Plan & Project Details */}
+        <div className="us3d-sticky-panel" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {projectMedia?.project_image ? (
+            <div style={{
+              background: 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(28px)',
+              border: '1.5px solid rgba(0,61,166,0.08)',
+              borderRadius: 24,
+              padding: 24,
+              boxShadow: '0 20px 50px -15px rgba(0,15,61,0.05)',
+              position: 'relative',
+              transition: 'all 0.3s ease',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 800, color: '#003DA6', margin: 0 }}>
+                    🗺️ {lang === 'ar' ? 'المخطط العام للكمبوند' : 'Compound Master Plan'}
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '4px 0 0 0' }}>
+                    {lang === 'ar' ? 'تخطيط وتوزيع مباني المشروع' : 'Project site layout and building map'}
+                  </p>
+                </div>
+                
+                <button 
+                  type="button"
+                  onClick={() => setShowMasterPlanLightbox(true)}
+                  style={{
+                    background: 'rgba(0, 61, 166, 0.06)',
+                    border: '1.5px solid rgba(0,61,166,0.1)',
+                    borderRadius: 999,
+                    padding: '6px 14px',
+                    color: '#003DA6',
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    fontFamily: 'var(--font-title)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    transition: 'all 0.3s ease',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#003DA6'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0, 61, 166, 0.06)'; (e.currentTarget as HTMLButtonElement).style.color = '#003DA6'; }}
+                >
+                  <Maximize size={12} />
+                  {lang === 'ar' ? 'تكبير' : 'Zoom'}
+                </button>
+              </div>
+
+              {/* Master Plan Image Frame */}
+              <div 
+                onClick={() => setShowMasterPlanLightbox(true)}
+                style={{
+                  height: 260, width: '100%', borderRadius: 16, overflow: 'hidden',
+                  background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid rgba(0,61,166,0.05)',
+                  cursor: 'zoom-in',
+                  position: 'relative',
+                }}
+                onMouseEnter={e => {
+                  const overlay = e.currentTarget.querySelector('.zoom-overlay') as HTMLDivElement;
+                  if (overlay) overlay.style.opacity = '1';
+                }}
+                onMouseLeave={e => {
+                  const overlay = e.currentTarget.querySelector('.zoom-overlay') as HTMLDivElement;
+                  if (overlay) overlay.style.opacity = '0';
+                }}
+              >
+                <img
+                  src={projectMedia.project_image}
+                  alt="Master Plan Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }}
+                />
+                {/* Zoom Overlay on Hover */}
+                <div 
+                  className="zoom-overlay"
+                  style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0, 61, 166, 0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: 0, transition: 'opacity 0.3s ease',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{
+                    background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
+                    padding: '8px 16px', borderRadius: 999,
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                    fontWeight: 700, fontSize: '0.8rem', color: '#003DA6',
+                    display: 'flex', alignItems: 'center', gap: 6
+                  }}>
+                    <Maximize size={14} />
+                    {lang === 'ar' ? 'اضغط للتكبير' : 'Click to Zoom'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(28px)',
+              border: '1.5px dashed rgba(0,61,166,0.15)',
+              borderRadius: 24,
+              padding: 40,
+              textAlign: 'center',
+              color: '#94a3b8',
+              boxShadow: '0 20px 50px -15px rgba(0,15,61,0.05)',
+            }}>
+              <Building size={48} style={{ opacity: 0.3, marginBottom: 12, marginLeft: 'auto', marginRight: 'auto' }} />
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, color: '#64748b', margin: 0 }}>
+                {lang === 'ar' ? 'لا يوجد مخطط عام متاح' : 'No Master Plan Available'}
               </h3>
-              <p style={{ color: '#64748b', fontSize: '0.82rem', margin: '4px 0 0 0' }}>
-                {lang === 'ar' ? 'تصفح المخطط العام للكمبوند بالكامل وتوزيع المباني' : 'Explore the overall compound layout and building distribution'}
+              <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 4, marginBottom: 0 }}>
+                {lang === 'ar' ? 'سيتم إضافة مخطط للمشروع قريباً.' : 'A master plan layout will be added soon.'}
               </p>
             </div>
+          )}
 
+          {/* Project Summary Card */}
+          {selectedProject && (
+            <div style={{
+              background: 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(28px)',
+              border: '1.5px solid rgba(0,61,166,0.08)',
+              borderRadius: 24,
+              padding: 24,
+              boxShadow: '0 20px 50px -15px rgba(0,15,61,0.05)',
+            }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', fontWeight: 800, color: '#003DA6', marginBottom: 16, borderBottom: '1px solid rgba(0,61,166,0.05)', paddingBottom: 10, marginTop: 0 }}>
+                🏢 {lang === 'ar' ? 'تفاصيل المشروع' : 'Project Summary'}
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                    {lang === 'ar' ? 'الموقع' : 'Location'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <MapPin size={14} style={{ color: '#C5A880' }} />
+                    {selectedProject.location || '—'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                    {lang === 'ar' ? 'تاريخ التسليم' : 'Delivery Date'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 700 }}>
+                    {selectedProject.delivery_date || '—'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                    {lang === 'ar' ? 'حالة المشروع' : 'Project Status'}
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase',
+                    color: selectedProject.status === 'active' ? '#22c55e' : '#f59e0b',
+                    background: selectedProject.status === 'active' ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)',
+                    padding: '4px 10px', borderRadius: 999
+                  }}>
+                    {selectedProject.status}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                    {lang === 'ar' ? 'إجمالي المباني' : 'Total Buildings'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 700 }}>
+                    {buildings.length}
+                  </span>
+                </div>
+
+                {/* Overall Project Progress */}
+                {(() => {
+                  const totalUnits = buildings.reduce((acc, b) => acc + b.total_units, 0);
+                  const availUnits = buildings.reduce((acc, b) => acc + b.available_units, 0);
+                  const pct = totalUnits > 0 ? Math.round((availUnits / totalUnits) * 100) : 0;
+                  return (
+                    <div style={{ marginTop: 8, borderTop: '1px solid rgba(0,61,166,0.05)', paddingTop: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                          {lang === 'ar' ? 'الوحدات المتاحة الكلية' : 'Total Available Units'}
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: '#003DA6', fontWeight: 800 }}>
+                          {availUnits} / {totalUnits} ({pct}%)
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${pct}%`, height: '100%',
+                          background: 'linear-gradient(90deg, #003DA6 0%, #C5A880 100%)',
+                          borderRadius: 999,
+                          transition: 'width 1s cubic-bezier(0.16,1,0.3,1)'
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 🏢 Right Column: Buildings Directory */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+              🏢 {lang === 'ar' ? 'دليل المباني السكنية' : 'Buildings Directory'}
+            </h3>
+            <span style={{ fontSize: '0.78rem', color: '#64748b', background: 'rgba(0,61,166,0.05)', padding: '4px 12px', borderRadius: 999, fontWeight: 600 }}>
+              {buildings.length} {lang === 'ar' ? 'مباني معروضة' : 'Buildings Listed'}
+            </span>
           </div>
 
+<<<<<<< HEAD
           {/* Master Plan Image with Interactive Hotspots */}
           <div style={{
             position: 'relative',
@@ -1038,6 +1238,16 @@ const InteractiveUnitSelection: React.FC = () => {
           perspective: '1500px',
         }}>
           {buildings.map((building, idx) => {
+=======
+          {buildings.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
+              <Building size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
+              <p>{t.noBuildings}</p>
+            </div>
+          ) : (
+            <div className="us3d-buildings-grid">
+              {buildings.map((building, idx) => {
+>>>>>>> 998908e691db0dc92e62b17456ae7ae53137e6ca
             const availPct = building.total_units > 0 ? (building.available_units / building.total_units * 100) : 0;
             const model3D = building3DModels[building.name];
             const has3DModel = model3D?.status === 'completed' && model3D?.model_url;
@@ -1328,8 +1538,10 @@ const InteractiveUnitSelection: React.FC = () => {
               </div>
             );
           })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 
@@ -2731,6 +2943,31 @@ const InteractiveUnitSelection: React.FC = () => {
           background: rgba(0,61,166,0.1) !important;
           transform: translateX(-2px) !important;
         }
+        .us3d-split-layout {
+          display: grid;
+          grid-template-columns: 4.2fr 5.8fr;
+          gap: 32px;
+          align-items: start;
+          width: 100%;
+        }
+        .us3d-sticky-panel {
+          position: sticky;
+          top: 90px;
+        }
+        .us3d-buildings-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 24px;
+        }
+        @media (max-width: 1024px) {
+          .us3d-split-layout {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .us3d-sticky-panel {
+            position: static;
+          }
+        }
         @media (max-width: 768px) {
           .us3d-mobile-hide { display: none !important; }
           .us3d-panel-mobile {
@@ -2980,6 +3217,66 @@ const InteractiveUnitSelection: React.FC = () => {
 
       {/* ─── Reservation Modal ─── */}
       {renderReserveModal()}
+
+      {/* ─── Fullscreen Master Plan Lightbox ─── */}
+      {showMasterPlanLightbox && projectMedia?.project_image && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.9)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3000,
+          animation: 'us3d-modalFade 0.3s ease forwards',
+          padding: '24px',
+        }}
+          onClick={() => setShowMasterPlanLightbox(false)}
+        >
+          <div 
+            style={{
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              border: '1.5px solid rgba(0, 61, 166, 0.15)',
+              borderRadius: 28,
+              padding: '24px',
+              maxWidth: '90vw', width: '100%',
+              height: '85vh',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.3)',
+              display: 'flex', flexDirection: 'column',
+              animation: 'us3d-modalSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              position: 'relative',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: '12px' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#003DA6', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🗺️ {lang === 'ar' ? 'المخطط العام للكمبوند' : 'Compound Master Plan'} — {selectedProject?.name}
+              </h3>
+              <button 
+                onClick={() => setShowMasterPlanLightbox(false)}
+                style={{ 
+                  background: 'rgba(0, 61, 166, 0.05)', border: 'none', cursor: 'pointer', 
+                  width: '36px', height: '36px', borderRadius: '50%', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#003DA6', transition: 'all 0.3s ease' 
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.color = '#ef4444'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0, 61, 166, 0.05)'; e.currentTarget.style.color = '#003DA6'; }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Master Plan Image container */}
+            <div style={{ flex: 1, position: 'relative', background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0, 61, 166, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <img
+                src={projectMedia.project_image}
+                alt="Master Plan Fullscreen"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Fullscreen 3D Model Modal ─── */}
       {fullscreenModelUrl && (

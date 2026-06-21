@@ -123,7 +123,7 @@ const HomeRedirect: React.FC = () => {
     return <Navigate to="/finance/inventory" replace />;
   }
   if (user.role === 'client') {
-    return <Navigate to="/unit-selection" replace />;
+    return <Navigate to="/delivery/overview" replace />;
   }
   if (user.role === 'handover_officer' || user.role === 'delivery_engineer') {
     return <Navigate to="/delivery/overview" replace />;
