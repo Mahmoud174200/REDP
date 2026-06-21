@@ -60,6 +60,11 @@ class Building extends Model
         return $this->hasMany(Unit::class);
     }
 
+    public function hotspot()
+    {
+        return $this->hasOne(BuildingHotspot::class);
+    }
+
     // ── Accessors ──
 
     /**

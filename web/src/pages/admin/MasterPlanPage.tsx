@@ -5,6 +5,7 @@ import {
   Save, X, Copy, LayoutGrid, RefreshCw, TrendingUp, Users as UsersIcon
 } from 'lucide-react';
 import api from '../../services/api';
+import { InteractiveMapEditor } from '../../components/admin/InteractiveMapEditor';
 
 // ── Type Definitions ──
 interface BuildingFloor {
@@ -435,12 +436,14 @@ const MasterPlanPage: React.FC = () => {
   const [summary, setSummary] = useState<MasterPlanSummary | null>(null);
   const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
   const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'data' | 'map'>('data');
+  const [masterPlanImage, setMasterPlanImage] = useState<string | null>(null);
 
-  // Pagination & Filtering states for Buildings List
-  const [currentPage, setCurrentPage] = useState(1);
+  // Search, Filter and Pagination states
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal states
   const [showLandModal, setShowLandModal] = useState(false);
@@ -550,6 +553,11 @@ const MasterPlanPage: React.FC = () => {
         setBuildings(res.data.data.project.buildings || []);
         setAmenities(res.data.data.project.amenities || []);
         setSummary(res.data.data.summary);
+      }
+      // Fetch media assets to get the master plan image
+      const mediaRes = await api.get(`/public/projects/${projectId}/media`);
+      if (mediaRes.data?.success) {
+        setMasterPlanImage(mediaRes.data.data.project_image || null);
       }
     } catch (err) {
       console.error('Failed to load master plan', err);
@@ -1008,565 +1016,416 @@ const MasterPlanPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── SUMMARY CARDS ── */}
-      <div style={styles.grid3}>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><Building2 size={16} color="#059669" /> Total Buildings</div>
-          <div style={styles.cardValue}>{summary?.total_buildings ?? buildings.length}</div>
-        </div>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><Home size={16} color="#3b82f6" /> Total Units</div>
-          <div style={styles.cardValue}>{summary?.total_units ?? project.total_units}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            ✅ {summary?.available_units ?? 0} Available &nbsp;|&nbsp; 🔒 {summary?.reserved_units ?? 0} Reserved &nbsp;|&nbsp; ✔️ {summary?.sold_units ?? 0} Sold
-          </div>
-        </div>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><Ruler size={16} color="#8b5cf6" /> Land Area</div>
-          <div style={styles.cardValue}>
-            {project.land_area ? `${formatNum(project.land_area)} ${project.land_area_unit === 'feddan' ? 'فدان' : project.land_area_unit}` : '—'}
-          </div>
-          {project.building_ratio && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Building Ratio: {project.building_ratio}%</div>}
-        </div>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><UsersIcon size={16} color="#f59e0b" /> Density</div>
-          <div style={styles.cardValue}>{summary?.density ? `${summary.density}` : '—'}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>units/feddan</div>
-        </div>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><Car size={16} color="#6366f1" /> Parking</div>
-          <div style={styles.cardValue}>{formatNum(summary?.total_parking ?? project.total_parking_spaces)}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>spaces</div>
-        </div>
-        <div style={styles.glassCard}>
-          <div style={styles.cardTitle}><Trees size={16} color="#22c55e" /> Green Area</div>
-          <div style={styles.cardValue}>{project.total_green_area ? `${formatNum(project.total_green_area)} m²` : '—'}</div>
-        </div>
+      {/* ── TAB SELECTOR ── */}
+      <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,0,0,0.08)', marginBottom: '24px', gap: '16px' }}>
+        <button
+          style={{
+            padding: '10px 16px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'data' ? '2px solid #059669' : '2px solid transparent',
+            color: activeTab === 'data' ? '#059669' : '#6b7280',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onClick={() => setActiveTab('data')}
+        >
+          📋 Overview & Checklist (البيانات والوحدات)
+        </button>
+        <button
+          style={{
+            padding: '10px 16px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'map' ? '2px solid #059669' : '2px solid transparent',
+            color: activeTab === 'map' ? '#059669' : '#6b7280',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onClick={() => setActiveTab('map')}
+        >
+          📍 Interactive Hotspot Map (الخريطة التفاعلية)
+        </button>
       </div>
 
-      {/* ── LAND INFO SECTION ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MapPin size={18} color="#059669" /> Land & Site Information
-          </div>
-          <button style={styles.btnPrimary} onClick={openLandModal}>
-            <Edit2 size={14} /> Edit Land Info
-          </button>
-        </div>
-        <div style={styles.formGrid}>
-          <div style={styles.statRow}>
-            <span style={{ color: 'var(--text-muted)' }}>Project Type</span>
-            <strong>{project.project_type || '—'}</strong>
-          </div>
-          <div style={styles.statRow}>
-            <span style={{ color: 'var(--text-muted)' }}>Max Height</span>
-            <strong>{project.max_height_allowed ? `${project.max_height_allowed}m` : '—'}</strong>
-          </div>
-          <div style={styles.statRow}>
-            <span style={{ color: 'var(--text-muted)' }}>Max Floors</span>
-            <strong>{project.max_floors_allowed ?? '—'}</strong>
-          </div>
-          <div style={styles.statRow}>
-            <span style={{ color: 'var(--text-muted)' }}>Roads Area</span>
-            <strong>{project.total_roads_area ? `${formatNum(project.total_roads_area)} m²` : '—'}</strong>
-          </div>
-        </div>
-        {project.infrastructure_notes && (
-          <div style={{ padding: '12px 16px', background: 'rgba(5,150,105,0.05)', borderRadius: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            <strong>📝 Infrastructure Notes:</strong> {project.infrastructure_notes}
-          </div>
-        )}
-      </div>
-
-      {/* ── BUILDINGS SECTION ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Building2 size={18} color="#3b82f6" /> Buildings ({buildings.length})
-          </div>
-          <button style={styles.btnPrimary} onClick={openAddBuildingModal}>
-            <Plus size={14} /> Add Building
-          </button>
-        </div>
-
-        {buildings.length > 0 && (
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            padding: '12px 16px',
-            background: 'rgba(255, 255, 255, 0.4)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(0, 0, 0, 0.05)'
-          }}>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <input
-                type="text"
-                placeholder="Search buildings..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  background: '#fff',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                }}
-              />
+      {activeTab === 'map' ? (
+        <InteractiveMapEditor
+          projectId={projectId}
+          buildings={buildings}
+          masterPlanImage={masterPlanImage}
+          onRefresh={fetchMasterPlan}
+        />
+      ) : (
+        <>
+          {/* ── SUMMARY CARDS ── */}
+          <div style={styles.grid3}>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><Building2 size={16} color="#059669" /> Total Buildings</div>
+              <div style={styles.cardValue}>{summary?.total_buildings ?? buildings.length}</div>
             </div>
-            
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Type:</span>
-              <select
-                value={typeFilter}
-                onChange={(e) => {
-                  setTypeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
-                  background: '#fff',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-              >
-                <option value="all">All Types</option>
-                <option value="apartment_building">Apartment Building</option>
-                <option value="villa">Villa</option>
-                <option value="duplex_building">Duplex Building</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="commercial">Commercial</option>
-                <option value="mixed_use">Mixed Use</option>
-              </select>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><Home size={16} color="#3b82f6" /> Total Units</div>
+              <div style={styles.cardValue}>{summary?.total_units ?? project.total_units}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                ✅ {summary?.available_units ?? 0} Available &nbsp;|&nbsp; 🔒 {summary?.reserved_units ?? 0} Reserved &nbsp;|&nbsp; ✔️ {summary?.sold_units ?? 0} Sold
+              </div>
+            </div>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><Ruler size={16} color="#8b5cf6" /> Land Area</div>
+              <div style={styles.cardValue}>
+                {project.land_area ? `${formatNum(project.land_area)} ${project.land_area_unit === 'feddan' ? 'فدان' : project.land_area_unit}` : '—'}
+              </div>
+              {project.building_ratio && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Building Ratio: {project.building_ratio}%</div>}
+            </div>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><UsersIcon size={16} color="#f59e0b" /> Density</div>
+              <div style={styles.cardValue}>{summary?.density ? `${summary.density}` : '—'}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>units/feddan</div>
+            </div>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><Car size={16} color="#6366f1" /> Parking</div>
+              <div style={styles.cardValue}>{formatNum(summary?.total_parking ?? project.total_parking_spaces)}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>spaces</div>
+            </div>
+            <div style={styles.glassCard}>
+              <div style={styles.cardTitle}><Trees size={16} color="#22c55e" /> Green Area</div>
+              <div style={styles.cardValue}>{project.total_green_area ? `${formatNum(project.total_green_area)} m²` : '—'}</div>
             </div>
           </div>
-        )}
 
-        {buildings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-            <Building2 size={48} style={{ opacity: 0.3 }} />
-            <p style={{ marginTop: '12px' }}>No buildings defined yet. Click "Add Building" to start.</p>
+          {/* ── LAND INFO SECTION ── */}
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={18} color="#059669" /> Land & Site Information
+              </div>
+              <button style={styles.btnPrimary} onClick={openLandModal}>
+                <Edit2 size={14} /> Edit Land Info
+              </button>
+            </div>
+            <div style={styles.formGrid}>
+              <div style={styles.statRow}>
+                <span style={{ color: 'var(--text-muted)' }}>Project Type</span>
+                <strong>{project.project_type || '—'}</strong>
+              </div>
+              <div style={styles.statRow}>
+                <span style={{ color: 'var(--text-muted)' }}>Max Height</span>
+                <strong>{project.max_height_allowed ? `${project.max_height_allowed}m` : '—'}</strong>
+              </div>
+              <div style={styles.statRow}>
+                <span style={{ color: 'var(--text-muted)' }}>Max Floors</span>
+                <strong>{project.max_floors_allowed ?? '—'}</strong>
+              </div>
+              <div style={styles.statRow}>
+                <span style={{ color: 'var(--text-muted)' }}>Roads Area</span>
+                <strong>{project.total_roads_area ? `${formatNum(project.total_roads_area)} m²` : '—'}</strong>
+              </div>
+            </div>
+            {project.infrastructure_notes && (
+              <div style={{ padding: '12px 16px', background: 'rgba(5,150,105,0.05)', borderRadius: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <strong>📝 Infrastructure Notes:</strong> {project.infrastructure_notes}
+              </div>
+            )}
           </div>
-        ) : filteredBuildings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-            <Building2 size={48} style={{ opacity: 0.3 }} />
-            <p style={{ marginTop: '12px' }}>No buildings match your filters.</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table className="premium-table" style={{ width: '100%', minWidth: '950px' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '25%' }}>Building</th>
-                  <th style={{ width: '15%' }}>Type</th>
-                  <th style={{ width: '15%' }}>Floors</th>
-                  <th style={{ width: '10%' }}>Units</th>
-                  <th style={{ width: '15%' }}>Footprint / Built Area</th>
-                  <th style={{ width: '10%' }}>Status</th>
-                  <th style={{ width: '10%', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBuildings.map((b) => {
-                  const isExpanded = expandedBuildings.has(b.id);
-                  return (
-                    <React.Fragment key={b.id}>
-                      <tr 
-                        onClick={() => toggleBuilding(b.id)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {/* 1. Name */}
-                        <td style={{
-                          borderBottomLeftRadius: isExpanded ? 0 : undefined,
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {isExpanded ? <ChevronDown size={16} style={{ color: '#059669' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
-                            <Building2 size={16} style={{ color: '#3b82f6', opacity: 0.8 }} />
-                            <div>
-                              <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{b.name}</strong>
-                              {b.name_ar && (
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                  {b.name_ar}
-                                </span>
-                              )}
+
+          {/* ── BUILDINGS SECTION ── */}
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Building2 size={18} color="#3b82f6" /> Buildings ({buildings.length})
+              </div>
+              <button style={styles.btnPrimary} onClick={openAddBuildingModal}>
+                <Plus size={14} /> Add Building
+              </button>
+            </div>
+
+            {buildings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                <Building2 size={48} style={{ opacity: 0.3 }} />
+                <p style={{ marginTop: '12px' }}>No buildings defined yet. Click "Add Building" to start.</p>
+              </div>
+            ) : (
+              <>
+                {/* Search and filter controls */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Search buildings by name..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      ...styles.input,
+                      flex: '1',
+                      minWidth: '200px',
+                      padding: '8px 12px',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      ...styles.select,
+                      minWidth: '150px',
+                      padding: '8px 12px',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <option value="all">All Types (الكل)</option>
+                    {Object.entries(buildingTypeLabels).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {filteredBuildings.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)' }}>
+                    <p>No buildings match your search filters.</p>
+                  </div>
+                ) : (
+                  paginatedBuildings.map((b) => (
+                    <div key={b.id} style={styles.buildingCard}>
+                      {/* Building Header */}
+                      <div style={styles.buildingHeader} onClick={() => toggleBuilding(b.id)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {expandedBuildings.has(b.id) ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                          <div>
+                            <strong style={{ fontSize: '1rem' }}>{b.name}</strong>
+                            {b.name_ar && <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>({b.name_ar})</span>}
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {buildingTypeLabels[b.type] || b.type} &nbsp;|&nbsp; {b.total_floors} floors
+                              {b.has_basement && ` + ${b.basement_floors} basement`}
+                              {b.has_roof_floor && ' + roof'}
+                              {b.has_elevator && ` | ${b.elevator_count} elevator(s)`}
+                              &nbsp;|&nbsp; {b.units?.length ?? 0} units
                             </div>
                           </div>
-                        </td>
-
-                        {/* 2. Type */}
-                        <td style={{
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
-                          <span style={{ fontSize: '0.82rem' }}>
-                            {buildingTypeLabels[b.type] || b.type}
-                          </span>
-                        </td>
-
-                        {/* 3. Floors */}
-                        <td style={{
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
-                          <span style={{ fontSize: '0.82rem' }}>
-                            {b.total_floors} floors
-                            {b.has_basement && ` + ${b.basement_floors}B`}
-                            {b.has_roof_floor && ' + R'}
-                          </span>
-                        </td>
-
-                        {/* 4. Units */}
-                        <td style={{
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#3b82f6' }}>
-                            {b.units?.length ?? 0}
-                          </span>
-                        </td>
-
-                        {/* 5. Built Area */}
-                        <td style={{
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            {b.building_footprint_area ? `${formatNum(b.building_footprint_area)} m²` : '—'} / {b.total_built_area ? `${formatNum(b.total_built_area)} m²` : '—'}
-                          </span>
-                        </td>
-
-                        {/* 6. Status */}
-                        <td style={{
-                          borderBottom: isExpanded ? 'none' : undefined,
-                        }}>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            fontSize: '0.68rem',
-                            fontWeight: 600,
+                            padding: '4px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600,
                             background: b.status === 'completed' ? 'rgba(5,150,105,0.1)' : b.status === 'under_construction' ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.1)',
                             color: b.status === 'completed' ? '#059669' : b.status === 'under_construction' ? '#d97706' : '#6b7280',
-                            textTransform: 'uppercase'
-                          }}>
-                            {b.status.replace('_', ' ')}
-                          </span>
-                        </td>
+                          }}>{b.status.replace('_', ' ')}</span>
+                          <button style={styles.btnSecondary} onClick={(e) => { e.stopPropagation(); openEditBuildingModal(b); }}>
+                            <Edit2 size={12} />
+                          </button>
+                          <button style={styles.btnDanger} onClick={(e) => { e.stopPropagation(); handleDeleteBuilding(b.id); }}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
 
-                        {/* 7. Actions */}
-                        <td 
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            borderBottomRightRadius: isExpanded ? 0 : undefined,
-                            borderBottom: isExpanded ? 'none' : undefined,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                            <button 
-                              style={{ ...styles.btnSecondary, padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '3px' }} 
-                              onClick={() => openAddFloorModal(b)}
-                              title="Add Floor"
-                            >
-                              <Plus size={10} /> Floor
-                            </button>
-                            <button 
-                              style={{ ...styles.btnSecondary, padding: '4px' }} 
-                              onClick={() => openEditBuildingModal(b)}
-                              title="Edit Building"
-                            >
-                              <Edit2 size={10} />
-                            </button>
-                            <button 
-                              style={{ ...styles.btnDanger, padding: '4px' }} 
-                              onClick={() => handleDeleteBuilding(b.id)}
-                              title="Delete Building"
-                            >
-                              <Trash2 size={10} />
+                      {/* Building Expanded Content — Floors */}
+                      {expandedBuildings.has(b.id) && (
+                        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                          {/* Building stats */}
+                          <div style={{ padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', background: 'rgba(0,0,0,0.01)' }}>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Footprint:</strong> {b.building_footprint_area ? `${formatNum(b.building_footprint_area)} m²` : '—'}</div>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Built Area:</strong> {b.total_built_area ? `${formatNum(b.total_built_area)} m²` : '—'}</div>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Lobby:</strong> {b.lobby_area ? `${b.lobby_area} m²` : '—'}</div>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Common/Floor:</strong> {b.common_area_per_floor ? `${b.common_area_per_floor} m²` : '—'}</div>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Parking:</strong> {b.parking_type !== 'none' ? `${b.parking_type} (${b.parking_capacity})` : 'None'}</div>
+                            <div style={{ fontSize: '0.75rem' }}><strong>Stairs:</strong> {b.staircase_count}</div>
+                          </div>
+
+                          {/* Floors list */}
+                          <div style={{ padding: '8px 20px', display: 'flex', justifycontent: 'space-between', alignItems: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+                            <span>Floors</span>
+                            <button style={{ ...styles.btnSecondary, padding: '3px 8px', fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => openAddFloorModal(b)}>
+                              <Plus size={10} /> Add Floor
                             </button>
                           </div>
-                        </td>
-                      </tr>
-
-                      {/* Expanded Section Row */}
-                      {isExpanded && (
-                        <tr onClick={(e) => e.stopPropagation()} style={{ background: 'transparent' }}>
-                          <td colSpan={7} style={{ 
-                            padding: '12px 20px 20px 20px', 
-                            background: 'rgba(255, 255, 255, 0.45)', 
-                            borderTop: 'none',
-                            borderTopLeftRadius: 0,
-                            borderTopRightRadius: 0,
-                          }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                              {/* Extra specs row */}
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', background: 'rgba(255,255,255,0.4)', padding: '10px 14px', borderRadius: '8px' }}>
-                                <div style={{ fontSize: '0.78rem' }}><span style={{ color: 'var(--text-muted)' }}>Lobby Area:</span> <strong>{b.lobby_area ? `${b.lobby_area} m²` : '—'}</strong></div>
-                                <div style={{ fontSize: '0.78rem' }}><span style={{ color: 'var(--text-muted)' }}>Common/Floor:</span> <strong>{b.common_area_per_floor ? `${b.common_area_per_floor} m²` : '—'}</strong></div>
-                                <div style={{ fontSize: '0.78rem' }}><span style={{ color: 'var(--text-muted)' }}>Parking:</span> <strong>{b.parking_type !== 'none' ? `${b.parking_type} (${b.parking_capacity})` : 'None'}</strong></div>
-                                <div style={{ fontSize: '0.78rem' }}><span style={{ color: 'var(--text-muted)' }}>Staircases:</span> <strong>{b.staircase_count}</strong></div>
+                          {(b.floors || []).map((f) => (
+                            <div key={f.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                              <div style={{ ...styles.floorRow, cursor: 'pointer' }} onClick={() => toggleFloor(f.id)}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  {expandedFloors.has(f.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                  <span style={{ fontWeight: 600, minWidth: '100px' }}>{f.floor_label || `Floor ${f.floor_number}`}</span>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '2px 8px', background: 'rgba(0,0,0,0.04)', borderRadius: '4px' }}>
+                                    {floorTypeLabels[f.floor_type] || f.floor_type}
+                                  </span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {f.gross_area ? `${f.gross_area} m²` : ''}
+                                    {f.common_area ? ` (common: ${f.common_area} m²)` : ''}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', marginRight: '6px' }}>
+                                    {f.units?.length ?? f.units_count} unit(s)
+                                  </span>
+                                  <button style={{ ...styles.btnSecondary, padding: '3px 8px', fontSize: '0.68rem', color: '#059669', borderColor: 'rgba(5, 150, 105, 0.2)' }} onClick={() => openAddUnitModal(b, f)}>
+                                    <Plus size={10} /> Add Unit
+                                  </button>
+                                  {f.floor_type !== 'basement' && f.floor_type !== 'roof' && (
+                                    <button style={{ ...styles.btnSecondary, padding: '3px 8px', fontSize: '0.68rem' }} onClick={() => openGenUnitsModal(b, f)}>
+                                      <LayoutGrid size={10} /> Gen Units
+                                    </button>
+                                  )}
+                                  <button style={{ ...styles.btnSecondary, padding: '3px 6px' }} onClick={() => openEditFloorModal(b, f)}>
+                                    <Edit2 size={10} />
+                                  </button>
+                                  <button style={{ ...styles.btnDanger, padding: '3px 6px' }} onClick={() => handleDeleteFloor(b.id, f.id)}>
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
                               </div>
 
-                              {/* Floors Sub-Table */}
-                              <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                  <strong style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Floors & Units Layout</strong>
-                                </div>
-                                
-                                {(!b.floors || b.floors.length === 0) ? (
-                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '12px', textAlign: 'center', background: 'rgba(255,255,255,0.3)', borderRadius: '6px' }}>
-                                    No floors added yet. Use "Add Floor" to create.
-                                  </div>
-                                ) : (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {b.floors.map((f) => {
-                                      const isFloorExpanded = expandedFloors.has(f.id);
-                                      return (
-                                        <div key={f.id} style={{ border: '1px solid rgba(0,0,0,0.04)', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
-                                          {/* Floor row header */}
-                                          <div 
-                                            style={{ 
-                                              display: 'flex', 
-                                              alignItems: 'center', 
-                                              justifyContent: 'space-between', 
-                                              padding: '10px 14px', 
-                                              background: isFloorExpanded ? 'rgba(0,0,0,0.015)' : 'rgba(0,0,0,0.005)', 
-                                              cursor: 'pointer' 
-                                            }}
-                                            onClick={() => toggleFloor(f.id)}
-                                          >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                              {isFloorExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                              <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{f.floor_label || `Floor ${f.floor_number}`}</span>
-                                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', padding: '2px 8px', background: 'rgba(0,0,0,0.04)', borderRadius: '4px' }}>
-                                                {floorTypeLabels[f.floor_type] || f.floor_type}
-                                              </span>
-                                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                                {f.gross_area ? `${f.gross_area} m²` : ''} {f.common_area ? `(common: ${f.common_area} m²)` : ''}
+                              {/* Floor Units List (Expanded) */}
+                              {expandedFloors.has(f.id) && (
+                                <div style={{ padding: '8px 20px 16px 50px', background: 'rgba(0,0,0,0.005)' }}>
+                                  {(!f.units || f.units.length === 0) ? (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
+                                      No units on this floor. Click "Add Unit" or "Gen Units" to create.
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                                      {f.units.map(u => (
+                                        <div key={u.id} style={{
+                                          background: 'rgba(255, 255, 255, 0.9)',
+                                          border: '1px solid rgba(0, 0, 0, 0.05)',
+                                          borderRadius: '10px',
+                                          padding: '12px',
+                                          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          justifyContent: 'space-between',
+                                          gap: '8px'
+                                        }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                              <strong style={{ fontSize: '0.9rem', color: '#111' }}>{u.unit_number}</strong>
+                                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>
+                                                {unitTypeLabels[u.type] || u.type} • {u.area}m² {u.net_area ? `(Net: ${u.net_area}m²)` : ''}
                                               </span>
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={e => e.stopPropagation()}>
-                                              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3b82f6', marginRight: '6px' }}>
-                                                {f.units?.length ?? f.units_count} unit(s)
-                                              </span>
-                                              <button style={{ ...styles.btnSecondary, padding: '4px 8px', fontSize: '0.68rem', color: '#059669', borderColor: 'rgba(5, 150, 105, 0.2)' }} onClick={() => openAddUnitModal(b, f)}>
-                                                <Plus size={10} /> Add Unit
-                                              </button>
-                                              {f.floor_type !== 'basement' && f.floor_type !== 'roof' && (
-                                                <button style={{ ...styles.btnSecondary, padding: '4px 8px', fontSize: '0.68rem' }} onClick={() => openGenUnitsModal(b, f)}>
-                                                  <LayoutGrid size={10} /> Gen Units
-                                                </button>
-                                              )}
-                                              <button style={{ ...styles.btnSecondary, padding: '4px 6px' }} onClick={() => openEditFloorModal(b, f)}>
+                                            <span style={{
+                                              padding: '3px 8px', borderRadius: '4px', fontSize: '0.62rem', fontWeight: 600,
+                                              background: u.status === 'available' ? 'rgba(34, 197, 94, 0.1)' : u.status === 'reserved' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                              color: u.status === 'available' ? '#22c55e' : u.status === 'reserved' ? '#f59e0b' : '#ef4444'
+                                            }}>{u.status}</span>
+                                          </div>
+
+                                          <div style={{ fontSize: '0.8rem', color: '#444' }}>
+                                            {u.bedrooms != null && `${u.bedrooms} Bed`} {u.bathrooms != null && `• ${u.bathrooms} Bath`} {u.living_rooms ? `• ${u.living_rooms} Living` : ''}
+                                            {u.finishing_type && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Finishing: {finishingLabels[u.finishing_type] || u.finishing_type}</div>}
+                                            {u.view_type && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>View: 🌅 {u.view_type}</div>}
+                                          </div>
+
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.03)', paddingTop: '8px', marginTop: '4px' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#10b981' }}>{u.price ? u.price.toLocaleString() : 0} EGP</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                              <button style={{ ...styles.btnSecondary, padding: '3px 6px', fontSize: '0.65rem' }} onClick={() => openEditUnitModal(b, f, u)}>
                                                 <Edit2 size={10} />
                                               </button>
-                                              <button style={{ ...styles.btnDanger, padding: '4px 6px' }} onClick={() => handleDeleteFloor(b.id, f.id)}>
+                                              <button style={{ ...styles.btnDanger, padding: '3px 6px', fontSize: '0.65rem' }} onClick={() => handleDeleteUnit(u.id)}>
                                                 <Trash2 size={10} />
                                               </button>
                                             </div>
                                           </div>
-
-                                          {/* Floor Units grid */}
-                                          {isFloorExpanded && (
-                                            <div style={{ padding: '12px', background: 'rgba(0,0,0,0.005)', borderTop: '1px solid rgba(0,0,0,0.03)' }}>
-                                              {(!f.units || f.units.length === 0) ? (
-                                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
-                                                  No units on this floor.
-                                                </div>
-                                              ) : (
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
-                                                  {f.units.map(u => (
-                                                    <div key={u.id} style={{
-                                                      background: '#fff',
-                                                      border: '1px solid rgba(0, 0, 0, 0.05)',
-                                                      borderRadius: '8px',
-                                                      padding: '10px',
-                                                      display: 'flex',
-                                                      flexDirection: 'column',
-                                                      justifyContent: 'space-between',
-                                                      gap: '6px',
-                                                      boxShadow: '0 1px 3px rgba(0,0,0,0.01)'
-                                                    }}>
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div>
-                                                          <strong style={{ fontSize: '0.85rem', color: '#111' }}>{u.unit_number}</strong>
-                                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
-                                                            {unitTypeLabels[u.type] || u.type} • {u.area}m²
-                                                          </span>
-                                                        </div>
-                                                        <span style={{
-                                                          padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 600,
-                                                          background: u.status === 'available' ? 'rgba(34, 197, 94, 0.1)' : u.status === 'reserved' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                          color: u.status === 'available' ? '#22c55e' : u.status === 'reserved' ? '#f59e0b' : '#ef4444'
-                                                        }}>{u.status}</span>
-                                                      </div>
-
-                                                      <div style={{ fontSize: '0.75rem', color: '#555' }}>
-                                                        {u.bedrooms != null && `${u.bedrooms} Bed`} {u.bathrooms != null && `• ${u.bathrooms} Bath`} {u.living_rooms ? `• ${u.living_rooms} Living` : ''}
-                                                        {u.finishing_type && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>{finishingLabels[u.finishing_type] || u.finishing_type}</div>}
-                                                        {u.view_type && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🌅 {u.view_type}</div>}
-                                                      </div>
-
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.03)', paddingTop: '6px', marginTop: '2px' }}>
-                                                        <span style={{ fontWeight: 750, fontSize: '0.8rem', color: '#10b981' }}>{u.price ? u.price.toLocaleString() : 0} EGP</span>
-                                                        <div style={{ display: 'flex', gap: '4px' }}>
-                                                          <button style={{ ...styles.btnSecondary, padding: '2px 4px' }} onClick={() => openEditUnitModal(b, f, u)}>
-                                                            <Edit2 size={10} />
-                                                          </button>
-                                                          <button style={{ ...styles.btnDanger, padding: '2px 4px' }} onClick={() => handleDeleteUnit(u.id)}>
-                                                            <Trash2 size={10} />
-                                                          </button>
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
                                         </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
+                          ))}
+                          {b.notes && (
+                            <div style={{ padding: '10px 20px', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+                              📝 {b.notes}
+                            </div>
+                          )}
+                        </div>
                       )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </div>
+                  ))
+                )}
 
-        {totalPages > 1 && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '8px',
-            marginTop: '24px',
-            paddingTop: '16px',
-            borderTop: '1px solid rgba(0,0,0,0.04)'
-          }}>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={activePage === 1}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                background: activePage === 1 ? '#f3f4f6' : '#fff',
-                color: activePage === 1 ? '#9ca3af' : '#1f2937',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: activePage === 1 ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              Previous
-            </button>
-            
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((p) => {
-                if (totalPages > 5 && Math.abs(p - activePage) > 2 && p !== 1 && p !== totalPages) {
-                  if (p === 2 && activePage > 4) return <span key="dots1" style={{ padding: '0 4px', color: '#9ca3af', alignSelf: 'center' }}>...</span>;
-                  if (p === totalPages - 1 && activePage < totalPages - 3) return <span key="dots2" style={{ padding: '0 4px', color: '#9ca3af', alignSelf: 'center' }}>...</span>;
-                  return null;
-                }
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setCurrentPage(p)}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '6px',
-                      border: p === activePage ? 'none' : '1px solid rgba(0, 0, 0, 0.08)',
-                      background: p === activePage ? '#3b82f6' : '#fff',
-                      color: p === activePage ? '#fff' : '#4b5563',
-                      fontSize: '0.8rem',
-                      fontWeight: p === activePage ? 700 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: p === activePage ? '0 4px 10px rgba(59, 130, 246, 0.25)' : 'none'
-                    }}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '16px' }}>
+                    <button
+                      type="button"
+                      disabled={activePage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      style={{
+                        ...styles.btnSecondary,
+                        padding: '6px 12px',
+                        cursor: activePage === 1 ? 'not-allowed' : 'pointer',
+                        opacity: activePage === 1 ? 0.5 : 1
+                      }}
+                    >
+                      ◀ Prev
+                    </button>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      Page {activePage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={activePage === totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      style={{
+                        ...styles.btnSecondary,
+                        padding: '6px 12px',
+                        cursor: activePage === totalPages ? 'not-allowed' : 'pointer',
+                        opacity: activePage === totalPages ? 0.5 : 1
+                      }}
+                    >
+                      Next ▶
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── AMENITIES SECTION ── */}
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trees size={18} color="#22c55e" /> Shared Amenities & Infrastructure ({amenities.length})
+              </div>
+              <button style={styles.btnPrimary} onClick={openAddAmenityModal}>
+                <Plus size={14} /> Add Amenity
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={activePage === totalPages}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                background: activePage === totalPages ? '#f3f4f6' : '#fff',
-                color: activePage === totalPages ? '#9ca3af' : '#1f2937',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: activePage === totalPages ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              Next
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── AMENITIES SECTION ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Trees size={18} color="#22c55e" /> Shared Amenities & Infrastructure ({amenities.length})
-          </div>
-          <button style={styles.btnPrimary} onClick={openAddAmenityModal}>
-            <Plus size={14} /> Add Amenity
-          </button>
-        </div>
-
-        {amenities.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-            No amenities added yet.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            {amenities.map((a) => (
-              <div key={a.id} style={styles.amenityTag}>
-                <span>{amenityTypeLabels[a.type] || a.type}</span>
-                <strong>{a.name}</strong>
-                {a.area && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({a.area} m²)</span>}
-                {a.quantity > 1 && <span style={{ color: '#3b82f6', fontSize: '0.75rem' }}>×{a.quantity}</span>}
-                <button
-                  onClick={() => handleDeleteAmenity(a.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#ef4444', opacity: 0.5 }}
-                >
-                  <X size={12} />
-                </button>
+            {amenities.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                No amenities added yet.
               </div>
-            ))}
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {amenities.map((a) => (
+                  <div key={a.id} style={styles.amenityTag}>
+                    <span>{amenityTypeLabels[a.type] || a.type}</span>
+                    <strong>{a.name}</strong>
+                    {a.area && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({a.area} m²)</span>}
+                    {a.quantity > 1 && <span style={{ color: '#3b82f6', fontSize: '0.75rem' }}>×{a.quantity}</span>}
+                    <button
+                      onClick={() => handleDeleteAmenity(a.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#ef4444', opacity: 0.5 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* ══════════ MODALS ══════════ */}
 

@@ -106,6 +106,7 @@ const translations = {
     eoiBankDetailsTitle: 'Bank Account Transfer Details',
     eoiInstapayDetailsTitle: 'InstaPay Details',
     eoiUploadHint: 'Accepts PDF, JPG, PNG up to 10MB',
+    cancel: 'Cancel',
   },
   ar: {
     pageTitle: 'اختيار الوحدات التفاعلي',
@@ -201,6 +202,7 @@ const translations = {
     eoiBankDetailsTitle: 'بيانات الحساب البنكي للتحويل',
     eoiInstapayDetailsTitle: 'بيانات حساب InstaPay',
     eoiUploadHint: 'الملفات المقبولة: PDF, JPG, PNG حتى 10 ميجابايت',
+    cancel: 'إلغاء',
   }
 };
 
@@ -290,6 +292,7 @@ const InteractiveUnitSelection: React.FC = () => {
     floor_plan_images: Record<string, { image_url: string }>;
   } | null>(null);
   const [hoveredFloor, setHoveredFloor] = useState<FloorData | null>(null);
+  const [hotspots, setHotspots] = useState<any[]>([]);
 
   // 3D Model state
   const [building3DModels, setBuilding3DModels] = useState<Record<string, { status: string; model_url: string | null }>>({});
@@ -413,11 +416,23 @@ const InteractiveUnitSelection: React.FC = () => {
         console.error('Error fetching 3D models:', err3D);
       }
 
+      // Fetch interactive map hotspots
+      let hotspotsList: any[] = [];
+      try {
+        const mapRes = await api.get(`/v1/public/projects/${projectId}/interactive-map`);
+        if (mapRes.data?.success) {
+          hotspotsList = mapRes.data.data.hotspots || [];
+        }
+      } catch (mapErr) {
+        console.error('Error fetching interactive map hotspots:', mapErr);
+      }
+
       if (res.data?.success) {
         setSelectedProject(res.data.data.project);
         setBuildings(res.data.data.buildings || []);
         setProjectMedia(mediaData);
         setBuilding3DModels(models3D);
+        setHotspots(hotspotsList);
         setActive3DBuilding(null);
         setTimeout(() => {
           setCurrentStep('buildings');
