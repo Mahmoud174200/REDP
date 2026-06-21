@@ -87,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
     },
     {
       title: 'Finance & Contracts',
-      roles: ['admin', 'finance_officer', 'client', 'company_sales', 'broker', 'executive'],
+      roles: ['admin', 'finance_officer', 'company_sales', 'broker', 'executive'],
       items: [
         { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
         { name: 'Reserved Units', path: '/finance/reserved', icon: ShieldCheck },
