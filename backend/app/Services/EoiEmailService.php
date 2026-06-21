@@ -122,6 +122,50 @@ class EoiEmailService
     }
 
     /**
+     * Send EOI 5% payment approval confirmation email to the client.
+     */
+    public static function sendFivePercentApprovedEmail(EoiReservation $reservation): void
+    {
+        $content = self::buildFivePercentApprovedEmailContent(
+            $reservation->client_name,
+            $reservation->unit?->unit_number ?? 'N/A',
+            $reservation->unit?->project?->name ?? 'N/A',
+            number_format((float) $reservation->five_percent_amount, 2),
+            $reservation->five_percent_reviewed_at?->format('F j, Y \a\t g:i A') ?? now()->format('F j, Y \a\t g:i A')
+        );
+
+        NotificationService::send(
+            $reservation->lead_id,
+            'email',
+            $reservation->client_email,
+            "5% Down Payment Confirmed — Unit #{$reservation->unit?->unit_number}",
+            $content
+        );
+    }
+
+    /**
+     * Send EOI 5% payment rejection email to the client.
+     */
+    public static function sendFivePercentRejectedEmail(EoiReservation $reservation, string $reason): void
+    {
+        $content = self::buildFivePercentRejectedEmailContent(
+            $reservation->client_name,
+            $reservation->unit?->unit_number ?? 'N/A',
+            $reservation->unit?->project?->name ?? 'N/A',
+            $reason,
+            $reservation->five_percent_reviewed_at?->format('F j, Y \a\t g:i A') ?? now()->format('F j, Y \a\t g:i A')
+        );
+
+        NotificationService::send(
+            $reservation->lead_id,
+            'email',
+            $reservation->client_email,
+            "Re-upload Required: 5% Down Payment Receipt Update",
+            $content
+        );
+    }
+
+    /**
      * Build HTML content for invitation email.
      */
     private static function buildInvitationEmailContent(
@@ -505,6 +549,205 @@ class EoiEmailService
                     </p>
                     <p style="color: #94A3B8; font-size: 11px; line-height: 1.5; margin: 0;">
                         This is an automated priority confirmation ticket. Please keep this email for your records.<br/>
+                        © 2026 Mountain View Developments. All rights reserved.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+        HTML;
+    }
+
+    /**
+     * Build HTML content for 5% payment approval email.
+     */
+    private static function buildFivePercentApprovedEmailContent(
+        string $clientName,
+        string $unitNumber,
+        string $projectName,
+        string $amount,
+        string $reviewDate
+    ): string {
+        return <<<HTML
+        <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
+                
+                <!-- Header / Logo Area -->
+                <div style="background: linear-gradient(135deg, #001A70 0%, #003DA6 100%); padding: 40px; text-align: center; position: relative;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(197, 168, 128, 0.15) 0%, transparent 60%);"></div>
+                    <h1 style="color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; position: relative; z-index: 2;">
+                        MOUNTAIN VIEW
+                    </h1>
+                    <p style="color: #C5A880; font-family: 'Outfit', Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; margin: 6px 0 0 0; position: relative; z-index: 2;">
+                        Luxury Living Redefined
+                    </p>
+                </div>
+
+                <!-- Body Content -->
+                <div style="padding: 40px 35px; background: #ffffff;">
+                    
+                    <!-- Icon and Title -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(34, 197, 94, 0.1); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                            <span style="color: #22c55e; font-size: 24px; font-weight: bold; line-height: 1;">✓</span>
+                        </div>
+                        <h2 style="font-family: 'Outfit', Arial, sans-serif; font-size: 20px; font-weight: 800; color: #001A70; margin: 0;">
+                            5% Down Payment Confirmed
+                        </h2>
+                        <p style="color: #64748B; font-size: 13px; margin: 6px 0 0 0;">
+                            Your unit reservation has been successfully verified.
+                        </p>
+                    </div>
+
+                    <!-- Greeting -->
+                    <p style="color: #0F172A; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                        Dear <strong>{$clientName}</strong>,
+                    </p>
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                        We are pleased to inform you that your 5% booking down payment receipt has been reviewed and successfully verified by our finance department. Your reservation hold is now fully confirmed.
+                    </p>
+
+                    <!-- Details Card -->
+                    <div style="background: #F8FAFC; border-radius: 16px; border: 1.5px solid rgba(0, 61, 166, 0.06); padding: 24px; margin-bottom: 30px;">
+                        <h3 style="font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 800; color: #003DA6; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 16px 0;">
+                            Transaction Summary
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500;">Project Name</td>
+                                <td style="padding: 10px 0; color: #0F172A; font-weight: 700; font-size: 13.5px; text-align: right;">{$projectName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500; border-top: 1px dashed rgba(0, 61, 166, 0.1);">Reserved Unit</td>
+                                <td style="padding: 10px 0; color: #0F172A; font-weight: 700; font-size: 13.5px; text-align: right;">Unit {$unitNumber}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500; border-top: 1px dashed rgba(0, 61, 166, 0.1);">Amount Verified</td>
+                                <td style="padding: 10px 0; color: #22c55e; font-weight: 800; font-size: 14px; text-align: right; border-top: 1px dashed rgba(0, 61, 166, 0.1);">EGP {$amount}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; color: #64748B; font-size: 13px; font-weight: 500; border-top: 1px dashed rgba(0, 61, 166, 0.1);">Approval Date</td>
+                                <td style="padding: 10px 0; color: #0F172A; font-weight: 600; font-size: 13px; text-align: right; border-top: 1px dashed rgba(0, 61, 166, 0.1);">{$reviewDate}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Next Step Alert -->
+                    <div style="background: rgba(197, 168, 128, 0.05); border-left: 4px solid #C5A880; border-radius: 8px; padding: 16px; margin-bottom: 30px;">
+                        <p style="color: #0F172A; font-size: 13px; font-weight: 700; margin: 0 0 6px 0;">✍️ What is the next step?</p>
+                        <p style="color: #475569; font-size: 12.5px; line-height: 1.5; margin: 0;">
+                            Please visit the company's main headquarters at your earliest convenience to sign the official final contracts and establish your customized payment plan (cash or installments) in coordination with your property consultant.
+                        </p>
+                    </div>
+
+                    <!-- Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="http://localhost:5173/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                            Go to My Client Portal
+                        </a>
+                    </div>
+
+                    <p style="color: #64748B; font-size: 12.5px; line-height: 1.6; margin: 0; text-align: center;">
+                        If you have any questions, please reach out to your property consultant or call our customer care hotline.
+                    </p>
+
+                </div>
+
+                <!-- Footer -->
+                <div style="background: #F8FAFC; border-top: 1px solid rgba(0, 61, 166, 0.05); padding: 30px 40px; text-align: center;">
+                    <p style="color: #001A70; font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px 0;">
+                        Mountain View Developments
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; line-height: 1.5; margin: 0;">
+                        © 2026 Mountain View Developments. All rights reserved.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+        HTML;
+    }
+
+    /**
+     * Build HTML content for 5% payment rejection email.
+     */
+    private static function buildFivePercentRejectedEmailContent(
+        string $clientName,
+        string $unitNumber,
+        string $projectName,
+        string $reason,
+        string $reviewDate
+    ): string {
+        return <<<HTML
+        <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
+                
+                <!-- Header / Logo Area -->
+                <div style="background: linear-gradient(135deg, #001A70 0%, #003DA6 100%); padding: 40px; text-align: center; position: relative;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 20%, rgba(197, 168, 128, 0.15) 0%, transparent 60%);"></div>
+                    <h1 style="color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; position: relative; z-index: 2;">
+                        MOUNTAIN VIEW
+                    </h1>
+                    <p style="color: #C5A880; font-family: 'Outfit', Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; margin: 6px 0 0 0; position: relative; z-index: 2;">
+                        Luxury Living Redefined
+                    </p>
+                </div>
+
+                <!-- Body Content -->
+                <div style="padding: 40px 35px; background: #ffffff;">
+                    
+                    <!-- Icon and Title -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                            <span style="color: #ef4444; font-size: 24px; font-weight: bold; line-height: 1;">✕</span>
+                        </div>
+                        <h2 style="font-family: 'Outfit', Arial, sans-serif; font-size: 20px; font-weight: 800; color: #001A70; margin: 0;">
+                            5% Payment Receipt Update Required
+                        </h2>
+                        <p style="color: #64748B; font-size: 13px; margin: 6px 0 0 0;">
+                            Your submitted payment receipt requires correction.
+                        </p>
+                    </div>
+
+                    <!-- Greeting -->
+                    <p style="color: #0F172A; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                        Dear <strong>{$clientName}</strong>,
+                    </p>
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                        We have reviewed your submitted payment receipt for the 5% booking down payment for **Unit {$unitNumber}** in **{$projectName}**. Unfortunately, our finance department could not verify the transaction due to the following reason:
+                    </p>
+
+                    <!-- Reason Card -->
+                    <div style="background: rgba(239, 68, 68, 0.03); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                        <p style="color: #ef4444; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px 0;">Reason for rejection</p>
+                        <p style="color: #0F172A; font-size: 14px; line-height: 1.6; margin: 0; font-weight: 500;">
+                            {$reason}
+                        </p>
+                    </div>
+
+                    <p style="color: #475569; font-size: 13.5px; line-height: 1.6; margin-bottom: 24px;">
+                        <strong>Reviewed on:</strong> {$reviewDate}
+                    </p>
+
+                    <p style="color: #475569; font-size: 13.5px; line-height: 1.6; margin-bottom: 30px;">
+                        Please log in to your homeowner dashboard and re-submit a valid payment receipt or transaction confirmation so that we can process your reservation hold immediately.
+                    </p>
+
+                    <!-- Button -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="http://localhost:5173/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                            Re-upload Payment Receipt
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- Footer -->
+                <div style="background: #F8FAFC; border-top: 1px solid rgba(0, 61, 166, 0.05); padding: 30px 40px; text-align: center;">
+                    <p style="color: #001A70; font-family: 'Outfit', Arial, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px 0;">
+                        Mountain View Developments
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; line-height: 1.5; margin: 0;">
                         © 2026 Mountain View Developments. All rights reserved.
                     </p>
                 </div>

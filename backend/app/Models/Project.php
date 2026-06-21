@@ -33,6 +33,7 @@ class Project extends Model
         'density_per_feddan',
         'master_plan_status',
         'project_type',
+        'eoi_deadline_days',
     ];
 
     protected $casts = [
@@ -44,6 +45,7 @@ class Project extends Model
         'total_green_area' => 'decimal:2',
         'total_roads_area' => 'decimal:2',
         'density_per_feddan' => 'decimal:2',
+        'eoi_deadline_days' => 'integer',
     ];
 
     public function getReleasedPhasesAttribute($value)

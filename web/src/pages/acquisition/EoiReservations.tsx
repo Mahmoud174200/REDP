@@ -1148,8 +1148,10 @@ const EoiReservations: React.FC = () => {
                 {queueList.filter(item => !item.invited_at).length > 0 && (
                   <button
                     onClick={() => {
+                      const proj = projects.find((p: any) => p.id === selectedQueueProject);
+                      const defaultDeadlineDays = proj?.eoi_deadline_days ?? 7;
                       setInviteCount(Math.min(queueList.filter(item => !item.invited_at).length, 10));
-                      setInviteDeadlineHours(48);
+                      setInviteDeadlineHours(defaultDeadlineDays * 24);
                       setInviteModalOpen(true);
                     }}
                     style={{

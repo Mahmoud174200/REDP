@@ -29,6 +29,15 @@ const Payments: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   
+  // Tab and EOI 5% Verification States
+  const [activeMainTab, setActiveMainTab] = useState<'ledger' | 'eoi_verify'>('ledger');
+  const [pendingFivePercentReservations, setPendingFivePercentReservations] = useState<any[]>([]);
+  const [isEoiLoading, setIsEoiLoading] = useState(false);
+  const [showEoiActionModal, setShowEoiActionModal] = useState(false);
+  const [selectedEoiRes, setSelectedEoiRes] = useState<any | null>(null);
+  const [eoiRejectionNotes, setEoiRejectionNotes] = useState('');
+  const [isEoiSubmitting, setIsEoiSubmitting] = useState(false);
+  
   // Filter States
   const [filterYear, setFilterYear] = useState('2026');
   const [filterMonth, setFilterMonth] = useState('');
@@ -190,6 +199,67 @@ const Payments: React.FC = () => {
       status: filterStatus
     });
   }, [filterYear, filterMonth, filterProject, filterPhase, filterUnitType, filterCustomer, filterStatus]);
+
+  const fetchPendingFivePercent = async () => {
+    setIsEoiLoading(true);
+    try {
+      const res = await api.get('/v1/acquisition/eoi-reservations/pending-five-percent');
+      if (res.data?.success && res.data.data) {
+        setPendingFivePercentReservations(res.data.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending 5% reservations:', err);
+    } finally {
+      setIsEoiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeMainTab === 'eoi_verify') {
+      fetchPendingFivePercent();
+    }
+  }, [activeMainTab]);
+
+  const handleApproveFivePercent = async (resId: string) => {
+    if (!confirm('Are you sure you want to approve this 5% downpayment receipt? This will confirm the unit reservation hold. / هل أنت متأكد من قبول إيصال الـ 5%؟')) return;
+    setIsEoiSubmitting(true);
+    try {
+      const res = await api.post(`/v1/acquisition/eoi-reservations/${resId}/approve-five-percent`);
+      if (res.data?.success) {
+        alert('5% payment approved successfully and client notified. / تم قبول الدفعة بنجاح وإشعار العميل.');
+        setShowEoiActionModal(false);
+        fetchPendingFivePercent();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to approve 5% payment.');
+    } finally {
+      setIsEoiSubmitting(false);
+    }
+  };
+
+  const handleRejectFivePercent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEoiRes || !eoiRejectionNotes.trim()) {
+      alert('Please specify a rejection reason. / يرجى كتابة سبب الرفض.');
+      return;
+    }
+    setIsEoiSubmitting(true);
+    try {
+      const res = await api.post(`/v1/acquisition/eoi-reservations/${selectedEoiRes.id}/reject-five-percent`, {
+        notes: eoiRejectionNotes
+      });
+      if (res.data?.success) {
+        alert('5% payment receipt rejected and client notified. / تم رفض الإيصال وإرسال السبب للعميل.');
+        setShowEoiActionModal(false);
+        setEoiRejectionNotes('');
+        fetchPendingFivePercent();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reject receipt.');
+    } finally {
+      setIsEoiSubmitting(false);
+    }
+  };
 
   const handlePrintReceipt = (payment: any) => {
     const receiptWindow = window.open('', '_blank');
@@ -643,8 +713,28 @@ const Payments: React.FC = () => {
         </div>
       </div>
 
-      {/* Dynamic Multi-Criteria Filters Panel */}
-      <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Main Tab Navigation */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '4px' }}>
+        <button
+          className={activeMainTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveMainTab('ledger')}
+          style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+        >
+          <CreditCard size={16} /> Treasury Ledger & Stats
+        </button>
+        <button
+          className={activeMainTab === 'eoi_verify' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveMainTab('eoi_verify')}
+          style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+        >
+          <Building size={16} /> EOI 5% Verification
+        </button>
+      </div>
+
+      {activeMainTab === 'ledger' ? (
+        <>
+          {/* Dynamic Multi-Criteria Filters Panel */}
+          <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
           <TrendingUp size={16} style={{ color: 'var(--color-primary)' }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Multi-Criteria Financial Filters</span>
@@ -1367,6 +1457,218 @@ const Payments: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      </>
+      ) : (
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* EOI 5% DOWN PAYMENT VERIFICATION TAB                          */
+        /* ═══════════════════════════════════════════════════════════════ */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header */}
+          <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Building size={18} style={{ color: 'var(--color-primary)' }} />
+                EOI 5% Down Payment Verification
+              </h3>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                Review and approve/reject 5% booking deposit receipts uploaded by clients.
+              </p>
+            </div>
+            <button
+              className="btn-primary"
+              style={{ padding: '8px 16px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={fetchPendingFivePercent}
+              disabled={isEoiLoading}
+            >
+              {isEoiLoading ? '⏳ Loading...' : '🔄 Refresh'}
+            </button>
+          </div>
+
+          {/* Pending Reservations Table */}
+          {isEoiLoading ? (
+            <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading pending 5% payment receipts...</p>
+            </div>
+          ) : pendingFivePercentReservations.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✅</div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 6px 0' }}>All Clear!</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                No pending 5% payment receipts to review at this time.
+              </p>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(50, 71, 58, 0.04)', borderBottom: '2px solid var(--border-glass)' }}>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Client</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Unit</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Project</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>5% Amount</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Uploaded</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingFivePercentReservations.map((res: any) => (
+                      <tr key={res.id} style={{ borderBottom: '1px solid var(--border-glass)', transition: 'background 0.2s' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59, 130, 246, 0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{res.client_name}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{res.client_email}</div>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{ fontWeight: 600 }}>{res.unit?.unit_number || '—'}</span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{ fontSize: '0.78rem' }}>{res.unit?.project?.name || '—'}</span>
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {parseFloat(res.five_percent_amount || 0).toLocaleString()} EGP
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {res.updated_at ? new Date(res.updated_at).toLocaleDateString('en-GB') : '—'}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                            {res.five_percent_receipt_path && (
+                              <a
+                                href={(() => {
+                                  let host = '';
+                                  try { const u = new URL(api.defaults.baseURL || 'http://127.0.0.1:8000'); host = u.origin; } catch { host = 'http://127.0.0.1:8000'; }
+                                  return `${host}/storage/${res.five_percent_receipt_path}`;
+                                })()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-secondary"
+                                style={{ padding: '5px 10px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '4px', textDecoration: 'none' }}
+                              >
+                                📄 View Receipt
+                              </a>
+                            )}
+                            <button
+                              className="btn-primary"
+                              style={{ padding: '5px 10px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '4px' }}
+                              onClick={() => { setSelectedEoiRes(res); setShowEoiActionModal(true); setEoiRejectionNotes(''); }}
+                            >
+                              ⚡ Action
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* EOI Action Modal */}
+          {showEoiActionModal && selectedEoiRes && (
+            <div className="modal-backdrop" onClick={() => setShowEoiActionModal(false)}>
+              <div className="modal-content" style={{ maxWidth: '560px', width: '100%', padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <DollarSign size={20} style={{ color: 'var(--color-primary)' }} />
+                    Review 5% Payment Receipt
+                  </h3>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.1rem' }} onClick={() => setShowEoiActionModal(false)}>
+                    ✕
+                  </button>
+                </div>
+
+                {/* Reservation Details */}
+                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px', background: 'rgba(50, 71, 58, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Client Name</span>
+                    <strong>{selectedEoiRes.client_name}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-glass)', paddingTop: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Email</span>
+                    <strong>{selectedEoiRes.client_email}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-glass)', paddingTop: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Unit</span>
+                    <strong>{selectedEoiRes.unit?.unit_number || '—'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-glass)', paddingTop: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Project</span>
+                    <strong>{selectedEoiRes.unit?.project?.name || '—'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-glass)', paddingTop: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>5% Amount</span>
+                    <strong style={{ color: 'var(--color-primary)' }}>{parseFloat(selectedEoiRes.five_percent_amount || 0).toLocaleString()} EGP</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-glass)', paddingTop: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Order Number</span>
+                    <strong style={{ fontFamily: 'monospace' }}>{selectedEoiRes.order_number || '—'}</strong>
+                  </div>
+                </div>
+
+                {/* Receipt Preview Link */}
+                {selectedEoiRes.five_percent_receipt_path && (
+                  <a
+                    href={(() => {
+                      let host = '';
+                      try { const u = new URL(api.defaults.baseURL || 'http://127.0.0.1:8000'); host = u.origin; } catch { host = 'http://127.0.0.1:8000'; }
+                      return `${host}/storage/${selectedEoiRes.five_percent_receipt_path}`;
+                    })()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', textDecoration: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}
+                  >
+                    📄 Open Receipt in New Tab
+                  </a>
+                )}
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '12px', fontSize: '0.85rem', fontWeight: 700, background: 'var(--color-success)', borderColor: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                    onClick={() => handleApproveFivePercent(selectedEoiRes.id)}
+                    disabled={isEoiSubmitting}
+                  >
+                    <CheckCircle size={16} />
+                    {isEoiSubmitting ? 'Processing...' : '✅ Approve Payment & Confirm Reservation'}
+                  </button>
+
+                  <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '12px' }}>
+                    <form onSubmit={handleRejectFivePercent} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Rejection Reason (required to reject)
+                      </label>
+                      <textarea
+                        className="form-control"
+                        value={eoiRejectionNotes}
+                        onChange={e => setEoiRejectionNotes(e.target.value)}
+                        placeholder="Specify reason for rejection, e.g. 'Receipt is blurry', 'Amount doesn't match'..."
+                        rows={3}
+                        style={{ fontSize: '0.8rem' }}
+                      />
+                      <button
+                        type="submit"
+                        className="btn-secondary"
+                        style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-danger)', border: '1.5px solid var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                        disabled={isEoiSubmitting || !eoiRejectionNotes.trim()}
+                      >
+                        <AlertCircle size={16} />
+                        {isEoiSubmitting ? 'Processing...' : '❌ Reject Receipt & Notify Client'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

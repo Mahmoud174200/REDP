@@ -203,34 +203,21 @@ class ClientPortalController extends Controller
         }
 
         $reservation->update([
-            'five_percent_paid' => true,
+            'five_percent_paid' => false,
+            'five_percent_status' => 'pending_review',
             'five_percent_amount' => $amount,
             'five_percent_receipt_path' => $receiptPath,
-            'five_percent_paid_at' => now(),
         ]);
 
-        // Find standard Reservation for this client & unit and extend expiration to allow contract signing
-        $stdRes = \App\Models\Reservation::where('client_id', $request->user()->id)
-            ->where('unit_id', $reservation->unit_id)
-            ->where('status', 'confirmed')
-            ->first();
-
-        if ($stdRes) {
-            $stdRes->update([
-                'payment_receipt_path' => $receiptPath,
-                'expires_at' => now()->addDays(7), // Extend hold by 7 days for office visit & contract signing
-            ]);
-        }
-
         // Log audit trail
-        AuditLogService::log('EOI_FIVE_PERCENT_PAID', $request->user()->id, [
+        AuditLogService::log('EOI_FIVE_PERCENT_SUBMIT', $request->user()->id, [
             'eoi_reservation_id' => $reservation->id,
             'amount' => $amount,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => '5% down payment receipt uploaded successfully.',
+            'message' => '5% down payment receipt uploaded successfully and is pending review.',
             'data' => $reservation->fresh()->load('unit.project'),
         ]);
     }

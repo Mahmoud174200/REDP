@@ -85,6 +85,9 @@ Route::prefix('v1/webhooks')->group(function () {
 // ── 🟠 Public Broker Lead Registration (via referral link) ──
 Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead']);
 
+// ── 📁 Document Management Vault Reservations public download ──
+Route::get('/v1/vault/reservations/forms/{id}.pdf', [\App\Http\Controllers\Delivery\DocumentController::class, 'viewReservationForm']);
+
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║ 🔒 PROTECTED ROUTES — Laravel Sanctum Authentication           ║
@@ -250,6 +253,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
         Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
         Route::post('/eoi-reservations/invite-batch', [EoiReservationController::class, 'inviteBatch']);
+        
+        // ── EOI 5% Down Payment Review & Approval Routes ──
+        Route::get('/eoi-reservations/pending-five-percent', [EoiReservationController::class, 'pendingFivePercent']);
+        Route::post('/eoi-reservations/{id}/approve-five-percent', [EoiReservationController::class, 'approveFivePercent']);
+        Route::post('/eoi-reservations/{id}/reject-five-percent', [EoiReservationController::class, 'rejectFivePercent']);
+
         Route::get('/eoi-reservations/{id}', [EoiReservationController::class, 'show']);
         Route::post('/eoi-reservations/{id}/approve', [EoiReservationController::class, 'approve']);
         Route::post('/eoi-reservations/{id}/reject', [EoiReservationController::class, 'reject']);

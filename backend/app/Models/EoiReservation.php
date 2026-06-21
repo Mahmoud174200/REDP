@@ -123,6 +123,10 @@ class EoiReservation extends Model
         'five_percent_amount',
         'five_percent_receipt_path',
         'five_percent_paid_at',
+        'five_percent_status',
+        'five_percent_review_notes',
+        'five_percent_reviewer_id',
+        'five_percent_reviewed_at',
     ];
 
     protected $casts = [
@@ -135,6 +139,7 @@ class EoiReservation extends Model
         'five_percent_paid' => 'boolean',
         'five_percent_amount' => 'decimal:2',
         'five_percent_paid_at' => 'datetime',
+        'five_percent_reviewed_at' => 'datetime',
         'created_at'     => 'datetime',
         'updated_at'     => 'datetime',
         'deleted_at'     => 'datetime',

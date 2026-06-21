@@ -445,4 +445,174 @@ class EoiReservationController extends Controller
             'data'    => $invitedClients,
         ]);
     }
+
+    /**
+     * GET /api/v1/acquisition/eoi-reservations/pending-five-percent
+     * List all EOI reservations where 5% payment is pending review.
+     */
+    public function pendingFivePercent(Request $request): JsonResponse
+    {
+        $query = EoiReservation::with(['lead:id,first_name,last_name,email,phone', 'unit.project'])
+            ->where('five_percent_status', 'pending_review');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('client_name', 'like', "%{$search}%")
+                  ->orWhere('client_email', 'like', "%{$search}%")
+                  ->orWhere('order_number', 'like', "%{$search}%");
+            });
+        }
+
+        $reservations = $query->paginate($request->input('per_page', 20));
+
+        return response()->json([
+            'success' => true,
+            'data'    => $reservations,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/acquisition/eoi-reservations/{id}/approve-five-percent
+     * Accountant/Finance Officer approves EOI 5% payment.
+     */
+    public function approveFivePercent(Request $request, string $id): JsonResponse
+    {
+        $reservation = EoiReservation::with('unit.project')->findOrFail($id);
+
+        if ($reservation->five_percent_status !== 'pending_review') {
+            return response()->json([
+                'success' => false,
+                'message' => "Cannot approve 5% payment for reservation with status '{$reservation->five_percent_status}'.",
+            ], 422);
+        }
+
+        $reservation = DB::transaction(function () use ($reservation, $request) {
+            $reservation->update([
+                'five_percent_paid' => true,
+                'five_percent_paid_at' => now(),
+                'five_percent_status' => 'approved',
+                'five_percent_reviewer_id' => $request->user()?->id,
+                'five_percent_reviewed_at' => now(),
+            ]);
+
+            // Find standard Reservation for this client & unit and extend expiration to allow contract signing
+            $user = \App\Models\User::where('email', $reservation->client_email)->first();
+            $clientId = $user ? $user->id : null;
+
+            $stdResQuery = \App\Models\Reservation::where('unit_id', $reservation->unit_id)
+                ->where('status', 'confirmed');
+            if ($clientId) {
+                $stdResQuery->where('client_id', $clientId);
+            }
+            $stdRes = $stdResQuery->first();
+
+            if ($stdRes) {
+                $stdRes->update([
+                    'payment_receipt_path' => $reservation->five_percent_receipt_path,
+                    'expires_at' => now()->addDays(7), // Extend hold by 7 days for office visit & contract signing
+                ]);
+            }
+
+            return $reservation->fresh();
+        });
+
+        // Send confirmation email
+        try {
+            EoiEmailService::sendFivePercentApprovedEmail($reservation);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("EOI 5% approval email failed: " . $e->getMessage());
+        }
+
+        // Send in-app notification to the client
+        try {
+            $user = \App\Models\User::where('email', $reservation->client_email)->first();
+            if ($user) {
+                \App\Services\NotificationService::send(
+                    $user->id,
+                    'push',
+                    $reservation->client_email,
+                    "5% Down Payment Verified & Confirmed / تم تأكيد دفعة الـ 5%",
+                    "Congratulations! Your 5% downpayment has been confirmed. Please visit the company to sign your final contract. / تهانينا! تم تأكيد دفعة الـ 5% وتأكيد الحجز. يرجى التوجه لمقر الشركة لتوقيع العقد النهائي."
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("EOI 5% approval push failed: " . $e->getMessage());
+        }
+
+        AuditLogService::log('EOI_FIVE_PERCENT_APPROVE', $request->user()?->id, [
+            'eoi_reservation_id' => $reservation->id,
+            'lead_id'            => $reservation->lead_id,
+            'unit_id'            => $reservation->unit_id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'EOI 5% down payment approved successfully.',
+            'data'    => $reservation,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/acquisition/eoi-reservations/{id}/reject-five-percent
+     * Accountant/Finance Officer rejects EOI 5% payment.
+     */
+    public function rejectFivePercent(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'notes' => 'required|string|max:1000',
+        ]);
+
+        $reservation = EoiReservation::with('unit.project')->findOrFail($id);
+
+        if ($reservation->five_percent_status !== 'pending_review') {
+            return response()->json([
+                'success' => false,
+                'message' => "Cannot reject 5% payment for reservation with status '{$reservation->five_percent_status}'.",
+            ], 422);
+        }
+
+        $reservation->update([
+            'five_percent_paid' => false,
+            'five_percent_status' => 'rejected',
+            'five_percent_review_notes' => $request->input('notes'),
+            'five_percent_reviewer_id' => $request->user()?->id,
+            'five_percent_reviewed_at' => now(),
+        ]);
+
+        // Send rejection email
+        try {
+            EoiEmailService::sendFivePercentRejectedEmail($reservation, $request->input('notes'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("EOI 5% rejection email failed: " . $e->getMessage());
+        }
+
+        // Send in-app notification to the client
+        try {
+            $user = \App\Models\User::where('email', $reservation->client_email)->first();
+            if ($user) {
+                \App\Services\NotificationService::send(
+                    $user->id,
+                    'push',
+                    $reservation->client_email,
+                    "⚠️ Down Payment Receipt Rejected / تم رفض إيصال الدفع للـ 5%",
+                    "Your payment receipt for the 5% downpayment was rejected: " . $request->input('notes') . " / تم رفض إيصال الدفع الخاص بك لمقدم الـ 5% للسبب التالي: " . $request->input('notes')
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("EOI 5% rejection push failed: " . $e->getMessage());
+        }
+
+        AuditLogService::log('EOI_FIVE_PERCENT_REJECT', $request->user()?->id, [
+            'eoi_reservation_id' => $reservation->id,
+            'lead_id'            => $reservation->lead_id,
+            'reason'             => $request->input('notes'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'EOI 5% down payment receipt rejected.',
+            'data'    => $reservation->fresh(),
+        ]);
+    }
 }

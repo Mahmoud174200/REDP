@@ -26,6 +26,7 @@ interface ProjectItem {
   total_units: number;
   status: string; // 'planning', 'active', 'completed'
   created_at: string;
+  eoi_deadline_days?: number;
 }
 
 interface UnitItem {
@@ -274,6 +275,7 @@ const AdminPanel: React.FC = () => {
   const [formProjName, setFormProjName] = useState('');
   const [formProjLocation, setFormProjLocation] = useState('');
   const [formProjStatus, setFormProjStatus] = useState('planning');
+  const [formProjDeadlineDays, setFormProjDeadlineDays] = useState(7);
 
   // Unit Form
   const [formUnitProjId, setFormUnitProjId] = useState('');
@@ -551,6 +553,7 @@ const AdminPanel: React.FC = () => {
     setFormProjName('');
     setFormProjLocation('');
     setFormProjStatus('planning');
+    setFormProjDeadlineDays(7);
     setProjectModalMode('add');
     setShowProjectModal(true);
   };
@@ -560,6 +563,7 @@ const AdminPanel: React.FC = () => {
     setFormProjName(proj.name);
     setFormProjLocation(proj.location);
     setFormProjStatus(proj.status);
+    setFormProjDeadlineDays(proj.eoi_deadline_days ?? 7);
     setProjectModalMode('edit');
     setShowProjectModal(true);
   };
@@ -571,14 +575,16 @@ const AdminPanel: React.FC = () => {
         await api.post('/admin/projects', {
           name: formProjName,
           location: formProjLocation,
-          status: formProjStatus
+          status: formProjStatus,
+          eoi_deadline_days: formProjDeadlineDays
         });
         alert('Project created successfully!');
       } else if (selectedProject) {
         await api.put(`/admin/projects/${selectedProject.id}`, {
           name: formProjName,
           location: formProjLocation,
-          status: formProjStatus
+          status: formProjStatus,
+          eoi_deadline_days: formProjDeadlineDays
         });
         alert('Project updated successfully!');
       }
@@ -1561,6 +1567,7 @@ const AdminPanel: React.FC = () => {
                 <th>Project Name</th>
                 <th>Location</th>
                 <th>Total Units Inventory</th>
+                <th>EOI Deadline</th>
                 <th>Status</th>
                 <th>Created At</th>
                 <th>Actions</th>
@@ -1569,7 +1576,7 @@ const AdminPanel: React.FC = () => {
             <tbody>
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No projects found.</td>
+                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No projects found.</td>
                 </tr>
               ) : (
                 filteredProjects.map((p) => (
@@ -1577,6 +1584,7 @@ const AdminPanel: React.FC = () => {
                     <td><strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{p.name}</strong></td>
                     <td>{p.location}</td>
                     <td><span style={{ fontWeight: 700 }}>{p.total_units} units</span></td>
+                    <td><span style={{ fontWeight: 600 }}>{p.eoi_deadline_days ?? 7} days</span></td>
                     <td>
                       <span className={`badge ${p.status === 'active' ? 'badge-success' : p.status === 'planning' ? 'badge-info' : 'badge-danger'}`} style={{ textTransform: 'uppercase' }}>
                         {p.status}
@@ -2786,6 +2794,10 @@ const AdminPanel: React.FC = () => {
                   <option value="active">Active Sales / Construction</option>
                   <option value="completed">Completed & Handed Over</option>
                 </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">EOI Reservation Deadline (Days) / مهلة تأكيد الحجز (أيام)</label>
+                <input type="number" className="form-control" value={formProjDeadlineDays} onChange={e => setFormProjDeadlineDays(parseInt(e.target.value) || 7)} min={1} required />
               </div>
 
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>

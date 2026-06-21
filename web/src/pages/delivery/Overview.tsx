@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Building2, Users, QrCode, ShieldCheck, Car, Key, Sparkles, Plus, Calendar, AlertTriangle, ArrowRight, CheckCircle, UserPlus, Wrench, DollarSign, RefreshCw, X, Home, CreditCard, Phone, Trash2, Clock, Zap, Droplets, Hammer, Paintbrush, Wind, Send, Tag, ChevronRight, CircleDot, Eye, Bell, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -830,22 +831,121 @@ const Overview: React.FC = () => {
           {eoiReservation && eoiReservation.invited_at && (
             <div className="glass-panel" style={{
               padding: '24px 30px',
-              borderLeft: '4px solid ' + (eoiReservation.five_percent_paid ? 'var(--color-success)' : 'var(--color-warning)'),
-              background: eoiReservation.five_percent_paid
-                ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(59,130,246,0.03) 100%)'
-                : 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(239,68,68,0.03) 100%)',
+              borderLeft: '4px solid ' + (
+                (eoiReservation.five_percent_status === 'approved' || eoiReservation.five_percent_paid) ? 'var(--color-success)' :
+                eoiReservation.five_percent_status === 'pending_review' ? 'var(--color-primary)' :
+                eoiReservation.five_percent_status === 'rejected' ? 'var(--color-danger)' :
+                'var(--color-warning)'
+              ),
+              background: (eoiReservation.five_percent_status === 'approved' || eoiReservation.five_percent_paid)
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(59, 130, 246, 0.03) 100%)'
+                : eoiReservation.five_percent_status === 'pending_review'
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(139, 92, 246, 0.03) 100%)'
+                : eoiReservation.five_percent_status === 'rejected'
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(245, 158, 11, 0.03) 100%)'
+                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(239, 68, 68, 0.03) 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
               width: '100%',
               boxSizing: 'border-box'
             }}>
-              {!eoiReservation.five_percent_paid ? (
+              {(eoiReservation.five_percent_status === 'approved' || eoiReservation.five_percent_paid) ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-warning)' }}>
-                    <AlertTriangle size={24} />
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>⚠️ دفعة تأكيد الحجز (5%) مطلوبة / 5% Down Payment Required</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)' }}>
+                    <CheckCircle size={24} />
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>✅ تم سداد دفعة الـ 5% وتأكيد الحجز بنجاح / 5% Paid Successfully</h3>
                   </div>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
+                    لقد تم تسجيل سداد دفعة الـ 5% بنجاح وموافقة الإدارة المالية عليها. المبلغ المتبقي لثمن الوحدة هو <strong>{fmtCurrency(Math.max(0, parseFloat(eoiReservation.unit?.price || 0) - parseFloat(eoiReservation.payment_amount || 0) - parseFloat(eoiReservation.five_percent_amount || 0)))}</strong>. يرجى التوجه لمقر الشركة لتوقيع العقد النهائي واختيار نظام السداد المناسب لك (كاش أو تقسيط) بالتنسيق مع مسؤول المبيعات.
+                    <br />
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      The 5% down payment has been successfully recorded and verified. The remaining balance for the unit is <strong>{fmtCurrency(Math.max(0, parseFloat(eoiReservation.unit?.price || 0) - parseFloat(eoiReservation.payment_amount || 0) - parseFloat(eoiReservation.five_percent_amount || 0)))}</strong>. Please proceed to the company headquarters to sign the final contract and choose your payment plan (cash or installments) in coordination with the sales representative.
+                    </span>
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '10px', padding: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.03)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Apartment Price / سعر الشقة</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>EOI Deposit Paid / مقدم جدية الحجز المدفوع</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-success)' }}>{fmtCurrency(parseFloat(eoiReservation.payment_amount || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Amount Paid / المبلغ المدفوع (5%)</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-success)' }}>{fmtCurrency(parseFloat(eoiReservation.five_percent_amount || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Remaining Balance / المبلغ المتبقي للوحدة</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-primary)' }}>{fmtCurrency(Math.max(0, parseFloat(eoiReservation.unit?.price || 0) - parseFloat(eoiReservation.payment_amount || 0) - parseFloat(eoiReservation.five_percent_amount || 0)))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Payment Date / تاريخ السداد</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{eoiReservation.five_percent_paid_at ? new Date(eoiReservation.five_percent_paid_at).toLocaleDateString('en-GB') : '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Status / الحالة</span>
+                      <span className="badge badge-success" style={{ display: 'inline-block', marginTop: '4px' }}>PAID & APPROVED / تم الدفع والموافقة</span>
+                    </div>
+                  </div>
+                </>
+              ) : eoiReservation.five_percent_status === 'pending_review' ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-primary)' }}>
+                    <Clock size={24} />
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>⏳ إيصال الدفع قيد المراجعة / Payment Receipt Under Review</h3>
+                  </div>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
+                    تم رفع إيصال سداد دفعة الـ 5% بنجاح. الإيصال الآن قيد المراجعة والتدقيق من قبل الإدارة المالية بالشركة، وسيتغير هذا التنبيه بمجرد الموافقة على الدفعة وإرسال التوجيهات لتوقيع العقد.
+                    <br />
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      Your 5% payment receipt has been successfully uploaded and is currently under review by our finance team. You will be notified once it is approved and instructions for contract signing are issued.
+                    </span>
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '10px', padding: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.03)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Apartment Price / سعر الشقة</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Required 5% / المبلغ المطلوب</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-primary)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0) * 0.05)}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Receipt Uploaded / تم رفع الإيصال بتاريخ</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{eoiReservation.updated_at ? new Date(eoiReservation.updated_at).toLocaleDateString('en-GB') : '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Review Status / حالة المراجعة</span>
+                      <span className="badge badge-warning" style={{ display: 'inline-block', marginTop: '4px' }}>UNDER REVIEW / قيد التدقيق مالياً</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {eoiReservation.five_percent_status === 'rejected' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', padding: '14px', borderRadius: '10px', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-danger)' }}>
+                        <X size={24} style={{ border: '2px solid var(--color-danger)', borderRadius: '50%', padding: '2px' }} />
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>❌ تم رفض إيصال الدفع المرفوع / Receipt Rejected</h3>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', margin: 0 }}>
+                        سبب الرفض / Rejection Reason: <strong style={{ color: 'var(--color-danger)' }}>{eoiReservation.five_percent_review_notes || 'لم يتم تحديد سبب / Not specified'}</strong>
+                      </p>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                        يرجى مراجعة سبب الرفض وإعادة رفع إيصال سداد صحيح لتأكيد الحجز.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-warning)' }}>
+                      <AlertTriangle size={24} />
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>⚠️ دفعة تأكيد الحجز (5%) مطلوبة / 5% Down Payment Required</h3>
+                    </div>
+                  )}
+
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
                     لتأكيد حجز وحدتك بنجاح، يُرجى دفع مبلغ 5% من إجمالي ثمن الشقة ورفع إيصال الدفع خلال مهلة أقصاها أسبوع من تاريخ استلام الدعوة. بعد الدفع، سيمكنك الذهاب للشركة لتوقيع العقد وتحديد خطة الدفع.
                   </p>
@@ -856,6 +956,10 @@ const Overview: React.FC = () => {
                       <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0))}</strong>
                     </div>
                     <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>EOI Deposit Paid / مقدم جدية الحجز المدفوع</span>
+                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-success)' }}>{fmtCurrency(parseFloat(eoiReservation.payment_amount || 0))}</strong>
+                    </div>
+                    <div>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Required 5% Down Payment / المبلغ المطلوب (5%)</span>
                       <strong style={{ fontSize: '1.05rem', color: 'var(--color-primary)' }}>{fmtCurrency(parseFloat(eoiReservation.unit?.price || 0) * 0.05)}</strong>
                     </div>
@@ -864,7 +968,7 @@ const Overview: React.FC = () => {
                       <strong style={{ fontSize: '1rem', color: 'var(--color-danger)' }}>{(() => {
                         if (!eoiReservation.invited_at) return '';
                         const invitedDate = new Date(eoiReservation.invited_at);
-                        const deadlineHours = eoiReservation.contracting_deadline_hours || 168;
+                        const deadlineHours = eoiReservation.contracting_deadline_hours || (eoiReservation.unit?.project?.eoi_deadline_days ? eoiReservation.unit.project.eoi_deadline_days * 24 : 168);
                         const deadlineDate = new Date(invitedDate.getTime() + deadlineHours * 60 * 60 * 1000);
                         const diffMs = deadlineDate.getTime() - Date.now();
                         if (diffMs <= 0) return 'Expired / منتهية';
@@ -875,7 +979,7 @@ const Overview: React.FC = () => {
                     </div>
                   </div>
 
-                  <form onSubmit={handleFivePercentSubmit} style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginTop: '10px' }}>
+                  <form onSubmit={handleFivePercentSubmit} style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginTop: '10px', width: '100%' }}>
                     <div style={{ flex: 1, minWidth: '220px' }}>
                       <input 
                         type="file" 
@@ -915,31 +1019,6 @@ const Overview: React.FC = () => {
                       {isFivePercentUploading ? 'جاري الرفع... / Uploading...' : 'رفع إيصال الدفع وتأكيد الحجز / Upload Receipt'}
                     </button>
                   </form>
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-success)' }}>
-                    <CheckCircle size={24} />
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>✅ تم سداد دفعة الـ 5% وتأكيد الحجز بنجاح / 5% Paid Successfully</h3>
-                  </div>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.6' }}>
-                    لقد تم تسجيل سداد دفعة الـ 5% بنجاح. يرجى التوجه لمقر الشركة لتوقيع العقد النهائي واختيار نظام السداد المناسب لك (كاش أو تقسيط) بالتنسيق مع مسؤول المبيعات.
-                  </p>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '10px', padding: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.03)' }}>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Amount Paid / المبلغ المدفوع (5%)</span>
-                      <strong style={{ fontSize: '1.05rem', color: 'var(--color-success)' }}>{fmtCurrency(parseFloat(eoiReservation.five_percent_amount || 0))}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Payment Date / تاريخ السداد</span>
-                      <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)' }}>{eoiReservation.five_percent_paid_at ? new Date(eoiReservation.five_percent_paid_at).toLocaleDateString('en-GB') : '—'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Status / الحالة</span>
-                      <span className="badge badge-success" style={{ display: 'inline-block', marginTop: '4px' }}>PAID / تم الدفع</span>
-                    </div>
-                  </div>
                 </>
               )}
             </div>
