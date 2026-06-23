@@ -861,6 +861,9 @@ class MasterPlanController extends Controller
             'y_percent' => 'required|numeric|min:0|max:100',
             'label' => 'nullable|string|max:255',
             'pin_color' => 'nullable|string|max:20',
+            'polygon_points' => 'nullable|array|min:3',
+            'polygon_points.*.x' => 'required_with:polygon_points|numeric|min:0|max:100',
+            'polygon_points.*.y' => 'required_with:polygon_points|numeric|min:0|max:100',
         ]);
 
         // Check building belongs to this project
@@ -888,6 +891,7 @@ class MasterPlanController extends Controller
             'y_percent' => $validated['y_percent'],
             'label' => $validated['label'] ?? null,
             'pin_color' => $validated['pin_color'] ?? '#003DA6',
+            'polygon_points' => $validated['polygon_points'] ?? null,
         ]);
 
         $hotspot->load('building');
@@ -911,9 +915,17 @@ class MasterPlanController extends Controller
             'y_percent' => 'nullable|numeric|min:0|max:100',
             'label' => 'nullable|string|max:255',
             'pin_color' => 'nullable|string|max:20',
+            'polygon_points' => 'nullable|array|min:3',
+            'polygon_points.*.x' => 'required_with:polygon_points|numeric|min:0|max:100',
+            'polygon_points.*.y' => 'required_with:polygon_points|numeric|min:0|max:100',
         ]);
 
-        $hotspot->update(array_filter($validated, fn($v) => $v !== null));
+        // polygon_points can be explicitly set to null to clear, so handle separately
+        $updateData = array_filter($validated, fn($v) => $v !== null);
+        if ($request->has('polygon_points')) {
+            $updateData['polygon_points'] = $validated['polygon_points'];
+        }
+        $hotspot->update($updateData);
 
         return response()->json([
             'success' => true,
@@ -976,6 +988,7 @@ class MasterPlanController extends Controller
                     'y_percent' => $hotspot->y_percent,
                     'label' => $hotspot->label ?? $building->name,
                     'pin_color' => $hotspot->pin_color,
+                    'polygon_points' => $hotspot->polygon_points,
                     'building' => [
                         'id' => $building->id,
                         'name' => $building->name,

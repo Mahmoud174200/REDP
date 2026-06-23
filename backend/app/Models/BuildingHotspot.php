@@ -17,11 +17,13 @@ class BuildingHotspot extends Model
         'y_percent',
         'label',
         'pin_color',
+        'polygon_points',
     ];
 
     protected $casts = [
         'x_percent' => 'decimal:2',
         'y_percent' => 'decimal:2',
+        'polygon_points' => 'array',
     ];
 
     // ── Relationships ──
