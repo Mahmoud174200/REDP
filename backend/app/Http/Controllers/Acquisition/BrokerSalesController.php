@@ -577,9 +577,10 @@ class BrokerSalesController extends Controller
 
             return response()->json([
                 'success'      => true,
-                'message'      => "Client registered and locked under your agency for 90 days.",
+                'message'      => "Client registration initiated. OTP verification code has been sent to the client.",
                 'data'         => $result['lead'],
-                'lock_expires' => $result['lock']->locked_until->toDateString(),
+                'lock_id'      => $result['lock']->id,
+                'lock_expires' => $result['lock']->otp_expires_at->toDateTimeString(),
             ], 201);
 
         } catch (\Exception $e) {

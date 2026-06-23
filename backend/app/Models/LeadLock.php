@@ -22,6 +22,7 @@ class LeadLock extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    public const STATUS_PENDING  = 'pending';
     public const STATUS_ACTIVE   = 'active';
     public const STATUS_EXPIRED  = 'expired';
     public const STATUS_RELEASED = 'released';
@@ -36,13 +37,16 @@ class LeadLock extends Model
         'national_id',
         'locked_until',
         'status',
+        'verification_otp',
+        'otp_expires_at',
     ];
 
     protected $casts = [
-        'locked_until' => 'datetime',
-        'created_at'   => 'datetime',
-        'updated_at'   => 'datetime',
-        'deleted_at'   => 'datetime',
+        'locked_until'   => 'datetime',
+        'otp_expires_at' => 'datetime',
+        'created_at'     => 'datetime',
+        'updated_at'     => 'datetime',
+        'deleted_at'     => 'datetime',
     ];
 
     // ── Relationships ──

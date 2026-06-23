@@ -83,8 +83,9 @@ Route::prefix('v1/webhooks')->group(function () {
     Route::post('/tiktok/leads', [SocialAdsWebhookController::class, 'handleTikTokLead']);
 });
 
-// ── 🟠 Public Broker Lead Registration (via referral link) ──
+// ── 🟠 Public Broker Lead Registration & Verification ──
 Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead']);
+Route::post('/v1/brokers/verify-lead-otp', [BrokerController::class, 'verifyLeadOtp']);
 
 // ── 📁 Document Management Vault Reservations public download ──
 Route::get('/v1/vault/reservations/forms/{id}.pdf', [\App\Http\Controllers\Delivery\DocumentController::class, 'viewReservationForm']);

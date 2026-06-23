@@ -29,21 +29,38 @@ class AntiPoachingService
      */
     public function checkLeadLock(string $phone, ?string $nationalId = null): array
     {
-        $query = LeadLock::active()
+        // 1. Check active locks
+        $activeLock = LeadLock::active()
             ->where(function ($q) use ($phone, $nationalId) {
                 $q->where('phone', $phone);
                 if ($nationalId) {
                     $q->orWhere('national_id', $nationalId);
                 }
-            });
+            })->first();
 
-        $existingLock = $query->first();
-
-        if ($existingLock) {
+        if ($activeLock) {
             return [
                 'locked'  => true,
-                'lock'    => $existingLock,
-                'message' => "This lead is already locked by broker {$existingLock->broker_id} until {$existingLock->locked_until->toDateString()}.",
+                'lock'    => $activeLock,
+                'message' => "This lead is already locked by broker {$activeLock->broker_id} until {$activeLock->locked_until->toDateString()}.",
+            ];
+        }
+
+        // 2. Check pending locks that are not expired yet
+        $pendingLock = LeadLock::where('status', LeadLock::STATUS_PENDING)
+            ->where('otp_expires_at', '>', now())
+            ->where(function ($q) use ($phone, $nationalId) {
+                $q->where('phone', $phone);
+                if ($nationalId) {
+                    $q->orWhere('national_id', $nationalId);
+                }
+            })->first();
+
+        if ($pendingLock) {
+            return [
+                'locked'  => true,
+                'lock'    => $pendingLock,
+                'message' => "A registration request is pending OTP verification for this lead (Broker ID: {$pendingLock->broker_id}). Please wait for it to expire or verify.",
             ];
         }
 
@@ -123,21 +140,38 @@ class AntiPoachingService
                 'status'      => Lead::STATUS_NEW,
             ]));
 
-            // Step 4: Create the 90-day lock
+            // Step 4: Create the pending lock
+            $otpCode = (string) rand(100000, 999999);
             $lock = LeadLock::create([
-                'broker_id'    => $broker->id,
-                'lead_id'      => $lead->id,
-                'phone'        => $phone,
-                'national_id'  => $nationalId,
-                'locked_until' => now()->addDays(LeadLock::LOCK_DURATION_DAYS),
-                'status'       => LeadLock::STATUS_ACTIVE,
+                'broker_id'        => $broker->id,
+                'lead_id'          => $lead->id,
+                'phone'            => $phone,
+                'national_id'      => $nationalId,
+                'locked_until'     => now()->addMinutes(15), // Temporary expiration during pending stage
+                'status'           => LeadLock::STATUS_PENDING,
+                'verification_otp' => $otpCode,
+                'otp_expires_at'   => now()->addMinutes(15),
             ]);
 
-            Log::info('[AntiPoaching] Broker lead registered with lock', [
+            // Dispatch OTP mock SMS/WhatsApp
+            try {
+                \App\Services\NotificationService::send(
+                    $lead->id,
+                    'whatsapp',
+                    $phone,
+                    'Lead Registration OTP Verification',
+                    "Your verification code for REDP broker registration by {$broker->agent_name} is: {$otpCode}. It expires in 15 minutes."
+                );
+            } catch (\Throwable $ne) {
+                Log::error('[AntiPoaching] Failed to send OTP notification: ' . $ne->getMessage());
+            }
+
+            Log::info('[AntiPoaching] Broker lead registered with pending lock', [
                 'broker_id'    => $broker->id,
                 'lead_id'      => $lead->id,
                 'phone'        => $phone,
-                'locked_until' => $lock->locked_until->toDateString(),
+                'otp_code'     => $otpCode,
+                'otp_expires'  => $lock->otp_expires_at->toDateTimeString(),
             ]);
 
             return [
@@ -185,5 +219,63 @@ class AntiPoachingService
             'duplicate' => !empty($duplicates),
             'details'   => $duplicates,
         ];
+    }
+
+    /**
+     * Verify a broker lead registration using OTP.
+     *
+     * @throws \Exception If lock cannot be verified
+     */
+    public function verifyBrokerLeadOtp(string $lockId, string $otpCode): array
+    {
+        return DB::transaction(function () use ($lockId, $otpCode) {
+            $lock = LeadLock::where('id', $lockId)
+                ->where('status', LeadLock::STATUS_PENDING)
+                ->first();
+
+            if (!$lock) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid or already verified lead lock registration.',
+                ];
+            }
+
+            if (now()->greaterThan($lock->otp_expires_at)) {
+                $lock->update(['status' => LeadLock::STATUS_EXPIRED]);
+                return [
+                    'success' => false,
+                    'message' => 'Verification code has expired. Please ask the broker to re-register the client.',
+                ];
+            }
+
+            if ($lock->verification_otp !== $otpCode) {
+                return [
+                    'success' => false,
+                    'message' => 'Incorrect verification code. Please check and try again.',
+                ];
+            }
+
+            // OTP verified successfully! Activate the 90-day exclusive lock.
+            $lock->update([
+                'status'           => LeadLock::STATUS_ACTIVE,
+                'locked_until'     => now()->addDays(LeadLock::LOCK_DURATION_DAYS),
+                'verification_otp' => null,
+                'otp_expires_at'   => null,
+            ]);
+
+            Log::info('[AntiPoaching] Broker lead lock verified successfully', [
+                'lock_id'      => $lock->id,
+                'broker_id'    => $lock->broker_id,
+                'lead_id'      => $lock->lead_id,
+                'phone'        => $lock->phone,
+                'locked_until' => $lock->locked_until->toDateTimeString(),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Lead lock verified successfully. 90-day exclusive lock activated.',
+                'lock'    => $lock,
+            ];
+        });
     }
 }

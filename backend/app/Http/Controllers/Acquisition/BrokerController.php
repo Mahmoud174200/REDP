@@ -140,9 +140,10 @@ class BrokerController extends Controller
 
             return response()->json([
                 'success'      => true,
-                'message'      => "Lead registered and locked under broker '{$broker->agent_name}' for 90 days.",
+                'message'      => "Lead registration initiated. OTP verification code has been sent to the client.",
                 'data'         => $result['lead'],
-                'lock_expires' => $result['lock']->locked_until->toDateString(),
+                'lock_id'      => $result['lock']->id,
+                'lock_expires' => $result['lock']->otp_expires_at->toDateTimeString(),
             ], 201);
 
         } catch (\Exception $e) {
@@ -223,5 +224,46 @@ class BrokerController extends Controller
             'total_leads_registered' => Lead::where('broker_id', $brokerId)->count(),
             'active_locks'  => LeadLock::where('broker_id', $brokerId)->active()->count(),
         ]);
+    }
+
+    /**
+     * POST /api/v1/brokers/verify-lead-otp
+     * Verify a pending lead lock via OTP code.
+     */
+    public function verifyLeadOtp(Request $request): JsonResponse
+    {
+        $fields = $request->validate([
+            'lock_id'  => 'required|uuid|exists:lead_locks,id',
+            'otp_code' => 'required|string|max:10',
+        ]);
+
+        try {
+            $result = $this->antiPoachingService->verifyBrokerLeadOtp($fields['lock_id'], $fields['otp_code']);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                ], 400);
+            }
+
+            AuditLogService::log('BROKER_LEAD_VERIFY', $request->user()?->id, [
+                'lock_id'   => $result['lock']->id,
+                'broker_id' => $result['lock']->broker_id,
+                'lead_id'   => $result['lock']->lead_id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data'    => $result['lock'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
