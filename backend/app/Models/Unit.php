@@ -52,6 +52,7 @@ class Unit extends Model
         'handover_report',
         'handover_images',
         'handover_signature',
+        'assigned_engineer_id',
     ];
 
     protected $casts = [
@@ -65,6 +66,11 @@ class Unit extends Model
         'has_private_garden' => 'boolean',
         'has_private_parking' => 'boolean',
     ];
+
+    public function assignedEngineer()
+    {
+        return $this->belongsTo(User::class, 'assigned_engineer_id');
+    }
 
     public function project()
     {

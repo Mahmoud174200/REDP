@@ -28,9 +28,14 @@ class ClientPortalController extends Controller
             $activeSnags = \App\Models\DefectsSnag::where('status', 'pending')->count();
             $totalSnags = \App\Models\DefectsSnag::count();
 
-            $scheduledHandovers = \App\Models\Unit::whereNotNull('handover_date')
-                ->with('project')
-                ->orderBy('handover_date', 'asc')
+            $scheduledHandoversQuery = \App\Models\Unit::whereNotNull('handover_date')
+                ->with(['project', 'assignedEngineer']);
+
+            if ($user->role === 'delivery_engineer') {
+                $scheduledHandoversQuery->where('assigned_engineer_id', $user->id);
+            }
+
+            $scheduledHandovers = $scheduledHandoversQuery->orderBy('handover_date', 'asc')
                 ->limit(10)
                 ->get()
                 ->map(function ($unit) {
@@ -39,9 +44,18 @@ class ClientPortalController extends Controller
                         'unit_number' => $unit->unit_number,
                         'project_name' => $unit->project?->name ?? 'N/A',
                         'handover_date' => $unit->handover_date,
-                        'status' => $unit->status
+                        'status' => $unit->status,
+                        'assigned_engineer_id' => $unit->assigned_engineer_id,
+                        'assigned_engineer_name' => $unit->assignedEngineer?->name ?? null,
                     ];
                 });
+
+            $engineers = [];
+            if ($user->role === 'handover_officer' || $user->role === 'admin' || $user->role === 'project_manager') {
+                $engineers = \App\Models\User::where('role', 'delivery_engineer')
+                    ->select('id', 'name', 'email')
+                    ->get();
+            }
 
             return response()->json([
                 'success' => true,
@@ -55,6 +69,7 @@ class ClientPortalController extends Controller
                     'total_snags' => $totalSnags
                 ],
                 'scheduled_handovers' => $scheduledHandovers,
+                'engineers' => $engineers,
                 'recent_snags' => \App\Models\DefectsSnag::with('unit')->latest()->limit(5)->get()
             ]);
         }

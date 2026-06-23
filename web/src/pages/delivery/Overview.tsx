@@ -136,6 +136,7 @@ const Overview: React.FC = () => {
   const [scheduledHandovers, setScheduledHandovers] = useState<any[]>([]);
   const [recentSnags, setRecentSnags] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>({});
+  const [engineers, setEngineers] = useState<any[]>([]);
 
   // Forms
   const [showFamilyForm, setShowFamilyForm] = useState(false);
@@ -270,6 +271,7 @@ const Overview: React.FC = () => {
           setMetrics(res.data.metrics || {});
           setScheduledHandovers(res.data.scheduled_handovers || []);
           setRecentSnags(res.data.recent_snags || []);
+          setEngineers(res.data.engineers || []);
         }
       }
     } catch (err) {
@@ -284,6 +286,22 @@ const Overview: React.FC = () => {
   // ═══════════════════════════════════════════════════════════════
   // ACTION HANDLERS
   // ═══════════════════════════════════════════════════════════════
+
+  const handleAssignEngineer = async (unitId: string, engineerId: string) => {
+    try {
+      const res = await api.put(`/v1/delivery/units/${unitId}/assign-engineer`, {
+        assigned_engineer_id: engineerId || null
+      });
+      if (res.data?.success) {
+        showToast('Delivery engineer assigned successfully!');
+        const userStr = localStorage.getItem('redp_user');
+        const role = userStr ? JSON.parse(userStr).role : 'handover_officer';
+        fetchData(role);
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to assign engineer.', 'error');
+    }
+  };
 
   const handleAddFamily = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -606,13 +624,14 @@ const Overview: React.FC = () => {
                     <th>Project Name</th>
                     <th>Handover Date</th>
                     <th>Status</th>
+                    <th>Assigned Engineer</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scheduledHandovers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No handovers scheduled yet.</td>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No handovers scheduled yet.</td>
                     </tr>
                   ) : (
                     scheduledHandovers.map((item) => (
@@ -624,6 +643,31 @@ const Overview: React.FC = () => {
                           <span className={`badge badge-${item.status === 'sold' ? 'success' : 'warning'}`}>
                             {item.status === 'sold' ? 'Handed Over' : 'Reserved'}
                           </span>
+                        </td>
+                        <td>
+                          {userRole === 'handover_officer' || userRole === 'admin' || userRole === 'project_manager' ? (
+                            <select
+                              className="form-control"
+                              style={{ 
+                                fontSize: '0.75rem', 
+                                padding: '4px 8px', 
+                                borderRadius: '8px', 
+                                minWidth: '145px', 
+                                background: 'rgba(255,255,255,0.05)', 
+                                color: 'var(--text-main)', 
+                                border: '1px solid var(--border-glass)' 
+                              }}
+                              value={item.assigned_engineer_id || ''}
+                              onChange={(e) => handleAssignEngineer(item.id, e.target.value)}
+                            >
+                              <option value="" style={{ background: '#1d2d24', color: '#fff' }}>-- Unassigned --</option>
+                              {engineers.map((eng) => (
+                                <option key={eng.id} value={eng.id} style={{ background: '#1d2d24', color: '#fff' }}>{eng.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{item.assigned_engineer_name || 'Unassigned'}</span>
+                          )}
                         </td>
                         <td>
                           <Link to="/delivery/handover" className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.7rem' }}>

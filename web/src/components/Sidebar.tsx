@@ -89,23 +89,23 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       title: 'Finance & Contracts',
       roles: ['admin', 'finance_officer', 'company_sales', 'broker', 'executive'],
       items: [
-        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2 },
-        { name: 'Reserved Units', path: '/finance/reserved', icon: ShieldCheck },
-        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard },
-        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText },
-        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle },
+        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2, roles: ['admin', 'company_sales', 'broker', 'executive'] },
+        { name: 'Reserved Units', path: '/finance/reserved', icon: ShieldCheck, roles: ['admin', 'finance_officer', 'company_sales', 'broker', 'executive'] },
+        { name: 'Payment Dashboard', path: '/finance/payments', icon: CreditCard, roles: ['admin', 'finance_officer', 'executive'] },
+        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText, roles: ['admin', 'finance_officer', 'company_sales', 'executive'] },
+        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle, roles: ['admin', 'finance_officer', 'executive'] },
       ]
     },
     {
       title: 'Delivery & Platform',
-      roles: ['admin', 'delivery_engineer', 'client', 'project_manager', 'maintenance_manager', 'executive'],
+      roles: ['admin', 'delivery_engineer', 'handover_officer', 'client', 'project_manager', 'maintenance_manager', 'executive'],
       items: [
-        { name: 'Homeowner Overview', path: '/delivery/overview', icon: Building2, roles: ['admin', 'delivery_engineer', 'client', 'executive'] },
+        { name: 'Handovers Control', path: '/delivery/overview', icon: Building2, roles: ['admin', 'handover_officer', 'client', 'executive'] },
         { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench, roles: ['admin', 'delivery_engineer', 'maintenance_manager'] },
-        { name: 'Snagging Inspector', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer', 'project_manager'] },
-        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'delivery_engineer', 'client', 'executive'] },
-        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'delivery_engineer', 'project_manager', 'executive'] },
-        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'delivery_engineer', 'project_manager'] },
+        { name: 'My Handover Tasks', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer', 'project_manager'] },
+        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'handover_officer', 'client', 'executive'] },
+        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'handover_officer', 'project_manager', 'executive'] },
+        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'handover_officer', 'project_manager'] },
       ]
     },
     {
@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
     },
     {
       title: 'Enterprise',
-      roles: ['admin', 'executive', 'project_manager', 'finance_officer', 'legal_officer', 'compliance_officer', 'company_sales'],
+      roles: ['admin', 'executive', 'project_manager', 'finance_officer', 'legal_officer', 'company_sales'],
       items: [
         { name: 'Organization', path: '/enterprise/organization', icon: Network, roles: ['admin', 'executive'] },
         { name: 'RBAC Engine', path: '/enterprise/rbac', icon: Shield, roles: ['admin'] },
@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
         { name: 'Customer 360', path: '/enterprise/customer360', icon: Users, roles: ['admin', 'executive', 'company_sales'] },
         { name: 'Task Board', path: '/enterprise/tasks', icon: CheckSquare, roles: ['admin', 'executive', 'project_manager'] },
         { name: 'Message Hub', path: '/enterprise/messages', icon: MessageSquare, roles: ['admin', 'executive'] },
-        { name: 'Audit Logs', path: '/enterprise/audit', icon: ShieldAlert, roles: ['admin', 'compliance_officer'] },
+        { name: 'Audit Logs', path: '/enterprise/audit', icon: ShieldAlert, roles: ['admin'] },
         { name: 'Chart of Accounts', path: '/enterprise/accounting/chart', icon: FolderTree, roles: ['admin', 'executive', 'finance_officer'] },
         { name: 'Journal Vouchers', path: '/enterprise/accounting/entries', icon: FileText, roles: ['admin', 'executive', 'finance_officer'] },
         { name: 'Financial Reports', path: '/enterprise/accounting/reports', icon: BarChart3, roles: ['admin', 'executive', 'finance_officer'] },

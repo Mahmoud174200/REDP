@@ -393,6 +393,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
             Route::put('/projects/{projectId}/delivery-date', [HandoverController::class, 'updateDeliveryDate']);
+            Route::put('/units/{unitId}/assign-engineer', [HandoverController::class, 'assignEngineer']);
         });
 
         // Maintenance ticket dispatch & contractor lists (Delivery Engineers, Maintenance Managers, and Technicians)

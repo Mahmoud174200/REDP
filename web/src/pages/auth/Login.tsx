@@ -663,7 +663,6 @@ const Login: React.FC = () => {
                     <button type="button" onClick={() => fillProfile('handover')} className="quick-fill-btn">🤝 Handover</button>
                     <button type="button" onClick={() => fillProfile('maintenance_manager')} className="quick-fill-btn">🔧 Facilities</button>
                     <button type="button" onClick={() => fillProfile('legal_officer')} className="quick-fill-btn">⚖️ Legal</button>
-                    <button type="button" onClick={() => fillProfile('compliance_officer')} className="quick-fill-btn">🔒 Compliance</button>
                   </div>
                 </div>
 
@@ -801,7 +800,6 @@ const Login: React.FC = () => {
                   <option value="delivery_engineer">🟢 Delivery Specialist</option>
                   <option value="maintenance_manager">🟠🔧 Facilities Maintenance Manager</option>
                   <option value="legal_officer">⚖️ Legal Officer</option>
-                  <option value="compliance_officer">🔵🔒 Compliance Officer</option>
                   <option value="client">🐳 Compound Client/Homeowner</option>
                 </select>
                 <div style={{
