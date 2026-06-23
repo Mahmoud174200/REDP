@@ -1223,6 +1223,15 @@ const CompanySalesPortal: React.FC = () => {
     if (e) e.preventDefault();
     if (!selectedReservationForContract) return;
 
+    if (finalPaymentMethod === 'installment') {
+      const minDp = selectedReservationForContract.unit?.min_down_payment ? parseFloat(selectedReservationForContract.unit.min_down_payment) : 0;
+      const typedDp = parseFloat(downPayment) || 0;
+      if (minDp > 0 && typedDp < minDp) {
+        showToast(`المقدم المدخل (${typedDp.toLocaleString()} EGP) أقل من الحد الأدنى المسموح به لهذه الوحدة (${minDp.toLocaleString()} EGP) / Down payment must be at least ${minDp.toLocaleString()} EGP`, 'error');
+        return;
+      }
+    }
+
     const plan = calculatePlan();
     const schedule = generatePaymentSchedule();
 
@@ -2165,6 +2174,7 @@ const CompanySalesPortal: React.FC = () => {
                     <th>Sales Channel</th>
                     <th>Unit Number</th>
                     <th>EOI Amount</th>
+                    <th>5% Down Payment</th>
                     <th>Hold Time Remaining</th>
                     <th>Status & Contract</th>
                     <th>Actions</th>
@@ -2173,7 +2183,7 @@ const CompanySalesPortal: React.FC = () => {
                 <tbody>
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No bookings executed yet.</td>
                     </tr>
                   ) : (
                     transactions.map(txn => {
@@ -2212,6 +2222,55 @@ const CompanySalesPortal: React.FC = () => {
                           </td>
                           <td><strong>{txn.unit?.unit_number}</strong> ({txn.unit?.project?.name})</td>
                           <td><strong>{txn.eoi_amount?.toLocaleString()} EGP</strong></td>
+                          <td>
+                            {txn.eoi_reservation ? (
+                              txn.eoi_reservation.five_percent_paid ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span className="badge badge-success" style={{ fontWeight: 700, fontSize: '0.72rem', padding: '3px 8px', width: 'fit-content' }}>
+                                    Paid / تم الدفع
+                                  </span>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                    Amount: {parseFloat(txn.eoi_reservation.five_percent_amount || 0).toLocaleString()} EGP
+                                  </div>
+                                  {txn.eoi_reservation.five_percent_receipt_path && (
+                                    <a
+                                      href={`${api.defaults.baseURL || ''}/storage/${txn.eoi_reservation.five_percent_receipt_path}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontSize: '0.68rem', color: 'var(--color-primary)', textDecoration: 'underline', display: 'block', marginTop: '2px' }}
+                                    >
+                                      View Receipt
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span className="badge badge-warning" style={{ fontWeight: 700, fontSize: '0.72rem', padding: '3px 8px', width: 'fit-content' }}>
+                                    Pending / معلق
+                                  </span>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                    Req: {(parseFloat(txn.unit?.price || 0) * 0.05).toLocaleString()} EGP
+                                  </div>
+                                  {txn.eoi_reservation.invited_at && (
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--color-danger)', marginTop: '2px', fontWeight: 650 }}>
+                                      Deadline: {(() => {
+                                        const invitedDate = new Date(txn.eoi_reservation.invited_at);
+                                        const deadlineHours = txn.eoi_reservation.contracting_deadline_hours || 168;
+                                        const deadlineDate = new Date(invitedDate.getTime() + deadlineHours * 60 * 60 * 1000);
+                                        const diffMs = deadlineDate.getTime() - Date.now();
+                                        if (diffMs <= 0) return 'Expired';
+                                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                        const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                        return diffDays > 0 ? `${diffDays}d ${diffHours}h left` : `${diffHours}h left`;
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>N/A (Direct)</span>
+                            )}
+                          </td>
                           <td>
                             <span style={{ fontWeight: 600, color: isExpired ? 'var(--color-danger)' : (txn.contract && txn.contract.status !== 'draft') ? 'var(--color-success)' : 'var(--color-warning)' }}>
                               {getHoldTimeRemaining(txn.expires_at, txn.status, txn.contract && txn.contract.status !== 'draft')}
@@ -2811,10 +2870,10 @@ const CompanySalesPortal: React.FC = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label" style={{ fontWeight: 700 }}>Finalized Payment Method</label>
+                <label className="form-label" style={{ fontWeight: 700 }}>Finalized Payment Method / طريقة السداد النهائية</label>
                 <select className="form-control" value={finalPaymentMethod} onChange={e => setFinalPaymentMethod(e.target.value as 'cash' | 'installment')}>
-                  <option value="installment">Installment Plan (تقسيط)</option>
-                  <option value="cash">Full Cash Payment (كاش)</option>
+                  <option value="installment">Down Payment + Installments / دفع مقدم وتقسيط المتبقي</option>
+                  <option value="cash">Full Cash Payment / دفع الشقة كاش بالكامل</option>
                 </select>
               </div>
 
@@ -2888,7 +2947,14 @@ const CompanySalesPortal: React.FC = () => {
                   </div>
 
                   <div className="form-group" style={{ marginBottom: '10px' }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>Down Payment (EGP) / دفعة مقدمة</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>Down Payment (EGP) / دفعة مقدمة</label>
+                      {selectedReservationForContract?.unit?.min_down_payment && parseFloat(selectedReservationForContract.unit.min_down_payment) > 0 && (
+                        <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700 }}>
+                          أقل مقدم مسموح: {parseFloat(selectedReservationForContract.unit.min_down_payment).toLocaleString()} EGP
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       className="form-control"

@@ -94,24 +94,36 @@ class AntifraudVerification
                 ], 403);
             }
 
-            // Check if lead is already locked by another broker
+            // Check if lead is already locked by another broker (active lock)
             $existingLock = LeadLock::active()
                 ->where('phone', $phone)
                 ->where('broker_id', '!=', $brokerId)
                 ->first();
 
+            if (!$existingLock) {
+                // Check if lead has a pending lock from another broker that is still valid (not expired)
+                $existingLock = LeadLock::where('status', LeadLock::STATUS_PENDING)
+                    ->where('otp_expires_at', '>', now())
+                    ->where('phone', $phone)
+                    ->where('broker_id', '!=', $brokerId)
+                    ->first();
+            }
+
             if ($existingLock) {
-                Log::warning('[Antifraud] Lead already locked by another broker', [
+                $isPending = $existingLock->status === LeadLock::STATUS_PENDING;
+                Log::warning('[Antifraud] Lead already locked or pending registration by another broker', [
                     'requesting_broker' => $brokerId,
                     'locking_broker'    => $existingLock->broker_id,
                     'phone'             => $phone,
-                    'locked_until'      => $existingLock->locked_until,
+                    'status'            => $existingLock->status,
                 ]);
 
                 return response()->json([
                     'success' => false,
-                    'error'   => 'LEAD_LOCKED',
-                    'message' => 'This lead is already locked by another broker.',
+                    'error'   => $isPending ? 'LEAD_VERIFICATION_PENDING' : 'LEAD_LOCKED',
+                    'message' => $isPending 
+                        ? 'This lead has a pending registration with another broker. Please try again later.'
+                        : 'This lead is already locked by another broker.',
                     'locked_until' => $existingLock->locked_until->toDateString(),
                 ], 409);
             }

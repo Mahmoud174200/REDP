@@ -287,7 +287,8 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'status' => ['required', Rule::in(['planning', 'active', 'completed'])]
+            'status' => ['required', Rule::in(['planning', 'active', 'completed'])],
+            'eoi_deadline_days' => 'nullable|integer|min:1'
         ]);
 
         $project = Project::create([
@@ -295,7 +296,8 @@ class AdminController extends Controller
             'name' => $validated['name'],
             'location' => $validated['location'],
             'total_units' => 0,
-            'status' => $validated['status']
+            'status' => $validated['status'],
+            'eoi_deadline_days' => $validated['eoi_deadline_days'] ?? 7
         ]);
 
         return response()->json([
@@ -312,7 +314,8 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'status' => ['required', Rule::in(['planning', 'active', 'completed'])]
+            'status' => ['required', Rule::in(['planning', 'active', 'completed'])],
+            'eoi_deadline_days' => 'nullable|integer|min:1'
         ]);
 
         $project->update($validated);
@@ -356,6 +359,7 @@ class AdminController extends Controller
             'floor' => 'required|integer',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
             'price' => 'required|numeric|min:0',
+            'min_down_payment' => 'nullable|numeric|min:0',
             'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])],
             'area' => 'nullable|numeric|min:0',
             'bedrooms' => 'nullable|integer|min:0',
@@ -372,6 +376,7 @@ class AdminController extends Controller
             'floor' => $validated['floor'],
             'type' => $validated['type'],
             'price' => $validated['price'],
+            'min_down_payment' => $validated['min_down_payment'] ?? null,
             'status' => $validated['status'],
             'area' => $validated['area'] ?? null,
             'bedrooms' => $validated['bedrooms'] ?? null,
@@ -405,6 +410,7 @@ class AdminController extends Controller
             'floor' => 'required|integer',
             'type' => ['required', Rule::in(['apartment', 'villa', 'commercial', 'office', 'duplex', 'penthouse'])],
             'price' => 'required|numeric|min:0',
+            'min_down_payment' => 'nullable|numeric|min:0',
             'status' => ['required', Rule::in(['available', 'reserved', 'sold', 'blocked'])],
             'area' => 'nullable|numeric|min:0',
             'bedrooms' => 'nullable|integer|min:0',

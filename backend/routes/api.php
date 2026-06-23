@@ -83,8 +83,12 @@ Route::prefix('v1/webhooks')->group(function () {
     Route::post('/tiktok/leads', [SocialAdsWebhookController::class, 'handleTikTokLead']);
 });
 
-// ── 🟠 Public Broker Lead Registration (via referral link) ──
+// ── 🟠 Public Broker Lead Registration & Verification ──
 Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead']);
+Route::post('/v1/brokers/verify-lead-otp', [BrokerController::class, 'verifyLeadOtp']);
+
+// ── 📁 Document Management Vault Reservations public download ──
+Route::get('/v1/vault/reservations/forms/{id}.pdf', [\App\Http\Controllers\Delivery\DocumentController::class, 'viewReservationForm']);
 
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -257,6 +261,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
         Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
         Route::post('/eoi-reservations/invite-batch', [EoiReservationController::class, 'inviteBatch']);
+        
+        // ── EOI 5% Down Payment Review & Approval Routes ──
+        Route::get('/eoi-reservations/pending-five-percent', [EoiReservationController::class, 'pendingFivePercent']);
+        Route::post('/eoi-reservations/{id}/approve-five-percent', [EoiReservationController::class, 'approveFivePercent']);
+        Route::post('/eoi-reservations/{id}/reject-five-percent', [EoiReservationController::class, 'rejectFivePercent']);
+
         Route::get('/eoi-reservations/{id}', [EoiReservationController::class, 'show']);
         Route::post('/eoi-reservations/{id}/approve', [EoiReservationController::class, 'approve']);
         Route::post('/eoi-reservations/{id}/reject', [EoiReservationController::class, 'reject']);
@@ -358,6 +368,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::middleware('role:client')->group(function () {
             Route::post('/gate-code', [ClientPortalController::class, 'requestGateCode']);
             Route::post('/tickets', [VendorController::class, 'storeTicket']);
+            Route::post('/eoi-reservations/{id}/pay-five-percent', [ClientPortalController::class, 'payFivePercent']);
 
             // ── Homeowner Portal (H.9) ──
             $homeCtrl = \App\Http\Controllers\Delivery\HomeownerPortalController::class;
@@ -388,6 +399,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
             Route::put('/projects/{projectId}/delivery-date', [HandoverController::class, 'updateDeliveryDate']);
+            Route::put('/units/{unitId}/assign-engineer', [HandoverController::class, 'assignEngineer']);
         });
 
         // Maintenance ticket dispatch & contractor lists (Delivery Engineers, Maintenance Managers, and Technicians)

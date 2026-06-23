@@ -614,6 +614,24 @@ class CompanySalesController extends Controller
         $transactions = $query->orderBy('created_at', 'desc')
                               ->paginate($request->input('per_page', 25));
 
+        $transactions->getCollection()->transform(function ($txn) {
+            $eoi = null;
+            if ($txn->client) {
+                $eoi = \App\Models\EoiReservation::where(function ($q) use ($txn) {
+                    if ($txn->client->email) {
+                        $q->where('client_email', $txn->client->email);
+                    }
+                    if ($txn->client->phone) {
+                        $q->orWhere('client_phone', $txn->client->phone);
+                    }
+                })
+                ->where('unit_id', $txn->unit_id)
+                ->first();
+            }
+            $txn->eoi_reservation = $eoi;
+            return $txn;
+        });
+
         return response()->json([
             'success' => true,
             'data'    => $transactions,

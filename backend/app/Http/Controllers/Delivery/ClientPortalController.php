@@ -28,9 +28,14 @@ class ClientPortalController extends Controller
             $activeSnags = \App\Models\DefectsSnag::where('status', 'pending')->count();
             $totalSnags = \App\Models\DefectsSnag::count();
 
-            $scheduledHandovers = \App\Models\Unit::whereNotNull('handover_date')
-                ->with('project')
-                ->orderBy('handover_date', 'asc')
+            $scheduledHandoversQuery = \App\Models\Unit::whereNotNull('handover_date')
+                ->with(['project', 'assignedEngineer']);
+
+            if ($user->role === 'delivery_engineer') {
+                $scheduledHandoversQuery->where('assigned_engineer_id', $user->id);
+            }
+
+            $scheduledHandovers = $scheduledHandoversQuery->orderBy('handover_date', 'asc')
                 ->limit(10)
                 ->get()
                 ->map(function ($unit) {
@@ -39,9 +44,18 @@ class ClientPortalController extends Controller
                         'unit_number' => $unit->unit_number,
                         'project_name' => $unit->project?->name ?? 'N/A',
                         'handover_date' => $unit->handover_date,
-                        'status' => $unit->status
+                        'status' => $unit->status,
+                        'assigned_engineer_id' => $unit->assigned_engineer_id,
+                        'assigned_engineer_name' => $unit->assignedEngineer?->name ?? null,
                     ];
                 });
+
+            $engineers = [];
+            if ($user->role === 'handover_officer' || $user->role === 'admin' || $user->role === 'project_manager') {
+                $engineers = \App\Models\User::where('role', 'delivery_engineer')
+                    ->select('id', 'name', 'email')
+                    ->get();
+            }
 
             return response()->json([
                 'success' => true,
@@ -55,6 +69,7 @@ class ClientPortalController extends Controller
                     'total_snags' => $totalSnags
                 ],
                 'scheduled_handovers' => $scheduledHandovers,
+                'engineers' => $engineers,
                 'recent_snags' => \App\Models\DefectsSnag::with('unit')->latest()->limit(5)->get()
             ]);
         }
@@ -72,6 +87,12 @@ class ClientPortalController extends Controller
             ->limit(5)
             ->get();
 
+        // Fetch EOI reservation of the logged-in client (by email or phone)
+        $eoiReservation = \App\Models\EoiReservation::where('client_email', $user->email)
+            ->orWhere('client_phone', $user->phone)
+            ->with(['unit.project'])
+            ->first();
+
         return response()->json([
             'success' => true,
             'owner' => '🟢 Delivery & Infra',
@@ -82,6 +103,7 @@ class ClientPortalController extends Controller
                 'active_visitor_passes' => 3 // Simulated count for visitor passes
             ],
             'recent_notifications' => $notifications,
+            'eoi_reservation' => $eoiReservation,
             'compound_status' => [
                 'water_supply' => 'Normal',
                 'power_grid' => 'Stable',
@@ -173,5 +195,45 @@ class ClientPortalController extends Controller
             'message' => 'Workflow rule compiled and stored in active runtime templates.',
             'data' => $wf
         ], 201);
+    }
+
+    /**
+     * Submit 5% down payment receipt for EOI reservation.
+     */
+    public function payFivePercent(Request $request, string $id)
+    {
+        $request->validate([
+            'receipt' => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+        ]);
+
+        $reservation = \App\Models\EoiReservation::findOrFail($id);
+
+        // Handle receipt upload
+        $receiptPath = $request->file('receipt')->store('eoi-receipts', 'public');
+
+        // Calculate 5% amount if unit exists
+        $amount = 0.00;
+        if ($reservation->unit) {
+            $amount = (float) $reservation->unit->price * 0.05;
+        }
+
+        $reservation->update([
+            'five_percent_paid' => false,
+            'five_percent_status' => 'pending_review',
+            'five_percent_amount' => $amount,
+            'five_percent_receipt_path' => $receiptPath,
+        ]);
+
+        // Log audit trail
+        AuditLogService::log('EOI_FIVE_PERCENT_SUBMIT', $request->user()->id, [
+            'eoi_reservation_id' => $reservation->id,
+            'amount' => $amount,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => '5% down payment receipt uploaded successfully and is pending review.',
+            'data' => $reservation->fresh()->load('unit.project'),
+        ]);
     }
 }

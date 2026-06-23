@@ -120,12 +120,15 @@ const HomeRedirect: React.FC = () => {
     return <Navigate to="/acquisition/leads" replace />;
   }
   if (user.role === 'finance_officer') {
-    return <Navigate to="/finance/inventory" replace />;
+    return <Navigate to="/finance/payments" replace />;
   }
   if (user.role === 'client') {
     return <Navigate to="/delivery/overview" replace />;
   }
-  if (user.role === 'handover_officer' || user.role === 'delivery_engineer') {
+  if (user.role === 'delivery_engineer') {
+    return <Navigate to="/delivery/handover" replace />;
+  }
+  if (user.role === 'handover_officer') {
     return <Navigate to="/delivery/overview" replace />;
   }
   if (user.role === 'executive') {
@@ -139,9 +142,6 @@ const HomeRedirect: React.FC = () => {
   }
   if (user.role === 'legal_officer') {
     return <Navigate to="/enterprise/legal" replace />;
-  }
-  if (user.role === 'compliance_officer') {
-    return <Navigate to="/enterprise/audit" replace />;
   }
 
   // Admins land on Leads & KYC first

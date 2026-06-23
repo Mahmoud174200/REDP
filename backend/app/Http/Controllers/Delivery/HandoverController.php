@@ -292,4 +292,39 @@ class HandoverController extends Controller
             'delivery_date' => $request->delivery_date
         ]);
     }
+
+    /**
+     * Assign a delivery engineer to a unit handover.
+     */
+    public function assignEngineer(Request $request, string $unitId)
+    {
+        $request->validate([
+            'assigned_engineer_id' => 'nullable|uuid|exists:users,id',
+        ]);
+
+        // Authorization check: Only handover_officer, project_manager, or admin
+        $user = $request->user();
+        if ($user->role !== 'handover_officer' && $user->role !== 'project_manager' && $user->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only handover officers or managers can assign engineers.',
+            ], 403);
+        }
+
+        $unit = Unit::findOrFail($unitId);
+        $oldEngineerId = $unit->assigned_engineer_id;
+        $unit->update(['assigned_engineer_id' => $request->assigned_engineer_id]);
+
+        AuditLogService::log(
+            'UNIT_ASSIGN_ENGINEER', 
+            $request->user()->id, 
+            ['unit_id' => $unitId, 'old_engineer' => $oldEngineerId, 'new_engineer' => $request->assigned_engineer_id]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Delivery engineer assigned successfully.',
+            'assigned_engineer_id' => $request->assigned_engineer_id,
+        ]);
+    }
 }

@@ -162,6 +162,11 @@ class Lead extends Model
         return $this->hasMany(ClientJourneyLog::class);
     }
 
+    public function eoiReservations(): HasMany
+    {
+        return $this->hasMany(EoiReservation::class);
+    }
+
     // ── Scopes ──
 
     public function scopeByStatus($query, string $status)

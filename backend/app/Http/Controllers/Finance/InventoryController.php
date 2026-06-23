@@ -26,6 +26,11 @@ class InventoryController extends Controller
 
         $query = Unit::with('project');
 
+        $user = $request->user();
+        if ($user && $user->role === 'delivery_engineer') {
+            $query->where('assigned_engineer_id', $user->id);
+        }
+
         // Apply filters
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);

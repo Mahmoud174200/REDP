@@ -26,7 +26,7 @@ interface ProjectItem {
   total_units: number;
   status: string; // 'planning', 'active', 'completed'
   created_at: string;
-  image_url?: string | null;
+  eoi_deadline_days?: number;
 }
 
 interface UnitItem {
@@ -45,6 +45,7 @@ interface UnitItem {
   view_type?: string;
   building?: string;
   layout_description?: string;
+  min_down_payment?: number;
 }
 
 interface LeadItem {
@@ -274,9 +275,7 @@ const AdminPanel: React.FC = () => {
   const [formProjName, setFormProjName] = useState('');
   const [formProjLocation, setFormProjLocation] = useState('');
   const [formProjStatus, setFormProjStatus] = useState('planning');
-  const [formProjImage, setFormProjImage] = useState<string | null>(null);
-  const [selectedProjectImageFile, setSelectedProjectImageFile] = useState<File | null>(null);
-  const [uploadingProjImage, setUploadingProjImage] = useState(false);
+  const [formProjDeadlineDays, setFormProjDeadlineDays] = useState(7);
 
   // Unit Form
   const [formUnitProjId, setFormUnitProjId] = useState('');
@@ -291,6 +290,7 @@ const AdminPanel: React.FC = () => {
   const [formUnitViewType, setFormUnitViewType] = useState('garden');
   const [formUnitBuilding, setFormUnitBuilding] = useState('');
   const [formUnitLayoutDescription, setFormUnitLayoutDescription] = useState('');
+  const [formUnitMinDownPayment, setFormUnitMinDownPayment] = useState('0');
 
   // Lead Form
   const [formLeadFirstName, setFormLeadFirstName] = useState('');
@@ -553,8 +553,7 @@ const AdminPanel: React.FC = () => {
     setFormProjName('');
     setFormProjLocation('');
     setFormProjStatus('planning');
-    setFormProjImage(null);
-    setSelectedProjectImageFile(null);
+    setFormProjDeadlineDays(7);
     setProjectModalMode('add');
     setShowProjectModal(true);
   };
@@ -564,8 +563,7 @@ const AdminPanel: React.FC = () => {
     setFormProjName(proj.name);
     setFormProjLocation(proj.location);
     setFormProjStatus(proj.status);
-    setFormProjImage((proj as any).image_url || null);
-    setSelectedProjectImageFile(null);
+    setFormProjDeadlineDays(proj.eoi_deadline_days ?? 7);
     setProjectModalMode('edit');
     setShowProjectModal(true);
   };
@@ -578,7 +576,8 @@ const AdminPanel: React.FC = () => {
         const res = await api.post('/admin/projects', {
           name: formProjName,
           location: formProjLocation,
-          status: formProjStatus
+          status: formProjStatus,
+          eoi_deadline_days: formProjDeadlineDays
         });
         projectId = res.data.data.id;
         alert('Project created successfully!');
@@ -586,7 +585,8 @@ const AdminPanel: React.FC = () => {
         await api.put(`/admin/projects/${projectId}`, {
           name: formProjName,
           location: formProjLocation,
-          status: formProjStatus
+          status: formProjStatus,
+          eoi_deadline_days: formProjDeadlineDays
         });
         alert('Project updated successfully!');
       }
@@ -1074,6 +1074,7 @@ const AdminPanel: React.FC = () => {
     setFormUnitViewType('garden');
     setFormUnitBuilding('');
     setFormUnitLayoutDescription('');
+    setFormUnitMinDownPayment('0');
     setUnitModalMode('add');
     setShowUnitModal(true);
   };
@@ -1092,6 +1093,7 @@ const AdminPanel: React.FC = () => {
     setFormUnitViewType(unit.view_type || 'garden');
     setFormUnitBuilding(unit.building || '');
     setFormUnitLayoutDescription(unit.layout_description || '');
+    setFormUnitMinDownPayment(unit.min_down_payment ? unit.min_down_payment.toString() : '0');
     setUnitModalMode('edit');
     setShowUnitModal(true);
   };
@@ -1105,6 +1107,7 @@ const AdminPanel: React.FC = () => {
         floor: parseInt(formUnitFloor),
         type: formUnitType,
         price: parseFloat(formUnitPrice),
+        min_down_payment: formUnitMinDownPayment ? parseFloat(formUnitMinDownPayment) : 0,
         status: formUnitStatus,
         area: parseFloat(formUnitArea),
         bedrooms: parseInt(formUnitBedrooms),
@@ -1602,6 +1605,7 @@ const AdminPanel: React.FC = () => {
                 <th>Project Name</th>
                 <th>Location</th>
                 <th>Total Units Inventory</th>
+                <th>EOI Deadline</th>
                 <th>Status</th>
                 <th>Created At</th>
                 <th>Actions</th>
@@ -1610,7 +1614,7 @@ const AdminPanel: React.FC = () => {
             <tbody>
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No projects found.</td>
+                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No projects found.</td>
                 </tr>
               ) : (
                 filteredProjects.map((p) => (
@@ -1633,6 +1637,7 @@ const AdminPanel: React.FC = () => {
                     </td>
                     <td>{p.location}</td>
                     <td><span style={{ fontWeight: 700 }}>{p.total_units} units</span></td>
+                    <td><span style={{ fontWeight: 600 }}>{p.eoi_deadline_days ?? 7} days</span></td>
                     <td>
                       <span className={`badge ${p.status === 'active' ? 'badge-success' : p.status === 'planning' ? 'badge-info' : 'badge-danger'}`} style={{ textTransform: 'uppercase' }}>
                         {p.status}
@@ -2844,33 +2849,8 @@ const AdminPanel: React.FC = () => {
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Project Cover Image / صورة غلاف المشروع</label>
-                <div style={{ marginTop: '4px' }}>
-                  <label className="custom-file-upload full-width">
-                    <UploadCloud size={16} />
-                    <span>{selectedProjectImageFile ? selectedProjectImageFile.name : 'Choose Cover Image / اختر صورة الغلاف'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          setSelectedProjectImageFile(e.target.files[0]);
-                          setFormProjImage(URL.createObjectURL(e.target.files[0]));
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                {uploadingProjImage && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading image...</span>}
-                {formProjImage && (
-                  <div style={{ marginTop: '10px' }}>
-                    <img
-                      src={formProjImage.startsWith('blob:') || formProjImage.startsWith('http') ? formProjImage : `http://127.0.0.1:8000/storage/${formProjImage}`}
-                      alt="Project Cover Preview"
-                      style={{ width: '100%', maxHeight: '140px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}
-                    />
-                  </div>
-                )}
+                <label className="form-label">EOI Reservation Deadline (Days) / مهلة تأكيد الحجز (أيام)</label>
+                <input type="number" className="form-control" value={formProjDeadlineDays} onChange={e => setFormProjDeadlineDays(parseInt(e.target.value) || 7)} min={1} required />
               </div>
 
               <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }}>
@@ -2960,7 +2940,7 @@ const AdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">View Type</label>
                   <select className="form-control" value={formUnitViewType} onChange={e => setFormUnitViewType(e.target.value)}>
@@ -2974,6 +2954,10 @@ const AdminPanel: React.FC = () => {
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Selling Price (EGP)</label>
                   <input type="number" className="form-control" value={formUnitPrice} onChange={e => setFormUnitPrice(e.target.value)} required />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Min Down Payment (EGP)</label>
+                  <input type="number" className="form-control" value={formUnitMinDownPayment} onChange={e => setFormUnitMinDownPayment(e.target.value)} required />
                 </div>
               </div>
 
