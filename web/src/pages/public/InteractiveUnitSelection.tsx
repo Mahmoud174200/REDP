@@ -293,6 +293,7 @@ const InteractiveUnitSelection: React.FC = () => {
   } | null>(null);
   const [hoveredFloor, setHoveredFloor] = useState<FloorData | null>(null);
   const [hotspots, setHotspots] = useState<any[]>([]);
+  const [hoveredHotspotId, setHoveredHotspotId] = useState<string | null>(null);
 
   // 3D Model state
   const [building3DModels, setBuilding3DModels] = useState<Record<string, { status: string; model_url: string | null }>>({});
@@ -1198,11 +1199,10 @@ const InteractiveUnitSelection: React.FC = () => {
             </span>
           </div>
 
-          {/* Master Plan Image with Interactive Hotspots */}
+          {/* Master Plan Image with Interactive Hotspots — Polygon Areas */}
           {hotspots.length > 0 && (
             <div style={{
               position: 'relative',
-              minHeight: 450,
               width: '100%',
               borderRadius: 20,
               overflow: 'hidden',
@@ -1213,115 +1213,303 @@ const InteractiveUnitSelection: React.FC = () => {
               border: '1px solid rgba(0,61,166,0.08)',
               boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)',
               marginBottom: 24,
+              padding: '16px 0',
             }}>
-              <div style={{ position: 'relative', display: 'inline-block', width: '100%', height: '100%', maxWidth: '800px' }}>
+              <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '800px' }}>
                 <img
                   src={projectMedia.project_image}
                   alt="Master Plan"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', maxHeight: '550px' }}
+                  style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12 }}
                   draggable={false}
                 />
 
-                {/* Hotspot Pins */}
-                {hotspots.map((h: any) => {
-                  // Color code based on availability status
-                  let statusColor = '#22c55e'; // green (available)
-                  if (h.availability_status === 'sold_out') {
-                    statusColor = '#ef4444'; // red
-                  } else if (h.availability_status === 'limited') {
-                    statusColor = '#f59e0b'; // amber/orange
-                  } else if (h.availability_status === 'empty') {
-                    statusColor = '#94a3b8'; // grey
-                  }
+                {/* SVG Overlay for Polygon Areas */}
+                <svg
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                  }}
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <filter id="polygon-glow">
+                      <feGaussianBlur stdDeviation="0.5" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {hotspots.filter((h: any) => h.polygon_points && h.polygon_points.length >= 3).map((h: any) => {
+                    let statusColor = '#22c55e';
+                    if (h.availability_status === 'sold_out') statusColor = '#ef4444';
+                    else if (h.availability_status === 'limited') statusColor = '#f59e0b';
+                    else if (h.availability_status === 'empty') statusColor = '#94a3b8';
+
+                    const points = h.polygon_points.map((p: any) => `${p.x},${p.y}`).join(' ');
+                    const isHovered = hoveredHotspotId === h.id;
+
+                    // Compute centroid for label
+                    const cx = h.polygon_points.reduce((a: number, p: any) => a + p.x, 0) / h.polygon_points.length;
+                    const cy = h.polygon_points.reduce((a: number, p: any) => a + p.y, 0) / h.polygon_points.length;
+
+                    return (
+                      <g key={h.id}>
+                        {/* Clickable polygon area */}
+                        <polygon
+                          points={points}
+                          fill={isHovered
+                            ? `${statusColor}50`
+                            : `${statusColor}22`
+                          }
+                          stroke={statusColor}
+                          strokeWidth={isHovered ? 0.55 : 0.3}
+                          strokeLinejoin="round"
+                          filter={isHovered ? 'url(#polygon-glow)' : undefined}
+                          style={{
+                            pointerEvents: 'all',
+                            cursor: 'pointer',
+                            transition: 'fill 0.3s ease, stroke-width 0.3s ease',
+                          }}
+                          onMouseEnter={() => setHoveredHotspotId(h.id)}
+                          onMouseLeave={() => setHoveredHotspotId(null)}
+                          onClick={() => {
+                            const b = buildings.find(item => item.name === h.building?.name);
+                            if (b) handleSelectBuilding(b);
+                          }}
+                        />
+
+                        {/* Building name label at centroid */}
+                        <text
+                          x={cx}
+                          y={cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill={isHovered ? '#fff' : statusColor}
+                          fontSize={isHovered ? 2.4 : 2}
+                          fontWeight="800"
+                          fontFamily="var(--font-title), system-ui, sans-serif"
+                          style={{
+                            pointerEvents: 'none',
+                            paintOrder: 'stroke',
+                            stroke: isHovered ? statusColor : 'rgba(255,255,255,0.9)',
+                            strokeWidth: isHovered ? 0.5 : 0.6,
+                            strokeLinejoin: 'round',
+                            transition: 'font-size 0.3s ease, fill 0.3s ease',
+                            textShadow: isHovered ? '0 0 4px rgba(0,0,0,0.2)' : 'none',
+                          } as any}
+                        >
+                          {h.label || h.building?.name}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+
+                {/* Hover Tooltip for polygon areas — positioned absolutely */}
+                {hoveredHotspotId && (() => {
+                  const h = hotspots.find((item: any) => item.id === hoveredHotspotId);
+                  if (!h || !h.polygon_points || h.polygon_points.length < 3) return null;
+
+                  let statusColor = '#22c55e';
+                  let statusLabel = lang === 'ar' ? 'متاح' : 'Available';
+                  if (h.availability_status === 'sold_out') { statusColor = '#ef4444'; statusLabel = lang === 'ar' ? 'مباع' : 'Sold Out'; }
+                  else if (h.availability_status === 'limited') { statusColor = '#f59e0b'; statusLabel = lang === 'ar' ? 'محدود' : 'Limited'; }
+                  else if (h.availability_status === 'empty') { statusColor = '#94a3b8'; statusLabel = lang === 'ar' ? 'فارغ' : 'Empty'; }
+
+                  // Find top-center of polygon for tooltip placement
+                  const minY = Math.min(...h.polygon_points.map((p: any) => p.y));
+                  const cx = h.polygon_points.reduce((a: number, p: any) => a + p.x, 0) / h.polygon_points.length;
+
+                  return (
+                    <div
+                      className="polygon-tooltip-active"
+                      style={{
+                        position: 'absolute',
+                        left: `${cx}%`,
+                        top: `${minY}%`,
+                        transform: 'translate(-50%, -100%) translateY(-8px)',
+                        zIndex: 40,
+                        pointerEvents: 'none',
+                        animation: 'polygonTooltipIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                      }}
+                    >
+                      <div style={{
+                        background: 'rgba(255,255,255,0.95)',
+                        backdropFilter: 'blur(20px) saturate(1.8)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
+                        borderRadius: 14,
+                        border: '1px solid rgba(0,61,166,0.1)',
+                        boxShadow: '0 12px 40px -6px rgba(0,15,60,0.2), 0 4px 12px rgba(0,0,0,0.06)',
+                        padding: '12px 16px',
+                        minWidth: 140,
+                        whiteSpace: 'nowrap' as const,
+                      }}>
+                        {/* Building Name */}
+                        <div style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 800,
+                          color: '#0f172a',
+                          fontFamily: 'var(--font-title)',
+                          marginBottom: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}>
+                          <div style={{
+                            width: 8, height: 8, borderRadius: '50%',
+                            background: statusColor,
+                            flexShrink: 0,
+                            boxShadow: `0 0 6px ${statusColor}66`,
+                          }} />
+                          {h.label || h.building?.name}
+                        </div>
+
+                        {/* Stats Row */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                        }}>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: '#64748b',
+                          }}>
+                            {h.units_summary?.available}/{h.units_summary?.total} {t.availableUnits || 'Units'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            color: statusColor,
+                            textTransform: 'uppercase' as const,
+                            letterSpacing: '0.05em',
+                            background: `${statusColor}15`,
+                            padding: '2px 8px',
+                            borderRadius: 999,
+                          }}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        {/* Tooltip Arrow */}
+                        <div style={{
+                          position: 'absolute' as const,
+                          bottom: -6,
+                          left: '50%',
+                          transform: 'translateX(-50%) rotate(45deg)',
+                          width: 12,
+                          height: 12,
+                          background: 'rgba(255,255,255,0.95)',
+                          borderRight: '1px solid rgba(0,61,166,0.1)',
+                          borderBottom: '1px solid rgba(0,61,166,0.1)',
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Fallback: Dot markers for hotspots WITHOUT polygon data */}
+                {hotspots.filter((h: any) => !h.polygon_points || h.polygon_points.length < 3).map((h: any) => {
+                  let statusColor = '#22c55e';
+                  let statusLabel = lang === 'ar' ? 'متاح' : 'Available';
+                  if (h.availability_status === 'sold_out') { statusColor = '#ef4444'; statusLabel = lang === 'ar' ? 'مباع' : 'Sold Out'; }
+                  else if (h.availability_status === 'limited') { statusColor = '#f59e0b'; statusLabel = lang === 'ar' ? 'محدود' : 'Limited'; }
+                  else if (h.availability_status === 'empty') { statusColor = '#94a3b8'; statusLabel = lang === 'ar' ? 'فارغ' : 'Empty'; }
 
                   return (
                     <div
                       key={h.id}
+                      className="hotspot-marker-wrapper"
                       onClick={() => {
                         const b = buildings.find(item => item.name === h.building?.name);
-                        if (b) {
-                          handleSelectBuilding(b);
-                        }
+                        if (b) handleSelectBuilding(b);
                       }}
                       style={{
                         position: 'absolute',
                         left: `${h.x_percent}%`,
                         top: `${h.y_percent}%`,
-                        transform: 'translate(-50%, -100%)',
+                        transform: 'translate(-50%, -50%)',
                         cursor: 'pointer',
                         zIndex: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
                       }}
                     >
-                      {/* Animated Pulsing Pin */}
-                      <div style={{
+                      <div className="hotspot-dot" style={{
                         position: 'relative',
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50% 50% 50% 0',
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
                         background: statusColor,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                        transform: 'rotate(-45deg)',
+                        border: '2.5px solid rgba(255,255,255,0.95)',
+                        boxShadow: `0 2px 8px ${statusColor}66, 0 1px 3px rgba(0,0,0,0.15)`,
                         transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                      }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.transform = 'rotate(-45deg) scale(1.2) translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.transform = 'rotate(-45deg) scale(1) translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                        }}
-                      >
-                        <MapPin
-                          size={16}
-                          color="#fff"
-                          style={{ transform: 'rotate(45deg)' }}
-                        />
-                        
-                        {/* Pulse Ring */}
+                      }}>
                         {h.availability_status !== 'sold_out' && (
                           <div style={{
                             position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: 'inherit',
-                            border: `2.5px solid ${statusColor}`,
-                            animation: 'client-pin-glow 2s infinite',
+                            left: -4, top: -4,
+                            width: 'calc(100% + 8px)', height: 'calc(100% + 8px)',
+                            borderRadius: '50%',
+                            border: `1.5px solid ${statusColor}`,
+                            animation: 'client-pin-glow 2.5s ease-out infinite',
                             pointerEvents: 'none',
                           }} />
                         )}
                       </div>
 
-                      {/* Floating Label */}
-                      <div style={{
-                        background: 'rgba(15, 23, 42, 0.95)',
-                        backdropFilter: 'blur(8px)',
-                        color: '#fff',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '5px 10px',
-                        borderRadius: 8,
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        whiteSpace: 'nowrap',
-                        marginTop: 6,
-                        boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 2,
+                      <div className="hotspot-tooltip" style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 8px)',
+                        left: '50%',
+                        transform: 'translateX(-50%) translateY(6px)',
+                        opacity: 0,
+                        pointerEvents: 'none',
+                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                        zIndex: 30,
                       }}>
-                        <span>{h.label || h.building?.name}</span>
-                        <span style={{ fontSize: '0.62rem', fontWeight: 600, opacity: 0.85 }}>
-                          {h.units_summary?.available} / {h.units_summary?.total} {t.availableUnits || 'Available'}
-                        </span>
+                        <div style={{
+                          background: 'rgba(255,255,255,0.92)',
+                          backdropFilter: 'blur(16px) saturate(1.8)',
+                          WebkitBackdropFilter: 'blur(16px) saturate(1.8)',
+                          borderRadius: 12,
+                          border: '1px solid rgba(0,61,166,0.1)',
+                          boxShadow: '0 8px 32px -4px rgba(0,15,60,0.18), 0 2px 8px rgba(0,0,0,0.06)',
+                          padding: '10px 14px',
+                          minWidth: 120,
+                          whiteSpace: 'nowrap' as const,
+                        }}>
+                          <div style={{
+                            fontSize: '0.78rem', fontWeight: 800, color: '#0f172a',
+                            fontFamily: 'var(--font-title)', marginBottom: 4,
+                            display: 'flex', alignItems: 'center', gap: 5,
+                          }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+                            {h.label || h.building?.name}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748b' }}>
+                              {h.units_summary?.available}/{h.units_summary?.total} {t.availableUnits || 'Units'}
+                            </span>
+                            <span style={{ fontSize: '0.58rem', fontWeight: 700, color: statusColor, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                              {statusLabel}
+                            </span>
+                          </div>
+                          <div style={{
+                            position: 'absolute' as const, bottom: -5, left: '50%',
+                            transform: 'translateX(-50%) rotate(45deg)',
+                            width: 10, height: 10,
+                            background: 'rgba(255,255,255,0.92)',
+                            borderRight: '1px solid rgba(0,61,166,0.1)',
+                            borderBottom: '1px solid rgba(0,61,166,0.1)',
+                          }} />
+                        </div>
                       </div>
                     </div>
                   );
@@ -1330,8 +1518,21 @@ const InteractiveUnitSelection: React.FC = () => {
               
               <style>{`
                 @keyframes client-pin-glow {
-                  0% { transform: scale(1); opacity: 1; }
-                  100% { transform: scale(1.8); opacity: 0; }
+                  0% { transform: scale(1); opacity: 0.8; }
+                  100% { transform: scale(2.2); opacity: 0; }
+                }
+                @keyframes polygonTooltipIn {
+                  from { opacity: 0; transform: translate(-50%, -100%) translateY(0); }
+                  to { opacity: 1; transform: translate(-50%, -100%) translateY(-8px); }
+                }
+                .hotspot-marker-wrapper:hover .hotspot-tooltip {
+                  opacity: 1 !important;
+                  transform: translateX(-50%) translateY(0) !important;
+                  pointer-events: auto !important;
+                }
+                .hotspot-marker-wrapper:hover .hotspot-dot {
+                  transform: scale(1.4);
+                  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
                 }
               `}</style>
             </div>
