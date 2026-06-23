@@ -53,6 +53,7 @@ class BrokerSalesController extends Controller
     public function listProjects(Request $request): JsonResponse
     {
         $projects = Project::withCount('units')
+            ->with(['paymentPlans'])
             ->orderBy('name')
             ->get();
 
@@ -154,8 +155,14 @@ class BrokerSalesController extends Controller
             ], 403);
         }
 
-        $query = Lead::where('broker_id', $broker->id)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(5), 'interestedProject']);
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $query = Lead::whereIn('broker_id', $agencyBrokerIds)
+            ->with(['interactions' => fn($q) => $q->with('logger:id,name')->latest()->limit(5), 'interestedProject']);
 
         if ($request->has('status')) {
             $query->byStatus($request->input('status'));
@@ -182,20 +189,230 @@ class BrokerSalesController extends Controller
 
     /**
      * GET /api/v1/sales/broker/leads/{id}
-     * View a single lead (only if belongs to this broker).
+     * View a single lead (if belongs to broker or subordinates).
      */
     public function showLead(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
         $broker = Broker::where('user_id', $user->id)->firstOrFail();
 
-        $lead = Lead::where('broker_id', $broker->id)
-            ->with(['interactions' => fn($q) => $q->latest()->limit(10), 'interestedProject'])
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $lead = Lead::whereIn('broker_id', $agencyBrokerIds)
+            ->with(['interactions' => fn($q) => $q->with('logger:id,name')->latest()->limit(10), 'interestedProject'])
             ->findOrFail($id);
 
         return response()->json([
             'success' => true,
             'data'    => $lead,
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/sales/broker/leads/{id}/contact
+     * Log a contact interaction with the lead.
+     */
+    public function logContact(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No broker profile linked to your user account.',
+            ], 403);
+        }
+
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $lead = Lead::whereIn('broker_id', $agencyBrokerIds)->findOrFail($id);
+
+        $fields = $request->validate([
+            'type'           => 'required|string|in:call,whatsapp,email',
+            'notes'          => 'required|string|max:2000',
+            'follow_up_date' => 'nullable|date|after:today',
+        ]);
+
+        $interaction = $lead->interactions()->create([
+            'id'             => (string) Str::uuid(),
+            'type'           => $fields['type'],
+            'notes'          => $fields['notes'],
+            'follow_up_date' => $fields['follow_up_date'] ?? null,
+            'logged_by'      => $user->id,
+        ]);
+
+        // Update lead status if still "new"
+        if ($lead->status === Lead::STATUS_NEW) {
+            $lead->update(['status' => Lead::STATUS_CONTACTED]);
+        }
+
+        \App\Services\AuditLogService::recordJourney(
+            $lead->id,
+            \App\Models\ClientJourneyLog::STAGE_TELE_SALES_CONTACT,
+            $user,
+            ['interaction_type' => $fields['type']]
+        );
+
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Contact logged successfully.',
+            'interaction' => $interaction,
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/sales/broker/leads/{id}/schedule-meeting
+     * Mark lead as "scheduled for company viewing".
+     */
+    public function scheduleMeeting(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $broker = Broker::where('user_id', $user->id)->first();
+
+        if (!$broker) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No broker profile linked to your user account.',
+            ], 403);
+        }
+
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $lead = Lead::whereIn('broker_id', $agencyBrokerIds)->findOrFail($id);
+
+        $fields = $request->validate([
+            'meeting_date' => 'required|date|after:now',
+            'location'     => 'nullable|string|max:255',
+            'notes'        => 'nullable|string|max:1000',
+        ]);
+
+        $lead->update(['status' => Lead::STATUS_VISIT_SCHEDULED]);
+
+        $interaction = $lead->interactions()->create([
+            'id'             => (string) Str::uuid(),
+            'type'           => 'meeting',
+            'notes'          => "Meeting scheduled at " . ($fields['location'] ?? 'company office') . ". " . ($fields['notes'] ?? ''),
+            'follow_up_date' => $fields['meeting_date'],
+            'logged_by'      => $user->id,
+        ]);
+
+        \App\Services\AuditLogService::recordJourney(
+            $lead->id,
+            \App\Models\ClientJourneyLog::STAGE_MEETING_SCHEDULED,
+            $user,
+            [
+                'meeting_date' => $fields['meeting_date'],
+                'location'     => $fields['location'] ?? 'company office',
+            ]
+        );
+
+        \App\Services\AuditLogService::log('MEETING_SCHEDULED', $user->id, [
+            'lead_id'      => $lead->id,
+            'meeting_date' => $fields['meeting_date'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Meeting scheduled successfully. Lead marked as visit_scheduled.',
+            'interaction' => $interaction,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/broker/commissions/settings
+     * Fetch the commission splits for the owner's company.
+     */
+    public function getCommissionSettings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        $company = \App\Models\Company::find($user->company_id);
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No brokerage company found for your user account.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'company_name'             => $company->name,
+                'developer_brokerage_rate' => (float) $company->developer_brokerage_rate,
+                'owner_commission_rate'    => (float) $company->owner_commission_rate,
+                'leader_commission_rate'   => (float) $company->leader_commission_rate,
+                'agent_commission_rate'    => (float) $company->agent_commission_rate,
+            ],
+        ]);
+    }
+
+    /**
+     * PUT /api/v1/sales/broker/commissions/settings
+     * Update splits for the company (Owner only).
+     */
+    public function updateCommissionSettings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        $company = \App\Models\Company::find($user->company_id);
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No brokerage company found for your user account.',
+            ], 404);
+        }
+
+        $positionCode = $user->employeeHierarchy?->position?->code ?? $user->position?->code;
+        $positionTitle = $user->employeeHierarchy?->position?->title ?? $user->position?->title ?? '';
+
+        $isOwner = ($positionCode === 'POS-DH' || str_contains($positionTitle, 'Owner') || str_contains($positionTitle, 'Head') || str_contains($positionTitle, 'CEO'));
+
+        if (!$isOwner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only the Broker Owner is authorized to modify split commission rates.',
+            ], 403);
+        }
+
+        $fields = $request->validate([
+            'owner_commission_rate'  => 'required|numeric|min:0|max:100',
+            'leader_commission_rate' => 'required|numeric|min:0|max:100',
+            'agent_commission_rate'  => 'required|numeric|min:0|max:100',
+        ]);
+
+        $sum = (float)$fields['owner_commission_rate'] + (float)$fields['leader_commission_rate'] + (float)$fields['agent_commission_rate'];
+        $devRate = (float)$company->developer_brokerage_rate;
+
+        if ($sum > $devRate) {
+            return response()->json([
+                'success' => false,
+                'message' => "The sum of splits ({$sum}%) cannot exceed the company total brokerage rate set by the developer ({$devRate}%).",
+            ], 422);
+        }
+
+        $company->update([
+            'owner_commission_rate'  => $fields['owner_commission_rate'],
+            'leader_commission_rate' => $fields['leader_commission_rate'],
+            'agent_commission_rate'  => $fields['agent_commission_rate'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commission split rates updated successfully.',
+            'data'    => $company->fresh()->only(['owner_commission_rate', 'leader_commission_rate', 'agent_commission_rate']),
         ]);
     }
 
@@ -289,8 +506,10 @@ class BrokerSalesController extends Controller
     public function listPresentations(Request $request): JsonResponse
     {
         $user = $request->user();
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $allAgentUserIds = array_merge([$user->id], $subordinateIds);
 
-        $query = ClientPresentation::byBroker($user->id)
+        $query = ClientPresentation::whereIn('broker_user_id', $allAgentUserIds)
             ->with(['lead:id,first_name,last_name,phone,email,status', 'project:id,name,location']);
 
         if ($request->has('outcome')) {
@@ -434,13 +653,33 @@ class BrokerSalesController extends Controller
         $user = $request->user();
         $broker = Broker::where('user_id', $user->id)->first();
 
-        $brokerLeadsCount  = $broker ? Lead::where('broker_id', $broker->id)->count() : 0;
-        $totalPresentations = ClientPresentation::byBroker($user->id)->count();
-        $pendingPresentations = ClientPresentation::byBroker($user->id)->pending()->count();
-        $escalatedCount    = ClientPresentation::byBroker($user->id)->escalated()->count();
+        // Resolve subordinates hierarchy for aggregation
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $allAgentUserIds = array_merge([$user->id], $subordinateIds);
+        $agencyBrokerIds = Broker::whereIn('user_id', $allAgentUserIds)->pluck('id')->toArray();
+        if (empty($agencyBrokerIds) && $broker) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $brokerLeadsCount  = Lead::whereIn('broker_id', $agencyBrokerIds)->count();
+        $totalPresentations = ClientPresentation::whereIn('broker_user_id', $allAgentUserIds)->count();
+        $pendingPresentations = ClientPresentation::whereIn('broker_user_id', $allAgentUserIds)->pending()->count();
+        $escalatedCount    = ClientPresentation::whereIn('broker_user_id', $allAgentUserIds)->escalated()->count();
+
+        // Aggregate Calls, Meetings, and Sales
+        $callsCount = \App\Models\Interaction::whereIn('logged_by', $allAgentUserIds)
+            ->whereIn('type', ['call', 'whatsapp', 'email'])
+            ->count();
+
+        $meetingsCount = \App\Models\Interaction::whereIn('logged_by', $allAgentUserIds)
+            ->where('type', 'meeting')
+            ->count();
+
+        $closedSalesCount = Reservation::whereIn('broker_id', $agencyBrokerIds)
+            ->where('status', 'confirmed')
+            ->count();
 
         // Subordinates Performance
-        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
         $subordinatesPerformance = [];
 
         if (!empty($subordinateIds)) {
@@ -458,6 +697,19 @@ class BrokerSalesController extends Controller
                     $contacted = (clone $leadQuery)->byStatus('contacted')->count();
                     $meetings = (clone $leadQuery)->byStatus('visit_scheduled')->count();
                     $reservationsCount = Reservation::where('broker_id', $subBroker->id)->count();
+
+                    // Subordinate interaction stats
+                    $subCallsCount = \App\Models\Interaction::where('logged_by', $subUser->id)
+                        ->whereIn('type', ['call', 'whatsapp', 'email'])
+                        ->count();
+
+                    $subMeetingsCount = \App\Models\Interaction::where('logged_by', $subUser->id)
+                        ->where('type', 'meeting')
+                        ->count();
+
+                    $subClosedSalesCount = Reservation::where('broker_id', $subBroker->id)
+                        ->where('status', 'confirmed')
+                        ->count();
 
                     $commEarned = Commission::where('broker_id', $subBroker->id)
                         ->where('status', 'approved')
@@ -477,6 +729,9 @@ class BrokerSalesController extends Controller
                             'meetings' => $meetings,
                             'reservations' => $reservationsCount,
                             'commissions_earned' => (float) $commEarned,
+                            'total_calls' => $subCallsCount,
+                            'total_meetings' => $subMeetingsCount,
+                            'closed_sales' => $subClosedSalesCount,
                         ]
                     ];
                 }
@@ -490,11 +745,11 @@ class BrokerSalesController extends Controller
         $commCalculations = [];
 
         if ($broker) {
-            $pendingComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'pending')->sum('gross_amount');
-            $approvedComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'approved')->sum('gross_amount');
-            $paidComm = (float) Commission::where('broker_id', $broker->id)->where('status', 'paid')->sum('gross_amount');
+            $pendingComm = (float) Commission::whereIn('broker_id', $agencyBrokerIds)->where('status', 'pending')->sum('gross_amount');
+            $approvedComm = (float) Commission::whereIn('broker_id', $agencyBrokerIds)->where('status', 'approved')->sum('gross_amount');
+            $paidComm = (float) Commission::whereIn('broker_id', $agencyBrokerIds)->where('status', 'paid')->sum('gross_amount');
 
-            $commCalculations = Commission::where('broker_id', $broker->id)
+            $commCalculations = Commission::whereIn('broker_id', $agencyBrokerIds)
                 ->with(['lead', 'unit.project'])
                 ->latest()
                 ->limit(10)
@@ -520,6 +775,9 @@ class BrokerSalesController extends Controller
                 'approved_commission'  => $approvedComm,
                 'paid_commission'      => $paidComm,
                 'total_commission'     => $pendingComm + $approvedComm + $paidComm,
+                'total_calls'          => $callsCount,
+                'total_meetings'       => $meetingsCount,
+                'closed_sales'         => $closedSalesCount,
             ],
             'subordinates_performance' => $subordinatesPerformance,
             'commissions_history'       => $commCalculations,
@@ -730,7 +988,13 @@ class BrokerSalesController extends Controller
             return response()->json(['success' => false, 'message' => 'Broker profile not found.'], 404);
         }
 
-        $reservations = Reservation::where('broker_id', $broker->id)
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $reservations = Reservation::whereIn('broker_id', $agencyBrokerIds)
             ->with(['unit.project', 'client'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -834,7 +1098,13 @@ class BrokerSalesController extends Controller
             return response()->json(['success' => false, 'message' => 'Broker profile not found.'], 404);
         }
 
-        $payouts = CommissionPayoutRequest::where('broker_id', $broker->id)
+        $subordinateIds = $user->employeeHierarchy ? $user->employeeHierarchy->allSubordinates()->pluck('user_id')->toArray() : [];
+        $agencyBrokerIds = Broker::whereIn('user_id', array_merge([$user->id], $subordinateIds))->pluck('id')->toArray();
+        if (empty($agencyBrokerIds)) {
+            $agencyBrokerIds = [$broker->id];
+        }
+
+        $payouts = CommissionPayoutRequest::whereIn('broker_id', $agencyBrokerIds)
             ->orderBy('created_at', 'desc')
             ->get();
 

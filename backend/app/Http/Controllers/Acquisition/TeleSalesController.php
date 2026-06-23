@@ -49,8 +49,13 @@ class TeleSalesController extends Controller
             ->with(['interactions' => fn($q) => $q->latest()->limit(5), 'interestedProject']);
 
         // Status filter
-        if ($request->has('status')) {
-            $query->byStatus($request->input('status'));
+        if ($request->has('status') && $request->input('status') !== 'all') {
+            $status = $request->input('status');
+            if ($status === 'transferred') {
+                $query->where('current_tier', '!=', 'tier_1');
+            } else {
+                $query->byStatus($status);
+            }
         }
 
         // Search by name/phone
@@ -504,21 +509,7 @@ class TeleSalesController extends Controller
                     'available_units' => $units->where('status', 'available')->count(),
                 ],
                 'units_summary'  => $unitsByType,
-                'units'          => $units->map(fn($u) => [
-                    'id'           => $u->id,
-                    'unit_number'  => $u->unit_number,
-                    'floor'        => $u->floor,
-                    'type'         => $u->type,
-                    'area'         => $u->area,
-                    'bedrooms'     => $u->bedrooms,
-                    'bathrooms'    => $u->bathrooms,
-                    'view_type'    => $u->view_type,
-                    'building'     => $u->building,
-                    'layout_description' => $u->layout_description,
-                    'price'        => $u->price,
-                    'status'       => $u->status,
-                    'handover_date'=> $u->handover_date,
-                ])->values(),
+                'units'          => [],
                 'payment_plans'  => $paymentPlans,
             ],
         ]);

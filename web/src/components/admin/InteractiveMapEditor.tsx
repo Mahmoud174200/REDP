@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Plus, Trash2, Edit2, Check, X, HelpCircle, Move, Eye, Settings } from 'lucide-react';
+import { MapPin, Plus, Minus, RotateCcw, Trash2, Check, X, HelpCircle, Eye, Settings } from 'lucide-react';
 import api from '../../services/api';
 
 interface Building {
@@ -10,6 +10,7 @@ interface Building {
   total_floors: number;
   status: string;
   units_count?: number;
+  units?: any[];
 }
 
 interface Hotspot {
@@ -21,6 +22,14 @@ interface Hotspot {
   label: string | null;
   pin_color: string;
   building?: Building;
+  availability_status?: string;
+  units_summary?: {
+    total: number;
+    available: number;
+    sold: number;
+    reserved: number;
+    occupancy_percent: number;
+  };
 }
 
 interface InteractiveMapEditorProps {
@@ -30,15 +39,6 @@ interface InteractiveMapEditorProps {
   onRefresh?: () => void;
 }
 
-const pinColors = [
-  { name: 'Sleek Blue', value: '#003DA6' },
-  { name: 'Emerald Green', value: '#059669' },
-  { name: 'Warm Amber', value: '#d97706' },
-  { name: 'Crimson Red', value: '#dc2626' },
-  { name: 'Royal Purple', value: '#7c3aed' },
-  { name: 'Hot Pink', value: '#db2777' },
-];
-
 export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
   projectId,
   buildings,
@@ -46,6 +46,7 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
   onRefresh
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -53,7 +54,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
   const [tempClickPos, setTempClickPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
   const [pinLabel, setPinLabel] = useState<string>('');
-  const [pinColor, setPinColor] = useState<string>('#003DA6');
   
   // Active editing hotspot details
   const [editingHotspot, setEditingHotspot] = useState<Hotspot | null>(null);
@@ -63,7 +63,18 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
 
-  // Load hotspots on mount and whenever project ID changes
+  // Zoom & Pan States
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const didPanRef = useRef<boolean>(false);
+
+  // Image Dimensions
+  const [imgSize, setImgSize] = useState<{ width: number; height: number } | null>(null);
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 800, height: 500 });
+
+  // Load hotspots
   const fetchHotspots = async () => {
     setLoading(true);
     try {
@@ -82,20 +93,67 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
     fetchHotspots();
   }, [projectId]);
 
+  // Update viewport size
+  useEffect(() => {
+    if (viewportRef.current) {
+      const rect = viewportRef.current.getBoundingClientRect();
+      setViewportSize({ width: rect.width, height: rect.height });
+    }
+  }, [masterPlanImage]);
+
+  // Prevent default scroll on mouse wheel and zoom instead
+  useEffect(() => {
+    const container = viewportRef.current;
+    if (!container) return;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = 0.12;
+      setZoomScale(prev => {
+        let newScale = prev + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
+        return Math.max(0.5, Math.min(4, newScale));
+      });
+    };
+
+    container.addEventListener('wheel', handleWheelEvent, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, []);
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImgSize({ width: img.naturalWidth, height: img.naturalHeight });
+  };
+
+  // Base Scale Calculation to fit the natural size in the viewport
+  const getBaseScale = () => {
+    if (!imgSize) return 1;
+    const scaleX = viewportSize.width / imgSize.width;
+    const scaleY = viewportSize.height / imgSize.height;
+    return Math.min(scaleX, scaleY) * 0.95; // Fit with 5% margins
+  };
+
+  const baseScale = getBaseScale();
+  const currentScale = baseScale * zoomScale;
+
   // Handle clicking on the master plan image to spawn a pin
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // If we're dragging, ignore click release
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       return;
     }
+    if (didPanRef.current) {
+      didPanRef.current = false;
+      return;
+    }
     
-    // Ignore clicks if clicked on a pin button or modal/popover directly
     if ((e.target as HTMLElement).closest('.pin-marker') || (e.target as HTMLElement).closest('.editor-popover')) {
       return;
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
@@ -109,23 +167,21 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
       setSelectedBuildingId('');
       setPinLabel('');
     }
-    setPinColor('#003DA6');
     setEditingHotspot(null);
   };
 
-  // Drag Handlers
+  // Drag Handlers for moving hotspots
   const handleDragStart = (e: React.MouseEvent, hotspot: Hotspot) => {
     e.stopPropagation();
     e.preventDefault();
     setDraggingId(hotspot.id);
     setDragStartPos({ x: e.clientX, y: e.clientY });
-    isDraggingRef.current = false; // reset
+    isDraggingRef.current = false;
   };
 
   const handleContainerMouseMove = (e: React.MouseEvent) => {
     if (!draggingId || !containerRef.current) return;
     
-    // Set dragging flag true if moved beyond a tiny threshold
     if (dragStartPos && (Math.abs(e.clientX - dragStartPos.x) > 3 || Math.abs(e.clientY - dragStartPos.y) > 3)) {
       isDraggingRef.current = true;
     }
@@ -136,7 +192,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
-    // Update coordinates in local state instantly for buttery smooth dragging
     setHotspots(prev => prev.map(h => h.id === draggingId ? { ...h, x_percent: x, y_percent: y } : h));
   };
 
@@ -147,7 +202,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
     setDraggingId(null);
     setDragStartPos(null);
 
-    // Save final coordinate position to database
     if (h && isDraggingRef.current) {
       try {
         await api.put(`/admin/projects/${projectId}/hotspots/${h.id}`, {
@@ -157,9 +211,65 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
       } catch (err) {
         console.error('Failed to update hotspot position', err);
         alert('Failed to save updated pin location.');
-        // Re-fetch to revert to database position
         fetchHotspots();
       }
+    }
+  };
+
+  // Map panning handlers
+  const handleMapMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('.pin-marker') || (e.target as HTMLElement).closest('.editor-popover') || (e.target as HTMLElement).closest('.editor-toolbar')) {
+      return;
+    }
+    
+    setIsPanning(true);
+    didPanRef.current = false;
+    panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+  };
+
+  const handleMapMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingId) {
+      handleContainerMouseMove(e);
+      return;
+    }
+
+    if (!isPanning) return;
+    
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    
+    if (Math.abs(dx - pan.x) > 3 || Math.abs(dy - pan.y) > 3) {
+      didPanRef.current = true;
+    }
+    
+    setPan({ x: dx, y: dy });
+  };
+
+  const handleMapMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingId) {
+      handleDragEnd();
+      return;
+    }
+    setIsPanning(false);
+  };
+
+  // Helper to determine building status details dynamically
+  const getBuildingStatusDetails = (buildingId: string) => {
+    const b = buildings.find(item => item.id === buildingId);
+    if (!b) return { label: 'Unknown', color: '#94a3b8' };
+    
+    const units = b.units || [];
+    const total = units.length;
+    if (total === 0) return { label: 'Empty (No Units Defined) / مبنى فارغ بدون وحدات', color: '#94a3b8' };
+    
+    const available = units.filter((u: any) => u.status === 'available').length;
+    
+    if (available === 0) {
+      return { label: 'Sold Out / مباع بالكامل', color: '#ef4444' };
+    } else if (available < total * 0.3) {
+      return { label: 'Reserved / Limited Availability / محجوز ومحدود', color: '#f59e0b' };
+    } else {
+      return { label: 'Available / متاح للبيع', color: '#22c55e' };
     }
   };
 
@@ -174,7 +284,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
         x_percent: tempClickPos.x,
         y_percent: tempClickPos.y,
         label: pinLabel || null,
-        pin_color: pinColor,
       });
 
       if (res.data?.success) {
@@ -195,7 +304,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
     try {
       const res = await api.put(`/admin/projects/${projectId}/hotspots/${editingHotspot.id}`, {
         label: pinLabel || null,
-        pin_color: pinColor,
       });
 
       if (res.data?.success) {
@@ -224,7 +332,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
     }
   };
 
-  // Get buildings that do not have hotspots yet
   const unpinnedBuildings = () => {
     return buildings.filter(b => !hotspots.some(h => h.building_id === b.id));
   };
@@ -236,6 +343,19 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
 
   return (
     <div style={styles.container}>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes us3d-pulse-glow {
+          0% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+        }
+        .crisp-master-plan {
+          image-rendering: -webkit-optimize-contrast !important;
+          image-rendering: crisp-edges !important;
+          image-rendering: optimizeQuality !important;
+          -ms-interpolation-mode: nearest-neighbor !important;
+        }
+      `}} />
+
       {/* Sidebar - Hotspot List and controls */}
       <div style={styles.sidebar}>
         <h3 style={styles.sidebarTitle}>
@@ -243,7 +363,7 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
         </h3>
         
         <p style={styles.sidebarInstructions}>
-          📍 <strong>How to place:</strong> Click anywhere on the Master Plan image to pin a building, then drag pins to adjust their location.
+          📍 <strong>Interaction:</strong> Click on the map to pin a building. Hold and drag to pan, scroll mouse wheel or use controls below to zoom.
         </p>
 
         {hotspots.length === 0 ? (
@@ -264,7 +384,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                 onClick={() => {
                   setEditingHotspot(h);
                   setPinLabel(h.label || '');
-                  setPinColor(h.pin_color);
                   setTempClickPos(null);
                 }}
               >
@@ -283,7 +402,6 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                         e.stopPropagation();
                         setEditingHotspot(h);
                         setPinLabel(h.label || '');
-                        setPinColor(h.pin_color);
                         setTempClickPos(null);
                       }}
                     >
@@ -312,12 +430,20 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
             <div style={styles.legendItem}><span style={{ ...styles.dot, backgroundColor: '#22c55e' }}></span> Available (متاح)</div>
             <div style={styles.legendItem}><span style={{ ...styles.dot, backgroundColor: '#f59e0b' }}></span> Reserved (محجوز)</div>
             <div style={styles.legendItem}><span style={{ ...styles.dot, backgroundColor: '#ef4444' }}></span> Sold Out (مباع بالكامل)</div>
+            <div style={styles.legendItem}><span style={{ ...styles.dot, backgroundColor: '#94a3b8' }}></span> Empty (بدون وحدات)</div>
           </div>
         </div>
       </div>
 
       {/* Main Interactive Map Viewport */}
-      <div style={styles.mapViewport}>
+      <div 
+        ref={viewportRef}
+        style={styles.mapViewport}
+        onMouseDown={handleMapMouseDown}
+        onMouseMove={handleMapMouseMove}
+        onMouseUp={handleMapMouseUp}
+        onMouseLeave={handleMapMouseUp}
+      >
         {!masterPlanImage ? (
           <div style={styles.noImagePlaceholder}>
             <HelpCircle size={48} style={{ color: '#9ca3af', marginBottom: '12px' }} />
@@ -329,51 +455,97 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
         ) : (
           <div
             ref={containerRef}
-            style={styles.mapContainer}
+            style={{
+              ...styles.mapContainer,
+              width: imgSize ? `${imgSize.width}px` : '100%',
+              height: imgSize ? `${imgSize.height}px` : '100%',
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${currentScale})`,
+              transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+              cursor: isPanning ? 'grabbing' : 'grab',
+            }}
             onClick={handleImageClick}
-            onMouseMove={handleContainerMouseMove}
-            onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
           >
             <img
               src={masterPlanImage}
               alt="Compound Master Plan"
+              className="crisp-master-plan"
               style={styles.masterPlanImg}
+              onLoad={handleImageLoad}
               draggable={false}
             />
 
-            {/* Render existing pins */}
-            {hotspots.map(h => (
-              <div
-                key={h.id}
-                className="pin-marker"
-                style={{
-                  ...styles.pin,
-                  left: `${h.x_percent}%`,
-                  top: `${h.y_percent}%`,
-                  backgroundColor: h.pin_color,
-                  boxShadow: draggingId === h.id ? '0 0 14px rgba(0,0,0,0.4), 0 0 0 4px #fff' : '0 4px 10px rgba(0,0,0,0.15)',
-                  transform: `translate(-50%, -100%) scale(${draggingId === h.id ? 1.15 : 1})`,
-                  zIndex: draggingId === h.id ? 100 : 10,
-                }}
-                onMouseDown={(e) => handleDragStart(e, h)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingHotspot(h);
-                  setPinLabel(h.label || '');
-                  setPinColor(h.pin_color);
-                  setTempClickPos(null);
-                }}
-              >
-                <div style={styles.pinIconContainer}>
-                  <MapPin size={16} color="#fff" />
+            {/* Render existing pins as glowing vector circles */}
+            {imgSize && hotspots.map(h => {
+              const isHovered = editingHotspot?.id === h.id;
+              return (
+                <div
+                  key={h.id}
+                  className="pin-marker"
+                  style={{
+                    position: 'absolute',
+                    left: `${h.x_percent}%`,
+                    top: `${h.y_percent}%`,
+                    transform: `translate(-50%, -50%) scale(${(draggingId === h.id ? 1.3 : isHovered ? 1.2 : 1) / currentScale})`,
+                    transition: 'transform 0.15s ease',
+                    zIndex: draggingId === h.id ? 100 : 10,
+                    cursor: 'grab',
+                  }}
+                  onMouseDown={(e) => handleDragStart(e, h)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingHotspot(h);
+                    setPinLabel(h.label || '');
+                    setTempClickPos(null);
+                  }}
+                >
+                  {/* Outer pulse animation ring */}
+                  <div style={{
+                    position: 'absolute',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    border: `2px solid ${h.pin_color}`,
+                    transform: 'translate(-50%, -50%)',
+                    boxShadow: `0 0 12px ${h.pin_color}`,
+                    animation: 'us3d-pulse-glow 2s infinite',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                  }} />
+
+                  {/* Sleek vector target circle */}
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: isHovered ? h.pin_color : 'rgba(255, 255, 255, 0.95)',
+                    border: `3px solid ${h.pin_color}`,
+                    boxShadow: `0 0 15px ${h.pin_color}, inset 0 0 4px rgba(0,0,0,0.15)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transform: 'translate(-50%, -50%)',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: isHovered ? '#fff' : h.pin_color,
+                    }} />
+                  </div>
+
+                  {/* Floating tooltip */}
+                  <div style={{
+                    ...styles.pinLabel,
+                    transform: `translateX(-50%) scale(${1})`,
+                    top: '18px',
+                  }}>
+                    {h.label || h.building?.name || 'Building'}
+                  </div>
                 </div>
-                {/* Floating tooltips */}
-                <div style={styles.pinLabel}>
-                  {h.label || h.building?.name || 'Building'}
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Clicked temporary placement form popover */}
             {tempClickPos && (
@@ -383,7 +555,8 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                   ...styles.popover,
                   left: `${tempClickPos.x}%`,
                   top: `${tempClickPos.y}%`,
-                  transform: `translate(${tempClickPos.x > 75 ? '-100%' : '0'}, ${tempClickPos.y > 75 ? '-100%' : '0'})`,
+                  transform: `translate(${tempClickPos.x > 75 ? '-100%' : '0'}, ${tempClickPos.y > 75 ? '-100%' : '0'}) scale(${1 / currentScale})`,
+                  transformOrigin: 'top left',
                 }}
                 onClick={e => e.stopPropagation()}
               >
@@ -423,23 +596,21 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                       />
                     </div>
 
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Marker Color</label>
-                      <div style={styles.colorGrid}>
-                        {pinColors.map(c => (
-                          <button
-                            key={c.value}
-                            type="button"
-                            style={{
-                              ...styles.colorCircle,
-                              backgroundColor: c.value,
-                              borderColor: pinColor === c.value ? '#111827' : 'transparent',
-                            }}
-                            onClick={() => setPinColor(c.value)}
-                          />
-                        ))}
+                    {selectedBuildingId && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Building Status (Auto-resolved)</label>
+                        <div style={styles.statusDisplay}>
+                          <span style={{
+                            ...styles.dot,
+                            backgroundColor: getBuildingStatusDetails(selectedBuildingId).color,
+                            width: '10px', height: '10px'
+                          }}></span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                            {getBuildingStatusDetails(selectedBuildingId).label}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div style={styles.popoverActions}>
                       <button
@@ -466,7 +637,8 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                   ...styles.popover,
                   left: `${editingHotspot.x_percent}%`,
                   top: `${editingHotspot.y_percent}%`,
-                  transform: `translate(${editingHotspot.x_percent > 75 ? '-100%' : '0'}, ${editingHotspot.y_percent > 75 ? '-100%' : '0'})`,
+                  transform: `translate(${editingHotspot.x_percent > 75 ? '-100%' : '0'}, ${editingHotspot.y_percent > 75 ? '-100%' : '0'}) scale(${1 / currentScale})`,
+                  transformOrigin: 'top left',
                 }}
                 onClick={e => e.stopPropagation()}
               >
@@ -488,20 +660,16 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
                   </div>
 
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Marker Color</label>
-                    <div style={styles.colorGrid}>
-                      {pinColors.map(c => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          style={{
-                            ...styles.colorCircle,
-                            backgroundColor: c.value,
-                            borderColor: pinColor === c.value ? '#111827' : 'transparent',
-                          }}
-                          onClick={() => setPinColor(c.value)}
-                        />
-                      ))}
+                    <label style={styles.label}>Building Status (Auto-resolved)</label>
+                    <div style={styles.statusDisplay}>
+                      <span style={{
+                        ...styles.dot,
+                        backgroundColor: getBuildingStatusDetails(editingHotspot.building_id).color,
+                        width: '10px', height: '10px'
+                      }}></span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                        {getBuildingStatusDetails(editingHotspot.building_id).label}
+                      </span>
                     </div>
                   </div>
 
@@ -531,6 +699,25 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
             )}
           </div>
         )}
+
+        {/* Floating Viewport Toolbar */}
+        {masterPlanImage && (
+          <div className="editor-toolbar" style={styles.toolbar}>
+            <button style={styles.toolbarBtn} onClick={() => setZoomScale(prev => Math.min(4, prev + 0.25))} title="Zoom In">
+              <Plus size={16} />
+            </button>
+            <div style={styles.toolbarDivider}></div>
+            <span style={styles.zoomLabel}>{Math.round(zoomScale * 100)}%</span>
+            <div style={styles.toolbarDivider}></div>
+            <button style={styles.toolbarBtn} onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))} title="Zoom Out">
+              <Minus size={16} />
+            </button>
+            <div style={styles.toolbarDivider}></div>
+            <button style={styles.toolbarBtn} onClick={() => { setZoomScale(1); setPan({ x: 0, y: 0 }); }} title="Reset View">
+              <RotateCcw size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -545,7 +732,7 @@ const styles = {
     border: '1px solid rgba(255, 255, 255, 0.3)',
     borderRadius: '16px',
     padding: '20px',
-    minHeight: '500px',
+    minHeight: '550px',
     flexDirection: 'row' as const,
     flexWrap: 'wrap' as const,
   } as React.CSSProperties,
@@ -676,7 +863,8 @@ const styles = {
     borderRadius: '16px',
     overflow: 'hidden',
     position: 'relative' as const,
-    minHeight: '400px',
+    minHeight: '500px',
+    userSelect: 'none' as const,
   } as React.CSSProperties,
   noImagePlaceholder: {
     display: 'flex',
@@ -687,43 +875,17 @@ const styles = {
   } as React.CSSProperties,
   mapContainer: {
     position: 'relative' as const,
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'crosshair',
     userSelect: 'none' as const,
   } as React.CSSProperties,
   masterPlanImg: {
-    maxWidth: '100%',
-    maxHeight: '550px',
-    objectFit: 'contain' as const,
+    width: '100%',
+    height: '100%',
     display: 'block',
-  } as React.CSSProperties,
-  pin: {
-    position: 'absolute' as const,
-    width: '28px',
-    height: '28px',
-    borderRadius: '50% 50% 50% 0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'grab',
-    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-    userSelect: 'none' as const,
-  } as React.CSSProperties,
-  pinIconContainer: {
-    transform: 'rotate(-45deg)', // aligns the icon upright in the tear-drop
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    pointerEvents: 'none' as const,
   } as React.CSSProperties,
   pinLabel: {
     position: 'absolute' as const,
-    top: '100%',
     left: '50%',
-    transform: 'translateX(-50%)',
     background: '#1f2937',
     color: '#fff',
     fontSize: '0.68rem',
@@ -731,9 +893,9 @@ const styles = {
     padding: '2px 8px',
     borderRadius: '4px',
     whiteSpace: 'nowrap' as const,
-    marginTop: '6px',
     boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
     pointerEvents: 'none' as const,
+    zIndex: 10,
   } as React.CSSProperties,
   popover: {
     position: 'absolute' as const,
@@ -785,18 +947,14 @@ const styles = {
     outline: 'none',
     background: '#fff',
   } as React.CSSProperties,
-  colorGrid: {
+  statusDisplay: {
     display: 'flex',
-    gap: '6px',
-  } as React.CSSProperties,
-  colorCircle: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '50%',
-    border: '2px solid transparent',
-    cursor: 'pointer',
-    padding: 0,
-    transition: 'all 0.15s',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    background: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid rgba(0,0,0,0.05)',
   } as React.CSSProperties,
   popoverActions: {
     display: 'flex',
@@ -833,5 +991,47 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     padding: 0,
+  } as React.CSSProperties,
+
+  // Toolbar styles
+  toolbar: {
+    position: 'absolute' as const,
+    bottom: '20px',
+    right: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: 'rgba(255, 255, 255, 0.85)',
+    backdropFilter: 'blur(12px)',
+    border: '1px solid rgba(0, 0, 0, 0.08)',
+    borderRadius: '12px',
+    padding: '4px 8px',
+    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+    zIndex: 100,
+  } as React.CSSProperties,
+  toolbarBtn: {
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    padding: '6px',
+    borderRadius: '8px',
+    color: '#003DA6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.15s, transform 0.1s',
+  } as React.CSSProperties,
+  toolbarDivider: {
+    width: '1px',
+    height: '16px',
+    background: 'rgba(0,0,0,0.08)',
+  } as React.CSSProperties,
+  zoomLabel: {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    color: '#374151',
+    minWidth: '38px',
+    textAlign: 'center' as const,
+    fontFamily: 'monospace',
   } as React.CSSProperties,
 };

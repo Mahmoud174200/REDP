@@ -285,38 +285,8 @@ const TeleSalesPortal: React.FC = () => {
   /* ═══════════════ PROJECT DETAIL VIEW ═══════════════ */
   if (view === 'project-detail' && projectDetail) {
     const proj = projectDetail.project;
-    const units = projectDetail.units || [];
     const unitsSummary = projectDetail.units_summary || [];
     const paymentPlans = projectDetail.payment_plans || [];
-    const uniqueTypes = [...new Set(units.map((u: any) => u.type))] as string[];
-
-    // Client-side filtration for units
-    const processedUnits = units.filter((u: any) => {
-      // 1. Filter by unit type
-      if (unitFilter !== 'all' && u.type !== unitFilter) return false;
-
-      // 2. Filter by unit status
-      if (unitStatusFilter !== 'all' && u.status !== unitStatusFilter) return false;
-
-      // 3. Filter by search query (unit number, view type, building)
-      if (unitSearchQuery.trim()) {
-        const query = unitSearchQuery.toLowerCase().trim();
-        const numMatch = u.unit_number?.toString().toLowerCase().includes(query);
-        const viewMatch = u.view_type?.toLowerCase().includes(query);
-        const buildingMatch = u.building?.toLowerCase().includes(query);
-        if (!numMatch && !viewMatch && !buildingMatch) return false;
-      }
-
-      return true;
-    });
-
-    // Client-side pagination for units
-    const totalUnitsCount = processedUnits.length;
-    const totalUnitsPages = Math.ceil(totalUnitsCount / unitsPerPage) || 1;
-    const paginatedUnits = processedUnits.slice(
-      (unitPage - 1) * unitsPerPage,
-      unitPage * unitsPerPage
-    );
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -356,16 +326,13 @@ const TeleSalesPortal: React.FC = () => {
         {/* Unit type summary cards */}
         <div>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
-            <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)' }}></i> Unit Types
+            <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary)' }}></i> Unit Types & Ranges — أنواع الوحدات ومساحاتها
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(unitsSummary.length, 4)}, 1fr)`, gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             {unitsSummary.map((us: any) => (
               <div key={us.type} className="glass-panel"
-                onClick={() => setUnitFilter(unitFilter === us.type ? 'all' : us.type)}
                 style={{
-                  padding: '18px', cursor: 'pointer',
-                  borderColor: unitFilter === us.type ? 'var(--color-primary)' : undefined,
-                  background: unitFilter === us.type ? 'rgba(50, 71, 58, 0.06)' : undefined,
+                  padding: '18px',
                 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.95rem', fontFamily: 'var(--font-title)' }}>{us.type}</span>
@@ -403,7 +370,7 @@ const TeleSalesPortal: React.FC = () => {
           <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
             <i className="fa-regular fa-credit-card" style={{ color: 'var(--color-success)' }}></i> Payment Plans — أنظمة السداد
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(paymentPlans.length, 4)}, 1fr)`, gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             {paymentPlans.map((pp: any, idx: number) => {
               const accentColors = ['var(--color-primary)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)'];
               const accent = accentColors[idx % accentColors.length];
@@ -444,150 +411,21 @@ const TeleSalesPortal: React.FC = () => {
           </div>
         </div>
 
-        {/* Units table */}
-        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: '1px solid var(--border-glass)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
-                <i className="fa-solid fa-table-cells" style={{ color: 'var(--color-primary)' }}></i>
-                Units Inventory
-                {unitFilter !== 'all' && <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{unitFilter}</span>}
-              </h3>
-              
-              {/* Type Filter Buttons */}
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {['all', ...uniqueTypes].map(t => (
-                  <button key={t} onClick={() => setUnitFilter(t)}
-                    className={unitFilter === t ? 'btn-primary' : 'btn-secondary'}
-                    style={{ padding: '6px 14px', fontSize: '0.72rem', borderRadius: '9999px' }}>
-                    {t === 'all' ? 'All Types' : t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sub-filtering bar for Units */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* Search Units */}
-              <div style={{ position: 'relative', width: '220px' }}>
-                <input
-                  type="text"
-                  placeholder="Search unit #, view, building..."
-                  className="form-control"
-                  style={{ padding: '6px 12px 6px 32px', fontSize: '0.78rem', height: '32px', borderRadius: 'var(--radius-sm)' }}
-                  value={unitSearchQuery}
-                  onChange={e => setUnitSearchQuery(e.target.value)}
-                />
-                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.75rem' }}></i>
-              </div>
-
-              {/* Status Select for Units */}
-              <select
-                className="form-control"
-                style={{ width: '150px', padding: '6px 12px', fontSize: '0.78rem', height: '32px', borderRadius: 'var(--radius-sm)' }}
-                value={unitStatusFilter}
-                onChange={e => setUnitStatusFilter(e.target.value)}
-              >
-                <option value="all">All Statuses</option>
-                <option value="available">Available</option>
-                <option value="reserved">Reserved</option>
-                <option value="sold">Sold</option>
-                <option value="blocked">Blocked</option>
-              </select>
-
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Showing {totalUnitsCount} of {units.length} units
-              </span>
-            </div>
+        {/* Access Restriction Notice */}
+        <div className="glass-panel" style={{ padding: '24px 30px', background: 'rgba(0, 61, 166, 0.02)', border: '1.5px dashed rgba(0, 61, 166, 0.15)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ background: 'rgba(0, 61, 166, 0.08)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', fontSize: '1.2rem', flexShrink: 0 }}>
+            <i className="fa-solid fa-circle-info"></i>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  {['Unit', 'Type', 'Floor', 'Area', 'Beds', 'Baths', 'View', 'Price', 'Status'].map(h => (
-                    <th key={h}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedUnits.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                      No units matching the filters.
-                    </td>
-                  </tr>
-                ) : paginatedUnits.map((u: any) => (
-                  <tr key={u.id} onClick={() => setSelectedUnit(u)} style={{ cursor: 'pointer' }}>
-                    <td><strong>{u.unit_number}</strong></td>
-                    <td>{u.type}</td>
-                    <td>{u.floor ?? '—'}</td>
-                    <td>{u.area ? `${u.area} m²` : '—'}</td>
-                    <td>{u.bedrooms ?? '—'}</td>
-                    <td>{u.bathrooms ?? '—'}</td>
-                    <td>{u.view_type ?? '—'}</td>
-                    <td><strong style={{ color: 'var(--color-success)' }}>{fmtPrice(u.price)}</strong></td>
-                    <td><span className={`badge ${unitStatusBadge[u.status] || 'badge-info'}`}>{u.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <h4 style={{ margin: '0 0 4px', fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+              Individual Unit Selection Restricted / صلاحية الشقق الحرة محدودة
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+              Tele-sales agents are restricted from browsing individual units/apartments. You are authorized to access project details, price ranges, space ranges, and payment plans only. Individual unit selection is handled by Company Sales agents.
+              <br />
+              ممثلو المبيعات الهاتفية لديهم صلاحية الاطلاع على تفاصيل المشروع، نطاقات الأسعار، المساحات، وأنظمة السداد فقط. حجز واختيار الشقق الفردية مخصص لمبيعات الشركة.
+            </p>
           </div>
-
-          {/* Local Pagination Controls for Units */}
-          {totalUnitsCount > 0 && totalUnitsPages > 1 && (
-            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border-glass)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Page <strong>{unitPage}</strong> of <strong>{totalUnitsPages}</strong>
-              </span>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <button
-                  className="btn-secondary"
-                  style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: 'var(--radius-sm)', height: '28px' }}
-                  onClick={() => setUnitPage(prev => Math.max(prev - 1, 1))}
-                  disabled={unitPage === 1}
-                >
-                  <i className="fa-solid fa-angle-left"></i> Prev
-                </button>
-                
-                {Array.from({ length: totalUnitsPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalUnitsPages || Math.abs(p - unitPage) <= 1)
-                  .map((p, idx, arr) => {
-                    const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
-                    return (
-                      <React.Fragment key={p}>
-                        {showEllipsis && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>...</span>}
-                        <button
-                          className={unitPage === p ? 'btn-primary' : 'btn-secondary'}
-                          style={{
-                            padding: '4px 8px',
-                            fontSize: '0.72rem',
-                            borderRadius: 'var(--radius-sm)',
-                            minWidth: '28px',
-                            height: '28px',
-                            justifyContent: 'center',
-                            boxShadow: 'none',
-                            background: unitPage === p ? 'var(--color-primary)' : undefined,
-                            color: unitPage === p ? '#ffffff' : undefined,
-                          }}
-                          onClick={() => setUnitPage(p)}
-                        >
-                          {p}
-                        </button>
-                      </React.Fragment>
-                    );
-                  })}
-
-                <button
-                  className="btn-secondary"
-                  style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: 'var(--radius-sm)', height: '28px' }}
-                  onClick={() => setUnitPage(prev => Math.min(prev + 1, totalUnitsPages))}
-                  disabled={unitPage === totalUnitsPages}
-                >
-                  Next <i className="fa-solid fa-angle-right"></i>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -952,9 +790,35 @@ const TeleSalesPortal: React.FC = () => {
                               <span style={{ color: 'var(--text-muted)' }}>—</span>
                             )}
                           </td>
-                          <td><span className={`badge ${badge}`}>{statusLabel[st] || st}</span></td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                              <span className={`badge ${badge}`}>{statusLabel[st] || st}</span>
+                              {lead.current_tier && lead.current_tier !== 'tier_1' && (
+                                <span className="badge" style={{
+                                  background: 'rgba(108, 92, 231, 0.12)',
+                                  color: '#6c5ce7',
+                                  border: '1px solid rgba(108, 92, 231, 0.25)',
+                                  padding: '2px 8px',
+                                  fontSize: '0.65rem',
+                                  textTransform: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  <i className="fa-solid fa-right-left" style={{ fontSize: '0.6rem' }}></i>
+                                  {lead.current_tier === 'tier_3' ? 'Transferred to Tier 3 / محوّل للشركة' : 'Transferred to Tier 2 / محوّل للمبيعات الخارجية'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             <div style={{ display: 'flex', gap: '6px' }}>
+                              <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.72rem' }}
+                                title="Lead History"
+                                onClick={() => { setSelectedLead(lead); setModalType('history'); }}>
+                                <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: '0.75rem' }}></i>
+                              </button>
                               <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.72rem' }}
                                 title="Edit Lead"
                                 onClick={() => {
@@ -976,12 +840,22 @@ const TeleSalesPortal: React.FC = () => {
                                 <i className="fa-solid fa-phone" style={{ fontSize: '0.75rem' }}></i> Contact
                               </button>
                               <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                                onClick={() => { setSelectedLead(lead); setModalType('meeting'); }}
-                                disabled={st === 'visit_scheduled'}>
+                                onClick={() => { setSelectedLead(lead); setModalType('meeting'); }}>
                                 <i className="fa-regular fa-calendar" style={{ fontSize: '0.75rem' }}></i> Meet
                               </button>
-                              <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
-                                onClick={() => { setSelectedLead(lead); setModalType('transfer'); }}>
+                              <button className="btn-primary" style={{
+                                padding: '6px 12px',
+                                fontSize: '0.72rem',
+                                opacity: (lead.current_tier && lead.current_tier !== 'tier_1') ? 0.6 : 1,
+                                cursor: (lead.current_tier && lead.current_tier !== 'tier_1') ? 'not-allowed' : 'pointer'
+                              }}
+                                onClick={() => {
+                                  if (lead.current_tier && lead.current_tier !== 'tier_1') return;
+                                  setSelectedLead(lead);
+                                  setModalType('transfer');
+                                }}
+                                disabled={!!(lead.current_tier && lead.current_tier !== 'tier_1')}
+                                title={lead.current_tier && lead.current_tier !== 'tier_1' ? "Lead already transferred / تم تحويل العميل بالفعل" : "Transfer Lead / تحويل العميل"}>
                                 <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.75rem' }}></i> Transfer
                               </button>
                             </div>
@@ -1120,8 +994,117 @@ const TeleSalesPortal: React.FC = () => {
       {/* ═══════ MODALS ═══════ */}
       {modalType && selectedLead && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: modalType === 'edit' ? '540px' : '460px', padding: '28px' }}
+          <div className="glass-panel modal-content" style={{ width: '100%', maxWidth: modalType === 'history' ? '680px' : modalType === 'edit' ? '540px' : '460px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={e => e.stopPropagation()}>
+
+            {modalType === 'history' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-primary)' }}></i>
+                    Activity History: {selectedLead.first_name} {selectedLead.last_name}
+                  </h3>
+                  <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    <i className="fa-solid fa-xmark" style={{ fontSize: '1.2rem' }}></i>
+                  </button>
+                </div>
+
+                {/* Lead Info Summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(50, 71, 58, 0.03)', padding: '14px 18px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', border: '1px solid var(--border-glass)' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Email</span>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{selectedLead.email || '—'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Phone</span>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{selectedLead.phone}</strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Budget</span>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--color-success)' }}>{fmtPrice(selectedLead.budget)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>Payment Method</span>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', textTransform: 'capitalize' }}>{selectedLead.payment_method || 'installment'}</strong>
+                  </div>
+                </div>
+
+                {/* Interactions timeline */}
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--color-primary)', letterSpacing: '0.05em', marginBottom: '14px' }}>
+                  Timeline Logs / سجل الأنشطة والاتصالات
+                </h4>
+
+                {!selectedLead.interactions || selectedLead.interactions.length === 0 ? (
+                  <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(50, 71, 58, 0.02)', borderRadius: 'var(--radius-sm)' }}>
+                    <i className="fa-solid fa-timeline" style={{ fontSize: '1.5rem', opacity: 0.3, marginBottom: '8px', display: 'block' }}></i>
+                    No contact logs or scheduled viewings found for this lead.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingLeft: '8px', borderLeft: '2px solid rgba(0, 61, 166, 0.1)' }}>
+                    {selectedLead.interactions.map((interaction: any) => {
+                      const typeColors: Record<string, string> = {
+                        call: 'var(--color-info)',
+                        whatsapp: 'var(--color-success)',
+                        email: '#6366f1',
+                        meeting: 'var(--color-primary)',
+                      };
+                      const typeIcons: Record<string, string> = {
+                        call: 'fa-phone',
+                        whatsapp: 'fa-whatsapp-brands fa-brands fa-whatsapp',
+                        email: 'fa-envelope',
+                        meeting: 'fa-calendar-days',
+                      };
+                      const color = typeColors[interaction.type] || 'var(--text-muted)';
+                      const icon = typeIcons[interaction.type] || 'fa-circle-info';
+                      const isMeeting = interaction.type === 'meeting';
+
+                      return (
+                        <div key={interaction.id} style={{ position: 'relative', paddingLeft: '20px' }}>
+                          {/* Timeline Dot */}
+                          <div style={{
+                            position: 'absolute',
+                            left: '-26px',
+                            top: '2px',
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor: color,
+                            border: '2px solid #ffffff',
+                            boxShadow: '0 0 0 2px ' + color + '33',
+                          }} />
+
+                          {/* Interaction Card */}
+                          <div style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span className="badge" style={{ backgroundColor: color + '15', color: color, fontSize: '0.65rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <i className={`fa-solid ${icon}`}></i> {interaction.type.toUpperCase()}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {new Date(interaction.created_at || interaction.follow_up_date).toLocaleString()}
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                              {interaction.notes}
+                            </p>
+                            {interaction.follow_up_date && !isMeeting && (
+                              <div style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--color-warning)', fontWeight: 600 }}>
+                                <i className="fa-solid fa-bell"></i> Follow-up scheduled for: {new Date(interaction.follow_up_date).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px' }}>
+                  <button className="btn-primary" onClick={closeModal} style={{ padding: '8px 24px' }}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
 
             {modalType === 'contact' && (
               <>
@@ -1138,8 +1121,11 @@ const TeleSalesPortal: React.FC = () => {
                     <textarea className="form-control" value={contactNotes} onChange={e => setContactNotes(e.target.value)} placeholder="Conversation summary…" style={{ height: '100px' }} required />
                   </div>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                    <button type="submit" className="btn-primary">Save</button>
+                    <button type="button" className="btn-secondary" onClick={closeModal} disabled={isLoading}>Cancel</button>
+                    <button type="submit" className="btn-primary" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isLoading && <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />}
+                      {isLoading ? 'Saving...' : 'Save'}
+                    </button>
                   </div>
                 </form>
               </>
@@ -1162,8 +1148,11 @@ const TeleSalesPortal: React.FC = () => {
                     <textarea className="form-control" value={meetingNotes} onChange={e => setMeetingNotes(e.target.value)} placeholder="Arrangements…" style={{ height: '70px' }} />
                   </div>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                    <button type="submit" className="btn-primary">Confirm</button>
+                    <button type="button" className="btn-secondary" onClick={closeModal} disabled={isLoading}>Cancel</button>
+                    <button type="submit" className="btn-primary" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isLoading && <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />}
+                      {isLoading ? 'Confirming...' : 'Confirm'}
+                    </button>
                   </div>
                 </form>
               </>
@@ -1181,8 +1170,11 @@ const TeleSalesPortal: React.FC = () => {
                     <textarea className="form-control" value={transferNotes} onChange={e => setTransferNotes(e.target.value)} placeholder="Client profile summary…" style={{ height: '100px' }} />
                   </div>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                    <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                    <button type="submit" className="btn-primary">Confirm Transfer</button>
+                    <button type="button" className="btn-secondary" onClick={closeModal} disabled={isLoading}>Cancel</button>
+                    <button type="submit" className="btn-primary" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isLoading && <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />}
+                      {isLoading ? 'Transferring...' : 'Confirm Transfer'}
+                    </button>
                   </div>
                 </form>
               </>
@@ -1239,8 +1231,11 @@ const TeleSalesPortal: React.FC = () => {
                     </select>
                   </div>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                    <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                    <button type="submit" className="btn-primary">Save Changes</button>
+                    <button type="button" className="btn-secondary" onClick={closeModal} disabled={isLoading}>Cancel</button>
+                    <button type="submit" className="btn-primary" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isLoading && <div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%' }} />}
+                      {isLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </div>
                 </form>
               </>
@@ -1303,6 +1298,42 @@ const TeleSalesPortal: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(255, 255, 255, 0.45)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          animation: 'modal-fade-in 0.2s ease-out',
+        }}>
+          <div className="glass-panel" style={{
+            padding: '24px 40px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: '0 20px 50px rgba(0, 61, 166, 0.08)',
+          }}>
+            <div className="animate-spin" style={{
+              width: '24px',
+              height: '24px',
+              border: '3px solid rgba(197, 168, 128, 0.15)',
+              borderTopColor: 'var(--color-primary)',
+              borderRadius: '50%'
+            }} />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-title)' }}>
+              Processing request... / جاري معالجة الطلب...
+            </span>
           </div>
         </div>
       )}

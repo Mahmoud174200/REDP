@@ -89,8 +89,8 @@ const DashboardWrapper: React.FC<{ children: React.ReactNode }> = ({ children })
     <AuthGuard>
       <DashboardLayout userRole={user.role}>
         {children}
-        {/* VoIP Dialer Widget — visible on all dashboard pages */}
-        <VoipDialerWidget />
+        {/* VoIP Dialer Widget — visible on all dashboard pages except brokers */}
+        {user.role !== 'broker' && <VoipDialerWidget />}
       </DashboardLayout>
     </AuthGuard>
   );

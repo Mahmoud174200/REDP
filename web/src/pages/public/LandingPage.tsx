@@ -89,6 +89,20 @@ const translations = {
     eoiBankDetailsTitle: 'Bank Account Transfer Details',
     eoiInstapayDetailsTitle: 'InstaPay Details',
     eoiUploadHint: 'Accepts PDF, JPG, PNG up to 10MB',
+    projectDetailsBtn: 'Show Project Details',
+    modalTitleDetails: 'Project Details Profile',
+    tabPaymentPlans: 'Payment plans',
+    tabPriceArea: 'Prices & Space Ranges',
+    tabMasterPlan: 'Master Plan & Stats',
+    areaRange: 'Space Range',
+    priceRange: 'Price Range',
+    totalUnits: 'Available Inventory',
+    landArea: 'Land Area',
+    buildingRatio: 'Building Ratio',
+    greenArea: 'Parks & Green Area',
+    parkingSpaces: 'Total Parking Spaces',
+    maxFloors: 'Max Allowed Floors',
+    infraNotes: 'Infrastructure Notes',
     },
     ar: {
     navProjects: 'محفظة المشاريع',
@@ -171,6 +185,20 @@ const translations = {
     eoiBankDetailsTitle: 'بيانات الحساب البنكي للتحويل',
     eoiInstapayDetailsTitle: 'بيانات حساب InstaPay',
     eoiUploadHint: 'الملفات المقبولة: PDF, JPG, PNG حتى 10 ميجابايت',
+    projectDetailsBtn: 'عرض تفاصيل المشروع',
+    modalTitleDetails: 'الملف التفصيلي للمشروع',
+    tabPaymentPlans: 'أنظمة السداد',
+    tabPriceArea: 'الأسعار والمساحات',
+    tabMasterPlan: 'المخطط العام والماستر بلان',
+    areaRange: 'مساحة الوحدات',
+    priceRange: 'نطاق الأسعار',
+    totalUnits: 'المخزون المتاح',
+    landArea: 'مساحة الأرض',
+    buildingRatio: 'نسبة المباني',
+    greenArea: 'المساحات الخضراء',
+    parkingSpaces: 'أماكن انتظار السيارات',
+    maxFloors: 'أقصى عدد أدوار',
+    infraNotes: 'ملاحظات البنية التحتية',
   }
 };
 
@@ -556,6 +584,13 @@ const LandingPage: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Project Details Modal states
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsProject, setDetailsProject] = useState<any>(null);
+  const [detailsUnits, setDetailsUnits] = useState<any[]>([]);
+  const [loadingDetailsUnits, setLoadingDetailsUnits] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<'prices' | 'payments' | 'master_plan'>('prices');
+
   // Set direction based on language
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
   const t = translations[lang];
@@ -607,6 +642,72 @@ const LandingPage: React.FC = () => {
   const toggleLanguage = () => {
     setLang(prev => (prev === 'en' ? 'ar' : 'en'));
   };
+
+  const handleShowProjectDetails = async (project: any) => {
+    setDetailsProject(project);
+    setDetailsTab('prices');
+    setShowDetailsModal(true);
+    setLoadingDetailsUnits(true);
+    setDetailsUnits([]);
+    try {
+      const res = await api.get(`/v1/public/projects/${project.id}/units`);
+      if (res.data?.success) {
+        setDetailsUnits(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching units for details:', err);
+    }
+    setLoadingDetailsUnits(false);
+  };
+
+  const getUnitTypeTranslation = (type: string, currentLang: 'en' | 'ar') => {
+    const mapping: Record<string, { en: string; ar: string }> = {
+      apartment: { en: 'Apartment', ar: 'شقة سكنية' },
+      villa: { en: 'Villa', ar: 'فيلا مستقلة' },
+      duplex: { en: 'Duplex', ar: 'دوبلكس' },
+      townhouse: { en: 'Townhouse', ar: 'تاون هاوس' },
+      penthouse: { en: 'Penthouse', ar: 'بنتهاوس' },
+      commercial: { en: 'Commercial Space', ar: 'محل تجاري / مكتب' },
+    };
+    return mapping[type.toLowerCase()]?.[currentLang] || type;
+  };
+
+  const formatCurrency = (amount: number, currentLang: 'en' | 'ar') => {
+    if (currentLang === 'ar') {
+      return `${amount.toLocaleString('ar-EG')} ج.م`;
+    }
+    return `${amount.toLocaleString('en-US')} EGP`;
+  };
+
+  const groupedRanges = React.useMemo(() => {
+    if (!detailsUnits || detailsUnits.length === 0) return {};
+    const groups: Record<string, { minArea: number; maxArea: number; minPrice: number; maxPrice: number; count: number }> = {};
+    
+    detailsUnits.forEach(u => {
+      if (!u.type) return;
+      const type = u.type.toLowerCase();
+      const price = parseFloat(u.price);
+      const area = parseFloat(u.area);
+      
+      if (!groups[type]) {
+        groups[type] = {
+          minArea: area,
+          maxArea: area,
+          minPrice: price,
+          maxPrice: price,
+          count: 1
+        };
+      } else {
+        const g = groups[type];
+        g.count += 1;
+        if (area < g.minArea) g.minArea = area;
+        if (area > g.maxArea) g.maxArea = area;
+        if (price < g.minPrice) g.minPrice = price;
+        if (price > g.maxPrice) g.maxPrice = price;
+      }
+    });
+    return groups;
+  }, [detailsUnits]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1186,6 +1287,16 @@ const LandingPage: React.FC = () => {
             padding: 32px 20px !important;
           }
         }
+        .project-cta-container {
+          display: flex;
+          gap: 16px;
+          margin-top: 24px;
+        }
+        @media (max-width: 576px) {
+          .project-cta-container {
+            flex-direction: column;
+          }
+        }
       `}} />
 
       {/* ───────────────────────────────────────────────────
@@ -1637,15 +1748,47 @@ const LandingPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Booking EOI CTA button ONLY */}
-                    <div style={{ marginTop: '16px' }}>
+                    {/* Booking EOI CTA & Details buttons */}
+                    <div className="project-cta-container">
+                      <button
+                        type="button"
+                        onClick={() => handleShowProjectDetails(projects[activeProjectIndex])}
+                        style={{
+                          flex: 1,
+                          padding: '16px 20px',
+                          fontSize: '0.88rem',
+                          borderRadius: '16px',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1.5px solid rgba(197, 168, 128, 0.4)',
+                          color: '#C5A880',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(197, 168, 128, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                          e.currentTarget.style.transform = 'none';
+                        }}
+                      >
+                        <Info size={16} />
+                        <span>{t.projectDetailsBtn}</span>
+                      </button>
+
                       <button
                         type="button"
                         className="btn-luxury-drawer-primary"
                         onClick={() => openEoiModal(projects[activeProjectIndex])}
                         style={{
-                          width: '100%',
-                          padding: '16px 24px',
+                          flex: 1.2,
+                          padding: '16px 20px',
                           fontSize: '0.88rem',
                           borderRadius: '16px',
                           background: 'linear-gradient(135deg, #d4af37 0%, #C5A880 50%, #aa7c11 100%)',
@@ -2364,6 +2507,393 @@ const LandingPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────
+         PROJECT DETAILS MODAL
+         ─────────────────────────────────────────────────── */}
+      {showDetailsModal && detailsProject && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{
+            maxWidth: 700, width: 'calc(100% - 32px)', padding: 36, borderRadius: '24px',
+            maxHeight: '92vh', overflowY: 'auto', position: 'relative', border: '1.5px solid rgba(0, 61, 166, 0.15)',
+            background: 'linear-gradient(135deg, #001233 0%, #00071c 100%)',
+            color: '#ffffff'
+          }}>
+            <button
+              onClick={() => setShowDetailsModal(false)}
+              style={{
+                position: 'absolute', top: 24, [lang === 'ar' ? 'left' : 'right']: 24,
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#C5A880',
+                fontWeight: 'bold', padding: 4, zIndex: 10
+              }}
+            >
+              ✕
+            </button>
+
+            <div style={{ marginBottom: 24, [lang === 'ar' ? 'paddingLeft' : 'paddingRight']: 32 }}>
+              <span style={{ fontSize: '0.75rem', color: '#C5A880', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', display: 'block', marginBottom: 6 }}>
+                {detailsProject.project_type || (lang === 'en' ? 'Luxury Compound' : 'كمبوند فاخر')}
+              </span>
+              <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff', marginBottom: 8, fontFamily: 'var(--font-title)' }}>
+                {detailsProject.name}
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#C5A880', fontWeight: 700 }}>
+                <MapPin size={15} />
+                <span>{detailsProject.location}</span>
+              </div>
+            </div>
+
+            {/* Tabs Headers */}
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(197, 168, 128, 0.25)', gap: '24px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setDetailsTab('prices')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: detailsTab === 'prices' ? '#C5A880' : '#8a9ab0',
+                  fontSize: '0.95rem',
+                  fontWeight: 800,
+                  padding: '10px 0',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                  fontFamily: 'var(--font-title)',
+                }}
+              >
+                {t.tabPriceArea}
+                {detailsTab === 'prices' && (
+                  <span style={{ position: 'absolute', bottom: -1, left: 0, width: '100%', height: '2.5px', background: '#C5A880' }} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailsTab('payments')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: detailsTab === 'payments' ? '#C5A880' : '#8a9ab0',
+                  fontSize: '0.95rem',
+                  fontWeight: 800,
+                  padding: '10px 0',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                  fontFamily: 'var(--font-title)',
+                }}
+              >
+                {t.tabPaymentPlans}
+                {detailsTab === 'payments' && (
+                  <span style={{ position: 'absolute', bottom: -1, left: 0, width: '100%', height: '2.5px', background: '#C5A880' }} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailsTab('master_plan')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: detailsTab === 'master_plan' ? '#C5A880' : '#8a9ab0',
+                  fontSize: '0.95rem',
+                  fontWeight: 800,
+                  padding: '10px 0',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                  fontFamily: 'var(--font-title)',
+                }}
+              >
+                {t.tabMasterPlan}
+                {detailsTab === 'master_plan' && (
+                  <span style={{ position: 'absolute', bottom: -1, left: 0, width: '100%', height: '2.5px', background: '#C5A880' }} />
+                )}
+              </button>
+            </div>
+
+            {/* TAB CONTENT: PRICES & SPACES */}
+            {detailsTab === 'prices' && (
+              <div>
+                {loadingDetailsUnits ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' }}>
+                    <div style={{
+                      width: 32, height: 32, border: '3px solid rgba(197, 168, 128, 0.15)',
+                      borderTopColor: '#C5A880', borderRadius: '50%', animation: 'spin 1.2s linear infinite'
+                    }} />
+                    <span style={{ fontSize: '0.85rem', color: '#8a9ab0', marginTop: 12 }}>
+                      {lang === 'en' ? 'Calculating pricing inventory...' : 'جاري تحليل مخزون الأسعار...'}
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    {Object.keys(groupedRanges).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {Object.entries(groupedRanges).map(([type, stats]: any) => (
+                          <div key={type} style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(197, 168, 128, 0.15)',
+                            borderRadius: '16px',
+                            padding: '18px 24px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px'
+                          }}>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '1.05rem', fontWeight: 800, color: '#ffffff', textTransform: 'capitalize', fontFamily: 'var(--font-title)' }}>
+                                {getUnitTypeTranslation(type, lang)}
+                              </span>
+                              <span style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+                                {stats.count} {lang === 'en' ? 'Available Units' : 'وحدة متاحة'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.7rem', color: '#C5A880', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                                  {t.areaRange}
+                                </span>
+                                <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
+                                  {stats.minArea === stats.maxArea ? `${stats.minArea} م²` : `${stats.minArea} - ${stats.maxArea} م²`}
+                                </strong>
+                              </div>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.7rem', color: '#C5A880', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                                  {t.priceRange}
+                                </span>
+                                <strong style={{ fontSize: '1rem', color: '#C5A880' }}>
+                                  {stats.minPrice === stats.maxPrice 
+                                    ? `${formatCurrency(stats.minPrice, lang)}` 
+                                    : `${formatCurrency(stats.minPrice, lang)} - ${formatCurrency(stats.maxPrice, lang)}`}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '30px 10px', color: '#8a9ab0' }}>
+                        {lang === 'en' ? 'No detailed inventory pricing available at this stage.' : 'لا توجد تفاصيل أسعار متاحة لهذه المرحلة حالياً.'}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: PAYMENT PLANS */}
+            {detailsTab === 'payments' && (
+              <div>
+                {detailsProject.payment_plans && detailsProject.payment_plans.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {detailsProject.payment_plans.map((plan: any) => (
+                      <div key={plan.id} style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(197, 168, 128, 0.15)',
+                        borderRadius: '16px',
+                        padding: '20px 24px',
+                        position: 'relative'
+                      }}>
+                        {plan.discount_pct > 0 && (
+                          <span style={{
+                            position: 'absolute',
+                            top: 16,
+                            right: lang === 'en' ? 24 : 'auto',
+                            left: lang === 'ar' ? 24 : 'auto',
+                            background: '#16a34a',
+                            color: '#ffffff',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                            padding: '4px 10px',
+                            borderRadius: '6px'
+                          }}>
+                            {plan.discount_pct}% {lang === 'en' ? 'Cash Discount' : 'خصم كاش'}
+                          </span>
+                        )}
+                        <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#C5A880', marginBottom: 8, fontFamily: 'var(--font-title)' }}>
+                          {lang === 'ar' ? (plan.name_ar || plan.name) : plan.name}
+                        </h4>
+                        <p style={{ fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.7)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+                          {plan.description || (lang === 'en' ? 'Flexible payment structures configured for signature client requirements.' : 'خطط سداد مرنة مهيأة لتناسب متطلبات العملاء الحصرية.')}
+                        </p>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: 14 }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: '#8a9ab0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              {lang === 'en' ? 'Down Payment' : 'المقدم'}
+                            </span>
+                            <strong style={{ fontSize: '1.05rem', color: '#ffffff' }}>
+                              {plan.down_payment_pct}%
+                            </strong>
+                          </div>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: '#8a9ab0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              {lang === 'en' ? 'Installment Period' : 'فترة التقسيط'}
+                            </span>
+                            <strong style={{ fontSize: '1.05rem', color: '#ffffff' }}>
+                              {plan.installments === 0 
+                                ? (lang === 'en' ? 'Cash' : 'فوري (كاش)') 
+                                : (plan.installments % 12 === 0 
+                                    ? `${plan.installments / 12} ${lang === 'en' ? 'Years' : 'سنوات'}`
+                                    : `${plan.installments} ${lang === 'en' ? 'Months' : 'شهراً'}`)}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '30px 10px', color: '#8a9ab0' }}>
+                    {lang === 'en' ? 'Standard payment plans are currently under review.' : 'خطط السداد قيد المراجعة والاعتماد حالياً.'}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: MASTER PLAN */}
+            {detailsTab === 'master_plan' && (
+              <div>
+                {/* Master Plan Status & Stats Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                  {detailsProject.land_area && (
+                    <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{t.landArea}</span>
+                      <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
+                        {Number(detailsProject.land_area).toLocaleString()} {detailsProject.land_area_unit || 'sqm'}
+                      </strong>
+                    </div>
+                  )}
+                  {detailsProject.building_ratio && (
+                    <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{t.buildingRatio}</span>
+                      <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
+                        {detailsProject.building_ratio}%
+                      </strong>
+                    </div>
+                  )}
+                  {detailsProject.total_buildings_count && (
+                    <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{lang === 'en' ? 'Buildings' : 'عدد المباني'}</span>
+                      <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
+                        {detailsProject.total_buildings_count}
+                      </strong>
+                    </div>
+                  )}
+                  {detailsProject.total_green_area && (
+                    <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                      <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{t.greenArea}</span>
+                      <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
+                        {Number(detailsProject.total_green_area).toLocaleString()} م²
+                      </strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* Master Plan Image Showcase */}
+                {detailsProject.master_plan_image_url ? (
+                  <div style={{
+                    border: '1.5px solid rgba(197, 168, 128, 0.25)',
+                    borderRadius: '20px',
+                    overflow: 'hidden',
+                    background: '#000c24',
+                    position: 'relative',
+                    marginBottom: '20px'
+                  }}>
+                    <img
+                      src={detailsProject.master_plan_image_url.startsWith('http')
+                        ? detailsProject.master_plan_image_url
+                        : `http://127.0.0.1:8000/storage/${detailsProject.master_plan_image_url}`}
+                      alt="Project Master Plan"
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        maxHeight: '400px',
+                        objectFit: 'contain',
+                        display: 'block',
+                        margin: '0 auto'
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '12px',
+                      [lang === 'ar' ? 'left' : 'right']: '12px',
+                      background: 'rgba(0, 15, 61, 0.85)',
+                      border: '1px solid rgba(197, 168, 128, 0.3)',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.65rem',
+                      color: '#C5A880',
+                      fontWeight: 800
+                    }}>
+                      {lang === 'en' ? 'APPROVED MASTER PLAN' : 'مخطط معتمد'}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1.5px dashed rgba(197, 168, 128, 0.2)',
+                    borderRadius: '20px',
+                    padding: '40px',
+                    textAlign: 'center',
+                    color: '#8a9ab0',
+                    marginBottom: '20px'
+                  }}>
+                    <Layers size={36} color="#C5A880" style={{ marginBottom: 12, opacity: 0.6 }} />
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>
+                      {lang === 'en' ? 'Master Plan visualization is undergoing administrative approval.' : 'المخطط التفصيلي للمشروع قيد الاعتماد والمراجعة الإدارية.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Infrastructure/Notes block */}
+                {detailsProject.infrastructure_notes && (
+                  <div style={{
+                    background: 'rgba(197, 168, 128, 0.05)',
+                    border: '1px solid rgba(197, 168, 128, 0.15)',
+                    borderRadius: '16px',
+                    padding: '16px 20px'
+                  }}>
+                    <span style={{ display: 'block', fontSize: '0.72rem', color: '#C5A880', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800, marginBottom: 8 }}>
+                      {t.infraNotes}
+                    </span>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6 }}>
+                      {detailsProject.infrastructure_notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Modal Footer Actions */}
+            <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
+              <button
+                type="button"
+                className="btn-luxury-primary"
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  openEoiModal(detailsProject);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #d4af37 0%, #C5A880 50%, #aa7c11 100%)',
+                  color: '#000c24',
+                  border: 'none',
+                  padding: '12px 30px',
+                  borderRadius: '12px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <CreditCard size={15} />
+                <span>{t.heroCta}</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}

@@ -826,15 +826,71 @@ class MasterPlanController extends Controller
     // ══════════════════════════════════════════════════════════
 
     /**
+     * Helper: Enrich hotspot object with dynamic unit count, status, and pin color.
+     */
+    private function enrichHotspot(BuildingHotspot $hotspot)
+    {
+        $building = $hotspot->building;
+        if (!$building) {
+            $hotspot->availability_status = 'empty';
+            $hotspot->units_summary = [
+                'total' => 0,
+                'available' => 0,
+                'sold' => 0,
+                'reserved' => 0,
+                'occupancy_percent' => 0
+            ];
+            $hotspot->pin_color = '#94a3b8';
+            return $hotspot;
+        }
+
+        $units = Unit::where('building_id', $building->id)->get();
+        $totalUnits = $units->count();
+        $available = $units->where('status', 'available')->count();
+        $sold = $units->where('status', 'sold')->count();
+        $reserved = $units->where('status', 'reserved')->count();
+
+        $availability_status = $totalUnits === 0
+            ? 'empty'
+            : ($available === 0 ? 'sold_out' : ($available < $totalUnits * 0.3 ? 'limited' : 'available'));
+
+        $dynamicColor = '#94a3b8'; // Grey (empty)
+        if ($availability_status === 'available') {
+            $dynamicColor = '#22c55e'; // Green
+        } elseif ($availability_status === 'limited') {
+            $dynamicColor = '#f59e0b'; // Amber
+        } elseif ($availability_status === 'sold_out') {
+            $dynamicColor = '#ef4444'; // Red
+        }
+
+        $hotspot->availability_status = $availability_status;
+        $hotspot->units_summary = [
+            'total' => $totalUnits,
+            'available' => $available,
+            'sold' => $sold,
+            'reserved' => $reserved,
+            'occupancy_percent' => $totalUnits > 0
+                ? round(($sold + $reserved) / $totalUnits * 100, 1)
+                : 0
+        ];
+        $hotspot->pin_color = $dynamicColor;
+
+        return $hotspot;
+    }
+
+    /**
      * Get all hotspots for a project.
      */
     public function getHotspots($projectId)
     {
         $hotspots = BuildingHotspot::where('project_id', $projectId)
-            ->with(['building' => function ($q) {
-                $q->withCount('units');
-            }])
-            ->get();
+            ->with('building')
+            ->get()
+            ->map(function ($hotspot) {
+                return $this->enrichHotspot($hotspot);
+            })
+            ->filter()
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -854,7 +910,6 @@ class MasterPlanController extends Controller
             'x_percent' => 'required|numeric|min:0|max:100',
             'y_percent' => 'required|numeric|min:0|max:100',
             'label' => 'nullable|string|max:255',
-            'pin_color' => 'nullable|string|max:20',
         ]);
 
         // Check building belongs to this project
@@ -881,10 +936,16 @@ class MasterPlanController extends Controller
             'x_percent' => $validated['x_percent'],
             'y_percent' => $validated['y_percent'],
             'label' => $validated['label'] ?? null,
-            'pin_color' => $validated['pin_color'] ?? '#003DA6',
+            'pin_color' => '#94a3b8', // Temporary placeholder
         ]);
 
         $hotspot->load('building');
+        $this->enrichHotspot($hotspot);
+
+        // Update database with dynamic color for database consistency
+        $hotspot->update([
+            'pin_color' => $hotspot->pin_color
+        ]);
 
         return response()->json([
             'success' => true,
@@ -904,15 +965,21 @@ class MasterPlanController extends Controller
             'x_percent' => 'nullable|numeric|min:0|max:100',
             'y_percent' => 'nullable|numeric|min:0|max:100',
             'label' => 'nullable|string|max:255',
-            'pin_color' => 'nullable|string|max:20',
         ]);
 
         $hotspot->update(array_filter($validated, fn($v) => $v !== null));
+        $hotspot->load('building');
+        $this->enrichHotspot($hotspot);
+
+        // Save computed dynamic color to database
+        $hotspot->update([
+            'pin_color' => $hotspot->pin_color
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Hotspot updated successfully.',
-            'data' => $hotspot->load('building')
+            'data' => $hotspot
         ]);
     }
 
@@ -949,14 +1016,9 @@ class MasterPlanController extends Controller
             ->with('building')
             ->get()
             ->map(function ($hotspot) {
-                $building = $hotspot->building;
+                $enriched = $this->enrichHotspot($hotspot);
+                $building = $enriched->building;
                 if (!$building) return null;
-
-                $units = Unit::where('building_id', $building->id)->get();
-                $totalUnits = $units->count();
-                $available = $units->where('status', 'available')->count();
-                $sold = $units->where('status', 'sold')->count();
-                $reserved = $units->where('status', 'reserved')->count();
 
                 // Get building image from media
                 $buildingMedia = $building->project->media
@@ -965,11 +1027,11 @@ class MasterPlanController extends Controller
                     ->first();
 
                 return [
-                    'id' => $hotspot->id,
-                    'x_percent' => $hotspot->x_percent,
-                    'y_percent' => $hotspot->y_percent,
-                    'label' => $hotspot->label ?? $building->name,
-                    'pin_color' => $hotspot->pin_color,
+                    'id' => $enriched->id,
+                    'x_percent' => $enriched->x_percent,
+                    'y_percent' => $enriched->y_percent,
+                    'label' => $enriched->label ?? $building->name,
+                    'pin_color' => $enriched->pin_color,
                     'building' => [
                         'id' => $building->id,
                         'name' => $building->name,
@@ -981,18 +1043,8 @@ class MasterPlanController extends Controller
                             ? asset('storage/' . $buildingMedia->file_path)
                             : null,
                     ],
-                    'units_summary' => [
-                        'total' => $totalUnits,
-                        'available' => $available,
-                        'sold' => $sold,
-                        'reserved' => $reserved,
-                        'occupancy_percent' => $totalUnits > 0
-                            ? round(($sold + $reserved) / $totalUnits * 100, 1)
-                            : 0,
-                    ],
-                    'availability_status' => $totalUnits === 0
-                        ? 'empty'
-                        : ($available === 0 ? 'sold_out' : ($available < $totalUnits * 0.3 ? 'limited' : 'available')),
+                    'units_summary' => $enriched->units_summary,
+                    'availability_status' => $enriched->availability_status,
                 ];
             })
             ->filter()

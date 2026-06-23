@@ -134,6 +134,25 @@ class OrganizationController extends Controller
         return response()->json(['success' => true, 'message' => 'Company deleted successfully.']);
     }
 
+    public function updateDeveloperRate(Request $request, $id)
+    {
+        $company = Company::findOrFail($id);
+
+        $validated = $request->validate([
+            'developer_brokerage_rate' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $company->update([
+            'developer_brokerage_rate' => $validated['developer_brokerage_rate'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Developer brokerage commission rate updated successfully.',
+            'data' => $company->only(['id', 'name', 'developer_brokerage_rate']),
+        ]);
+    }
+
     // ══════════════════════════════════════════════════════════
     // 🌍 COUNTRIES
     // ══════════════════════════════════════════════════════════

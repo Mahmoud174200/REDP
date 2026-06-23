@@ -143,6 +143,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/leads', [BrokerSalesController::class, 'listLeads']);
             Route::post('/leads', [BrokerSalesController::class, 'registerLead']);
             Route::get('/leads/{id}', [BrokerSalesController::class, 'showLead']);
+            Route::put('/leads/{id}/contact', [BrokerSalesController::class, 'logContact']);
+            Route::put('/leads/{id}/schedule-meeting', [BrokerSalesController::class, 'scheduleMeeting']);
+
+            // Commission Settings
+            Route::get('/commissions/settings', [BrokerSalesController::class, 'getCommissionSettings']);
+            Route::put('/commissions/settings', [BrokerSalesController::class, 'updateCommissionSettings']);
 
             // Presentations (own only — strict isolation)
             Route::get('/presentations', [BrokerSalesController::class, 'listPresentations']);
@@ -549,6 +555,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::middleware('role:admin')->group(function () use ($orgCtrl) {
             Route::post('/companies', [$orgCtrl, 'createCompany']);
             Route::put('/companies/{id}', [$orgCtrl, 'updateCompany']);
+            Route::put('/companies/{id}/developer-rate', [$orgCtrl, 'updateDeveloperRate']);
             Route::delete('/companies/{id}', [$orgCtrl, 'deleteCompany']);
         });
 

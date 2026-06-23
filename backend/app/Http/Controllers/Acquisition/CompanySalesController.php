@@ -866,16 +866,90 @@ class CompanySalesController extends Controller
                         'current_tier'           => 'tier_3',
                     ]);
 
-                    // 5. Generate commission pending ledger
-                    Commission::create([
-                        'id'           => (string) Str::uuid(),
-                        'broker_id'    => $reservation->broker_id,
-                        'lead_id'      => $lead->id,
-                        'unit_id'      => $reservation->unit_id,
-                        'rate_percent' => 2.50, // Standard 2.50% commission rate
-                        'gross_amount' => $unit->price * 0.025,
-                        'status'       => 'pending',
-                    ]);
+                    // 5. Generate commission pending ledger (with hierarchical overrides)
+                    $sellerBroker = $reservation->broker; // Broker model
+                    $brokerCompany = null;
+                    if ($sellerBroker && $sellerBroker->user) {
+                        $brokerCompany = \App\Models\Company::find($sellerBroker->user->company_id);
+                    }
+
+                    if ($brokerCompany) {
+                        $devRate = (float)($brokerCompany->developer_brokerage_rate ?? 5.00);
+                        $ownerRate = (float)($brokerCompany->owner_commission_rate ?? 1.00);
+                        $leaderRate = (float)($brokerCompany->leader_commission_rate ?? 1.50);
+                        $agentRate = (float)($brokerCompany->agent_commission_rate ?? 2.50);
+
+                        $sellerUser = $sellerBroker->user;
+                        $directManager = null;
+                        $indirectManager = null;
+
+                        if ($sellerUser) {
+                            $hierarchy = \App\Models\EmployeeHierarchy::where('user_id', $sellerUser->id)->first();
+                            if ($hierarchy) {
+                                if ($hierarchy->direct_manager_id) {
+                                    $directManager = \App\Models\User::find($hierarchy->direct_manager_id);
+                                }
+                                if ($hierarchy->indirect_manager_id) {
+                                    $indirectManager = \App\Models\User::find($hierarchy->indirect_manager_id);
+                                }
+                            }
+                        }
+
+                        // 1. Agent Commission
+                        Commission::create([
+                            'id'           => (string) Str::uuid(),
+                            'broker_id'    => $sellerBroker->id,
+                            'lead_id'      => $lead->id,
+                            'unit_id'      => $reservation->unit_id,
+                            'rate_percent' => $agentRate,
+                            'gross_amount' => $unit->price * ($agentRate / 100),
+                            'status'       => 'pending',
+                        ]);
+
+                        // 2. Team Leader Override
+                        if ($directManager) {
+                            $leaderBroker = Broker::where('user_id', $directManager->id)->first();
+                            if ($leaderBroker) {
+                                Commission::create([
+                                    'id'           => (string) Str::uuid(),
+                                    'broker_id'    => $leaderBroker->id,
+                                    'lead_id'      => $lead->id,
+                                    'unit_id'      => $reservation->unit_id,
+                                    'rate_percent' => $leaderRate,
+                                    'gross_amount' => $unit->price * ($leaderRate / 100),
+                                    'status'       => 'pending',
+                                ]);
+                            }
+                        }
+
+                        // 3. Broker Owner Override
+                        if ($indirectManager) {
+                            $ownerBroker = Broker::where('user_id', $indirectManager->id)->first();
+                            if ($ownerBroker) {
+                                Commission::create([
+                                    'id'           => (string) Str::uuid(),
+                                    'broker_id'    => $ownerBroker->id,
+                                    'lead_id'      => $lead->id,
+                                    'unit_id'      => $reservation->unit_id,
+                                    'rate_percent' => $ownerRate,
+                                    'gross_amount' => $unit->price * ($ownerRate / 100),
+                                    'status'       => 'pending',
+                                ]);
+                            }
+                        }
+                    } else {
+                        // Freelancer or fallback (no company assigned)
+                        // Use default 2.50% rate
+                        Commission::create([
+                            'id'           => (string) Str::uuid(),
+                            'broker_id'    => $reservation->broker_id,
+                            'lead_id'      => $lead->id,
+                            'unit_id'      => $reservation->unit_id,
+                            'rate_percent' => 2.50,
+                            'gross_amount' => $unit->price * 0.025,
+                            'status'       => 'pending',
+                        ]);
+                    }
 
                     // Record journey
                     AuditLogService::recordJourney(

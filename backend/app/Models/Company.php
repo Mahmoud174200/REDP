@@ -19,10 +19,15 @@ class Company extends Model
         'id', 'name', 'legal_name', 'registration_number', 'tax_id',
         'type', 'parent_company_id', 'logo_url', 'address', 'city',
         'country_id', 'phone', 'email', 'website', 'status', 'settings',
+        'developer_brokerage_rate', 'owner_commission_rate', 'leader_commission_rate', 'agent_commission_rate',
     ];
 
     protected $casts = [
         'settings' => 'array',
+        'developer_brokerage_rate' => 'float',
+        'owner_commission_rate' => 'float',
+        'leader_commission_rate' => 'float',
+        'agent_commission_rate' => 'float',
     ];
 
     // ── Relationships ──

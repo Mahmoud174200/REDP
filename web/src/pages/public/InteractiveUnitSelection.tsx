@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import {
   Building, Layers, MapPin, ArrowRight, ArrowLeft, ChevronRight,
-  ChevronLeft, Home, Eye, Maximize, DollarSign, Compass, CheckCircle,
+  ChevronLeft, Home, Eye, Maximize, Plus, Minus, RotateCcw, DollarSign, Compass, CheckCircle,
   Lock, X, Globe, Menu, Shield, Loader, ArrowUpRight, Square,
   ChevronDown, Phone, Mail, User, CreditCard, Hash, Info
 } from 'lucide-react';
@@ -302,6 +302,118 @@ const InteractiveUnitSelection: React.FC = () => {
   const [fullscreenModelUrl, setFullscreenModelUrl] = useState<string | null>(null);
   const [fullscreenModelTitle, setFullscreenModelTitle] = useState<string>('');
   const [showMasterPlanLightbox, setShowMasterPlanLightbox] = useState(false);
+
+  // Viewport zoom & pan states for master plan lightbox
+  const [lightboxZoom, setLightboxZoom] = useState<number>(1);
+  const [lightboxPan, setLightboxPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [lightboxIsPanning, setLightboxIsPanning] = useState<boolean>(false);
+  const lightboxPanStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lightboxDidPanRef = useRef<boolean>(false);
+  const lightboxContainerRef = useRef<HTMLDivElement>(null);
+  const [hoveredHotspot, setHoveredHotspot] = useState<any | null>(null);
+
+  const [lightboxImgSize, setLightboxImgSize] = useState<{ width: number; height: number } | null>(null);
+  const [lightboxViewportSize, setLightboxViewportSize] = useState<{ width: number; height: number }>({ width: 800, height: 500 });
+  const lightboxViewportRef = useRef<HTMLDivElement>(null);
+
+  // Whenever showMasterPlanLightbox changes, reset zoom and pan
+  useEffect(() => {
+    if (showMasterPlanLightbox) {
+      setLightboxZoom(1);
+      setLightboxPan({ x: 0, y: 0 });
+      setLightboxIsPanning(false);
+      lightboxDidPanRef.current = false;
+      setHoveredHotspot(null);
+      // Measure size after render
+      const timer = setTimeout(() => {
+        if (lightboxViewportRef.current) {
+          const rect = lightboxViewportRef.current.getBoundingClientRect();
+          setLightboxViewportSize({ width: rect.width, height: rect.height });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
+      setLightboxImgSize(null);
+    }
+  }, [showMasterPlanLightbox]);
+
+  // Handle scroll zoom inside public master plan lightbox
+  useEffect(() => {
+    if (!showMasterPlanLightbox) return;
+    
+    const timer = setTimeout(() => {
+      const container = lightboxViewportRef.current;
+      if (!container) return;
+
+      const handleWheelEvent = (e: WheelEvent) => {
+        e.preventDefault();
+        const zoomFactor = 0.12;
+        setLightboxZoom(prev => {
+          let newScale = prev + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
+          return Math.max(0.5, Math.min(4, newScale));
+        });
+      };
+
+      container.addEventListener('wheel', handleWheelEvent, { passive: false });
+      return () => {
+        container.removeEventListener('wheel', handleWheelEvent);
+      };
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [showMasterPlanLightbox]);
+
+  // Lightbox Pan & Selection Event Handlers
+  const handleLightboxMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('.public-pin-marker') || (e.target as HTMLElement).closest('.lightbox-toolbar')) {
+      return;
+    }
+    setLightboxIsPanning(true);
+    lightboxDidPanRef.current = false;
+    lightboxPanStartRef.current = { x: e.clientX - lightboxPan.x, y: e.clientY - lightboxPan.y };
+  };
+
+  const handleLightboxMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!lightboxIsPanning) return;
+    const dx = e.clientX - lightboxPanStartRef.current.x;
+    const dy = e.clientY - lightboxPanStartRef.current.y;
+    if (Math.abs(dx - lightboxPan.x) > 3 || Math.abs(dy - lightboxPan.y) > 3) {
+      lightboxDidPanRef.current = true;
+    }
+    setLightboxPan({ x: dx, y: dy });
+  };
+
+  const handleLightboxMouseUp = () => {
+    setLightboxIsPanning(false);
+  };
+
+  const handlePinClick = (e: React.MouseEvent, h: any) => {
+    e.stopPropagation();
+    if (lightboxDidPanRef.current) {
+      lightboxDidPanRef.current = false;
+      return;
+    }
+    const buildingObj = buildings.find(b => b.name === h.building?.name);
+    if (buildingObj) {
+      handleSelectBuilding(buildingObj);
+      setShowMasterPlanLightbox(false);
+    }
+  };
+
+  const getLightboxBaseScale = () => {
+    if (!lightboxImgSize) return 1;
+    const scaleX = lightboxViewportSize.width / lightboxImgSize.width;
+    const scaleY = lightboxViewportSize.height / lightboxImgSize.height;
+    return Math.min(scaleX, scaleY) * 0.95;
+  };
+
+  const lightboxBaseScale = getLightboxBaseScale();
+  const lightboxCurrentScale = lightboxBaseScale * lightboxZoom;
+
+  const handleLightboxImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setLightboxImgSize({ width: img.naturalWidth, height: img.naturalHeight });
+  };
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -3077,6 +3189,18 @@ const InteractiveUnitSelection: React.FC = () => {
         }}
           onClick={() => setShowMasterPlanLightbox(false)}
         >
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes us3d-pulse-glow {
+              0% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.9; }
+              100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+            }
+            .crisp-master-plan {
+              image-rendering: -webkit-optimize-contrast !important;
+              image-rendering: crisp-edges !important;
+              image-rendering: optimizeQuality !important;
+              -ms-interpolation-mode: nearest-neighbor !important;
+            }
+          `}} />
           <div 
             style={{
               background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
@@ -3113,12 +3237,215 @@ const InteractiveUnitSelection: React.FC = () => {
             </div>
 
             {/* Master Plan Image container */}
-            <div style={{ flex: 1, position: 'relative', background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0, 61, 166, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <img
-                src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
-                alt="Master Plan Fullscreen"
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-              />
+            <div 
+              ref={lightboxViewportRef}
+              style={{
+                flex: 1,
+                position: 'relative',
+                background: '#fff',
+                borderRadius: 16,
+                overflow: 'hidden',
+                border: '1px solid rgba(0, 61, 166, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px',
+                userSelect: 'none',
+              }}
+              onMouseDown={handleLightboxMouseDown}
+              onMouseMove={handleLightboxMouseMove}
+              onMouseUp={handleLightboxMouseUp}
+              onMouseLeave={handleLightboxMouseUp}
+            >
+              <div
+                ref={lightboxContainerRef}
+                style={{
+                  position: 'relative',
+                  width: lightboxImgSize ? `${lightboxImgSize.width}px` : '100%',
+                  height: lightboxImgSize ? `${lightboxImgSize.height}px` : '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxCurrentScale})`,
+                  transition: lightboxIsPanning ? 'none' : 'transform 0.15s ease-out',
+                  cursor: lightboxIsPanning ? 'grabbing' : 'grab',
+                }}
+              >
+                <img
+                  src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
+                  alt="Master Plan Fullscreen"
+                  className="crisp-master-plan"
+                  style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
+                  onLoad={handleLightboxImageLoad}
+                  draggable={false}
+                />
+
+                {/* Hotspot Pins Overlay as glowing radar targets */}
+                {lightboxImgSize && hotspots.map(h => {
+                  const bName = h.building?.name || 'Building';
+                  const isHovered = hoveredHotspot?.id === h.id;
+                  
+                  return (
+                    <div
+                      key={h.id}
+                      className="public-pin-marker"
+                      style={{
+                        position: 'absolute',
+                        left: `${h.x_percent}%`,
+                        top: `${h.y_percent}%`,
+                        transform: `translate(-50%, -50%) scale(${(isHovered ? 1.25 : 1) / lightboxCurrentScale})`,
+                        transition: 'transform 0.15s ease',
+                        zIndex: isHovered ? 100 : 10,
+                        cursor: 'pointer',
+                      }}
+                      onClick={(e) => handlePinClick(e, h)}
+                      onMouseEnter={() => setHoveredHotspot(h)}
+                      onMouseLeave={() => setHoveredHotspot(null)}
+                    >
+                      {/* Pulse Glow ring */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        border: `2px solid ${h.pin_color}`,
+                        transform: 'translate(-50%, -50%)',
+                        boxShadow: `0 0 12px ${h.pin_color}`,
+                        animation: 'us3d-pulse-glow 2s infinite',
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                      }} />
+
+                      {/* Main Glowing Target Circle */}
+                      <div style={{
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        backgroundColor: isHovered ? h.pin_color : 'rgba(255, 255, 255, 0.95)',
+                        border: `3px solid ${h.pin_color}`,
+                        boxShadow: `0 0 15px ${h.pin_color}, inset 0 0 4px rgba(0,0,0,0.15)`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transform: 'translate(-50%, -50%)',
+                        position: 'relative',
+                        zIndex: 2,
+                      }}>
+                        <div style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: isHovered ? '#fff' : h.pin_color,
+                        }} />
+                      </div>
+
+                      {/* Tooltip containing building info & stats */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '16px',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(15, 23, 42, 0.95)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#fff',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        whiteSpace: 'nowrap',
+                        opacity: isHovered ? 1 : 0,
+                        visibility: isHovered ? 'visible' : 'hidden',
+                        transition: 'opacity 0.2s ease, visibility 0.2s ease',
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        zIndex: 200,
+                      }}>
+                        <strong style={{ fontSize: '0.85rem', color: '#fff', display: 'block', borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '4px', marginBottom: '4px' }}>
+                          🏢 {lang === 'ar' ? (h.building?.name_ar || bName) : bName}
+                        </strong>
+                        {h.units_summary && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.72rem', color: '#cbd5e1' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
+                              {lang === 'ar' ? 'المتاح للبيع:' : 'Available Units:'} <strong>{h.units_summary.available}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></span>
+                              {lang === 'ar' ? 'الوحدات المحجوزة:' : 'Reserved Units:'} <strong>{h.units_summary.reserved}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span>
+                              {lang === 'ar' ? 'المباع بالكامل:' : 'Sold Units:'} <strong>{h.units_summary.sold}</strong>
+                            </div>
+                            <div style={{ marginTop: '2px', color: '#c5a880', fontWeight: 'bold' }}>
+                              📊 {lang === 'ar' ? 'نسبة الإشغال:' : 'Occupancy:'} {h.units_summary.occupancy_percent}%
+                            </div>
+                          </div>
+                        )}
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontStyle: 'italic', marginTop: '4px' }}>
+                          ⚡ {lang === 'ar' ? 'اضغط لاختيار المبنى' : 'Click to select building'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Lightbox Zoom Controls Toolbar */}
+              <div 
+                className="lightbox-toolbar"
+                style={{
+                  position: 'absolute',
+                  bottom: '24px',
+                  right: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  borderRadius: '12px',
+                  padding: '4px 8px',
+                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                  zIndex: 3100,
+                }}
+              >
+                <button 
+                  onClick={() => setLightboxZoom(prev => Math.min(4, prev + 0.25))}
+                  style={{
+                    border: 'none', background: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px', color: '#003DA6', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s'
+                  }}
+                  title={lang === 'ar' ? 'تكبير' : 'Zoom In'}
+                >
+                  <Plus size={16} />
+                </button>
+                <div style={{ width: '1px', height: '16px', background: 'rgba(0,0,0,0.08)' }}></div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', minWidth: '38px', textAlign: 'center', fontFamily: 'monospace' }}>
+                  {Math.round(lightboxZoom * 100)}%
+                </span>
+                <div style={{ width: '1px', height: '16px', background: 'rgba(0,0,0,0.08)' }}></div>
+                <button 
+                  onClick={() => setLightboxZoom(prev => Math.max(0.5, prev - 0.25))}
+                  style={{
+                    border: 'none', background: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px', color: '#003DA6', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s'
+                  }}
+                  title={lang === 'ar' ? 'تصغير' : 'Zoom Out'}
+                >
+                  <Minus size={16} />
+                </button>
+                <div style={{ width: '1px', height: '16px', background: 'rgba(0,0,0,0.08)' }}></div>
+                <button 
+                  onClick={() => { setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}
+                  style={{
+                    border: 'none', background: 'none', cursor: 'pointer', padding: '6px', borderRadius: '8px', color: '#003DA6', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s'
+                  }}
+                  title={lang === 'ar' ? 'إعادة ضبط' : 'Reset View'}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
