@@ -9,6 +9,9 @@ class BuildingHotspot extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    public $availability_status;
+    public $units_summary;
+
     protected $fillable = [
         'id',
         'project_id',

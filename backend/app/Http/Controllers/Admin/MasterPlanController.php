@@ -954,7 +954,7 @@ class MasterPlanController extends Controller
         $this->enrichHotspot($hotspot);
 
         // Update database with dynamic color for database consistency
-        $hotspot->update([
+        BuildingHotspot::where('id', $hotspot->id)->update([
             'pin_color' => $hotspot->pin_color
         ]);
 
@@ -992,7 +992,7 @@ class MasterPlanController extends Controller
         $this->enrichHotspot($hotspot);
 
         // Save computed dynamic color to database
-        $hotspot->update([
+        BuildingHotspot::where('id', $hotspot->id)->update([
             'pin_color' => $hotspot->pin_color
         ]);
 
