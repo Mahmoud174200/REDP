@@ -29,6 +29,11 @@ class ProjectMedia extends Model
         'model_generated_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'image_url',
+        'model_3d_public_url',
+    ];
+
     public function project()
     {
         return $this->belongsTo(Project::class);

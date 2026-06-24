@@ -930,9 +930,22 @@ const BrokerPortal: React.FC = () => {
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-title)' }}>
                       <i className="fa-solid fa-map-location-dot" style={{ color: 'var(--color-secondary)' }}></i> Project Master Plan Diagram
                     </h3>
-                    {proj.master_plan_image_url ? (
-                      <div style={{ background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', textAlign: 'center', overflow: 'hidden' }}>
-                        <img src={proj.master_plan_image_url} alt="Master Plan" style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px' }} />
+                    {proj.master_plan_svg_url || proj.master_plan_image_url ? (
+                      <div style={{ background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', textAlign: 'center', overflow: 'hidden', position: 'relative' }}>
+                        <img 
+                          src={proj.master_plan_svg_url 
+                            ? (proj.master_plan_svg_url.startsWith('http') ? proj.master_plan_svg_url : `http://127.0.0.1:8000/storage/${proj.master_plan_svg_url}`) 
+                            : (proj.master_plan_image_url.startsWith('http') ? proj.master_plan_image_url : `http://127.0.0.1:8000/storage/${proj.master_plan_image_url}`)
+                          } 
+                          alt="Master Plan" 
+                          style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px' }} 
+                        />
+                        {proj.master_plan_svg_url && (
+                          <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(5, 150, 105, 0.95)', color: '#fff', fontSize: '0.65rem', fontWeight: 'bold', padding: '3px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#fff', borderRadius: '50%' }}></span>
+                            Vector SVG Active
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div style={{ padding: '48px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed var(--border-glass)', textAlign: 'center' }}>

@@ -42,20 +42,51 @@ class ProjectMediaController extends Controller
     public function uploadMasterPlanImage(Request $request, string $projectId): JsonResponse
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,jpg,png,webp|max:10240', // 10MB max
+            'image' => 'required|image|mimes:jpeg,jpg,png,webp|max:20480', // 20MB max for high-res
         ]);
 
         $project = Project::findOrFail($projectId);
 
         $path = $request->file('image')->store('projects/' . $projectId . '/master_plan', 'public');
 
-        $project->update(['master_plan_image_url' => $path]);
+        // Clear existing SVG when a new raster image is uploaded (will be re-vectorized)
+        $project->update([
+            'master_plan_image_url' => $path,
+            'master_plan_svg_url' => null,
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Project master plan image uploaded successfully.',
             'data' => [
                 'image_url' => asset('storage/' . $path),
+                'path' => $path,
+            ],
+        ]);
+    }
+
+    /**
+     * Upload vectorized SVG version of the master plan.
+     */
+    public function uploadMasterPlanSvg(Request $request, string $projectId): JsonResponse
+    {
+        $request->validate([
+            'svg' => 'required|file|max:51200', // 50MB max for SVG
+        ]);
+
+        $project = Project::findOrFail($projectId);
+
+        $file = $request->file('svg');
+        $fileName = 'master_plan_vector_' . time() . '.svg';
+        $path = $file->storeAs('projects/' . $projectId . '/master_plan', $fileName, 'public');
+
+        $project->update(['master_plan_svg_url' => $path]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Master plan SVG uploaded successfully.',
+            'data' => [
+                'svg_url' => asset('storage/' . $path),
                 'path' => $path,
             ],
         ]);
@@ -291,6 +322,7 @@ class ProjectMediaController extends Controller
 
         $buildingImages = [];
         $floorPlanImages = [];
+        $coverGallery = [];
 
         foreach ($media as $m) {
             $item = [
@@ -304,6 +336,8 @@ class ProjectMediaController extends Controller
                 $buildingImages[$m->reference_key] = $item;
             } elseif ($m->media_type === 'floor_plan') {
                 $floorPlanImages[$m->reference_key] = $item;
+            } elseif ($m->media_type === 'cover_gallery') {
+                $coverGallery[] = $item;
             }
         }
 
@@ -311,10 +345,68 @@ class ProjectMediaController extends Controller
             'success' => true,
             'data' => [
                 'project_image' => $project->master_plan_image_url ? (str_starts_with($project->master_plan_image_url, 'http') ? $project->master_plan_image_url : asset('storage/' . $project->master_plan_image_url)) : null,
+                'project_image_svg' => $project->master_plan_svg_url ? (str_starts_with($project->master_plan_svg_url, 'http') ? $project->master_plan_svg_url : asset('storage/' . $project->master_plan_svg_url)) : null,
                 'cover_image' => $project->image_url ? (str_starts_with($project->image_url, 'http') ? $project->image_url : asset('storage/' . $project->image_url)) : null,
+                'cover_gallery' => $coverGallery,
                 'building_images' => $buildingImages,
                 'floor_plan_images' => $floorPlanImages,
             ],
+        ]);
+    }
+
+    /**
+     * Upload an image to the project cover gallery.
+     */
+    public function uploadCoverGalleryImage(Request $request, string $projectId): JsonResponse
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,jpg,png,webp|max:10240', // 10MB max
+        ]);
+
+        $project = Project::findOrFail($projectId);
+
+        $path = $request->file('image')->store('projects/' . $projectId . '/cover_gallery', 'public');
+
+        $media = ProjectMedia::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $projectId,
+            'media_type' => 'cover_gallery',
+            'reference_key' => basename($path),
+            'image_path' => $path,
+            'caption' => $request->input('caption', null),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cover gallery image uploaded successfully.',
+            'data' => [
+                'id' => $media->id,
+                'image_url' => asset('storage/' . $path),
+                'path' => $path,
+            ],
+        ]);
+    }
+
+    /**
+     * Delete an image from the project cover gallery.
+     */
+    public function deleteCoverGalleryImage(string $projectId, string $mediaId): JsonResponse
+    {
+        $media = ProjectMedia::where('project_id', $projectId)
+            ->where('id', $mediaId)
+            ->where('media_type', 'cover_gallery')
+            ->firstOrFail();
+
+        // Delete from storage disk
+        if ($media->image_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->image_path);
+        }
+
+        $media->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cover gallery image deleted successfully.',
         ]);
     }
 

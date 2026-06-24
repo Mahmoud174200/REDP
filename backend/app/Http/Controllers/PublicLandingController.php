@@ -32,7 +32,7 @@ class PublicLandingController extends Controller
                     $q->whereRaw("projects.released_phases IS NULL AND units.phase = 'Phase 1'")
                       ->orWhereRaw($concatSql);
                 });
-        }])->with('paymentPlans')->get();
+        }])->with(['paymentPlans', 'media'])->get();
 
         return response()->json([
             'success' => true,

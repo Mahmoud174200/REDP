@@ -560,7 +560,8 @@ const MasterPlanPage: React.FC = () => {
       // Fetch media assets to get the master plan image
       const mediaRes = await api.get(`/public/projects/${projectId}/media`);
       if (mediaRes.data?.success) {
-        setMasterPlanImage(mediaRes.data.data.project_image || null);
+        const data = mediaRes.data.data;
+        setMasterPlanImage(data.project_image_svg || data.project_image || null);
       }
     } catch (err) {
       console.error('Failed to load master plan', err);

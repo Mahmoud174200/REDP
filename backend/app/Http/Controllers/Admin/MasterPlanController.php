@@ -1071,11 +1071,17 @@ class MasterPlanController extends Controller
             ->filter()
             ->values();
 
+        // Get the SVG version if available
+        $masterPlanSvgUrl = $project->master_plan_svg_url
+            ? asset('storage/' . $project->master_plan_svg_url)
+            : null;
+
         return response()->json([
             'success' => true,
             'data' => [
                 'project_name' => $project->name,
                 'master_plan_image' => $masterPlanImageUrl,
+                'master_plan_svg' => $masterPlanSvgUrl,
                 'hotspots' => $hotspots,
             ]
         ]);

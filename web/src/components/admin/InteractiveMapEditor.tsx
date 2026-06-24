@@ -538,6 +538,29 @@ export const InteractiveMapEditor: React.FC<InteractiveMapEditorProps> = ({
               draggable={false}
             />
 
+            {masterPlanImage && masterPlanImage.toLowerCase().includes('.svg') && (
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                left: '12px',
+                background: 'rgba(5, 150, 105, 0.95)',
+                color: '#fff',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                pointerEvents: 'none'
+              }}>
+                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#fff', borderRadius: '50%' }}></span>
+                Crisp Vector Mode (SVG)
+              </div>
+            )}
+
             {/* SVG Overlay for polygons */}
             <svg
               style={{

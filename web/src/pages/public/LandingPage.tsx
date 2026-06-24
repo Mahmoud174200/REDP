@@ -363,22 +363,42 @@ const ProjectImageSlider: React.FC<{ project: any; coverImg: string }> = ({ proj
   
   // Collect images
   const images = React.useMemo(() => {
-    const list = [coverImg];
-    
-    // Add master plan if present
-    if (project.master_plan_image_url) {
-      const mpUrl = project.master_plan_image_url.startsWith('http')
-        ? project.master_plan_image_url
-        : `http://127.0.0.1:8000/storage/${project.master_plan_image_url}`;
-      list.push(mpUrl);
+    const list: string[] = [];
+
+    if (coverImg) {
+      list.push(coverImg);
     }
-    
-    // Luxury fallbacks to make a full gallery
-    list.push('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80');
-    list.push('https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=80');
-    list.push('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80');
+
+    // Add cover gallery images dynamically if present
+    if (project.media && Array.isArray(project.media)) {
+      const gallery = project.media
+        .filter((m: any) => m.media_type === 'cover_gallery')
+        .map((m: any) => {
+          if (m.image_url) return m.image_url;
+          return m.image_path.startsWith('http')
+            ? m.image_path
+            : `http://127.0.0.1:8000/storage/${m.image_path}`;
+        });
+      list.push(...gallery);
+    }
+
+    // Fallback: If no gallery uploaded, use the previous logic with fallback images
+    if (list.length <= 1) {
+      const mpUrlRaw = project.master_plan_svg_url || project.master_plan_image_url;
+      if (mpUrlRaw) {
+        const mpUrl = mpUrlRaw.startsWith('http')
+          ? mpUrlRaw
+          : `http://127.0.0.1:8000/storage/${mpUrlRaw}`;
+        list.push(mpUrl);
+      }
+
+      list.push('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80');
+      list.push('https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=80');
+      list.push('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80');
+    }
+
     return list;
-  }, [coverImg, project.master_plan_image_url]);
+  }, [coverImg, project.media, project.master_plan_svg_url, project.master_plan_image_url]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2792,7 +2812,7 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Master Plan Image Showcase */}
-                {detailsProject.master_plan_image_url ? (
+                {detailsProject.master_plan_svg_url || detailsProject.master_plan_image_url ? (
                   <div style={{
                     border: '1.5px solid rgba(197, 168, 128, 0.25)',
                     borderRadius: '20px',
@@ -2802,9 +2822,11 @@ const LandingPage: React.FC = () => {
                     marginBottom: '20px'
                   }}>
                     <img
-                      src={detailsProject.master_plan_image_url.startsWith('http')
-                        ? detailsProject.master_plan_image_url
-                        : `http://127.0.0.1:8000/storage/${detailsProject.master_plan_image_url}`}
+                      src={(() => {
+                        const mp = detailsProject.master_plan_svg_url || detailsProject.master_plan_image_url;
+                        if (!mp) return '';
+                        return mp.startsWith('http') ? mp : `http://127.0.0.1:8000/storage/${mp}`;
+                      })()}
                       alt="Project Master Plan"
                       style={{
                         width: '100%',

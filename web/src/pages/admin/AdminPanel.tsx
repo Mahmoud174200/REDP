@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import FloorPlanEditor from '../../components/admin/FloorPlanEditor';
+import { vectorizeImageToFile, vectorizeImage, PRESET_ARCHITECTURAL, PRESET_PHOTOGRAPHIC, PRESET_DEFAULT } from '../../utils/imageVectorizer';
 
 // ── Interfaces ──
 interface UserItem {
@@ -235,10 +236,25 @@ const AdminPanel: React.FC = () => {
 
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
-  const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; cover_image: string | null; building_images: any; floor_plan_images: any } | null>(null);
+  const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; project_image_svg: string | null; cover_image: string | null; cover_gallery?: any[]; building_images: any; floor_plan_images: any } | null>(null);
   const [mediaBuildings, setMediaBuildings] = useState<any[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
+
+  // ── Image Vectorizer States ──
+  const [vectorizerFile, setVectorizerFile] = useState<File | null>(null);
+  const [vectorizerOriginalUrl, setVectorizerOriginalUrl] = useState<string | null>(null);
+  const [vectorizerSvgCode, setVectorizerSvgCode] = useState<string>('');
+  const [vectorizerPreset, setVectorizerPreset] = useState<'architectural' | 'photographic' | 'balanced'>('balanced');
+  const [vectorizerColors, setVectorizerColors] = useState<number>(32);
+  const [vectorizerDetail, setVectorizerDetail] = useState<number>(1.0);
+  const [vectorizerStatus, setVectorizerStatus] = useState<string>('');
+  const [vectorizerLoading, setVectorizerLoading] = useState<boolean>(false);
+  const [vectorizerZoom, setVectorizerZoom] = useState<number>(1);
+  const [vectorizerGrayscale, setVectorizerGrayscale] = useState<boolean>(false);
+  const [vectorizerThresholdEnabled, setVectorizerThresholdEnabled] = useState<boolean>(false);
+  const [vectorizerThreshold, setVectorizerThreshold] = useState<number>(128);
+  const [vectorizerInvert, setVectorizerInvert] = useState<boolean>(false);
   const [uploadingUnitLayout, setUploadingUnitLayout] = useState(false);
   const [building3DStatuses, setBuilding3DStatuses] = useState<any[]>([]);
   const [is3DGenerating, setIs3DGenerating] = useState<string | null>(null);
@@ -785,8 +801,38 @@ const AdminPanel: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data?.success) {
-        alert('Project master plan image uploaded successfully!');
-        setProjectMedia(prev => prev ? { ...prev, project_image: res.data.data.image_url } : null);
+        const imageUrl = res.data.data.image_url;
+        setProjectMedia(prev => prev ? { 
+          ...prev, 
+          project_image: imageUrl,
+          project_image_svg: null 
+        } : null);
+
+        let objectUrl = '';
+        try {
+          objectUrl = URL.createObjectURL(file);
+          const svgFile = await vectorizeImageToFile(objectUrl, 'master_plan.svg', PRESET_ARCHITECTURAL);
+          
+          const svgFormData = new FormData();
+          svgFormData.append('svg', svgFile);
+          
+          const svgRes = await api.post(`/admin/projects/${selectedProjectForMedia.id}/master-plan-svg`, svgFormData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          
+          if (svgRes.data?.success) {
+            setProjectMedia(prev => prev ? { 
+              ...prev, 
+              project_image_svg: svgRes.data.data.svg_url 
+            } : null);
+            alert('Project master plan uploaded and vectorized successfully!');
+          }
+        } catch (vectorErr) {
+          console.error('Vectorization failed:', vectorErr);
+          alert('Master plan uploaded, but automatic vectorization failed. The raster version will be used.');
+        } finally {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+        }
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Upload failed');
@@ -816,6 +862,116 @@ const AdminPanel: React.FC = () => {
     } finally {
       setUploadingMediaKey(null);
     }
+  };
+
+  const handleUploadCoverGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProjectForMedia || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingMediaKey('cover_gallery');
+    try {
+      const res = await api.post(`/admin/projects/${selectedProjectForMedia.id}/cover-gallery`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.success) {
+        alert('Gallery image uploaded successfully!');
+        const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+        if (mediaRes.data?.success) {
+          setProjectMedia(mediaRes.data.data);
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  };
+
+  const handleDeleteCoverGalleryImage = async (mediaId: string) => {
+    if (!selectedProjectForMedia) return;
+    if (!confirm('Are you sure you want to delete this gallery image?')) return;
+
+    try {
+      const res = await api.delete(`/admin/projects/${selectedProjectForMedia.id}/cover-gallery/${mediaId}`);
+      if (res.data?.success) {
+        alert('Gallery image deleted successfully!');
+        const mediaRes = await api.get(`/public/projects/${selectedProjectForMedia.id}/media`);
+        if (mediaRes.data?.success) {
+          setProjectMedia(mediaRes.data.data);
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  const handleVectorizerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setVectorizerFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setVectorizerOriginalUrl(objectUrl);
+    setVectorizerSvgCode('');
+    setVectorizerStatus('Image loaded. Click "Run Vectorizer" to trace. / تم تحميل الصورة، اضغط على زر تحويل.');
+    setVectorizerZoom(1);
+  };
+
+  const handleRunVectorizer = async () => {
+    if (!vectorizerOriginalUrl) return;
+    setVectorizerLoading(true);
+    setVectorizerStatus('Loading tracer algorithm...');
+    try {
+      const options = {
+        ltres: vectorizerDetail,
+        qtres: vectorizerPreset === 'photographic' ? 0.01 : 1,
+        colorquantcycles: 8,
+        numberofcolors: vectorizerColors,
+        mincolorratio: 0,
+        pathomit: 2,
+        scale: 1,
+        blurradius: vectorizerPreset === 'photographic' ? 2 : 0,
+        blurdelta: 20
+      };
+
+      const preprocess = {
+        grayscale: vectorizerGrayscale,
+        threshold: vectorizerThresholdEnabled ? vectorizerThreshold : undefined,
+        invert: vectorizerInvert,
+      };
+
+      const svgString = await vectorizeImage(vectorizerOriginalUrl, options, preprocess, (stage) => {
+        setVectorizerStatus(stage);
+      });
+      setVectorizerSvgCode(svgString);
+      setVectorizerStatus('Vector tracing completed successfully! / تم تحويل الصورة بنجاح!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Vectorization failed: ' + (err.message || err));
+      setVectorizerStatus('Failed to vectorize. / فشلت عملية التحويل.');
+    } finally {
+      setVectorizerLoading(false);
+    }
+  };
+
+  const handleDownloadVectorizerSvg = () => {
+    if (!vectorizerSvgCode) return;
+    const blob = new Blob([vectorizerSvgCode], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = vectorizerFile ? `${vectorizerFile.name.split('.')[0]}_vector.svg` : 'vectorized_plan.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyVectorizerSvg = () => {
+    if (!vectorizerSvgCode) return;
+    navigator.clipboard.writeText(vectorizerSvgCode);
+    alert('SVG code copied to clipboard! / تم نسخ كود الـ SVG بنجاح!');
   };
 
   const handleUploadBuildingImage = async (buildingName: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1445,6 +1601,7 @@ const AdminPanel: React.FC = () => {
           { id: 'health', label: 'System Health', icon: Activity },
           { id: 'audit_logs', label: 'Audit Logs', icon: FileText },
           { id: 'configs', label: 'Configurations', icon: Settings },
+          { id: 'vectorizer', label: 'Image Vectorizer', icon: Layers },
         ].map(tab => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -2643,6 +2800,287 @@ const AdminPanel: React.FC = () => {
         </>
       )}
 
+      {/* ── Tab Content: IMAGE VECTORIZER ── */}
+      {activeTab === 'vectorizer' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          
+          <div className="glass-panel" style={{ padding: '35px' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1.5px solid var(--border-glass)', paddingBottom: '12px', marginBottom: '20px' }}>
+              <Layers style={{ color: 'var(--color-primary)' }} />
+              Scalable Vector Graphics (SVG) Image Vectorizer Tool / أداة تحسين وتحويل الصور إلى فيكتور
+            </h2>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '25px' }}>
+              Upload any floor plan, blueprint, architectural site plan, or image to redraw and convert it into a crisp, pixel-perfect <strong>SVG Vector file</strong>. Vector images can be zoomed in infinitely without any pixelation or loss of quality.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 2.5fr', gap: '35px' }}>
+              {/* Controls Column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', borderRight: '1px solid var(--border-glass)', paddingRight: '30px' }}>
+                
+                {/* 1. Upload Section */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>1. Select Image File (JPG/PNG/WebP)</label>
+                  <label className="custom-file-upload full-width">
+                    <UploadCloud size={18} />
+                    <span>{vectorizerFile ? vectorizerFile.name : 'Choose File / اختر الصورة'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleVectorizerFileChange}
+                    />
+                  </label>
+                </div>
+
+                {/* 2. Parameters Configuration */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <label className="form-label" style={{ fontWeight: 700, borderBottom: '1px solid rgba(0,0,0,0.06)', paddingBottom: '6px' }}>2. Vectorizer Parameters</label>
+                  
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>Presets / الإعدادات المسبقة</label>
+                    <select
+                      className="form-control"
+                      value={vectorizerPreset}
+                      onChange={(e) => {
+                        const preset = e.target.value as any;
+                        setVectorizerPreset(preset);
+                        if (preset === 'architectural') {
+                          setVectorizerColors(64);
+                          setVectorizerDetail(0.1);
+                        } else if (preset === 'photographic') {
+                          setVectorizerColors(32);
+                          setVectorizerDetail(1.0);
+                        } else {
+                          setVectorizerColors(32);
+                          setVectorizerDetail(1.0);
+                        }
+                      }}
+                    >
+                      <option value="balanced">Balanced / متوازن</option>
+                      <option value="architectural">Architectural Plan / مخطط معماري (تفاصيل عالية)</option>
+                      <option value="photographic">Photographic / صورة طبيعية</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', margin: 0 }}>Color Quantization</label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{vectorizerColors} colors</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="2"
+                      max="256"
+                      step="2"
+                      value={vectorizerColors}
+                      onChange={(e) => setVectorizerColors(parseInt(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', margin: 0 }}>Tracing Resolution (ltres)</label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{vectorizerDetail} (lower is sharper)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="5.0"
+                      step="0.05"
+                      value={vectorizerDetail}
+                      onChange={(e) => setVectorizerDetail(parseFloat(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                    />
+                  </div>
+
+                  {/* Image Preprocessing Filters */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '14px', marginTop: '4px' }}>
+                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.75rem', margin: 0 }}>Filters / فلاتر تنظيف الصورة</label>
+                    
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={vectorizerGrayscale} 
+                        onChange={e => {
+                          setVectorizerGrayscale(e.target.checked);
+                          if (!e.target.checked) setVectorizerThresholdEnabled(false);
+                        }} 
+                      />
+                      <span>Grayscale / أبيض وأسود (رمادي)</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={vectorizerThresholdEnabled} 
+                        onChange={e => {
+                          setVectorizerThresholdEnabled(e.target.checked);
+                          if (e.target.checked) setVectorizerGrayscale(true);
+                        }} 
+                      />
+                      <span>High Contrast Monochrome / تباين أحادي (أبيض وأسود ناصع)</span>
+                    </label>
+
+                    {vectorizerThresholdEnabled && (
+                      <div className="form-group" style={{ marginBottom: 0, paddingLeft: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                          <label className="form-label" style={{ fontSize: '0.7rem', margin: 0 }}>Threshold Level</label>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>{vectorizerThreshold}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="255"
+                          step="1"
+                          value={vectorizerThreshold}
+                          onChange={(e) => setVectorizerThreshold(parseInt(e.target.value))}
+                          style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                        />
+                      </div>
+                    )}
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={vectorizerInvert} 
+                        onChange={e => setVectorizerInvert(e.target.checked)} 
+                      />
+                      <span>Invert Colors / عكس الألوان (للخلفيات الداكنة)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 3. Run Button */}
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', height: '42px', marginTop: '10px' }}
+                  disabled={!vectorizerOriginalUrl || vectorizerLoading}
+                  onClick={handleRunVectorizer}
+                >
+                  {vectorizerLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                      <span>Vectorizing...</span>
+                    </div>
+                  ) : (
+                    <span>✏️ Run Vectorizer / تحويل لفيكتور</span>
+                  )}
+                </button>
+
+                {vectorizerStatus && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(0,61,166,0.03)', border: '1px solid rgba(0,61,166,0.08)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: 'var(--color-primary)', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                    <strong>Status:</strong> {vectorizerStatus}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Side-by-side Live Preview Column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  
+                  {/* Original Image Card */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>Original Raster Image (صورة البكسل الأصلية)</div>
+                    <div style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '10px', height: '350px', background: '#fcfcfc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {vectorizerOriginalUrl ? (
+                        <img
+                          src={vectorizerOriginalUrl}
+                          alt="Original Preview"
+                          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center' }}>
+                          Upload an image to see preview<br />(الرجاء اختيار صورة لعرضها)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vector SVG Preview Card */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>Vector SVG Preview (معاينة الفيكتور الناتجة)</div>
+                      {vectorizerSvgCode && (
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '2px 8px', fontSize: '0.7rem', height: '22px' }}
+                            onClick={() => setVectorizerZoom(prev => Math.max(0.5, prev - 0.25))}
+                          >
+                            -
+                          </button>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, width: '38px', textAlign: 'center' }}>{Math.round(vectorizerZoom * 100)}%</span>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '2px 8px', fontSize: '0.7rem', height: '22px' }}
+                            onClick={() => setVectorizerZoom(prev => Math.min(4, prev + 0.25))}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', padding: '10px', height: '350px', background: '#f5f7fa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', position: 'relative' }}>
+                      {vectorizerSvgCode ? (
+                        <div 
+                          style={{ 
+                            transform: `scale(${vectorizerZoom})`, 
+                            transformOrigin: 'center', 
+                            transition: 'transform 0.2s ease', 
+                            width: '100%', 
+                            height: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                          }} 
+                          dangerouslySetInnerHTML={{ __html: vectorizerSvgCode }} 
+                        />
+                      ) : (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center' }}>
+                          Run the vectorizer to generate scalable SVG preview<br />(اضغط تحويل لتوليد نسخة فيكتور غير قابلة للتبكسل)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Operations & Download Bar */}
+                {vectorizerSvgCode && (
+                  <div style={{ display: 'flex', gap: '12px', background: 'rgba(197,168,128,0.05)', border: '1px solid rgba(197,168,128,0.2)', padding: '15px 20px', borderRadius: 'var(--radius-md)', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#9a7a4c', marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertCircle size={14} style={{ color: '#9a7a4c' }} />
+                      Zoom and scroll previews to inspect the scalable, non-pixelated lines.
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleCopyVectorizerSvg}
+                    >
+                      Copy SVG XML Code / نسخ الكود
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ background: '#9a7a4c', borderColor: '#9a7a4c' }}
+                      onClick={handleDownloadVectorizerSvg}
+                    >
+                      Download SVG File / تحميل بصيغة SVG
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODALS CONTAINER ── */}
 
       {/* 🔍 Audit Log Details Modal */}
@@ -3471,13 +3909,28 @@ const AdminPanel: React.FC = () => {
                       </div>
                       {uploadingMediaKey === 'project' && <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>Uploading master plan...</span>}
                       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
-                        {projectMedia?.project_image ? (
+                        {projectMedia?.project_image_svg || projectMedia?.project_image ? (
                           <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)', overflow: 'hidden', width: '100%' }}>
                             <img
-                              src={projectMedia.project_image}
+                              src={projectMedia.project_image_svg || projectMedia.project_image || ''}
                               alt="Master Plan"
                               style={{ width: '100%', maxHeight: '110px', objectFit: 'contain' }}
                             />
+                            {projectMedia.project_image_svg && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '4px',
+                                right: '4px',
+                                background: 'rgba(5, 150, 105, 0.9)',
+                                color: '#fff',
+                                fontSize: '0.6rem',
+                                fontWeight: 'bold',
+                                padding: '2px 6px',
+                                borderRadius: '4px'
+                              }}>
+                                Vector SVG
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div style={{ height: '110px', width: '100%', background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--text-muted)' }}>
@@ -3527,6 +3980,78 @@ const AdminPanel: React.FC = () => {
                     </div>
                   </div>
 
+                </div>
+
+                {/* Project Cover Gallery */}
+                <div style={{ padding: '20px', background: 'rgba(255, 255, 255, 1)', border: '1.5px solid rgba(0,0,0,0.06)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Layers size={18} style={{ color: 'var(--color-primary)' }} />
+                    Project Cover Gallery (معرض صور غلاف المشروع)
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    Upload multiple images to display as an automated luxury slideshow on the project cover card (Home Page).
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <label className="custom-file-upload">
+                        <UploadCloud size={16} />
+                        <span>Add Gallery Image / أضف صورة للمعرض</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadCoverGalleryImage}
+                        />
+                      </label>
+                      {uploadingMediaKey === 'cover_gallery' && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>Uploading gallery image...</span>
+                      )}
+                    </div>
+
+                    {/* Previews grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px', marginTop: '10px' }}>
+                      {projectMedia?.cover_gallery && projectMedia.cover_gallery.length > 0 ? (
+                        projectMedia.cover_gallery.map((imgItem: any) => (
+                          <div key={imgItem.id} style={{ position: 'relative', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden', height: '90px', background: '#f5f5f5' }}>
+                            <img
+                              src={imgItem.image_url}
+                              alt="Gallery Preview"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCoverGalleryImage(imgItem.id)}
+                              style={{
+                                position: 'absolute',
+                                top: '4px',
+                                right: '4px',
+                                background: 'rgba(239, 68, 68, 0.9)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                width: '22px',
+                                height: '22px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s ease',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'; }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ gridColumn: '1 / -1', height: '70px', background: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(0,0,0,0.1)' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No additional gallery images uploaded yet / لا توجد صور إضافية بعد</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 2. Building & Floor Plan Images */}

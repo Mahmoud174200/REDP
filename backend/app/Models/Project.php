@@ -19,6 +19,7 @@ class Project extends Model
         'released_phases',
         'image_url',
         'master_plan_image_url',
+        'master_plan_svg_url',
         // Master Plan fields
         'land_area',
         'land_area_unit',

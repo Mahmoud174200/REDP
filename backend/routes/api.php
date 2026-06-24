@@ -482,8 +482,11 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         $mediaCtrl = \App\Http\Controllers\ProjectMediaController::class;
         Route::post('/projects/{projectId}/image', [$mediaCtrl, 'uploadProjectImage']);
         Route::post('/projects/{projectId}/master-plan-image', [$mediaCtrl, 'uploadMasterPlanImage']);
+        Route::post('/projects/{projectId}/master-plan-svg', [$mediaCtrl, 'uploadMasterPlanSvg']);
         Route::post('/projects/{projectId}/building-image', [$mediaCtrl, 'uploadBuildingImage']);
         Route::post('/projects/{projectId}/floor-plan-image', [$mediaCtrl, 'uploadFloorPlanImage']);
+        Route::post('/projects/{projectId}/cover-gallery', [$mediaCtrl, 'uploadCoverGalleryImage']);
+        Route::delete('/projects/{projectId}/cover-gallery/{mediaId}', [$mediaCtrl, 'deleteCoverGalleryImage']);
         Route::post('/units/{unitId}/image', [$mediaCtrl, 'uploadUnitImage']);
 
         // ── Tripo AI 3D Model Generation ──

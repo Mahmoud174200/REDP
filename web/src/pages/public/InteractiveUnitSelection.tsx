@@ -288,6 +288,7 @@ const InteractiveUnitSelection: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<UnitData | null>(null);
   const [projectMedia, setProjectMedia] = useState<{
     project_image: string | null;
+    project_image_svg: string | null;
     building_images: Record<string, { image_url: string }>;
     floor_plan_images: Record<string, { image_url: string }>;
   } | null>(null);
@@ -506,7 +507,7 @@ const InteractiveUnitSelection: React.FC = () => {
     setAnimating(true);
     try {
       const res = await api.get(`/v1/public/projects/${projectId}/units-by-building`);
-      let mediaData = { project_image: null, building_images: {}, floor_plan_images: {} };
+      let mediaData = { project_image: null, project_image_svg: null, building_images: {}, floor_plan_images: {} };
       try {
         const mediaRes = await api.get(`/v1/public/projects/${projectId}/media`);
         if (mediaRes.data?.success) {
@@ -984,7 +985,7 @@ const InteractiveUnitSelection: React.FC = () => {
       <div className="us3d-split-layout">
         {/* 🗺️ Left Column: Sticky Master Plan & Project Details */}
         <div className="us3d-sticky-panel" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {projectMedia?.project_image ? (
+          {projectMedia?.project_image_svg || projectMedia?.project_image ? (
             <div style={{
               background: 'rgba(255,255,255,0.85)',
               backdropFilter: 'blur(28px)',
@@ -1051,7 +1052,11 @@ const InteractiveUnitSelection: React.FC = () => {
                 }}
               >
                 <img
-                  src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
+                  src={(() => {
+                    const mp = projectMedia.project_image_svg || projectMedia.project_image;
+                    if (!mp) return '';
+                    return mp.startsWith('http') ? mp : `http://127.0.0.1:8000/storage/${mp}`;
+                  })()}
                   alt="Master Plan Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }}
                 />
@@ -1217,7 +1222,7 @@ const InteractiveUnitSelection: React.FC = () => {
             }}>
               <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '800px' }}>
                 <img
-                  src={projectMedia.project_image}
+                  src={projectMedia.project_image_svg || projectMedia.project_image || ''}
                   alt="Master Plan"
                   style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12 }}
                   draggable={false}
@@ -1301,8 +1306,9 @@ const InteractiveUnitSelection: React.FC = () => {
                             stroke: isHovered ? statusColor : 'rgba(255,255,255,0.9)',
                             strokeWidth: isHovered ? 0.5 : 0.6,
                             strokeLinejoin: 'round',
-                            transition: 'font-size 0.3s ease, fill 0.3s ease',
+                            transition: 'font-size 0.3s ease, fill 0.3s ease, opacity 0.2s ease',
                             textShadow: isHovered ? '0 0 4px rgba(0,0,0,0.2)' : 'none',
+                            opacity: isHovered ? 1 : 0,
                           } as any}
                         >
                           {h.label || h.building?.name}
@@ -3517,7 +3523,7 @@ const InteractiveUnitSelection: React.FC = () => {
       {renderReserveModal()}
 
       {/* ─── Fullscreen Master Plan Lightbox ─── */}
-      {showMasterPlanLightbox && projectMedia?.project_image && (
+      {showMasterPlanLightbox && (projectMedia?.project_image_svg || projectMedia?.project_image) && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(15, 23, 42, 0.9)',
@@ -3612,7 +3618,11 @@ const InteractiveUnitSelection: React.FC = () => {
                 }}
               >
                 <img
-                  src={projectMedia.project_image.startsWith('http') ? projectMedia.project_image : `http://127.0.0.1:8000/storage/${projectMedia.project_image}`}
+                  src={(() => {
+                    const mp = projectMedia.project_image_svg || projectMedia.project_image;
+                    if (!mp) return '';
+                    return mp.startsWith('http') ? mp : `http://127.0.0.1:8000/storage/${mp}`;
+                  })()}
                   alt="Master Plan Fullscreen"
                   className="crisp-master-plan"
                   style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
