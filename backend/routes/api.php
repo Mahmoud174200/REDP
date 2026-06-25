@@ -207,6 +207,9 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::put('/projects/{projectId}/phases', [CompanySalesController::class, 'updateProjectPhases']);
             Route::get('/projects/{projectId}/payment-plans', [CompanySalesController::class, 'getProjectPaymentPlans']);
 
+            // Accounting handover
+            Route::post('/contracts/{id}/handover-accounting', [CompanySalesController::class, 'handoverToAccounting']);
+
             // Broker Request auditing (reservations & payout approvals)
             Route::get('/reservations', [CompanySalesController::class, 'listBrokerReservations']);
             Route::post('/reservations/{id}/approve', [CompanySalesController::class, 'approveBrokerReservation']);
@@ -261,6 +264,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/eoi-reservations', [EoiReservationController::class, 'index']);
         Route::post('/eoi-reservations', [EoiReservationController::class, 'store']);
         Route::post('/eoi-reservations/invite-batch', [EoiReservationController::class, 'inviteBatch']);
+        Route::post('/eoi-reservations/{id}/resend-invitation', [EoiReservationController::class, 'resendInvitation']);
+        Route::post('/eoi-reservations/batch-approve', [EoiReservationController::class, 'batchApprove']);
         
         // ── EOI 5% Down Payment Review & Approval Routes ──
         Route::get('/eoi-reservations/pending-five-percent', [EoiReservationController::class, 'pendingFivePercent']);
@@ -331,6 +336,17 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::post('/cancel/{contractId}', [CollectionController::class, 'processCancellation']);
             Route::get('/aging-report', [CollectionController::class, 'getAgingReport']);
             Route::get('/reserved-units', [ContractController::class, 'getReservedUnits']);
+
+            // Accountant financial overview (have / owed / owe, per-project, per-client)
+            $overviewCtrl = \App\Http\Controllers\Finance\FinanceOverviewController::class;
+            Route::get('/overview', [$overviewCtrl, 'overview']);
+            Route::get('/clients-ledger', [$overviewCtrl, 'clientsLedger']);
+            Route::get('/clients/{clientId}/statement', [$overviewCtrl, 'clientStatement']);
+
+            // Custom payment-plan approval queue (accountant)
+            Route::get('/contracts/pending-plan-approval', [ContractController::class, 'pendingPlanApprovals']);
+            Route::post('/contracts/{id}/approve-plan', [ContractController::class, 'approvePlan']);
+            Route::post('/contracts/{id}/reject-plan', [ContractController::class, 'rejectPlan']);
         });
 
         // ── Legal and Contract operations (Legal Team, Finance Officer, and Company Sales Rep) ──
@@ -488,6 +504,8 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::post('/projects/{projectId}/cover-gallery', [$mediaCtrl, 'uploadCoverGalleryImage']);
         Route::delete('/projects/{projectId}/cover-gallery/{mediaId}', [$mediaCtrl, 'deleteCoverGalleryImage']);
         Route::post('/units/{unitId}/image', [$mediaCtrl, 'uploadUnitImage']);
+        Route::post('/units/{unitId}/floor-hotspot', [$mediaCtrl, 'saveUnitHotspot']);
+        Route::delete('/units/{unitId}/floor-hotspot', [$mediaCtrl, 'clearUnitHotspot']);
 
         // ── Tripo AI 3D Model Generation ──
         $tripoCtrl = \App\Http\Controllers\Tripo3DController::class;

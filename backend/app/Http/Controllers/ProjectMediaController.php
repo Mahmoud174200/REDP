@@ -312,6 +312,74 @@ class ProjectMediaController extends Controller
     }
 
     /**
+     * Save the interactive floor-plan hotspot region for a single unit.
+     * Coords are percentages (0-100) relative to the floor plan image.
+     */
+    public function saveUnitHotspot(Request $request, string $unitId): JsonResponse
+    {
+        $fields = $request->validate([
+            'x' => 'nullable|numeric|min:0|max:100',
+            'y' => 'nullable|numeric|min:0|max:100',
+            'w' => 'nullable|numeric|min:0|max:100',
+            'h' => 'nullable|numeric|min:0|max:100',
+            'points' => 'nullable|array|min:3|max:40',
+            'points.*.x' => 'required_with:points|numeric|min:0|max:100',
+            'points.*.y' => 'required_with:points|numeric|min:0|max:100',
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+
+        if (!empty($fields['points'])) {
+            // Polygon hotspot — store the points plus a bounding box (for centroid/fallback).
+            $xs = array_map(fn($p) => (float) $p['x'], $fields['points']);
+            $ys = array_map(fn($p) => (float) $p['y'], $fields['points']);
+            $minX = min($xs); $minY = min($ys);
+            $hotspot = [
+                'x' => round($minX, 2),
+                'y' => round($minY, 2),
+                'w' => round(max($xs) - $minX, 2),
+                'h' => round(max($ys) - $minY, 2),
+                'points' => array_map(fn($p) => [
+                    'x' => round((float) $p['x'], 2),
+                    'y' => round((float) $p['y'], 2),
+                ], $fields['points']),
+            ];
+        } else {
+            if (!isset($fields['x'], $fields['y'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Provide either polygon points or x/y coordinates.',
+                ], 422);
+            }
+            $hotspot = [
+                'x' => round((float) $fields['x'], 2),
+                'y' => round((float) $fields['y'], 2),
+                'w' => round((float) ($fields['w'] ?? 12), 2),
+                'h' => round((float) ($fields['h'] ?? 12), 2),
+            ];
+        }
+
+        $unit->update(['floor_plan_hotspot' => $hotspot]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Unit hotspot saved.',
+            'data' => ['hotspot' => $unit->floor_plan_hotspot],
+        ]);
+    }
+
+    /**
+     * Clear the floor-plan hotspot for a single unit.
+     */
+    public function clearUnitHotspot(Request $request, string $unitId): JsonResponse
+    {
+        $unit = Unit::findOrFail($unitId);
+        $unit->update(['floor_plan_hotspot' => null]);
+
+        return response()->json(['success' => true, 'message' => 'Unit hotspot cleared.']);
+    }
+
+    /**
      * Get all media for a project (public endpoint for the interactive selection page).
      */
     public function getProjectMedia(string $projectId): JsonResponse

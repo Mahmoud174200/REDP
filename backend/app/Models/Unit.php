@@ -38,6 +38,7 @@ class Unit extends Model
         'building',
         'layout_description',
         'layout_image_url',
+        'floor_plan_hotspot',
         'model_3d_status',
         'model_3d_url',
         'tripo_task_id',
@@ -65,6 +66,7 @@ class Unit extends Model
         'has_storage' => 'boolean',
         'has_private_garden' => 'boolean',
         'has_private_parking' => 'boolean',
+        'floor_plan_hotspot' => 'array',
     ];
 
     public function assignedEngineer()

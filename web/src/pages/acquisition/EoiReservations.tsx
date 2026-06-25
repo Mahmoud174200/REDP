@@ -42,6 +42,18 @@ interface EoiReservation {
   updated_at: string;
   lead?: { id: string; first_name: string; last_name: string; email: string; phone: string };
   reviewer?: { id: string; name: string; email: string };
+  education?: string | null;
+  job_title?: string | null;
+  monthly_income?: string | number | null;
+  income_currency?: string | null;
+  marital_status?: string | null;
+  number_of_children?: number | null;
+  children_ages?: string | null;
+  children_schools?: string | null;
+  current_residence?: string | null;
+  residence_type?: string | null;
+  cars_owned?: string | null;
+  club_memberships?: string | null;
 }
 
 interface Stats {
@@ -128,6 +140,17 @@ const EoiReservations: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Advanced standard of living filters state
+  const [eduFilter, setEduFilter] = useState('');
+  const [jobFilter, setJobFilter] = useState('');
+  const [maritalFilter, setMaritalFilter] = useState('');
+  const [minIncomeFilter, setMinIncomeFilter] = useState('');
+  const [maxIncomeFilter, setMaxIncomeFilter] = useState('');
+  const [currencyFilter, setCurrencyFilter] = useState('');
+  const [hasCarsFilter, setHasCarsFilter] = useState('');
+  const [hasClubsFilter, setHasClubsFilter] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
   // User details
   const [userRole, setUserRole] = useState<string>('agent');
 
@@ -204,6 +227,15 @@ const EoiReservations: React.FC = () => {
       const params: any = { page, per_page: 15 };
       if (searchQuery) params.search = searchQuery;
       if (statusFilter) params.status = statusFilter;
+      if (eduFilter) params.education = eduFilter;
+      if (jobFilter) params.job_title = jobFilter;
+      if (maritalFilter) params.marital_status = maritalFilter;
+      if (minIncomeFilter) params.min_income = minIncomeFilter;
+      if (maxIncomeFilter) params.max_income = maxIncomeFilter;
+      if (currencyFilter) params.income_currency = currencyFilter;
+      if (hasCarsFilter) params.has_cars = hasCarsFilter;
+      if (hasClubsFilter) params.has_clubs = hasClubsFilter;
+
       const res = await api.get('/acquisition/eoi-reservations', { params });
       if (res.data.success) {
         setReservations(res.data.data.data || []);
@@ -212,14 +244,31 @@ const EoiReservations: React.FC = () => {
       }
     } catch (err) { console.error('Failed to fetch reservations:', err); }
     setLoading(false);
-  }, [searchQuery, statusFilter]);
+  }, [
+    searchQuery, statusFilter, eduFilter, jobFilter, maritalFilter,
+    minIncomeFilter, maxIncomeFilter, currencyFilter, hasCarsFilter, hasClubsFilter
+  ]);
 
   const fetchPending = useCallback(async () => {
     try {
-      const res = await api.get('/acquisition/eoi-reservations', { params: { status: 'pending_review', per_page: 50 } });
+      const params: any = { status: 'pending_review', per_page: 50 };
+      if (searchQuery) params.search = searchQuery;
+      if (eduFilter) params.education = eduFilter;
+      if (jobFilter) params.job_title = jobFilter;
+      if (maritalFilter) params.marital_status = maritalFilter;
+      if (minIncomeFilter) params.min_income = minIncomeFilter;
+      if (maxIncomeFilter) params.max_income = maxIncomeFilter;
+      if (currencyFilter) params.income_currency = currencyFilter;
+      if (hasCarsFilter) params.has_cars = hasCarsFilter;
+      if (hasClubsFilter) params.has_clubs = hasClubsFilter;
+
+      const res = await api.get('/acquisition/eoi-reservations', { params });
       if (res.data.success) setPendingList(res.data.data.data || []);
     } catch (err) { console.error('Failed to fetch pending:', err); }
-  }, []);
+  }, [
+    searchQuery, eduFilter, jobFilter, maritalFilter, minIncomeFilter,
+    maxIncomeFilter, currencyFilter, hasCarsFilter, hasClubsFilter
+  ]);
 
   const fetchLeadsAndProjects = useCallback(async () => {
     try {
@@ -409,6 +458,29 @@ const EoiReservations: React.FC = () => {
     }
   };
 
+  const handleBatchApprove = async () => {
+    if (pendingList.length === 0) return;
+    const confirmApprove = window.confirm(`Are you sure you want to approve all ${pendingList.length} filtered reservations?`);
+    if (!confirmApprove) return;
+
+    setSubmitting(true);
+    try {
+      const ids = pendingList.map(item => item.id);
+      const res = await api.post('/acquisition/eoi-reservations/batch-approve', { ids });
+      if (res.data.success) {
+        addToast(res.data.message || `Successfully approved ${ids.length} reservations.`, 'success');
+        fetchPending();
+        fetchStats();
+      } else {
+        addToast(res.data.message || 'Failed to approve batch.', 'error');
+      }
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.response?.data?.message || 'Error executing batch approval.', 'error');
+    }
+    setSubmitting(false);
+  };
+
   const handleInviteBatch = async () => {
     if (!selectedQueueProject) {
       addToast('Please select a project first.', 'error');
@@ -431,6 +503,29 @@ const EoiReservations: React.FC = () => {
       addToast(err.response?.data?.message || 'Failed to send batch invitations.', 'error');
     }
     setInviting(false);
+  };
+
+  // ── Resend invitation email ──
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const handleResendInvitation = async (item: EoiReservation) => {
+    if (resendingId) return;
+    const confirmResend = window.confirm(`Resend the invitation email to ${item.client_name} (${item.client_email})? A new temporary password will be generated.`);
+    if (!confirmResend) return;
+
+    setResendingId(item.id);
+    try {
+      const res = await api.post(`/acquisition/eoi-reservations/${item.id}/resend-invitation`);
+      if (res.data.success) {
+        addToast(res.data.message || 'Invitation email resent.', 'success');
+        fetchQueue(selectedQueueProject);
+      } else {
+        addToast(res.data.message || 'Failed to resend invitation.', 'error');
+      }
+    } catch (err: any) {
+      addToast(err.response?.data?.message || 'Failed to resend invitation email.', 'error');
+    }
+    setResendingId(null);
   };
 
   // ── File upload handler ──
@@ -903,6 +998,214 @@ const EoiReservations: React.FC = () => {
             </button>
           </div>
 
+          {/* Search & Filters */}
+          <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 250px', background: 'rgba(255,255,255,0.5)', borderRadius: 'var(--radius-sm)', padding: '0 14px', border: '1px solid var(--border-glass)' }}>
+              <Search style={{ width: '15px', height: '15px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search pending by name, email, phone..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchPending()}
+                style={{ border: 'none', background: 'transparent', padding: '10px 0', flex: 1, outline: 'none', fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--text-main)' }}
+              />
+            </div>
+            <button className="btn-primary" onClick={() => fetchPending()} style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Search style={{ width: '13px', height: '13px' }} /> Search
+            </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} 
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '0.78rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                borderColor: showAdvancedFilters ? 'var(--color-primary)' : 'var(--border-glass)',
+                background: showAdvancedFilters ? 'rgba(50, 71, 58, 0.08)' : 'rgba(255,255,255,0.4)',
+                color: showAdvancedFilters ? 'var(--color-primary)' : 'var(--text-main)',
+                fontWeight: 600
+              }}
+            >
+              <Filter style={{ width: '13px', height: '13px' }} /> Advanced Filters
+            </button>
+          </div>
+
+          {showAdvancedFilters && (
+            <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', animation: 'modal-fade-in 0.25s ease-out' }}>
+              <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '0.9rem', fontWeight: 700, marginBottom: '14px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Filter style={{ width: '15px', height: '15px' }} /> Demographics & Standard of Living Filters
+              </h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
+                {/* Education */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Education</label>
+                  <input
+                    className="form-control"
+                    placeholder="Search by degree/university..."
+                    value={eduFilter}
+                    onChange={e => setEduFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Job Title */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Job Title</label>
+                  <input
+                    className="form-control"
+                    placeholder="Search by occupation..."
+                    value={jobFilter}
+                    onChange={e => setJobFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Marital Status */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Marital Status</label>
+                  <select
+                    className="form-control"
+                    value={maritalFilter}
+                    onChange={e => setMaritalFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                  </select>
+                </div>
+
+                {/* Currency */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Currency</label>
+                  <select
+                    className="form-control"
+                    value={currencyFilter}
+                    onChange={e => setCurrencyFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All Currencies</option>
+                    <option value="EGP">EGP</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="SAR">SAR</option>
+                    <option value="AED">AED</option>
+                  </select>
+                </div>
+
+                {/* Min Income */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Min Monthly Income</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Min income..."
+                    value={minIncomeFilter}
+                    onChange={e => setMinIncomeFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Max Income */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Max Monthly Income</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Max income..."
+                    value={maxIncomeFilter}
+                    onChange={e => setMaxIncomeFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Has Cars */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Cars Owned</label>
+                  <select
+                    className="form-control"
+                    value={hasCarsFilter}
+                    onChange={e => setHasCarsFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Has Car(s)</option>
+                    <option value="no">No Cars</option>
+                  </select>
+                </div>
+
+                {/* Club Memberships */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Club Memberships</label>
+                  <select
+                    className="form-control"
+                    value={hasClubsFilter}
+                    onChange={e => setHasClubsFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Has Membership(s)</option>
+                    <option value="no">No Memberships</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setEduFilter('');
+                    setJobFilter('');
+                    setMaritalFilter('');
+                    setMinIncomeFilter('');
+                    setMaxIncomeFilter('');
+                    setCurrencyFilter('');
+                    setHasCarsFilter('');
+                    setHasClubsFilter('');
+                    setSearchQuery('');
+                    setTimeout(() => fetchPending(), 0);
+                  }}
+                  style={{ padding: '8px 16px', fontSize: '0.78rem' }}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => fetchPending()}
+                  style={{ padding: '8px 20px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Search style={{ width: '13px', height: '13px' }} /> Apply Filters
+                </button>
+              </div>
+            </div>
+          )}
+
+
+          {pendingList.length > 0 && isAdminOrFinance && (
+            <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(46, 125, 50, 0.05)', borderColor: 'rgba(46, 125, 50, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle style={{ width: '18px', height: '18px', color: '#2e7d32' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                  Batch approval option is available for the current filtered list.
+                </span>
+              </div>
+              <button
+                className="btn-primary"
+                onClick={handleBatchApprove}
+                disabled={submitting}
+                style={{ padding: '8px 18px', fontSize: '0.78rem', background: '#2e7d32', boxShadow: '0 4px 12px rgba(46, 125, 50, 0.2)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {submitting ? 'Approving...' : `Approve All Filtered (${pendingList.length})`}
+              </button>
+            </div>
+          )}
+
           {pendingList.length === 0 ? (
             <div className="glass-panel" style={{ padding: '48px', textAlign: 'center' }}>
               <CheckCircle style={{ width: '48px', height: '48px', color: 'var(--color-success)', marginBottom: '16px' }} />
@@ -936,6 +1239,13 @@ const EoiReservations: React.FC = () => {
 
                   {/* Right: Actions */}
                   <div style={{ flex: '0 0 auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setDetailModal(item)}
+                      style={{ padding: '8px 14px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Eye style={{ width: '13px', height: '13px' }} /> Details
+                    </button>
                     <button
                       className="btn-secondary"
                       onClick={() => setReceiptModal(getReceiptUrl(item.receipt_path))}
@@ -1006,10 +1316,181 @@ const EoiReservations: React.FC = () => {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            <button className="btn-secondary" onClick={() => fetchReservations(1)} style={{ padding: '8px 16px', fontSize: '0.78rem' }}>
+            <button className="btn-primary" onClick={() => fetchReservations(1)} style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Search style={{ width: '13px', height: '13px' }} /> Search
             </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} 
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '0.78rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                borderColor: showAdvancedFilters ? 'var(--color-primary)' : 'var(--border-glass)',
+                background: showAdvancedFilters ? 'rgba(50, 71, 58, 0.08)' : 'rgba(255,255,255,0.4)',
+                color: showAdvancedFilters ? 'var(--color-primary)' : 'var(--text-main)',
+                fontWeight: 600
+              }}
+            >
+              <Filter style={{ width: '13px', height: '13px' }} /> Advanced Filters
+            </button>
           </div>
+
+          {showAdvancedFilters && (
+            <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', animation: 'modal-fade-in 0.25s ease-out' }}>
+              <h4 style={{ fontFamily: 'var(--font-title)', fontSize: '0.9rem', fontWeight: 700, marginBottom: '14px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Filter style={{ width: '15px', height: '15px' }} /> Demographics & Standard of Living Filters
+              </h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
+                {/* Education */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Education</label>
+                  <input
+                    className="form-control"
+                    placeholder="Search by degree/university..."
+                    value={eduFilter}
+                    onChange={e => setEduFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Job Title */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Job Title</label>
+                  <input
+                    className="form-control"
+                    placeholder="Search by occupation..."
+                    value={jobFilter}
+                    onChange={e => setJobFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Marital Status */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Marital Status</label>
+                  <select
+                    className="form-control"
+                    value={maritalFilter}
+                    onChange={e => setMaritalFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                  </select>
+                </div>
+
+                {/* Currency */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Currency</label>
+                  <select
+                    className="form-control"
+                    value={currencyFilter}
+                    onChange={e => setCurrencyFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All Currencies</option>
+                    <option value="EGP">EGP</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="SAR">SAR</option>
+                    <option value="AED">AED</option>
+                  </select>
+                </div>
+
+                {/* Min Income */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Min Monthly Income</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Min income..."
+                    value={minIncomeFilter}
+                    onChange={e => setMinIncomeFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Max Income */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Max Monthly Income</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Max income..."
+                    value={maxIncomeFilter}
+                    onChange={e => setMaxIncomeFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                {/* Has Cars */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Cars Owned</label>
+                  <select
+                    className="form-control"
+                    value={hasCarsFilter}
+                    onChange={e => setHasCarsFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Has Car(s)</option>
+                    <option value="no">No Cars</option>
+                  </select>
+                </div>
+
+                {/* Club Memberships */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Club Memberships</label>
+                  <select
+                    className="form-control"
+                    value={hasClubsFilter}
+                    onChange={e => setHasClubsFilter(e.target.value)}
+                    style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+                  >
+                    <option value="">All</option>
+                    <option value="yes">Has Membership(s)</option>
+                    <option value="no">No Memberships</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setEduFilter('');
+                    setJobFilter('');
+                    setMaritalFilter('');
+                    setMinIncomeFilter('');
+                    setMaxIncomeFilter('');
+                    setCurrencyFilter('');
+                    setHasCarsFilter('');
+                    setHasClubsFilter('');
+                    setSearchQuery('');
+                    setStatusFilter('');
+                    setTimeout(() => fetchReservations(1), 0);
+                  }}
+                  style={{ padding: '8px 16px', fontSize: '0.78rem' }}
+                >
+                  Reset Filters
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => fetchReservations(1)}
+                  style={{ padding: '8px 20px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Search style={{ width: '13px', height: '13px' }} /> Apply Filters
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           {loading ? (
@@ -1249,9 +1730,29 @@ const EoiReservations: React.FC = () => {
                         </td>
                         <td>
                           {item.invited_at ? (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 600 }} title={`Deadline: ${item.contracting_deadline_hours}h`}>
-                              ✓ {formatDate(item.invited_at)}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 600 }} title={`Deadline: ${item.contracting_deadline_hours}h`}>
+                                ✓ {formatDate(item.invited_at)}
+                              </span>
+                              <button
+                                onClick={() => handleResendInvitation(item)}
+                                disabled={resendingId === item.id}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                  padding: '4px 10px', borderRadius: '9999px',
+                                  border: '1px solid var(--border-glass)',
+                                  background: 'rgba(255,255,255,0.5)',
+                                  color: 'var(--color-primary)', fontSize: '0.7rem', fontWeight: 600,
+                                  cursor: resendingId === item.id ? 'not-allowed' : 'pointer',
+                                  opacity: resendingId === item.id ? 0.6 : 1,
+                                  transition: 'var(--transition-smooth)',
+                                }}
+                                title="Resend invitation email with a new temporary password"
+                              >
+                                <RefreshCw style={{ width: '11px', height: '11px', animation: resendingId === item.id ? 'spin 1s linear infinite' : 'none' }} />
+                                {resendingId === item.id ? 'Sending...' : 'Resend Email'}
+                              </button>
+                            </div>
                           ) : (
                             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No</span>
                           )}
@@ -1428,6 +1929,16 @@ const EoiReservations: React.FC = () => {
                         <option value="lead_score">lead_score</option>
                         <option value="source">lead_source</option>
                         <option value="payment_method">payment_method</option>
+                        <option value="education">education</option>
+                        <option value="job_title">job_title</option>
+                        <option value="monthly_income">monthly_income</option>
+                        <option value="income_currency">income_currency</option>
+                        <option value="marital_status">marital_status</option>
+                        <option value="number_of_children">number_of_children</option>
+                        <option value="current_residence">current_residence</option>
+                        <option value="residence_type">residence_type</option>
+                        <option value="cars_owned">cars_owned</option>
+                        <option value="club_memberships">club_memberships</option>
                       </select>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1648,6 +2159,32 @@ const EoiReservations: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Demographics & Living Standards */}
+            {(detailModal.education || detailModal.job_title || detailModal.monthly_income || detailModal.current_residence) && (
+              <div style={{ background: 'rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', padding: '18px', border: '1px solid var(--border-glass)', marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Living Standards & Family</h4>
+                {[
+                  { label: 'Education', value: detailModal.education || '—' },
+                  { label: 'Current Job', value: detailModal.job_title || '—' },
+                  { label: 'Monthly Income', value: detailModal.monthly_income ? `${parseFloat(String(detailModal.monthly_income)).toLocaleString()} ${detailModal.income_currency || 'USD'}` : '—' },
+                  { label: 'Marital Status', value: detailModal.marital_status ? (detailModal.marital_status.charAt(0).toUpperCase() + detailModal.marital_status.slice(1)) : '—' },
+                  { label: 'No. of Children', value: detailModal.number_of_children !== undefined && detailModal.number_of_children !== null ? String(detailModal.number_of_children) : '—' },
+                  ...(detailModal.number_of_children && parseInt(String(detailModal.number_of_children)) > 0 ? [
+                    { label: 'Children Ages', value: detailModal.children_ages || '—' },
+                    { label: 'Children Schools', value: detailModal.children_schools || '—' }
+                  ] : []),
+                  { label: 'Current Residence', value: detailModal.current_residence ? `${detailModal.current_residence} (${detailModal.residence_type || 'owned'})` : '—' },
+                  { label: 'Cars Owned', value: detailModal.cars_owned || '—' },
+                  { label: 'Club Memberships', value: detailModal.club_memberships || '—' }
+                ].map((r, i, arr) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-glass)' : 'none', gap: '16px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flexShrink: 0 }}>{r.label}</span>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-main)', fontWeight: 600, textAlign: 'right' }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
               <button

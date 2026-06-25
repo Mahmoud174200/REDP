@@ -18,6 +18,7 @@ import EoiReservations from './pages/acquisition/EoiReservations';
 import TeleSalesPortal from './pages/sales/TeleSalesPortal';
 import BrokerPortal from './pages/sales/BrokerPortal';
 import CompanySalesPortal from './pages/sales/CompanySalesPortal';
+import CompanySalesFlow from './pages/sales/CompanySalesFlow';
 
 // 🔵 Finance Pages
 import Inventory from './pages/finance/Inventory';
@@ -25,6 +26,8 @@ import Contracts from './pages/finance/Contracts';
 import Payments from './pages/finance/Payments';
 import Collections from './pages/finance/Collections';
 import ReservedUnits from './pages/finance/ReservedUnits';
+import PlanApprovals from './pages/finance/PlanApprovals';
+import FinanceOverview from './pages/finance/FinanceOverview';
 
 // 🟢 Delivery Pages
 import Overview from './pages/delivery/Overview';
@@ -176,12 +179,15 @@ const App: React.FC = () => {
         {/* 🔶 Tiered Sales Portals */}
         <Route path="/sales/tele/dashboard" element={<DashboardWrapper><TeleSalesPortal /></DashboardWrapper>} />
         <Route path="/sales/broker/dashboard" element={<DashboardWrapper><BrokerPortal /></DashboardWrapper>} />
-        <Route path="/sales/company/dashboard" element={<DashboardWrapper><CompanySalesPortal /></DashboardWrapper>} />
+        <Route path="/sales/company/dashboard" element={<DashboardWrapper><CompanySalesFlow /></DashboardWrapper>} />
+        <Route path="/sales/company/legacy" element={<DashboardWrapper><CompanySalesPortal /></DashboardWrapper>} />
 
         {/* 🔵 Financial routes */}
         <Route path="/finance/inventory" element={<DashboardWrapper><Inventory /></DashboardWrapper>} />
-        <Route path="/finance/payments" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
+        <Route path="/finance/payments" element={<DashboardWrapper><FinanceOverview /></DashboardWrapper>} />
+        <Route path="/finance/ledger" element={<DashboardWrapper><Payments /></DashboardWrapper>} />
         <Route path="/finance/contracts" element={<DashboardWrapper><Contracts /></DashboardWrapper>} />
+        <Route path="/finance/plan-approvals" element={<DashboardWrapper><PlanApprovals /></DashboardWrapper>} />
         <Route path="/finance/collections" element={<DashboardWrapper><Collections /></DashboardWrapper>} />
         <Route path="/finance/reserved" element={<DashboardWrapper><ReservedUnits /></DashboardWrapper>} />
 

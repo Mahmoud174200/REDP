@@ -108,6 +108,44 @@ class EoiReservationController extends Controller
             });
         }
 
+        // Standard of Living Advanced Filters
+        if ($request->filled('education')) {
+            $query->where('education', 'like', '%' . $request->input('education') . '%');
+        }
+        if ($request->filled('job_title')) {
+            $query->where('job_title', 'like', '%' . $request->input('job_title') . '%');
+        }
+        if ($request->filled('marital_status')) {
+            $query->where('marital_status', $request->input('marital_status'));
+        }
+        if ($request->filled('min_income')) {
+            $query->where('monthly_income', '>=', floatval($request->input('min_income')));
+        }
+        if ($request->filled('max_income')) {
+            $query->where('monthly_income', '<=', floatval($request->input('max_income')));
+        }
+        if ($request->filled('income_currency')) {
+            $query->where('income_currency', $request->input('income_currency'));
+        }
+        if ($request->filled('has_cars')) {
+            if ($request->input('has_cars') === 'yes') {
+                $query->whereNotNull('cars_owned')->where('cars_owned', '!=', '');
+            } else {
+                $query->where(function($q) {
+                    $q->whereNull('cars_owned')->orWhere('cars_owned', '');
+                });
+            }
+        }
+        if ($request->filled('has_clubs')) {
+            if ($request->input('has_clubs') === 'yes') {
+                $query->whereNotNull('club_memberships')->where('club_memberships', '!=', '');
+            } else {
+                $query->where(function($q) {
+                    $q->whereNull('club_memberships')->orWhere('club_memberships', '');
+                });
+            }
+        }
+
         $sortBy = $request->input('sort_by', 'created_at');
         $sortDir = $request->input('sort_dir', 'desc');
 
@@ -143,6 +181,20 @@ class EoiReservationController extends Controller
             'payment_amount'   => 'required|numeric|min:0.01',
             'receipt'          => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
             'passport'         => 'required_if:client_location,outside_egypt|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+            
+            // Standard of Living Fields
+            'education'          => 'nullable|string|max:255',
+            'job_title'          => 'nullable|string|max:255',
+            'monthly_income'     => 'nullable|numeric|min:0',
+            'income_currency'    => 'nullable|string|max:10',
+            'marital_status'     => 'nullable|string|max:50',
+            'number_of_children' => 'nullable|integer|min:0',
+            'children_ages'      => 'nullable|string|max:255',
+            'children_schools'   => 'nullable|string|max:255',
+            'current_residence'  => 'nullable|string|max:255',
+            'residence_type'     => 'nullable|string|max:50',
+            'cars_owned'         => 'nullable|string',
+            'club_memberships'   => 'nullable|string|max:255',
         ]);
 
         // Validate payment method matches location
@@ -205,6 +257,19 @@ class EoiReservationController extends Controller
                 'receipt_path'    => $receiptPath,
                 'passport_path'   => $passportPath,
                 'status'          => EoiReservation::STATUS_PENDING_REVIEW,
+                
+                'education'          => $fields['education'] ?? null,
+                'job_title'          => $fields['job_title'] ?? null,
+                'monthly_income'     => $fields['monthly_income'] ?? null,
+                'income_currency'    => $fields['income_currency'] ?? null,
+                'marital_status'     => $fields['marital_status'] ?? null,
+                'number_of_children' => $fields['number_of_children'] ?? 0,
+                'children_ages'      => $fields['children_ages'] ?? null,
+                'children_schools'   => $fields['children_schools'] ?? null,
+                'current_residence'  => $fields['current_residence'] ?? null,
+                'residence_type'     => $fields['residence_type'] ?? null,
+                'cars_owned'         => $fields['cars_owned'] ?? null,
+                'club_memberships'   => $fields['club_memberships'] ?? null,
             ]);
         });
 
@@ -304,6 +369,87 @@ class EoiReservationController extends Controller
             'data'         => $reservation,
             'order_number' => $reservation->order_number,
             'queue_number' => $reservation->queue_number,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/acquisition/eoi-reservations/batch-approve
+     * Accountant approves a batch of EOI reservations.
+     */
+    public function batchApprove(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids'   => 'required|array',
+            'ids.*' => 'required|string|exists:eoi_reservations,id',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $ids = $request->input('ids');
+        $notes = $request->input('notes');
+
+        $reservations = EoiReservation::whereIn('id', $ids)->get();
+
+        // Verify status
+        $invalid = $reservations->filter(fn($r) => $r->status !== EoiReservation::STATUS_PENDING_REVIEW);
+        if ($invalid->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => "Some reservations cannot be approved because their status is not pending review.",
+            ], 422);
+        }
+
+        $approvedCount = 0;
+        $projectIdsToRecalculate = [];
+
+        DB::transaction(function () use ($reservations, $request, $notes, &$approvedCount, &$projectIdsToRecalculate) {
+            foreach ($reservations as $reservation) {
+                $orderNumber = EoiReservation::generateOrderNumber();
+                $reservation->update([
+                    'status'       => EoiReservation::STATUS_APPROVED,
+                    'order_number' => $orderNumber,
+                    'queue_number' => null,
+                    'reviewer_id'  => $request->user()?->id,
+                    'review_notes' => $notes,
+                    'reviewed_at'  => now(),
+                ]);
+                $approvedCount++;
+                $projectIdsToRecalculate[$reservation->project_id] = true;
+            }
+        });
+
+        // Recalculate queue numbers for all affected projects
+        foreach (array_keys($projectIdsToRecalculate) as $projectId) {
+            try {
+                EoiReservation::recalculateQueueNumbers($projectId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to recalculate queue numbers on batch approval for project {$projectId}: " . $e->getMessage());
+            }
+        }
+
+        // Send emails & log audits
+        foreach ($reservations as $reservation) {
+            $reservation = $reservation->fresh();
+            try {
+                EoiEmailService::sendApprovalEmail($reservation);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("EOI approval email failed for reservation {$reservation->id} during batch: " . $e->getMessage());
+            }
+
+            try {
+                AuditLogService::log('EOI_RESERVATION_BATCH_APPROVE', $request->user()?->id, [
+                    'eoi_reservation_id' => $reservation->id,
+                    'order_number'       => $reservation->order_number,
+                    'queue_number'       => $reservation->queue_number,
+                    'lead_id'            => $reservation->lead_id,
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Audit log failed for reservation {$reservation->id} during batch: " . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully approved {$approvedCount} EOI reservations.",
         ]);
     }
 
@@ -443,6 +589,74 @@ class EoiReservationController extends Controller
             'success' => true,
             'message' => 'Successfully invited ' . count($invitedClients) . ' clients.',
             'data'    => $invitedClients,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/acquisition/eoi-reservations/{id}/resend-invitation
+     * Resend the unit-selection invitation email to an already-invited client.
+     * Regenerates a fresh temporary password (plaintext is never stored).
+     */
+    public function resendInvitation(Request $request, string $id): JsonResponse
+    {
+        $reservation = EoiReservation::findOrFail($id);
+
+        if ($reservation->status !== EoiReservation::STATUS_APPROVED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only approved reservations can be invited.',
+            ], 422);
+        }
+
+        if (!$reservation->invited_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This client has not been invited yet. Use the batch invitation to send the first invite.',
+            ], 422);
+        }
+
+        $generatedPassword = Str::random(10);
+
+        DB::transaction(function () use ($reservation, $generatedPassword) {
+            // Find or create User account for client login and reset its password
+            $user = \App\Models\User::where('email', $reservation->client_email)->first();
+
+            if (!$user) {
+                $user = \App\Models\User::create([
+                    'id'       => (string) Str::uuid(),
+                    'name'     => $reservation->client_name,
+                    'email'    => $reservation->client_email,
+                    'phone'    => $reservation->client_phone,
+                    'password' => bcrypt($generatedPassword),
+                    'role'     => 'client',
+                    'status'   => 'active',
+                ]);
+            } else {
+                $user->update(['password' => bcrypt($generatedPassword)]);
+            }
+
+            $reservation->update(['invited_at' => now()]);
+        });
+
+        try {
+            EoiEmailService::sendInvitationEmail($reservation->fresh(), $generatedPassword);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to resend invitation email: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send the invitation email. Please try again.',
+            ], 500);
+        }
+
+        AuditLogService::log('EOI_INVITE_RESEND', $request->user()?->id, [
+            'eoi_reservation_id' => $reservation->id,
+            'lead_id'            => $reservation->lead_id,
+            'client_email'       => $reservation->client_email,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Invitation email resent to {$reservation->client_email}.",
         ]);
     }
 

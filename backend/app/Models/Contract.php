@@ -23,16 +23,26 @@ class Contract extends Model
         'paid_amount',
         'document_path',
         'type', // 'sale', 'reservation', 'installment'
+        'is_custom_plan',
+        'plan_approval_status', // 'not_required', 'pending', 'approved', 'rejected'
+        'plan_approval_notes',
+        'plan_reviewed_by',
+        'plan_reviewed_at',
         'status', // 'draft', 'pending_signature', 'active', 'completed', 'cancelled', 'withdrawn'
         'withdrawal_status', // 'none', 'reminder', 'warning', 'final_notice', 'withdrawn'
         'notes',
         'signed_at',
+        'accounting_handover_at',
+        'accounting_handover_by',
     ];
 
     protected $casts = [
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'signed_at' => 'datetime',
+        'accounting_handover_at' => 'datetime',
+        'is_custom_plan' => 'boolean',
+        'plan_reviewed_at' => 'datetime',
     ];
 
     public function reservation()
@@ -98,8 +108,25 @@ class Contract extends Model
     {
         $prefix = 'REDP-CTR';
         $year = date('Y');
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return sprintf('%s-%s-%04d', $prefix, $year, $count);
+
+        // Base the next sequence on the highest existing number (not the row count),
+        // so deleting/replacing contracts can't produce a duplicate.
+        $last = static::where('contract_number', 'like', "{$prefix}-{$year}-%")
+            ->orderByDesc('contract_number')
+            ->value('contract_number');
+
+        $seq = 1;
+        if ($last && preg_match('/-(\d+)$/', $last, $m)) {
+            $seq = (int) $m[1] + 1;
+        }
+
+        // Guard against any gaps/races.
+        do {
+            $number = sprintf('%s-%s-%04d', $prefix, $year, $seq);
+            $seq++;
+        } while (static::where('contract_number', $number)->exists());
+
+        return $number;
     }
 
     /**

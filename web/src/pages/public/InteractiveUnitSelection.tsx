@@ -224,6 +224,7 @@ interface UnitData {
   layout_description: string | null;
   handover_date: string | null;
   layout_image_url?: string | null;
+  floor_plan_hotspot?: { x: number; y: number; w: number; h: number; points?: { x: number; y: number }[] } | null;
   model_3d_status?: string | null;
   model_3d_url?: string | null;
   tripo_error_msg?: string | null;
@@ -267,7 +268,15 @@ type Step = 'projects' | 'buildings' | 'floors' | 'units';
 /* ═══════════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════════ */
-const InteractiveUnitSelection: React.FC = () => {
+interface InteractiveUnitSelectionProps {
+  /** Embed inside another page (hide the public top navbar). */
+  embedded?: boolean;
+  /** Agent/showroom mode: the Reserve button calls onAgentReserve instead of the public EOI flow. */
+  agentMode?: boolean;
+  onAgentReserve?: (unit: UnitData, project: ProjectInfo | null) => void;
+}
+
+const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ embedded = false, agentMode = false, onAgentReserve }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -437,13 +446,17 @@ const InteractiveUnitSelection: React.FC = () => {
 
   // Reservation form
   const [reserveForm, setReserveForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', national_id: ''
+    first_name: '', last_name: '', email: '', phone: '', national_id: '',
+    education: '', job_title: '', monthly_income: '', income_currency: 'USD',
+    marital_status: 'single', number_of_children: '0', children_ages: '',
+    children_schools: '', current_residence: '', residence_type: 'owned',
+    cars_owned: '', club_memberships: ''
   });
   const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const [reserveStep, setReserveStep] = useState<1 | 2>(1);
+  const [reserveStep, setReserveStep] = useState<1 | 2 | 3>(1);
   const [reserveProcessing, setReserveProcessing] = useState(false);
   const [reserveResult, setReserveResult] = useState<any>(null);
   const [reserveError, setReserveError] = useState('');
@@ -597,7 +610,13 @@ const InteractiveUnitSelection: React.FC = () => {
 
   const openReserveModal = () => {
     setShowReserveModal(true);
-    setReserveForm({ first_name: '', last_name: '', email: '', phone: '', national_id: '' });
+    setReserveForm({
+      first_name: '', last_name: '', email: '', phone: '', national_id: '',
+      education: '', job_title: '', monthly_income: '', income_currency: 'USD',
+      marital_status: 'single', number_of_children: '0', children_ages: '',
+      children_schools: '', current_residence: '', residence_type: 'owned',
+      cars_owned: '', club_memberships: ''
+    });
     setClientLocation('');
     setPaymentMethod('');
     setReceiptFile(null);
@@ -616,6 +635,16 @@ const InteractiveUnitSelection: React.FC = () => {
       }
       setReserveError('');
       setReserveStep(2);
+      return;
+    }
+
+    if (reserveStep === 2) {
+      if (!reserveForm.education || !reserveForm.job_title || !reserveForm.monthly_income || !reserveForm.current_residence) {
+        setReserveError(t.fillRequired);
+        return;
+      }
+      setReserveError('');
+      setReserveStep(3);
       return;
     }
 
@@ -656,6 +685,20 @@ const InteractiveUnitSelection: React.FC = () => {
       if (passportFile) {
         formData.append('passport', passportFile);
       }
+
+      // Add Standard of Living fields
+      formData.append('education', reserveForm.education);
+      formData.append('job_title', reserveForm.job_title);
+      formData.append('monthly_income', reserveForm.monthly_income);
+      formData.append('income_currency', reserveForm.income_currency);
+      formData.append('marital_status', reserveForm.marital_status);
+      formData.append('number_of_children', reserveForm.number_of_children);
+      formData.append('children_ages', reserveForm.children_ages);
+      formData.append('children_schools', reserveForm.children_schools);
+      formData.append('current_residence', reserveForm.current_residence);
+      formData.append('residence_type', reserveForm.residence_type);
+      formData.append('cars_owned', reserveForm.cars_owned);
+      formData.append('club_memberships', reserveForm.club_memberships);
 
       const res = await api.post('/v1/public/eoi/submit', formData, {
         headers: {
@@ -1222,7 +1265,7 @@ const InteractiveUnitSelection: React.FC = () => {
             }}>
               <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '800px' }}>
                 <img
-                  src={projectMedia.project_image_svg || projectMedia.project_image || ''}
+                  src={projectMedia?.project_image_svg || projectMedia?.project_image || ''}
                   alt="Master Plan"
                   style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12 }}
                   draggable={false}
@@ -2086,6 +2129,123 @@ const InteractiveUnitSelection: React.FC = () => {
           <p style={{ color: '#64748b', fontSize: '0.95rem' }}>{t.selectUnitDesc}</p>
         </div>
 
+        {/* ─── Full Floor Layout Plan (تقسيمة الدور كامل) ─── */}
+        {(() => {
+          const refKey = `${selectedBuilding?.name}|${selectedFloor.floor}`;
+          const fImage = projectMedia?.floor_plan_images?.[refKey]?.image_url;
+          if (!fImage) return null;
+          const fullUrl = fImage.startsWith('http') ? fImage : `http://127.0.0.1:8000/storage/${fImage}`;
+          return (
+            <div style={{
+              maxWidth: 1000, margin: '0 auto 36px',
+              background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(28px)',
+              border: '1.5px solid rgba(0,61,166,0.1)', borderRadius: 24,
+              padding: '20px 24px', boxShadow: '0 20px 50px -15px rgba(0,15,61,0.06)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 800, color: '#003DA6', margin: 0 }}>
+                    🗺️ {lang === 'ar' ? 'مخطط الدور كامل' : 'Full Floor Layout'} — {t.floor} {selectedFloor.floor}
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '0.78rem', margin: '4px 0 0 0' }}>
+                    {lang === 'ar' ? 'استعرض تقسيمة الدور ثم اختر الشقة من الأسفل' : 'Review the floor layout, then pick a unit below'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.open(fullUrl, '_blank')}
+                  style={{
+                    background: 'rgba(0,61,166,0.06)', border: '1.5px solid rgba(0,61,166,0.1)',
+                    borderRadius: 999, padding: '6px 14px', color: '#003DA6', fontWeight: 700,
+                    fontSize: '0.72rem', fontFamily: 'var(--font-title)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                  }}
+                >
+                  <Maximize size={12} />
+                  {lang === 'ar' ? 'تكبير' : 'Zoom'}
+                </button>
+              </div>
+              <div
+                style={{
+                  position: 'relative', width: '100%', borderRadius: 16, overflow: 'hidden',
+                  background: '#f8fafc', border: '1px solid rgba(0,61,166,0.05)',
+                  display: 'block',
+                }}
+              >
+                <img
+                  src={fullUrl}
+                  alt={`Floor ${selectedFloor.floor} Layout`}
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                />
+
+                {/* Clickable apartment hotspots (polygon or rectangle) overlaid on the plan */}
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
+                  {selectedFloor.units.map((u) => {
+                    const hs = u.floor_plan_hotspot;
+                    if (!hs) return null;
+                    const isAvailable = u.status === 'available';
+                    const color = getStatusColor(u.status);
+                    const common = {
+                      fill: `${color}26`,
+                      stroke: color,
+                      strokeWidth: 0.4,
+                      style: { cursor: isAvailable ? 'pointer' : 'not-allowed', pointerEvents: 'auto' as const, transition: 'fill 0.2s ease' },
+                      onClick: (e: React.MouseEvent) => { e.stopPropagation(); if (isAvailable) handleSelectUnit(u); },
+                      onMouseEnter: (e: React.MouseEvent<SVGElement>) => { (e.currentTarget as SVGElement).setAttribute('fill', `${color}4d`); },
+                      onMouseLeave: (e: React.MouseEvent<SVGElement>) => { (e.currentTarget as SVGElement).setAttribute('fill', `${color}26`); },
+                    };
+                    return hs.points && hs.points.length >= 3 ? (
+                      <polygon key={u.id} points={hs.points.map(p => `${p.x},${p.y}`).join(' ')} {...common}>
+                        <title>{`${t.unit} ${u.unit_number} — ${getStatusLabel(u.status)}`}</title>
+                      </polygon>
+                    ) : (
+                      <rect key={u.id} x={hs.x} y={hs.y} width={hs.w} height={hs.h} rx={1} {...common}>
+                        <title>{`${t.unit} ${u.unit_number} — ${getStatusLabel(u.status)}`}</title>
+                      </rect>
+                    );
+                  })}
+                </svg>
+
+                {/* Unit-number badges at each hotspot centroid (non-distorted HTML) */}
+                {selectedFloor.units.map((u) => {
+                  const hs = u.floor_plan_hotspot;
+                  if (!hs) return null;
+                  const isAvailable = u.status === 'available';
+                  const color = getStatusColor(u.status);
+                  const cx = hs.points && hs.points.length >= 3
+                    ? hs.points.reduce((s, p) => s + p.x, 0) / hs.points.length
+                    : hs.x + hs.w / 2;
+                  const cy = hs.points && hs.points.length >= 3
+                    ? hs.points.reduce((s, p) => s + p.y, 0) / hs.points.length
+                    : hs.y + hs.h / 2;
+                  return (
+                    <span
+                      key={u.id}
+                      style={{
+                        position: 'absolute', left: `${cx}%`, top: `${cy}%`, transform: 'translate(-50%, -50%)',
+                        background: color, color: '#fff', fontSize: '0.6rem', fontWeight: 800,
+                        padding: '2px 7px', borderRadius: 999, lineHeight: 1.4, pointerEvents: 'none',
+                        display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                      }}
+                    >
+                      {isAvailable ? <CheckCircle size={9} /> : <Lock size={9} />}
+                      {u.unit_number}
+                    </span>
+                  );
+                })}
+              </div>
+              <p style={{ color: '#94a3b8', fontSize: '0.72rem', textAlign: 'center', margin: '10px 0 0 0' }}>
+                {lang === 'ar' ? '💡 اضغط على الشقة المتاحة في الكروكي لعرض تفاصيلها' : '💡 Click an available apartment on the plan to view its details'}
+              </p>
+            </div>
+          );
+        })()}
+
         {selectedFloor.units.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
             <Square size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
@@ -2488,7 +2648,7 @@ const InteractiveUnitSelection: React.FC = () => {
 
         {/* Reserve button */}
         {selectedUnit.status === 'available' && (
-          <button onClick={openReserveModal} style={{
+          <button onClick={() => { if (agentMode && onAgentReserve) { onAgentReserve(selectedUnit, selectedProject); } else { openReserveModal(); } }} style={{
             width: '100%',
             background: 'linear-gradient(135deg, #22c55e, #16a34a)',
             color: '#fff',
@@ -2513,7 +2673,7 @@ const InteractiveUnitSelection: React.FC = () => {
             }}
           >
             <Shield size={18} />
-            {t.reserveUnit}
+            {agentMode ? (lang === 'ar' ? 'احجز هذه الوحدة للعميل' : 'Reserve for Client') : t.reserveUnit}
           </button>
         )}
       </div>
@@ -2754,8 +2914,8 @@ const InteractiveUnitSelection: React.FC = () => {
                   }}>
                     {t.confirmReservation}
                   </h3>
-                  {reserveStep === 2 && (
-                    <button type="button" onClick={() => setReserveStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
+                  {reserveStep > 1 && (
+                    <button type="button" onClick={() => setReserveStep(prev => (prev - 1) as any)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
                       {lang === 'en' ? '← Back' : '← رجوع'}
                     </button>
                   )}
@@ -2883,17 +3043,235 @@ const InteractiveUnitSelection: React.FC = () => {
                         boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
                       }}
                     >
+                      {lang === 'en' ? 'Continue' : 'متابعة'}
+                      <Arrow size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2: Standard of Living Information */}
+                {reserveStep === 2 && (
+                  <div>
+                    <div style={{
+                      background: 'rgba(0, 61, 166, 0.04)',
+                      border: '1.5px solid rgba(0, 61, 166, 0.1)',
+                      borderRadius: 14,
+                      padding: 16,
+                      marginBottom: 20,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                    }}>
+                      <Info size={20} color="#003DA6" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <p style={{
+                        margin: 0,
+                        fontSize: '0.78rem',
+                        lineHeight: 1.4,
+                        color: '#334155',
+                        fontWeight: 600,
+                      }}>
+                        {lang === 'en' 
+                          ? 'This information is collected to ensure a premium standard of living and maintain the community environment surrounding you.' 
+                          : 'هذه البيانات مطلوبة لضمان مستوى معيشي متميز والحفاظ على البيئة المجتمعية المحيطة بحضرتك.'}
+                      </p>
+                    </div>
+
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
+                      {lang === 'en' ? '2. Social & Living Standards' : '2. بيانات مستوى المعيشة والحالة الاجتماعية'}
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Education *' : 'الشهادة العلمية / التخرج *'}</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Bachelor of Engineering' : 'مثال: بكالوريوس هندسة'}
+                          value={reserveForm.education}
+                          onChange={e => setReserveForm({ ...reserveForm, education: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Occupation / Job Title *' : 'الوظيفة الحالية *'}</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Senior Software Architect' : 'مثال: مدير مشروعات'}
+                          value={reserveForm.job_title}
+                          onChange={e => setReserveForm({ ...reserveForm, job_title: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Approximate Monthly Income *' : 'الراتب الشهري التقريبي *'}</label>
+                        <input
+                          style={inputStyle}
+                          type="number"
+                          required
+                          placeholder="e.g. 50000"
+                          value={reserveForm.monthly_income}
+                          onChange={e => setReserveForm({ ...reserveForm, monthly_income: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Currency *' : 'العملة *'}</label>
+                        <select
+                          style={{ ...inputStyle, padding: '10px 12px' }}
+                          value={reserveForm.income_currency}
+                          onChange={e => setReserveForm({ ...reserveForm, income_currency: e.target.value })}
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="EGP">EGP (ج.م)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="SAR">SAR (ر.س)</option>
+                          <option value="AED">AED (د.إ)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Marital Status *' : 'الحالة الاجتماعية *'}</label>
+                        <select
+                          style={{ ...inputStyle, padding: '10px 12px' }}
+                          value={reserveForm.marital_status}
+                          onChange={e => setReserveForm({ ...reserveForm, marital_status: e.target.value })}
+                        >
+                          <option value="single">{lang === 'en' ? 'Single' : 'أعزب / عزباء'}</option>
+                          <option value="married">{lang === 'en' ? 'Married' : 'متزوج / متزوجة'}</option>
+                          <option value="divorced">{lang === 'en' ? 'Divorced' : 'مطلق / مطلقة'}</option>
+                          <option value="widowed">{lang === 'en' ? 'Widowed' : 'أرمل / أرملة'}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Number of Children' : 'عدد الأولاد'}</label>
+                        <input
+                          style={inputStyle}
+                          type="number"
+                          min="0"
+                          value={reserveForm.number_of_children}
+                          onChange={e => setReserveForm({ ...reserveForm, number_of_children: e.target.value })}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#003DA6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,61,166,0.1)'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                      </div>
+                    </div>
+
+                    {(parseInt(reserveForm.number_of_children) > 0 || reserveForm.number_of_children !== '0') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14, animation: 'us3d-stepTransition 0.3s ease' }}>
+                        <div>
+                          <label style={labelStyle}>{lang === 'en' ? "Children's Ages" : 'أعمار الأولاد'}</label>
+                          <input
+                            style={inputStyle}
+                            type="text"
+                            placeholder={lang === 'en' ? 'e.g. 5, 8, 12' : 'مثال: 5، 8، 12'}
+                            value={reserveForm.children_ages}
+                            onChange={e => setReserveForm({ ...reserveForm, children_ages: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>{lang === 'en' ? "Schools & Universities" : 'المدارس والجامعات للأولاد'}</label>
+                          <input
+                            style={inputStyle}
+                            type="text"
+                            placeholder={lang === 'en' ? 'e.g. AUC, CAC' : 'مثال: الجامعة الأمريكية، المدرسة البريطانية'}
+                            value={reserveForm.children_schools}
+                            onChange={e => setReserveForm({ ...reserveForm, children_schools: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Current Residence Address *' : 'عنوان السكن الحالي *'}</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Fifth Settlement, New Cairo' : 'مثال: التجمع الخامس، القاهرة الجديدة'}
+                          value={reserveForm.current_residence}
+                          onChange={e => setReserveForm({ ...reserveForm, current_residence: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Residence Type *' : 'نوع السكن الحالي *'}</label>
+                        <select
+                          style={{ ...inputStyle, padding: '10px 12px' }}
+                          value={reserveForm.residence_type}
+                          onChange={e => setReserveForm({ ...reserveForm, residence_type: e.target.value })}
+                        >
+                          <option value="owned">{lang === 'en' ? 'Owned' : 'تمليك'}</option>
+                          <option value="rented">{lang === 'en' ? 'Rented' : 'إيجار'}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Cars Owned (Model & Brand)' : 'السيارات المملوكة (النوع والموديل)'}</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          placeholder={lang === 'en' ? 'e.g. BMW X5, Mercedes C200' : 'مثال: BMW X5, Mercedes C200'}
+                          value={reserveForm.cars_owned}
+                          onChange={e => setReserveForm({ ...reserveForm, cars_owned: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>{lang === 'en' ? 'Club Memberships' : 'اشتراكات الأندية الرياضية'}</label>
+                        <input
+                          style={inputStyle}
+                          type="text"
+                          placeholder={lang === 'en' ? 'e.g. Gezira Club, Heliopolis' : 'مثال: نادي الجزيرة، نادي هليوبوليس'}
+                          value={reserveForm.club_memberships}
+                          onChange={e => setReserveForm({ ...reserveForm, club_memberships: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #003DA6 0%, #001A70 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '14px 24px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 4px 15px rgba(0,61,166,0.2)',
+                      }}
+                    >
                       {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
                       <Arrow size={16} />
                     </button>
                   </div>
                 )}
 
-                {/* STEP 2: Location, Method, and File Uploads */}
-                {reserveStep === 2 && (
+                {/* STEP 3: Location, Method, and File Uploads */}
+                {reserveStep === 3 && (
                   <div>
                     <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10, marginBottom: 20, fontFamily: 'var(--font-title)' }}>
-                      {lang === 'en' ? '2. Confirm Payment & Upload Documents' : '2. تأكيد الدفع ورفع الملفات'}
+                      {lang === 'en' ? '3. Confirm Payment & Upload Documents' : '3. تأكيد الدفع ورفع الملفات'}
                     </h4>
 
                     {/* Location Selection */}
@@ -3282,7 +3660,7 @@ const InteractiveUnitSelection: React.FC = () => {
       `}} />
 
       {/* ─── Navbar ─── */}
-      <nav style={{
+      {!embedded && <nav style={{
         position: 'sticky', top: 0, zIndex: 100,
         background: 'rgba(255,255,255,0.82)',
         backdropFilter: 'blur(28px)',
@@ -3360,7 +3738,7 @@ const InteractiveUnitSelection: React.FC = () => {
         }}>
           <Menu size={24} />
         </button>
-      </nav>
+      </nav>}
 
       {/* ─── Hero Header ─── */}
       <div style={{

@@ -709,11 +709,6 @@ const Contracts: React.FC = () => {
                       <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => handleViewContract(contract.id)}>
                         <Eye size={12} /> View
                       </button>
-                      {(contract.status === 'draft' || contract.status === 'pending_signature') && (
-                        <button className="btn-primary" style={{ padding: '6px 10px', fontSize: '0.7rem' }} onClick={() => handleSign(contract.id)}>
-                          <PenTool size={12} /> Sign
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>

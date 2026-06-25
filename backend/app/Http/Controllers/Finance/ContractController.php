@@ -104,26 +104,29 @@ class ContractController extends Controller
             ], 400);
         }
 
-        // Check if contract already exists
-        $existing = Contract::where('reservation_id', $reservationId)->first();
-        if ($existing) {
-            if ($existing->status === 'draft') {
-                // Safely delete the auto-generated draft to make way for the custom finalized contract
-                \Illuminate\Support\Facades\DB::transaction(function () use ($existing) {
-                    if ($existing->paymentPlan) {
-                        Payment::where('payment_plan_id', $existing->paymentPlan->id)->delete();
-                        $existing->paymentPlan->delete();
+        // A reservation must have exactly ONE contract. Block if a signed/active one
+        // exists; otherwise wipe ALL stale contracts (auto-draft, draft, cancelled,
+        // withdrawn, plan-approval placeholders) so the fresh one is the only record.
+        $existingContracts = Contract::where('reservation_id', $reservationId)->get();
+        $blocking = $existingContracts->first(fn($c) => in_array($c->status, ['active', 'completed', 'pending_signature']));
+        if ($blocking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A finalized or active contract already exists for this reservation.',
+                'contract' => $blocking,
+            ], 400);
+        }
+        if ($existingContracts->isNotEmpty()) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($existingContracts) {
+                foreach ($existingContracts as $ex) {
+                    if ($ex->paymentPlan) {
+                        Payment::where('payment_plan_id', $ex->paymentPlan->id)->delete();
+                        $ex->paymentPlan->delete();
                     }
-                    Payment::where('contract_id', $existing->id)->delete();
-                    $existing->delete();
-                });
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'A finalized or active contract already exists for this reservation.',
-                    'contract' => $existing,
-                ], 400);
-            }
+                    Payment::where('contract_id', $ex->id)->delete();
+                    $ex->delete();
+                }
+            });
         }
 
         $request->validate([
@@ -141,6 +144,8 @@ class ContractController extends Controller
         $unit = $reservation->unit;
         $type = $request->type ?? 'installment';
         $schedule = $request->input('schedule', []);
+        $isCustom = $request->boolean('is_custom');
+        $requiresApproval = $request->boolean('requires_approval');
 
         // Calculate paid today (EOI + Down Payment)
         $totalPaidToday = (float) $reservation->eoi_amount;
@@ -176,9 +181,28 @@ class ContractController extends Controller
             'total_amount' => $unit->price,
             'paid_amount' => $totalPaidToday,
             'type' => $type,
+            'is_custom_plan' => $isCustom,
+            'plan_approval_status' => $requiresApproval ? 'pending' : 'not_required',
             'status' => 'draft',
             'notes' => $request->notes ?? 'Generated from reservation.',
         ]);
+
+        // Notify accountants (finance officers) when a custom plan needs review.
+        if ($requiresApproval) {
+            try {
+                foreach (\App\Models\User::where('role', 'finance_officer')->where('status', 'active')->get() as $fo) {
+                    \App\Services\NotificationService::send(
+                        $fo->id,
+                        'push',
+                        $fo->email,
+                        'Custom payment plan needs approval / خطة دفع مخصّصة بانتظار الموافقة',
+                        "Contract {$contract->contract_number} has a custom payment plan awaiting your review."
+                    );
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Custom-plan approval notification failed: ' . $e->getMessage());
+            }
+        }
 
         // Generate payment plan and payments
         if (!empty($schedule)) {
@@ -268,6 +292,20 @@ class ContractController extends Controller
                 'success' => false,
                 'message' => 'Contract cannot be signed in its current status: ' . $contract->status,
             ], 400);
+        }
+
+        // A custom payment plan must be approved by Accounting before signing.
+        if ($contract->plan_approval_status === 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This custom payment plan is still pending accountant approval.',
+            ], 422);
+        }
+        if ($contract->plan_approval_status === 'rejected') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This custom payment plan was rejected by Accounting. Please revise the plan.',
+            ], 422);
         }
 
         $contract->update([
@@ -433,6 +471,152 @@ class ContractController extends Controller
     /**
      * Submit contract for admin approval.
      */
+    /**
+     * GET /api/v1/finance/contracts/pending-plan-approval
+     * Accountant queue: custom payment plans awaiting approval.
+     */
+    public function pendingPlanApprovals(Request $request)
+    {
+        $contracts = Contract::where('plan_approval_status', 'pending')
+            ->with([
+                'client:id,name,email,phone',
+                'unit:id,unit_number,price,project_id,building,floor',
+                'unit.project:id,name',
+                'paymentPlan',
+                'payments' => fn($q) => $q->orderBy('installment_number'),
+            ])
+            ->orderBy('created_at')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $contracts]);
+    }
+
+    /**
+     * POST /api/v1/finance/contracts/{id}/approve-plan
+     * Accountant approves a custom payment plan → emails the client to complete the contract.
+     */
+    public function approvePlan(Request $request, string $id)
+    {
+        $contract = Contract::with(['client', 'unit.project', 'paymentPlan'])->findOrFail($id);
+
+        if ($contract->plan_approval_status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This plan is not pending approval (current: ' . $contract->plan_approval_status . ').',
+            ], 422);
+        }
+
+        $contract->update([
+            'plan_approval_status' => 'approved',
+            'plan_reviewed_by'     => $request->user()?->id,
+            'plan_reviewed_at'     => now(),
+            'plan_approval_notes'  => $request->input('notes'),
+        ]);
+
+        // Email the client that the plan was accepted.
+        try {
+            if ($contract->client) {
+                \App\Services\NotificationService::send(
+                    $contract->client->id,
+                    'email',
+                    $contract->client->email,
+                    'Your payment plan is approved / تمت الموافقة على خطة السداد',
+                    $this->buildPlanApprovedEmail($contract)
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Plan approval email failed: ' . $e->getMessage());
+        }
+
+        AuditLogService::log('CONTRACT_PLAN_APPROVED', $request->user()?->id, [
+            'contract_id' => $contract->id,
+            'contract_number' => $contract->contract_number,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom payment plan approved. The client has been notified by email.',
+            'contract' => $contract->fresh(),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/finance/contracts/{id}/reject-plan
+     * Accountant rejects a custom payment plan with a reason.
+     */
+    public function rejectPlan(Request $request, string $id)
+    {
+        $request->validate(['notes' => 'required|string|max:1000']);
+
+        $contract = Contract::with('client')->findOrFail($id);
+
+        if ($contract->plan_approval_status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This plan is not pending approval (current: ' . $contract->plan_approval_status . ').',
+            ], 422);
+        }
+
+        $contract->update([
+            'plan_approval_status' => 'rejected',
+            'plan_reviewed_by'     => $request->user()?->id,
+            'plan_reviewed_at'     => now(),
+            'plan_approval_notes'  => $request->input('notes'),
+        ]);
+
+        AuditLogService::log('CONTRACT_PLAN_REJECTED', $request->user()?->id, [
+            'contract_id' => $contract->id,
+            'contract_number' => $contract->contract_number,
+            'reason' => $request->input('notes'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom payment plan rejected. Sales can revise and resubmit.',
+            'contract' => $contract->fresh(),
+        ]);
+    }
+
+    private function buildPlanApprovedEmail(Contract $contract): string
+    {
+        $client = $contract->client?->name ?? 'Valued Client';
+        $num = $contract->contract_number;
+        $unit = $contract->unit?->unit_number ?? '—';
+        $project = $contract->unit?->project?->name ?? 'your project';
+        $total = number_format((float) $contract->total_amount, 2);
+        $months = $contract->paymentPlan?->total_installments ?? 0;
+
+        return <<<HTML
+        <div style="font-family:Arial,sans-serif;background:#f4f6fc;padding:40px 20px;">
+          <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,61,166,.06)">
+            <div style="background:linear-gradient(135deg,#001A70,#003DA6);padding:34px;text-align:center">
+              <h1 style="color:#fff;margin:0;font-size:22px;font-weight:800">Payment Plan Approved</h1>
+              <p style="color:#C5A880;margin:6px 0 0;font-size:12px;letter-spacing:.15em;text-transform:uppercase">تمت الموافقة على خطة السداد</p>
+            </div>
+            <div style="padding:32px">
+              <p style="color:#0f172a;font-size:15px">Dear <strong>{$client}</strong>,</p>
+              <p style="color:#475569;font-size:14px;line-height:1.6">
+                Good news! Your customized payment plan for <strong>Unit {$unit}</strong> in <strong>{$project}</strong>
+                has been reviewed and <strong>approved</strong> by our finance department.
+              </p>
+              <div style="background:#F8FAFC;border:1px solid rgba(0,61,166,.08);border-radius:12px;padding:18px;margin:18px 0">
+                <table style="width:100%;font-size:13px;color:#0f172a">
+                  <tr><td style="color:#64748b;padding:6px 0">Contract</td><td style="text-align:right;font-weight:700">{$num}</td></tr>
+                  <tr><td style="color:#64748b;padding:6px 0">Total Value</td><td style="text-align:right;font-weight:700">EGP {$total}</td></tr>
+                  <tr><td style="color:#64748b;padding:6px 0">Installments</td><td style="text-align:right;font-weight:700">{$months}</td></tr>
+                </table>
+              </div>
+              <p style="color:#475569;font-size:14px;line-height:1.6">
+                Please visit our offices to <strong>complete and sign your contract</strong>. Our sales team is ready to welcome you.
+                / يرجى التوجه لمقر الشركة لاستكمال وتوقيع العقد.
+              </p>
+            </div>
+            <div style="background:#F8FAFC;padding:22px;text-align:center;color:#94a3b8;font-size:11px">© 2026 Mountain View Developments</div>
+          </div>
+        </div>
+        HTML;
+    }
+
     public function submitForApproval(Request $request, string $id)
     {
         $contract = Contract::with(['client', 'unit.project', 'paymentPlan'])->findOrFail($id);

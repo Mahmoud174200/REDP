@@ -29,14 +29,30 @@ class Reservation extends Model
      */
     public static function checkAndReleaseExpired()
     {
+        // A hold expires after its window UNLESS the client has actually signed
+        // (an 'active'/'completed' contract). An unsigned draft — including the
+        // auto-generated placeholder — does NOT protect the hold.
         $expired = self::where('status', 'confirmed')
             ->whereNotNull('expires_at')
             ->where('expires_at', '<', now())
-            ->doesntHave('contract')
+            ->whereDoesntHave('contract', function ($q) {
+                $q->whereIn('status', ['active', 'completed']);
+            })
             ->get();
 
         foreach ($expired as $res) {
             DB::transaction(function () use ($res) {
+                // 0. Clean up any unsigned contract (draft/placeholder) attached to this hold
+                $contract = $res->contract;
+                if ($contract && !in_array($contract->status, ['active', 'completed'])) {
+                    if ($contract->paymentPlan) {
+                        Payment::where('payment_plan_id', $contract->paymentPlan->id)->delete();
+                        $contract->paymentPlan->delete();
+                    }
+                    Payment::where('contract_id', $contract->id)->delete();
+                    $contract->delete();
+                }
+
                 // 1. Mark reservation as expired
                 $res->update(['status' => 'expired']);
 

@@ -196,18 +196,32 @@ class PublicLandingController extends Controller
         }
 
         $fields = $request->validate([
-            'first_name'      => 'required|string|max:255',
-            'last_name'       => 'required|string|max:255',
-            'email'           => 'required|email|max:255',
-            'phone'           => 'required|string|max:255',
-            'national_id'     => 'nullable|string|max:255',
-            'project_id'      => 'required|uuid|exists:projects,id',
-            'unit_id'         => 'nullable|uuid|exists:units,id',
-            'eoi_amount'      => 'nullable|numeric|min:0',
+            'first_name'       => 'required|string|max:255',
+            'last_name'        => 'required|string|max:255',
+            'email'            => 'required|email|max:255',
+            'phone'            => 'required|string|max:255',
+            'national_id'      => 'nullable|string|max:255',
+            'project_id'       => 'required|uuid|exists:projects,id',
+            'unit_id'          => 'nullable|uuid|exists:units,id',
+            'eoi_amount'       => 'nullable|numeric|min:0',
             'client_location'  => 'required|string|in:inside_egypt,outside_egypt',
             'payment_method'   => 'required|string|in:cash,bank_transfer,cheque,international_bank_transfer,instapay',
             'receipt'          => 'required|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
             'passport'         => 'required_if:client_location,outside_egypt|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+            
+            // Standard of Living Fields
+            'education'          => 'nullable|string|max:255',
+            'job_title'          => 'nullable|string|max:255',
+            'monthly_income'     => 'nullable|numeric|min:0',
+            'income_currency'    => 'nullable|string|max:10',
+            'marital_status'     => 'nullable|string|max:50',
+            'number_of_children' => 'nullable|integer|min:0',
+            'children_ages'      => 'nullable|string|max:255',
+            'children_schools'   => 'nullable|string|max:255',
+            'current_residence'  => 'nullable|string|max:255',
+            'residence_type'     => 'nullable|string|max:50',
+            'cars_owned'         => 'nullable|string',
+            'club_memberships'   => 'nullable|string|max:255',
         ]);
 
         // Validate payment method matches location
@@ -287,6 +301,19 @@ class PublicLandingController extends Controller
                     'receipt_path'    => $receiptPath,
                     'passport_path'   => $passportPath,
                     'status'          => EoiReservation::STATUS_PENDING_REVIEW,
+                    
+                    'education'          => $fields['education'] ?? null,
+                    'job_title'          => $fields['job_title'] ?? null,
+                    'monthly_income'     => $fields['monthly_income'] ?? null,
+                    'income_currency'    => $fields['income_currency'] ?? null,
+                    'marital_status'     => $fields['marital_status'] ?? null,
+                    'number_of_children' => $fields['number_of_children'] ?? 0,
+                    'children_ages'      => $fields['children_ages'] ?? null,
+                    'children_schools'   => $fields['children_schools'] ?? null,
+                    'current_residence'  => $fields['current_residence'] ?? null,
+                    'residence_type'     => $fields['residence_type'] ?? null,
+                    'cars_owned'         => $fields['cars_owned'] ?? null,
+                    'club_memberships'   => $fields['club_memberships'] ?? null,
                 ]);
 
                 // Optional: If a unit is specified, we can temporarily block it or note it

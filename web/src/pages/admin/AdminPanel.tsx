@@ -3,10 +3,11 @@ import {
   Users, Settings, Plus, Edit2, Trash2, Key, ToggleLeft, ToggleRight,
   Save, X, Search, Building2, ClipboardList, AlertCircle, FileText,
   Trash, RefreshCw, Layers, UserCheck, ShieldAlert, Activity, Monitor,
-  UploadCloud
+  UploadCloud, Crosshair
 } from 'lucide-react';
 import api from '../../services/api';
 import FloorPlanEditor from '../../components/admin/FloorPlanEditor';
+import FloorHotspotEditor from '../../components/FloorHotspotEditor';
 import { vectorizeImageToFile, vectorizeImage, PRESET_ARCHITECTURAL, PRESET_PHOTOGRAPHIC, PRESET_DEFAULT } from '../../utils/imageVectorizer';
 
 // ── Interfaces ──
@@ -238,6 +239,7 @@ const AdminPanel: React.FC = () => {
   const [selectedProjectForMedia, setSelectedProjectForMedia] = useState<ProjectItem | null>(null);
   const [projectMedia, setProjectMedia] = useState<{ project_image: string | null; project_image_svg: string | null; cover_image: string | null; cover_gallery?: any[]; building_images: any; floor_plan_images: any } | null>(null);
   const [mediaBuildings, setMediaBuildings] = useState<any[]>([]);
+  const [hotspotEditor, setHotspotEditor] = useState<{ buildingName: string; floorNumber: number; imageUrl: string; units: any[] } | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
 
@@ -4359,6 +4361,20 @@ const AdminPanel: React.FC = () => {
                                         </div>
                                       </div>
 
+                                      {/* Place units on plan (interactive hotspots) */}
+                                      {fImage && floorUnits.length > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-2px' }}>
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            style={{ padding: '5px 12px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                            onClick={() => setHotspotEditor({ buildingName, floorNumber: floorNum, imageUrl: fImage, units: floorUnits })}
+                                          >
+                                            <Crosshair size={12} /> Place Units on Plan ({floorUnits.filter((u: any) => u.floor_plan_hotspot).length}/{floorUnits.length})
+                                          </button>
+                                        </div>
+                                      )}
+
                                       {/* Units layouts list */}
                                       {floorUnits.length > 0 && (
                                         <div style={{ paddingLeft: '15px', borderLeft: '2.5px solid rgba(0,61,166,0.1)', display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
@@ -4548,6 +4564,17 @@ const AdminPanel: React.FC = () => {
           unitNumber={editorUnitNumber}
           onClose={() => setShowFloorPlanEditor(false)}
           onSuccess={fetchData}
+        />
+      )}
+
+      {hotspotEditor && (
+        <FloorHotspotEditor
+          floorImageUrl={hotspotEditor.imageUrl}
+          buildingName={hotspotEditor.buildingName}
+          floorNumber={hotspotEditor.floorNumber}
+          units={hotspotEditor.units}
+          onClose={() => setHotspotEditor(null)}
+          onSaved={refreshMediaModalData}
         />
       )}
 

@@ -127,6 +127,18 @@ class EoiReservation extends Model
         'five_percent_review_notes',
         'five_percent_reviewer_id',
         'five_percent_reviewed_at',
+        'education',
+        'job_title',
+        'monthly_income',
+        'income_currency',
+        'marital_status',
+        'number_of_children',
+        'children_ages',
+        'children_schools',
+        'current_residence',
+        'residence_type',
+        'cars_owned',
+        'club_memberships',
     ];
 
     protected $casts = [
@@ -140,6 +152,8 @@ class EoiReservation extends Model
         'five_percent_amount' => 'decimal:2',
         'five_percent_paid_at' => 'datetime',
         'five_percent_reviewed_at' => 'datetime',
+        'monthly_income' => 'decimal:2',
+        'number_of_children' => 'integer',
         'created_at'     => 'datetime',
         'updated_at'     => 'datetime',
         'deleted_at'     => 'datetime',
@@ -305,7 +319,12 @@ class EoiReservation extends Model
         $value = $rule['value'] ?? '';
 
         $fieldValue = null;
-        if (in_array($field, ['payment_amount', 'payment_method', 'client_location', 'status'])) {
+        if (in_array($field, [
+            'payment_amount', 'payment_method', 'client_location', 'status',
+            'education', 'job_title', 'monthly_income', 'income_currency',
+            'marital_status', 'number_of_children', 'children_ages', 'children_schools',
+            'current_residence', 'residence_type', 'cars_owned', 'club_memberships'
+        ])) {
             $fieldValue = $this->{$field};
         } else {
             $lead = $this->lead;

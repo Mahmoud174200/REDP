@@ -12,6 +12,7 @@ use App\Models\Reservation;
 use App\Models\Unit;
 use App\Models\Commission;
 use App\Models\CommissionPayoutRequest;
+use App\Models\Broker;
 use App\Models\User;
 use App\Events\ReservationConfirmed;
 use App\Services\AuditLogService;
@@ -68,6 +69,11 @@ class CompanySalesController extends Controller
         // Filter by status
         if ($request->has('status')) {
             $query->byStatus($request->input('status'));
+        }
+
+        // Only leads that can still be booked (not already reserved/contracted)
+        if ($request->boolean('bookable')) {
+            $query->whereNotIn('status', [Lead::STATUS_RESERVED, 'contracted']);
         }
 
         // Search
@@ -248,11 +254,14 @@ class CompanySalesController extends Controller
                     ]);
                 }
 
-                // 3. Create reservation with custom holding duration
+                // 3. Create reservation with custom holding duration.
+                //    Preserve the broker association when the lead came from a broker,
+                //    so the broker keeps visibility and earns commission.
                 $reservation = Reservation::create([
                     'id'         => (string) Str::uuid(),
                     'unit_id'    => $unit->id,
                     'client_id'  => $clientUser->id,
+                    'broker_id'  => $lead->broker_id ?: null,
                     'eoi_amount' => $eoiAmount,
                     'status'     => 'confirmed',
                     'expires_at' => now()->addDays($holdingDays),
@@ -264,6 +273,14 @@ class CompanySalesController extends Controller
                     'company_sales_agent_id'=> $user->id,
                     'current_tier'          => 'tier_3',
                 ]);
+
+                // 5. Broker-sourced sale → register the pending commission ledger.
+                if ($lead->broker_id) {
+                    $sellerBroker = Broker::find($lead->broker_id);
+                    if ($sellerBroker) {
+                        $this->createBrokerCommissions($sellerBroker, $lead, $unit);
+                    }
+                }
 
                 return $reservation;
             });
@@ -304,6 +321,73 @@ class CompanySalesController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * Register the pending commission ledger for a broker-sourced sale:
+     * agent + (team-leader) + (owner) overrides, mirroring approveBrokerReservation.
+     * Idempotent — skips if commissions already exist for this lead+unit.
+     */
+    private function createBrokerCommissions(Broker $sellerBroker, Lead $lead, Unit $unit): void
+    {
+        if (Commission::where('lead_id', $lead->id)->where('unit_id', $unit->id)->exists()) {
+            return;
+        }
+
+        $brokerCompany = ($sellerBroker->user && $sellerBroker->user->company_id)
+            ? \App\Models\Company::find($sellerBroker->user->company_id)
+            : null;
+
+        if ($brokerCompany) {
+            $ownerRate  = (float) ($brokerCompany->owner_commission_rate ?? 1.00);
+            $leaderRate = (float) ($brokerCompany->leader_commission_rate ?? 1.50);
+            $agentRate  = (float) ($brokerCompany->agent_commission_rate ?? 2.50);
+
+            $sellerUser = $sellerBroker->user;
+            $directManager = null;
+            $indirectManager = null;
+            if ($sellerUser) {
+                $hierarchy = \App\Models\EmployeeHierarchy::where('user_id', $sellerUser->id)->first();
+                if ($hierarchy) {
+                    if ($hierarchy->direct_manager_id) $directManager = \App\Models\User::find($hierarchy->direct_manager_id);
+                    if ($hierarchy->indirect_manager_id) $indirectManager = \App\Models\User::find($hierarchy->indirect_manager_id);
+                }
+            }
+
+            // Agent commission
+            Commission::create([
+                'id' => (string) Str::uuid(), 'broker_id' => $sellerBroker->id, 'lead_id' => $lead->id,
+                'unit_id' => $unit->id, 'rate_percent' => $agentRate, 'gross_amount' => $unit->price * ($agentRate / 100), 'status' => 'pending',
+            ]);
+
+            // Team-leader override
+            if ($directManager) {
+                $leaderBroker = Broker::where('user_id', $directManager->id)->first();
+                if ($leaderBroker) {
+                    Commission::create([
+                        'id' => (string) Str::uuid(), 'broker_id' => $leaderBroker->id, 'lead_id' => $lead->id,
+                        'unit_id' => $unit->id, 'rate_percent' => $leaderRate, 'gross_amount' => $unit->price * ($leaderRate / 100), 'status' => 'pending',
+                    ]);
+                }
+            }
+
+            // Owner override
+            if ($indirectManager) {
+                $ownerBroker = Broker::where('user_id', $indirectManager->id)->first();
+                if ($ownerBroker) {
+                    Commission::create([
+                        'id' => (string) Str::uuid(), 'broker_id' => $ownerBroker->id, 'lead_id' => $lead->id,
+                        'unit_id' => $unit->id, 'rate_percent' => $ownerRate, 'gross_amount' => $unit->price * ($ownerRate / 100), 'status' => 'pending',
+                    ]);
+                }
+            }
+        } else {
+            // Freelancer / no company → single default 2.5% commission
+            Commission::create([
+                'id' => (string) Str::uuid(), 'broker_id' => $sellerBroker->id, 'lead_id' => $lead->id,
+                'unit_id' => $unit->id, 'rate_percent' => 2.50, 'gross_amount' => $unit->price * 0.025, 'status' => 'pending',
+            ]);
         }
     }
 
@@ -610,6 +694,9 @@ class CompanySalesController extends Controller
         if ($request->has('status')) {
             $query->where('status', $request->input('status'));
         }
+        if ($request->filled('project_id')) {
+            $query->whereHas('unit', fn($q) => $q->where('project_id', $request->input('project_id')));
+        }
 
         $transactions = $query->orderBy('created_at', 'desc')
                               ->paginate($request->input('per_page', 25));
@@ -807,13 +894,94 @@ class CompanySalesController extends Controller
      */
     public function listProjects(): JsonResponse
     {
-        $projects = Project::withCount('units')
-            ->orderBy('name')
-            ->get();
+        $projects = Project::withCount([
+            'units',
+            'units as available_units_count' => fn($q) => $q->where('status', 'available'),
+            'units as reserved_units_count'  => fn($q) => $q->where('status', 'reserved'),
+            'units as sold_units_count'      => fn($q) => $q->where('status', 'sold'),
+        ])->orderBy('name')->get();
+
+        // Active reserved-client count per project (confirmed/pending reservations)
+        $projects->each(function ($project) {
+            $project->reserved_clients_count = Reservation::whereIn('status', ['confirmed', 'pending'])
+                ->whereHas('unit', fn($q) => $q->where('project_id', $project->id))
+                ->count();
+        });
 
         return response()->json([
             'success' => true,
             'data'    => $projects,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/sales/company/projects/{projectId}/payment-plans
+     * Standard installment/payment plan templates configured for a project.
+     */
+    public function getProjectPaymentPlans(string $projectId): JsonResponse
+    {
+        Project::findOrFail($projectId);
+
+        $plans = \App\Models\ProjectPaymentPlan::where('project_id', $projectId)
+            ->orderBy('down_payment_pct')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $plans,
+        ]);
+    }
+
+    /**
+     * POST /api/v1/sales/company/contracts/{id}/handover-accounting
+     * Mark a signed contract as handed over to the Accounting department.
+     */
+    public function handoverToAccounting(Request $request, string $id): JsonResponse
+    {
+        $contract = \App\Models\Contract::with(['unit', 'client'])->findOrFail($id);
+
+        if ($contract->status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only a signed (active) contract can be handed over to Accounting.',
+            ], 422);
+        }
+        if ($contract->accounting_handover_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This contract was already handed over to Accounting.',
+            ], 422);
+        }
+
+        $contract->update([
+            'accounting_handover_at' => now(),
+            'accounting_handover_by' => $request->user()?->id,
+        ]);
+
+        // Notify the client that their file moved to Accounting.
+        try {
+            if ($contract->client) {
+                \App\Services\NotificationService::send(
+                    $contract->client->id,
+                    'push',
+                    $contract->client->email,
+                    'Contract handed to Accounting / تم تحويل عقدك للحسابات',
+                    "Your contract {$contract->contract_number} has been transferred to the Accounting department to manage your payment schedule. / تم تحويل عقدك لإدارة الحسابات لمتابعة جدول الأقساط."
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Accounting handover notification failed: ' . $e->getMessage());
+        }
+
+        AuditLogService::log('CONTRACT_ACCOUNTING_HANDOVER', $request->user()?->id, [
+            'contract_id'     => $contract->id,
+            'contract_number' => $contract->contract_number,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contract handed over to Accounting.',
+            'data'    => $contract->fresh(),
         ]);
     }
 

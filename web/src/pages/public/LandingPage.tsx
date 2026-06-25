@@ -590,12 +590,16 @@ const LandingPage: React.FC = () => {
   const [eoiUnit, setEoiUnit] = useState<any>(null);
   const [eoiForm, setEoiForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', national_id: '',
+    education: '', job_title: '', monthly_income: '', income_currency: 'USD',
+    marital_status: 'single', number_of_children: '0', children_ages: '',
+    children_schools: '', current_residence: '', residence_type: 'owned',
+    cars_owned: '', club_memberships: ''
   });
   const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
-  const [eoiStep, setEoiStep] = useState<1 | 2 | 3>(1);
+  const [eoiStep, setEoiStep] = useState<1 | 2 | 3 | 4>(1);
   const [eoiProcessing, setEoiProcessing] = useState(false);
   const [eoiResult, setEoiResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -751,6 +755,10 @@ const LandingPage: React.FC = () => {
     setEoiUnit(unit);
     setEoiForm({
       first_name: '', last_name: '', email: '', phone: '', national_id: '',
+      education: '', job_title: '', monthly_income: '', income_currency: 'USD',
+      marital_status: 'single', number_of_children: '0', children_ages: '',
+      children_schools: '', current_residence: '', residence_type: 'owned',
+      cars_owned: '', club_memberships: ''
     });
     setClientLocation('');
     setPaymentMethod('');
@@ -771,6 +779,16 @@ const LandingPage: React.FC = () => {
       }
       setErrorMessage('');
       setEoiStep(2);
+      return;
+    }
+
+    if (eoiStep === 2) {
+      if (!eoiForm.education || !eoiForm.job_title || !eoiForm.monthly_income || !eoiForm.current_residence) {
+        setErrorMessage(lang === 'en' ? 'Please fill all required fields.' : 'يرجى ملء جميع الحقول المطلوبة.');
+        return;
+      }
+      setErrorMessage('');
+      setEoiStep(3);
       return;
     }
 
@@ -814,6 +832,20 @@ const LandingPage: React.FC = () => {
         formData.append('passport', passportFile);
       }
 
+      // Add Standard of Living fields
+      formData.append('education', eoiForm.education);
+      formData.append('job_title', eoiForm.job_title);
+      formData.append('monthly_income', eoiForm.monthly_income);
+      formData.append('income_currency', eoiForm.income_currency);
+      formData.append('marital_status', eoiForm.marital_status);
+      formData.append('number_of_children', eoiForm.number_of_children);
+      formData.append('children_ages', eoiForm.children_ages);
+      formData.append('children_schools', eoiForm.children_schools);
+      formData.append('current_residence', eoiForm.current_residence);
+      formData.append('residence_type', eoiForm.residence_type);
+      formData.append('cars_owned', eoiForm.cars_owned);
+      formData.append('club_memberships', eoiForm.club_memberships);
+
       const res = await api.post('/v1/public/eoi/submit', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -822,7 +854,7 @@ const LandingPage: React.FC = () => {
 
       if (res.data?.success) {
         setEoiResult(res.data);
-        setEoiStep(3);
+        setEoiStep(4);
         loadProjects();
         if (selectedProjectId) {
           loadProjectUnits(selectedProjectId);
@@ -2135,7 +2167,7 @@ const LandingPage: React.FC = () => {
               </div>
             )}
 
-            {eoiStep < 3 ? (
+            {eoiStep < 4 ? (
               <form onSubmit={handleEoiSubmit}>
                 <div style={{
                   padding: 20, background: 'rgba(0, 61, 166, 0.02)', marginBottom: 24, borderRadius: '16px',
@@ -2214,20 +2246,218 @@ const LandingPage: React.FC = () => {
                     </div>
 
                     <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
+                      {lang === 'en' ? 'Continue' : 'متابعة'}
+                      {lang === 'en' ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2: Standard of Living Information */}
+                {eoiStep === 2 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10 }}>
+                      <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', fontFamily: 'var(--font-title)' }}>
+                        {lang === 'en' ? '2. Social & Living Standards' : '2. بيانات مستوى المعيشة والحالة الاجتماعية'}
+                      </h4>
+                      <button type="button" onClick={() => setEoiStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
+                        {lang === 'en' ? '← Back' : '← رجوع'}
+                      </button>
+                    </div>
+
+                    <div style={{
+                      background: 'rgba(0, 61, 166, 0.04)',
+                      border: '1.5px solid rgba(0, 61, 166, 0.1)',
+                      borderRadius: 14,
+                      padding: 16,
+                      marginBottom: 20,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                    }}>
+                      <Info size={20} color="#003DA6" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <p style={{
+                        margin: 0,
+                        fontSize: '0.78rem',
+                        lineHeight: 1.4,
+                        color: '#334155',
+                        fontWeight: 600,
+                      }}>
+                        {lang === 'en' 
+                          ? 'This information is collected to ensure a premium standard of living and maintain the community environment surrounding you.' 
+                          : 'هذه البيانات مطلوبة لضمان مستوى معيشي متميز والحفاظ على البيئة المجتمعية المحيطة بحضرتك.'}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Education *' : 'الشهادة العلمية / التخرج *'}</label>
+                        <input
+                          className="mv-input"
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Bachelor of Engineering' : 'مثال: بكالوريوس هندسة'}
+                          value={eoiForm.education}
+                          onChange={e => setEoiForm({ ...eoiForm, education: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Occupation / Job Title *' : 'الوظيفة الحالية *'}</label>
+                        <input
+                          className="mv-input"
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Senior Software Architect' : 'مثال: مدير مشروعات'}
+                          value={eoiForm.job_title}
+                          onChange={e => setEoiForm({ ...eoiForm, job_title: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Approximate Monthly Income *' : 'الراتب الشهري التقريبي *'}</label>
+                        <input
+                          className="mv-input"
+                          type="number"
+                          required
+                          placeholder="e.g. 50000"
+                          value={eoiForm.monthly_income}
+                          onChange={e => setEoiForm({ ...eoiForm, monthly_income: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Currency *' : 'العملة *'}</label>
+                        <select
+                          className="mv-input"
+                          style={{ padding: '10px 12px', height: 'auto' }}
+                          value={eoiForm.income_currency}
+                          onChange={e => setEoiForm({ ...eoiForm, income_currency: e.target.value })}
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="EGP">EGP (ج.م)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="SAR">SAR (ر.س)</option>
+                          <option value="AED">AED (د.إ)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Marital Status *' : 'الحالة الاجتماعية *'}</label>
+                        <select
+                          className="mv-input"
+                          style={{ padding: '10px 12px', height: 'auto' }}
+                          value={eoiForm.marital_status}
+                          onChange={e => setEoiForm({ ...eoiForm, marital_status: e.target.value })}
+                        >
+                          <option value="single">{lang === 'en' ? 'Single' : 'أعزب / عزباء'}</option>
+                          <option value="married">{lang === 'en' ? 'Married' : 'متزوج / متزوجة'}</option>
+                          <option value="divorced">{lang === 'en' ? 'Divorced' : 'مطلق / مطلقة'}</option>
+                          <option value="widowed">{lang === 'en' ? 'Widowed' : 'أرمل / أرملة'}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Number of Children' : 'عدد الأولاد'}</label>
+                        <input
+                          className="mv-input"
+                          type="number"
+                          min="0"
+                          value={eoiForm.number_of_children}
+                          onChange={e => setEoiForm({ ...eoiForm, number_of_children: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {(parseInt(eoiForm.number_of_children) > 0 || eoiForm.number_of_children !== '0') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? "Children's Ages" : 'أعمار الأولاد'}</label>
+                          <input
+                            className="mv-input"
+                            type="text"
+                            placeholder={lang === 'en' ? 'e.g. 5, 8, 12' : 'مثال: 5، 8، 12'}
+                            value={eoiForm.children_ages}
+                            onChange={e => setEoiForm({ ...eoiForm, children_ages: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? "Schools & Universities" : 'المدارس والجامعات للأولاد'}</label>
+                          <input
+                            className="mv-input"
+                            type="text"
+                            placeholder={lang === 'en' ? 'e.g. AUC, CAC' : 'مثال: الجامعة الأمريكية، المدرسة البريطانية'}
+                            value={eoiForm.children_schools}
+                            onChange={e => setEoiForm({ ...eoiForm, children_schools: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: 14, marginBottom: 14 }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Current Residence Address *' : 'عنوان السكن الحالي *'}</label>
+                        <input
+                          className="mv-input"
+                          type="text"
+                          required
+                          placeholder={lang === 'en' ? 'e.g. Fifth Settlement, New Cairo' : 'مثال: التجمع الخامس، القاهرة الجديدة'}
+                          value={eoiForm.current_residence}
+                          onChange={e => setEoiForm({ ...eoiForm, current_residence: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Residence Type *' : 'نوع السكن الحالي *'}</label>
+                        <select
+                          className="mv-input"
+                          style={{ padding: '10px 12px', height: 'auto' }}
+                          value={eoiForm.residence_type}
+                          onChange={e => setEoiForm({ ...eoiForm, residence_type: e.target.value })}
+                        >
+                          <option value="owned">{lang === 'en' ? 'Owned' : 'تمليك'}</option>
+                          <option value="rented">{lang === 'en' ? 'Rented' : 'إيجار'}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Cars Owned (Model & Brand)' : 'السيارات المملوكة (النوع والموديل)'}</label>
+                        <input
+                          className="mv-input"
+                          type="text"
+                          placeholder={lang === 'en' ? 'e.g. BMW X5, Mercedes C200' : 'مثال: BMW X5, Mercedes C200'}
+                          value={eoiForm.cars_owned}
+                          onChange={e => setEoiForm({ ...eoiForm, cars_owned: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}>{lang === 'en' ? 'Club Memberships' : 'اشتراكات الأندية الرياضية'}</label>
+                        <input
+                          className="mv-input"
+                          type="text"
+                          placeholder={lang === 'en' ? 'e.g. Gezira Club, Heliopolis' : 'مثال: نادي الجزيرة، نادي هليوبوليس'}
+                          value={eoiForm.club_memberships}
+                          onChange={e => setEoiForm({ ...eoiForm, club_memberships: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
                       {lang === 'en' ? 'Continue to Payment' : 'المتابعة إلى الدفع'}
                       {lang === 'en' ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
                     </button>
                   </div>
                 )}
 
-                {/* STEP 2: Location, Method, and File Uploads */}
-                {eoiStep === 2 && (
+                {/* STEP 3: Location, Method, and File Uploads */}
+                {eoiStep === 3 && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(0, 61, 166, 0.08)', paddingBottom: 10 }}>
                       <h4 style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', color: '#003DA6', letterSpacing: '0.06em', fontFamily: 'var(--font-title)' }}>
                         {t.eoiFormPayment}
                       </h4>
-                      <button type="button" onClick={() => setEoiStep(1)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
+                      <button type="button" onClick={() => setEoiStep(2)} style={{ background: 'none', border: 'none', color: '#003DA6', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}>
                         {lang === 'en' ? '← Back' : '← رجوع'}
                       </button>
                     </div>
