@@ -61,7 +61,13 @@ const Handover: React.FC = () => {
       if (res.data && res.data.success) {
         setUnits(res.data.data);
         if (res.data.data.length > 0) {
-          setSelectedUnitId(res.data.data[0].id);
+          // Honor a ?unit=<id> deep-link (e.g. "Inspect" from the handover queue)
+          // so the officer lands on the exact unit they intend to hand over —
+          // not whichever unit happens to be first in the list.
+          const params = new URLSearchParams(window.location.search);
+          const requested = params.get('unit');
+          const match = requested && res.data.data.find((u: UnitData) => u.id === requested);
+          setSelectedUnitId(match ? requested! : res.data.data[0].id);
         }
       }
     } catch (err) {

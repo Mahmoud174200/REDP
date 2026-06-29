@@ -14,3 +14,4 @@ Schedule::call(function () {
 })->everyMinute();
 
 Schedule::command('appointments:send-reminders')->hourly();
+Schedule::command('payments:send-reminders')->dailyAt('09:00');

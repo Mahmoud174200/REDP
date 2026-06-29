@@ -224,6 +224,27 @@ class HandoverController extends Controller
             'handover_signature' => $request->signature_data,
         ]);
 
+        // Notify the owner their unit has been handed over. The timeline document
+        // is rendered live, so it already reflects this the next time it's opened.
+        try {
+            $contract = \App\Models\Contract::whereIn('status', ['active', 'completed'])
+                ->where('unit_id', $unitId)
+                ->latest('signed_at')
+                ->first();
+            if ($contract && $contract->client_id) {
+                \App\Services\NotificationService::send(
+                    $contract->client_id,
+                    'push',
+                    $contract->client?->email ?? '',
+                    'Unit Handed Over 🔑 / تم تسليم وحدتك',
+                    "Congratulations! Unit {$unit->unit_number} has been officially handed over. "
+                    . "تهانينا! تم تسليم وحدتك {$unit->unit_number} رسمياً."
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Handover notification failed for unit {$unitId}: " . $e->getMessage());
+        }
+
         // Perform mock signature verification
         AuditLogService::log(
             'HANDOVER_SIGN_OFF',

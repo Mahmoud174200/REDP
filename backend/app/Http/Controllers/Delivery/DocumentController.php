@@ -50,7 +50,7 @@ class DocumentController extends Controller
         $docId = (string) Str::uuid();
 
         // 1. Store the file via file upload service
-        $filePath = FileUploadService::upload($request->file('file'), 'vault/dms');
+        $filePath = FileUploadService::upload($request->file('file'), 'vault/dms', 'local');
 
         // 2. Run simulated OCR scanning based on document type/title keywords
         $title = $request->title;

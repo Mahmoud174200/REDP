@@ -326,6 +326,36 @@ class ContractController extends Controller
             $contract->reservation_id
         ));
 
+        // Onboard the client to their Homeowner Portal. On their FIRST signed unit
+        // we (re)set a fresh password and email the login details; for later units
+        // we just notify them (so we don't reset a password they already use).
+        try {
+            $client = \App\Models\User::find($contract->client_id);
+            if ($client && $client->email) {
+                $alreadyOnboarded = Contract::where('client_id', $contract->client_id)
+                    ->where('id', '!=', $contract->id)
+                    ->whereIn('status', ['active', 'completed'])->exists();
+
+                if (!$alreadyOnboarded) {
+                    $newPassword = \Illuminate\Support\Str::random(10);
+                    $client->update(['password' => \Illuminate\Support\Facades\Hash::make($newPassword), 'status' => 'active']);
+                    \App\Services\NotificationService::send(
+                        $client->id, 'email', $client->email,
+                        'Welcome to your Homeowner Portal / مرحباً بك في بوابة الملاك',
+                        $this->buildWelcomeEmail($client, $contract->fresh(['unit']), $newPassword)
+                    );
+                } else {
+                    \App\Services\NotificationService::send(
+                        $client->id, 'push', $client->email,
+                        'New unit added to your portal / تمت إضافة وحدة جديدة',
+                        "Your contract {$contract->contract_number} is now active. View it in your Homeowner Portal."
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Homeowner onboarding on sign failed: ' . $e->getMessage());
+        }
+
         AuditLogService::log('CONTRACT_SIGNED', $request->user()->id, [
             'contract_id' => $id,
             'contract_number' => $contract->contract_number,
@@ -336,6 +366,43 @@ class ContractController extends Controller
             'message' => 'Contract signed successfully. Unit marked as sold. Decoupled events emitted.',
             'contract' => $contract->fresh(),
         ]);
+    }
+
+    private function buildWelcomeEmail(\App\Models\User $client, Contract $contract, string $password): string
+    {
+        $name = htmlspecialchars($client->name ?? 'Valued Client', ENT_QUOTES);
+        $email = htmlspecialchars($client->email, ENT_QUOTES);
+        $unit = htmlspecialchars($contract->unit->unit_number ?? '—', ENT_QUOTES);
+        $num = htmlspecialchars($contract->contract_number, ENT_QUOTES);
+        $loginUrl = 'http://localhost:5173/client-login';
+        return <<<HTML
+        <div style="font-family:Arial,sans-serif;background:#f4f6fc;padding:40px 20px;">
+          <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,61,166,.06)">
+            <div style="background:linear-gradient(135deg,#001A70,#003DA6);padding:34px;text-align:center">
+              <h1 style="color:#fff;margin:0;font-size:22px;font-weight:800">Welcome Home 🎉</h1>
+              <p style="color:#C5A880;margin:6px 0 0;font-size:12px;letter-spacing:.15em;text-transform:uppercase">مرحباً بك في بوابة الملاك</p>
+            </div>
+            <div style="padding:32px">
+              <p style="color:#0f172a;font-size:15px">Dear <strong>{$name}</strong>,</p>
+              <p style="color:#475569;font-size:14px;line-height:1.6">
+                Congratulations! Your contract <strong>{$num}</strong> for <strong>Unit {$unit}</strong> is now active.
+                Use the credentials below to access your Homeowner Portal — track your unit, your installment schedule, what you’ve paid and what remains.
+              </p>
+              <div style="background:#F8FAFC;border:1px solid rgba(0,61,166,.08);border-radius:12px;padding:18px;margin:18px 0">
+                <table style="width:100%;font-size:13px;color:#0f172a">
+                  <tr><td style="color:#64748b;padding:6px 0">Login email</td><td style="text-align:right;font-weight:700">{$email}</td></tr>
+                  <tr><td style="color:#64748b;padding:6px 0;border-top:1px dashed #e2e8f0">Temporary password</td><td style="text-align:right;font-weight:800;font-family:monospace;color:#003DA6;border-top:1px dashed #e2e8f0">{$password}</td></tr>
+                </table>
+              </div>
+              <div style="text-align:center;margin:24px 0">
+                <a href="{$loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#003DA6,#001A70);color:#fff;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:30px;font-size:14px">Open my Homeowner Portal</a>
+              </div>
+              <p style="color:#94a3b8;font-size:12px;text-align:center">Please change your password after your first login.</p>
+            </div>
+            <div style="background:#F8FAFC;padding:22px;text-align:center;color:#94a3b8;font-size:11px">© 2026 Mountain View Developments</div>
+          </div>
+        </div>
+        HTML;
     }
 
     /**

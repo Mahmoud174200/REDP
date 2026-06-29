@@ -23,32 +23,61 @@ class ClientPortalController extends Controller
         if ($user->role === 'handover_officer' || $user->role === 'delivery_engineer' || $user->role === 'project_manager' || $user->role === 'admin') {
             $totalProjects = \App\Models\Project::count();
             $totalUnits = \App\Models\Unit::count();
-            $completedHandovers = \App\Models\Unit::where('status', 'sold')->count();
-            $pendingHandovers = \App\Models\Unit::where('status', '!=', 'sold')->count();
+            // Handover completion is tracked by handover_status (signed_off), NOT by
+            // unit.status (which becomes "sold" at contract signing, long before the
+            // physical handover). Reading status here made every sold unit look
+            // "handed over". Source of truth = handover_status.
+            $completedHandovers = \App\Models\Unit::where('handover_status', 'signed_off')->count();
+            $pendingHandovers = \App\Models\Unit::where('status', 'sold')
+                ->where(fn($q) => $q->where('handover_status', '!=', 'signed_off')->orWhereNull('handover_status'))
+                ->count();
             $activeSnags = \App\Models\DefectsSnag::where('status', 'pending')->count();
             $totalSnags = \App\Models\DefectsSnag::count();
 
-            $scheduledHandoversQuery = \App\Models\Unit::whereNotNull('handover_date')
-                ->with(['project', 'assignedEngineer']);
+            // Build the handover queue from SIGNED contracts so each row is a real
+            // owner due to receive their unit — with contact info so the officer can
+            // call them, ordered by the effective handover date (unit date, else
+            // the project delivery date).
+            $contractsQuery = \App\Models\Contract::whereIn('status', ['active', 'completed'])
+                ->with(['unit.project', 'unit.assignedEngineer', 'client']);
 
             if ($user->role === 'delivery_engineer') {
-                $scheduledHandoversQuery->where('assigned_engineer_id', $user->id);
+                $contractsQuery->whereHas('unit', fn($q) => $q->where('assigned_engineer_id', $user->id));
             }
 
-            $scheduledHandovers = $scheduledHandoversQuery->orderBy('handover_date', 'asc')
-                ->limit(10)
-                ->get()
-                ->map(function ($unit) {
+            $scheduledHandovers = $contractsQuery->get()
+                ->map(function ($contract) {
+                    $unit = $contract->unit;
+                    if (!$unit) return null;
+
+                    $effectiveDate = $unit->handover_date
+                        ?? $unit->project?->delivery_date;
+                    $dueAt = $effectiveDate ? \Carbon\Carbon::parse($effectiveDate) : null;
+                    $handoverStatus = $unit->handover_status ?? 'pending';
+                    $delivered = $handoverStatus === 'signed_off';
+
                     return [
                         'id' => $unit->id,
+                        'contract_id' => $contract->id,
+                        'contract_number' => $contract->contract_number,
                         'unit_number' => $unit->unit_number,
                         'project_name' => $unit->project?->name ?? 'N/A',
-                        'handover_date' => $unit->handover_date,
+                        'owner_name' => $contract->client?->name ?? 'N/A',
+                        'owner_phone' => $contract->client?->phone,
+                        'owner_email' => $contract->client?->email,
+                        'handover_date' => $effectiveDate,
+                        'date_source' => $unit->handover_date ? 'scheduled' : 'project_estimate',
+                        'days_remaining' => $dueAt ? (int) round(now()->startOfDay()->diffInDays($dueAt->startOfDay(), false)) : null,
+                        'delivered' => $delivered,
+                        'handover_status' => $handoverStatus,
                         'status' => $unit->status,
                         'assigned_engineer_id' => $unit->assigned_engineer_id,
                         'assigned_engineer_name' => $unit->assignedEngineer?->name ?? null,
                     ];
-                });
+                })
+                ->filter()
+                ->sortBy(fn($r) => $r['handover_date'] ?? '9999-12-31')
+                ->values();
 
             $engineers = [];
             if ($user->role === 'handover_officer' || $user->role === 'admin' || $user->role === 'project_manager') {

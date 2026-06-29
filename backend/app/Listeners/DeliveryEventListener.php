@@ -50,10 +50,14 @@ class DeliveryEventListener
     {
         Log::info("DeliveryEventListener: Consuming ContractSigned for contract " . $event->contractId);
 
+        // Point to the LIVE handover-timeline route so the document always
+        // reflects the unit's current handover status (no stale cached file).
+        $filePath = '/handover-timeline/' . $event->contractId;
+
         Document::create([
             'id' => (string) Str::uuid(),
-            'title' => 'Handover_Timeline_' . $event->contractId . '.pdf',
-            'file_path' => '/vault/handover/timelines/' . $event->contractId . '.pdf',
+            'title' => 'Handover_Timeline_' . $event->contractId,
+            'file_path' => $filePath,
             'ocr_content' => 'REDP Platform Smart Timeline. Contract: ' . $event->contractId . '. Client: ' . $event->clientId . '. Physical inspection, key handovers, quality sign-offs scheduling milestones.',
             'status' => 'indexed'
         ]);

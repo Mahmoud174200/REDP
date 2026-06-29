@@ -69,11 +69,13 @@ class HomeownerPortalController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Payment Summary
+        // Payment Summary — a row counts as paid when it has paid_at (e.g. EOI/down)
+        // or its paid_amount covers it. Collected total is tracked on contract.paid_amount.
         $payments = $contract ? $contract->payments : collect([]);
         $totalAmount = $contract ? (float) $contract->total_amount : 0;
-        $paidAmount = $payments->where('status', 'paid')->sum('amount');
-        $pendingPayments = $payments->where('status', 'pending');
+        $isPaidRow = fn($p) => $p->paid_at !== null || (float) $p->paid_amount >= (float) $p->amount;
+        $paidAmount = $contract ? (float) $contract->paid_amount : 0;
+        $pendingPayments = $payments->reject($isPaidRow);
         $overduePayments = $pendingPayments->filter(function ($p) {
             return $p->due_date && $p->due_date->isPast();
         });
@@ -172,21 +174,23 @@ class HomeownerPortalController extends Controller
                 'paid_amount' => (float) $paidAmount,
                 'outstanding' => (float) max(0, $totalAmount - $paidAmount),
                 'total_installments' => $payments->count(),
-                'paid_installments' => $payments->where('status', 'paid')->count(),
-                'pending_installments' => $payments->where('status', 'pending')->count(),
+                'paid_installments' => $payments->filter($isPaidRow)->count(),
+                'pending_installments' => $pendingPayments->count(),
                 'overdue_installments' => $overduePayments->count(),
                 'next_due' => $pendingPayments->sortBy('due_date')->first(),
             ],
-            'payments' => $payments->map(function ($p) {
+            'payments' => $payments->map(function ($p) use ($isPaidRow) {
+                $paid = $isPaidRow($p);
+                $overdue = !$paid && $p->due_date && $p->due_date->isPast();
                 return [
                     'id' => $p->id,
                     'amount' => (float) $p->amount,
-                    'paid_amount' => (float) $p->paid_amount,
-                    'status' => $p->status,
+                    'paid_amount' => $paid && (float) $p->paid_amount <= 0 ? (float) $p->amount : (float) $p->paid_amount,
+                    'status' => $paid ? 'paid' : ($overdue ? 'overdue' : 'upcoming'),
                     'due_date' => $p->due_date?->format('Y-m-d'),
                     'paid_at' => $p->paid_at?->format('Y-m-d'),
                     'installment_number' => $p->installment_number,
-                    'is_overdue' => $p->isOverdue(),
+                    'is_overdue' => $overdue,
                 ];
             })->values(),
             'family_members' => $familyMembers,
