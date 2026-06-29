@@ -363,6 +363,19 @@ class EoiReservationController extends Controller
             'lead_id'            => $reservation->lead_id,
         ]);
 
+        // ── Lead Attribution System: funnel event (EOI confirmed/paid) ──
+        try {
+            $lead = \App\Models\Lead::find($reservation->lead_id);
+            if ($lead) {
+                app(\App\Services\Acquisition\AttributionService::class)->recordEvent(
+                    \App\Models\CustomerEvent::EOI_PAID, $lead, null, $lead->anon_id,
+                    ['eoi_reservation_id' => $reservation->id, 'order_number' => $reservation->order_number, 'stage' => 'eoi_approved']
+                );
+            }
+        } catch (\Throwable $attrEx) {
+            \Illuminate\Support\Facades\Log::warning('[Attribution] eoi approve event failed: ' . $attrEx->getMessage());
+        }
+
         return response()->json([
             'success'      => true,
             'message'      => "EOI reservation approved. Order #{$reservation->order_number}, Queue #{$reservation->queue_number}.",

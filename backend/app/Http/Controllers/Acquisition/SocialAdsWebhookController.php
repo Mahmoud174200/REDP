@@ -242,6 +242,36 @@ class SocialAdsWebhookController extends Controller
         // Dispatch event
         LeadCreated::dispatch($lead->id, $source);
 
+        // ── Lead Attribution System: record ad touch (stays UNOWNED — assignable later) ──
+        try {
+            $sourceMap = [
+                'facebook'  => \App\Models\LeadSource::FACEBOOK_ADS,
+                'instagram' => \App\Models\LeadSource::INSTAGRAM_ADS,
+                'google'    => \App\Models\LeadSource::GOOGLE_ADS,
+                'tiktok'    => \App\Models\LeadSource::TIKTOK_ADS,
+            ];
+            $attribution = app(\App\Services\Acquisition\AttributionService::class);
+            $ctx = [
+                'source_key' => $sourceMap[$source] ?? \App\Models\LeadSource::FACEBOOK_ADS,
+                'broker'     => null,
+                'campaign'   => $campaign,
+                'promo_code' => null,
+                'utm'        => [
+                    'utm_source'   => $utmSource ?? $source,
+                    'utm_medium'   => $utmMedium ?? 'paid_social',
+                    'utm_campaign' => $utmCampaign,
+                    'utm_content'  => null,
+                    'utm_term'     => null,
+                ],
+            ];
+            $attribution->recordTouch($lead, $ctx);
+            $attribution->recordEvent(\App\Models\CustomerEvent::LEAD, $lead, null, null, [
+                'source' => $source, 'campaign_id' => $campaign->id,
+            ]);
+        } catch (\Throwable $attrEx) {
+            \Illuminate\Support\Facades\Log::warning('[Attribution] ads ingest wiring failed: ' . $attrEx->getMessage());
+        }
+
         return [
             'status'      => 'created',
             'lead_id'     => $lead->id,

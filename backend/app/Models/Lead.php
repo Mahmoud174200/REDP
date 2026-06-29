@@ -46,6 +46,13 @@ class Lead extends Model
         self::STATUS_CONTRACTED,
     ];
 
+    /**
+     * Ownership types (single-owner model — see OwnershipService).
+     */
+    public const OWNER_BROKER = 'broker';
+    public const OWNER_AGENT  = 'agent';
+    public const OWNER_DIRECT = 'direct';
+
     protected $fillable = [
         'id',
         'tenant_id',
@@ -70,6 +77,14 @@ class Lead extends Model
         'source',
         'campaign_id',
         'broker_id',
+        'owner_type',
+        'owner_id',
+        'ownership_locked_at',
+        'original_source_id',
+        'current_source_id',
+        'first_touch_at',
+        'last_touch_at',
+        'anon_id',
         'budget',
         'payment_method',
         'interested_project_id',
@@ -77,13 +92,24 @@ class Lead extends Model
     ];
 
     protected $casts = [
-        'lead_score'         => 'integer',
-        'facial_match_score' => 'decimal:2',
-        'is_vip'             => 'boolean',
-        'created_at'         => 'datetime',
-        'updated_at'         => 'datetime',
-        'deleted_at'         => 'datetime',
+        'lead_score'          => 'integer',
+        'facial_match_score'  => 'decimal:2',
+        'is_vip'              => 'boolean',
+        'ownership_locked_at' => 'datetime',
+        'first_touch_at'      => 'datetime',
+        'last_touch_at'       => 'datetime',
+        'created_at'          => 'datetime',
+        'updated_at'          => 'datetime',
+        'deleted_at'          => 'datetime',
     ];
+
+    /**
+     * Whether ownership is locked to a single owner.
+     */
+    public function isOwnershipLocked(): bool
+    {
+        return $this->ownership_locked_at !== null;
+    }
 
     // ── Computed Attributes ──
 
@@ -165,6 +191,31 @@ class Lead extends Model
     public function eoiReservations(): HasMany
     {
         return $this->hasMany(EoiReservation::class);
+    }
+
+    public function attributions(): HasMany
+    {
+        return $this->hasMany(LeadAttribution::class);
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(CustomerEvent::class);
+    }
+
+    public function ownershipTransfers(): HasMany
+    {
+        return $this->hasMany(OwnershipTransfer::class);
+    }
+
+    public function originalSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSource::class, 'original_source_id');
+    }
+
+    public function currentSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSource::class, 'current_source_id');
     }
 
     // ── Scopes ──

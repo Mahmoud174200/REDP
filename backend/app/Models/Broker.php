@@ -35,6 +35,10 @@ class Broker extends Model
         'license_no',
         'status',
         'referral_code',
+        'slug',
+        'qr_token',
+        'promo_code',
+        'referral_clicks',
     ];
 
     protected $casts = [
@@ -82,5 +86,38 @@ class Broker extends Model
     {
         $baseUrl = config('app.frontend_url', 'https://redp.com');
         return "{$baseUrl}/register?ref={$this->referral_code}";
+    }
+
+    /**
+     * Short branded referral link, e.g. https://api.redp.com/r/elite-realty
+     * Resolves via TrackingController and 302-redirects to the frontend.
+     */
+    public function getShortReferralUrlAttribute(): ?string
+    {
+        if (!$this->slug) {
+            return null;
+        }
+        return rtrim(config('app.url', 'https://redp.com'), '/') . "/r/{$this->slug}";
+    }
+
+    /**
+     * Deep link encoded into the broker QR code.
+     */
+    public function getQrUrlAttribute(): ?string
+    {
+        if (!$this->qr_token) {
+            return null;
+        }
+        return rtrim(config('app.url', 'https://redp.com'), '/') . "/api/v1/track/qr/{$this->qr_token}";
+    }
+
+    public function attributions(): HasMany
+    {
+        return $this->hasMany(LeadAttribution::class);
+    }
+
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(CustomerSession::class);
     }
 }

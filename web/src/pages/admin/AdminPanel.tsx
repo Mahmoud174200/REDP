@@ -227,7 +227,8 @@ const AdminPanel: React.FC = () => {
     notify_ticket_creation_recipient: 'delivery_engineer',
     notify_payment_collection_recipient: 'finance_officer',
     enable_email_notifications: 'true',
-    enable_app_notifications: 'true'
+    enable_app_notifications: 'true',
+    demo_mode: 'false'
   });
 
   // ── Modal Toggle States ──
@@ -2546,6 +2547,28 @@ const AdminPanel: React.FC = () => {
                   </button>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {configs.kyc_auto_approve === 'true' ? 'Enabled: Auto-approve lead KYC scans if OCR similarity matches.' : 'Disabled: Manual review required for all lead KYC uploads.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>🎬 Demo Mode (Guided Walkthrough)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => updateConfigKey('demo_mode', configs.demo_mode === 'true' ? 'false' : 'true')}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}
+                  >
+                    {configs.demo_mode === 'true' ? (
+                      <ToggleRight size={38} style={{ color: 'var(--color-success)' }} />
+                    ) : (
+                      <ToggleLeft size={38} style={{ color: 'var(--text-muted)' }} />
+                    )}
+                  </button>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {configs.demo_mode === 'true'
+                      ? 'Enabled: a "Start Guided Demo" button appears on the home page that auto-plays a narrated walkthrough of the whole flow.'
+                      : 'Disabled: no demo launcher shown to visitors.'}
                   </span>
                 </div>
               </div>

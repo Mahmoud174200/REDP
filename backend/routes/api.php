@@ -13,6 +13,11 @@ use App\Http\Controllers\Acquisition\CrmPipelineController;
 use App\Http\Controllers\Acquisition\VoipCallController;
 use App\Http\Controllers\Acquisition\SocialAdsWebhookController;
 use App\Http\Controllers\Acquisition\AppointmentController;
+use App\Http\Controllers\Acquisition\TrackingController;
+use App\Http\Controllers\Acquisition\OwnershipController;
+use App\Http\Controllers\Acquisition\AttributionDashboardController;
+use App\Http\Controllers\Acquisition\PaymentPlanAppointmentController;
+use App\Http\Controllers\Acquisition\BookingPriorityController;
 
 // ── 🔶 Tiered Sales Controllers ──
 use App\Http\Controllers\Acquisition\TeleSalesController;
@@ -54,6 +59,12 @@ Route::post('/v1/auth/login', [AuthController::class, 'login']);
 Route::get('/system-info', [\App\Http\Controllers\Admin\AdminController::class, 'getPublicSystemInfo']);
 Route::get('/v1/system-info', [\App\Http\Controllers\Admin\AdminController::class, 'getPublicSystemInfo']);
 
+// 🔓 Demo Mode — public walkthrough script + status
+Route::get('/v1/demo/status', [\App\Http\Controllers\DemoController::class, 'status']);
+Route::get('/v1/demo/tour', [\App\Http\Controllers\DemoController::class, 'tour']);
+Route::post('/v1/demo/login', [\App\Http\Controllers\DemoController::class, 'login']);
+Route::post('/v1/demo/seed-eoi', [\App\Http\Controllers\DemoController::class, 'seedEoi']);
+
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
 
@@ -86,6 +97,14 @@ Route::prefix('v1/webhooks')->group(function () {
 // ── 🟠 Public Broker Lead Registration & Verification ──
 Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead']);
 Route::post('/v1/brokers/verify-lead-otp', [BrokerController::class, 'verifyLeadOtp']);
+
+// ── 🟠 Public Attribution Tracking (Lead Attribution System) ──
+Route::get('/r/{slug}', [TrackingController::class, 'shortLink']);          // branded broker short link
+Route::prefix('v1/track')->group(function () {
+    Route::get('/qr/{qrToken}', [TrackingController::class, 'qr']);         // QR code resolution
+    Route::get('/resolve', [TrackingController::class, 'resolve']);         // ref/promo/qr/UTM → session
+    Route::post('/event', [TrackingController::class, 'event']);            // funnel/page-view ingest
+});
 
 // ── 📁 Document Management Vault Reservations public download ──
 Route::get('/v1/vault/reservations/forms/{id}.pdf', [\App\Http\Controllers\Delivery\DocumentController::class, 'viewReservationForm']);
@@ -241,6 +260,12 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::put('/leads/{id}/status', [LeadController::class, 'updateStatus']);
         Route::put('/leads/{id}/toggle-vip', [LeadController::class, 'toggleVip']);
 
+        // ── Lead Attribution & Ownership (Lead Attribution System) ──
+        Route::get('/leads/{id}/timeline', [OwnershipController::class, 'timeline']);
+        Route::get('/leads/{id}/attribution', [OwnershipController::class, 'attribution']);
+        Route::get('/leads/{id}/ownership-history', [OwnershipController::class, 'history']);
+        Route::post('/leads/{id}/transfer-ownership', [OwnershipController::class, 'transfer']);
+
         // ── CRM Pipeline (Kanban Board) ──
         Route::get('/crm/pipeline', [CrmPipelineController::class, 'pipeline']);
         Route::put('/crm/move', [CrmPipelineController::class, 'moveStage']);
@@ -290,11 +315,33 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/campaigns', [SocialAdsWebhookController::class, 'index']);
         Route::get('/campaigns/{id}', [SocialAdsWebhookController::class, 'show']);
 
+        // ── Attribution Analytics Dashboard (Lead Attribution System) ──
+        Route::get('/dashboard/attribution', [AttributionDashboardController::class, 'attribution']);
+
+        // ── Booking Priority Board (Head of Sales) ──
+        Route::middleware('role:head_of_sales')->prefix('booking-priorities')->group(function () {
+            Route::get('/stats', [BookingPriorityController::class, 'stats']);
+            Route::get('/criteria', [BookingPriorityController::class, 'getCriteria']);
+            Route::put('/criteria', [BookingPriorityController::class, 'setCriteria']);
+            Route::get('/', [BookingPriorityController::class, 'index']);
+            Route::post('/recompute', [BookingPriorityController::class, 'recompute']);
+            Route::post('/reorder', [BookingPriorityController::class, 'reorder']);
+            Route::put('/{eoiId}', [BookingPriorityController::class, 'setPriority']);
+        });
+
         // ── Appointment Management ──
         Route::get('/appointments', [AppointmentController::class, 'index']);
         Route::post('/appointments', [AppointmentController::class, 'store']);
         Route::put('/appointments/{id}', [AppointmentController::class, 'update']);
         Route::delete('/appointments/{id}', [AppointmentController::class, 'destroy']);
+
+        // ── Payment-Plan Meeting (developer-office appointment after unit selection) ──
+        Route::get('/payment-plan-appointments/reps', [PaymentPlanAppointmentController::class, 'availableReps']);
+        Route::get('/payment-plan-appointments/mine', [PaymentPlanAppointmentController::class, 'mine']);
+        Route::get('/payment-plan-appointments', [PaymentPlanAppointmentController::class, 'index']);
+        Route::post('/payment-plan-appointments', [PaymentPlanAppointmentController::class, 'store']);
+        Route::put('/payment-plan-appointments/{id}/assign-rep', [PaymentPlanAppointmentController::class, 'assignRep']);
+        Route::get('/payment-plan-appointments/{id}', [PaymentPlanAppointmentController::class, 'show']);
     });
 
     // ══════════════════════════════════════════════════════════

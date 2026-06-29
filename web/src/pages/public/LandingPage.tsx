@@ -578,7 +578,15 @@ const LandingPage: React.FC = () => {
   const [loadingUnits, setLoadingUnits] = useState<boolean>(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [galleryTab, setGalleryTab] = useState<string>('all');
-  
+
+  // Demo Mode (admin-toggled guided walkthrough)
+  const [demoOn, setDemoOn] = useState(false);
+  useEffect(() => {
+    api.get('/system-info')
+      .then(r => setDemoOn(!!r.data?.data?.demo_mode))
+      .catch(() => {});
+  }, []);
+
   // Contact State
   const [contactForm, setContactForm] = useState({ first_name: '', last_name: '', email: '', phone: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
@@ -769,6 +777,61 @@ const LandingPage: React.FC = () => {
     setEoiResult(null);
     setShowEoiModal(true);
   };
+
+  // 🎬 Demo Mode: let the live walkthrough drive the real EOI flow via component state.
+  useEffect(() => {
+    const onDemoAction = (e: Event) => {
+      const { action, value } = (e as CustomEvent).detail || {};
+      switch (action) {
+        case 'open-eoi': {
+          const proj = projects.find(p => p.id === selectedProjectId) || projects[activeProjectIndex] || projects[0];
+          if (proj) openEoiModal(proj);
+          break;
+        }
+        case 'fill-contact':
+          setEoiForm(prev => ({
+            ...prev,
+            first_name: 'Ahmed', last_name: 'Mostafa',
+            email: 'ahmed.demo@example.com', phone: '01001234567', national_id: '29008011234567',
+          }));
+          break;
+        case 'fill-profile':
+          setEoiForm(prev => ({
+            ...prev,
+            education: "Bachelor's Degree", job_title: 'Marketing Manager',
+            monthly_income: '85000', income_currency: 'EGP', marital_status: 'married',
+            number_of_children: '2', children_ages: '6, 9', children_schools: 'British International School',
+            current_residence: 'New Cairo', residence_type: 'owned', cars_owned: '2', club_memberships: 'Wadi Degla',
+          }));
+          break;
+        case 'fill-eoi': // (legacy: fill everything at once)
+          setEoiForm(prev => ({
+            ...prev,
+            first_name: 'Ahmed', last_name: 'Mostafa',
+            email: 'ahmed.demo@example.com', phone: '01001234567', national_id: '29008011234567',
+            education: "Bachelor's Degree", job_title: 'Marketing Manager',
+            monthly_income: '85000', income_currency: 'EGP', marital_status: 'married',
+            number_of_children: '2', children_ages: '6, 9', children_schools: 'British International School',
+            current_residence: 'New Cairo', residence_type: 'owned', cars_owned: '2', club_memberships: 'Wadi Degla',
+          }));
+          break;
+        case 'eoi-step': setEoiStep(value); break;
+        case 'set-location': setClientLocation(value); break;
+        case 'set-payment': setPaymentMethod(value); break;
+        case 'close-eoi': setShowEoiModal(false); break;
+        case 'submit-eoi':
+          // Demo can't upload a real receipt, so create the EOI via the gated demo API
+          // and show the same success screen the real flow shows.
+          api.post('/demo/seed-eoi')
+            .then(res => { setEoiResult(res.data); setEoiStep(4); })
+            .catch(() => { setEoiResult({ queue_number: null, data: {} }); setEoiStep(4); });
+          break;
+      }
+    };
+    window.addEventListener('redp-demo-action', onDemoAction);
+    return () => window.removeEventListener('redp-demo-action', onDemoAction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, activeProjectIndex, selectedProjectId]);
 
   const handleEoiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1475,6 +1538,22 @@ const LandingPage: React.FC = () => {
               }}>
                 {t.heroSubtitle}
               </p>
+
+              {demoOn && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('redp-demo-start', { detail: { lang } }))}
+                  style={{
+                    marginTop: 28, display: 'inline-flex', alignItems: 'center', gap: 10,
+                    padding: '14px 26px', borderRadius: 999, cursor: 'pointer',
+                    border: '1px solid rgba(255,255,255,0.35)', fontWeight: 800, fontSize: '0.95rem',
+                    background: 'linear-gradient(135deg, #16a34a, #0891b2)', color: '#fff',
+                    boxShadow: '0 14px 34px -10px rgba(22,163,74,0.6)',
+                  }}
+                >
+                  <Play size={18} fill="#fff" />
+                  {lang === 'en' ? 'Start Guided Demo' : 'ابدأ الجولة التعريفية'}
+                </button>
+              )}
 
               <div className="hero-stats-row" style={{ display: 'flex', gap: 36, marginTop: 40, borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: 30, flexWrap: 'wrap' }}>
                 <div>
