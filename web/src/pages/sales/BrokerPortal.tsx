@@ -587,6 +587,36 @@ const BrokerPortal: React.FC = () => {
       {/* TAB CONTENT: OVERVIEW */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Referral Link & QR Code */}
+          {currentUser?.broker?.referral_code && (() => {
+            const code = currentUser.broker.referral_code;
+            const slug = currentUser.broker.slug;
+            const origin = window.location.origin;
+            const refUrl = `${origin}/register?ref=${code}`;
+            const shortUrl = slug ? `${origin}/r/${slug}` : refUrl;
+            const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(shortUrl)}`;
+            return (
+              <div data-tour="broker-referral" className="glass-panel" style={{ padding: '22px 26px', display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap', border: '1.5px solid rgba(0,61,166,0.18)' }}>
+                <img src={qrSrc} alt="Referral QR" width={124} height={124} style={{ borderRadius: 12, background: '#fff', padding: 6, border: '1px solid #e2e8f0' }} />
+                <div style={{ flex: 1, minWidth: 280 }}>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                    <i className="fa-solid fa-link"></i> Your Referral Link & QR / لينك الإحالة والـ QR
+                  </h3>
+                  <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    Share this link or QR with clients — any lead that comes through it is locked to you automatically. / شارك اللينك أو الـ QR مع عملائك — أي عميل يجي من خلاله بيتسجّل باسمك تلقائيًا.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <code style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', wordBreak: 'break-all' }}>{shortUrl}</code>
+                    <button className="btn-primary" onClick={() => { navigator.clipboard?.writeText(shortUrl); showToast('Referral link copied! / تم نسخ اللينك', 'success'); }} style={{ gap: 6 }}>
+                      <i className="fa-solid fa-copy"></i> Copy
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Referral Code: <strong>{code}</strong></div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Stats Cards Row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {[

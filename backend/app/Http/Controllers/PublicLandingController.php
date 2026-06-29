@@ -181,6 +181,21 @@ class PublicLandingController extends Controller
                     'eoi_reservation_id' => $eoiRes->id,
                 ]);
 
+                // ── Payment-Plan Meeting: queue a developer-office appointment ──
+                try {
+                    app(\App\Services\Acquisition\PaymentPlanAppointmentService::class)
+                        ->createPendingForReservation([
+                            'lead_id'            => $eoiRes->lead_id,
+                            'user_id'            => $user->id,
+                            'project_id'         => $eoiRes->project_id,
+                            'unit_id'            => $fields['unit_id'],
+                            'reservation_id'     => $result['reservation']->id,
+                            'eoi_reservation_id' => $eoiRes->id,
+                        ]);
+                } catch (\Throwable $apptEx) {
+                    \Illuminate\Support\Facades\Log::warning('[PaymentPlanAppointment] auto-create failed: ' . $apptEx->getMessage());
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Unit reserved successfully. / تم حجز الوحدة بنجاح.',
@@ -339,6 +354,35 @@ class PublicLandingController extends Controller
                     'queue_number' => $result['queue_number'],
                     'data'         => $result['data'],
                 ], 409);
+            }
+
+            // ── Lead Attribution System: bind history, record touch, assign ownership ──
+            try {
+                $lead = Lead::find($result['data']->lead_id);
+                if ($lead) {
+                    $attribution = app(\App\Services\Acquisition\AttributionService::class);
+                    $ownership   = app(\App\Services\Acquisition\OwnershipService::class);
+                    $ctx = $attribution->resolveContext($request);
+
+                    if ($anon = $request->input('anon_id')) {
+                        $attribution->bindAnonToLead($lead, $anon);
+                    }
+                    $attribution->recordTouch($lead, $ctx);
+
+                    if (!empty($ctx['broker'])) {
+                        $ownership->resolveOwner($lead, $ctx);          // broker promo/ref wins
+                    } else {
+                        $ownership->assignDirectIfUnowned($lead, $ctx['source_key'] ?? 'direct'); // Scenario 4: Direct
+                    }
+
+                    $attribution->recordEvent(
+                        \App\Models\CustomerEvent::EOI_PAID, $lead, null,
+                        $request->input('anon_id'),
+                        ['project_id' => $fields['project_id'], 'stage' => 'eoi_submitted']
+                    );
+                }
+            } catch (\Throwable $attrEx) {
+                \Illuminate\Support\Facades\Log::warning('[Attribution] public EOI wiring failed: ' . $attrEx->getMessage());
             }
 
             return response()->json([

@@ -59,6 +59,16 @@ class HandleContractSigned implements ShouldQueue
                     'previous_status' => $previousStatus,
                     'new_status'      => Lead::STATUS_CONTRACTED,
                 ]);
+
+                // ── Lead Attribution System: contract_signed funnel event ──
+                try {
+                    app(\App\Services\Acquisition\AttributionService::class)->recordEvent(
+                        \App\Models\CustomerEvent::CONTRACT_SIGNED, $lead, null, $lead->anon_id,
+                        ['contract_id' => $event->contractId ?? null]
+                    );
+                } catch (\Throwable $attrEx) {
+                    Log::warning('[Attribution] contract_signed event failed: ' . $attrEx->getMessage());
+                }
             }
 
             // Generate credentials and send them if the client user is found

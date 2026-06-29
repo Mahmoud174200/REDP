@@ -176,6 +176,14 @@ class EoiReservation extends Model
         return $this->belongsTo(User::class, 'reviewer_id');
     }
 
+    /**
+     * Head-of-Sales priority record (AI score + manual ranking).
+     */
+    public function priority(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(BookingPriority::class, 'eoi_reservation_id');
+    }
+
     // ── Scopes ──
 
     public function scopePending(Builder $query): Builder

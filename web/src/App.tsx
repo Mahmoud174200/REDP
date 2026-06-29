@@ -17,6 +17,7 @@ import EoiReservations from './pages/acquisition/EoiReservations';
 // 🔶 Tiered Sales Portals
 import TeleSalesPortal from './pages/sales/TeleSalesPortal';
 import BrokerPortal from './pages/sales/BrokerPortal';
+import BookingPriorities from './pages/sales/BookingPriorities';
 import CompanySalesPortal from './pages/sales/CompanySalesPortal';
 import CompanySalesFlow from './pages/sales/CompanySalesFlow';
 
@@ -73,6 +74,7 @@ import QualityManagement from './pages/enterprise/quality/QualityManagement';
 
 // 📞 Global Components
 import VoipDialerWidget from './components/acquisition/VoipDialerWidget';
+import DemoTour from './components/DemoTour';
 
 // 🔒 Auth Guard component enforcing active session keys
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -179,6 +181,7 @@ const App: React.FC = () => {
         {/* 🔶 Tiered Sales Portals */}
         <Route path="/sales/tele/dashboard" element={<DashboardWrapper><TeleSalesPortal /></DashboardWrapper>} />
         <Route path="/sales/broker/dashboard" element={<DashboardWrapper><BrokerPortal /></DashboardWrapper>} />
+        <Route path="/sales/priorities" element={<DashboardWrapper><BookingPriorities /></DashboardWrapper>} />
         <Route path="/sales/company/dashboard" element={<DashboardWrapper><CompanySalesFlow /></DashboardWrapper>} />
         <Route path="/sales/company/legacy" element={<DashboardWrapper><CompanySalesPortal /></DashboardWrapper>} />
 
@@ -236,6 +239,9 @@ const App: React.FC = () => {
         {/* 🔄 Fallback Catch-All */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* 🎬 Demo Mode — live auto-walkthrough driver (persists across routes) */}
+      <DemoTour />
     </Router>
   );
 };

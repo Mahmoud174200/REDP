@@ -125,6 +125,30 @@ class LeadController extends Controller
             'source'     => $lead->source,
         ]);
 
+        // ── Lead Attribution System: record first touch for a manually entered lead ──
+        try {
+            $srcMap = [
+                'facebook' => \App\Models\LeadSource::FACEBOOK_ADS,
+                'google'   => \App\Models\LeadSource::GOOGLE_ADS,
+                'tiktok'   => \App\Models\LeadSource::TIKTOK_ADS,
+                'referral' => \App\Models\LeadSource::BROKER_REFERRAL,
+                'broker'   => \App\Models\LeadSource::BROKER_REFERRAL,
+                'direct'   => \App\Models\LeadSource::DIRECT,
+            ];
+            $attribution = app(\App\Services\Acquisition\AttributionService::class);
+            $ctx = [
+                'source_key' => $srcMap[$lead->source] ?? \App\Models\LeadSource::MANUAL_ENTRY,
+                'broker'     => null,
+                'campaign'   => $lead->campaign_id ? \App\Models\Campaign::find($lead->campaign_id) : null,
+                'promo_code' => null,
+                'utm'        => [],
+            ];
+            $attribution->recordTouch($lead, $ctx);
+            $attribution->recordEvent(\App\Models\CustomerEvent::LEAD, $lead, null, null, ['entry' => 'manual']);
+        } catch (\Throwable $attrEx) {
+            \Illuminate\Support\Facades\Log::warning('[Attribution] manual lead wiring failed: ' . $attrEx->getMessage());
+        }
+
         return response()->json([
             'success'        => true,
             'message'        => 'Lead captured successfully and auto-assigned.',
@@ -184,6 +208,14 @@ class LeadController extends Controller
         // Fire ReservationConfirmed event when transitioning to reserved
         if ($fields['status'] === Lead::STATUS_RESERVED && $previousStatus !== Lead::STATUS_RESERVED) {
             ReservationConfirmed::dispatch($lead->id, $fields['unit_id']);
+
+            // ── Lead Attribution System: funnel event ──
+            try {
+                app(\App\Services\Acquisition\AttributionService::class)
+                    ->recordEvent(\App\Models\CustomerEvent::UNIT_RESERVED, $lead, null, $lead->anon_id, ['unit_id' => $fields['unit_id']]);
+            } catch (\Throwable $attrEx) {
+                \Illuminate\Support\Facades\Log::warning('[Attribution] reserved event failed: ' . $attrEx->getMessage());
+            }
         }
 
         AuditLogService::log('LEAD_STATUS_UPDATE', $request->user()?->id, [

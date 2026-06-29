@@ -180,17 +180,20 @@ class AdminController extends Controller
      */
     public function getPublicSystemInfo()
     {
-        $keys = ['system_name', 'system_logo_url', 'system_icon_name', 'system_icon_url'];
-        
+        $keys = ['system_name', 'system_logo_url', 'system_icon_name', 'system_icon_url', 'demo_mode'];
+
         $configs = [];
         foreach ($keys as $key) {
             $config = SystemConfig::where('key', $key)->first();
             $configs[$key] = $config ? $config->value : '';
         }
-        
+
         // Fallbacks if empty
         if (empty($configs['system_name'])) $configs['system_name'] = 'Ether REDP';
         if (empty($configs['system_icon_name'])) $configs['system_icon_name'] = 'Building2';
+
+        // Demo mode flag (exposed publicly so the landing page can show the demo launcher)
+        $configs['demo_mode'] = ($configs['demo_mode'] === 'true' || $configs['demo_mode'] === '1');
 
         return response()->json([
             'success' => true,

@@ -138,6 +138,31 @@ class BrokerController extends Controller
                 'lock_id'   => $result['lock']->id,
             ]);
 
+            // ── Lead Attribution System: assign permanent broker ownership + record touch ──
+            try {
+                $lead = $result['lead'];
+                $attribution = app(\App\Services\Acquisition\AttributionService::class);
+                $ownership   = app(\App\Services\Acquisition\OwnershipService::class);
+                $ctx = [
+                    'source_key' => \App\Models\LeadSource::BROKER_REFERRAL,
+                    'broker'     => $broker,
+                    'campaign'   => null,
+                    'promo_code' => null,
+                    'utm'        => [],
+                ];
+                if ($anon = $request->input('anon_id')) {
+                    $attribution->bindAnonToLead($lead, $anon);
+                }
+                $attribution->recordTouch($lead, $ctx);
+                $ownership->resolveOwner($lead, $ctx);   // first-broker-wins → locks ownership
+                $attribution->recordEvent(
+                    \App\Models\CustomerEvent::LEAD, $lead, null,
+                    $request->input('anon_id'), ['source' => 'broker_referral', 'broker_id' => $broker->id]
+                );
+            } catch (\Throwable $attrEx) {
+                \Illuminate\Support\Facades\Log::warning('[Attribution] broker registerLead wiring failed: ' . $attrEx->getMessage());
+            }
+
             return response()->json([
                 'success'      => true,
                 'message'      => "Lead registration initiated. OTP verification code has been sent to the client.",
