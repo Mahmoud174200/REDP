@@ -97,9 +97,31 @@ class DemoModeTest extends TestCase
         $this->assertDatabaseHas('eoi_reservations', ['id' => $eoiId, 'status' => 'pending_review']);
         $this->assertDatabaseHas('leads', ['phone' => '01001234567']);
 
-        // idempotent — calling again reuses the same pending EOI
-        $res2 = $this->postJson('/api/v1/demo/seed-eoi')->assertOk();
-        $this->assertSame($eoiId, $res2->json('data.id'));
+        // re-running resets: always exactly one fresh pending EOI for the demo customer
+        $this->postJson('/api/v1/demo/seed-eoi')->assertOk();
+        $lead = \App\Models\Lead::where('phone', '01001234567')->first();
+        $this->assertSame(1, \App\Models\EoiReservation::where('lead_id', $lead->id)->where('status', 'pending_review')->count());
+    }
+
+    /** @test */
+    public function finance_can_approve_the_demo_eoi_live(): void
+    {
+        SystemConfig::create(['key' => 'demo_mode', 'value' => 'true']);
+
+        $this->postJson('/api/v1/demo/seed-eoi')->assertOk();
+        $res = $this->postJson('/api/v1/demo/approve-eoi')->assertOk()->assertJsonPath('success', true);
+
+        $this->assertSame('approved', $res->json('data.status'));
+        $this->assertNotEmpty($res->json('data.order_number'));
+    }
+
+    /** @test */
+    public function prioritize_client_creates_a_loginable_account(): void
+    {
+        SystemConfig::create(['key' => 'demo_mode', 'value' => 'true']);
+
+        $this->postJson('/api/v1/demo/prioritize-client')->assertOk();
+        $this->assertDatabaseHas('users', ['email' => 'ahmed.demo@example.com', 'role' => 'client']);
     }
 
     /** @test */

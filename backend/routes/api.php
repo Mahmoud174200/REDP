@@ -64,6 +64,8 @@ Route::get('/v1/demo/status', [\App\Http\Controllers\DemoController::class, 'sta
 Route::get('/v1/demo/tour', [\App\Http\Controllers\DemoController::class, 'tour']);
 Route::post('/v1/demo/login', [\App\Http\Controllers\DemoController::class, 'login']);
 Route::post('/v1/demo/seed-eoi', [\App\Http\Controllers\DemoController::class, 'seedEoi']);
+Route::post('/v1/demo/prioritize-client', [\App\Http\Controllers\DemoController::class, 'prioritizeClient']);
+Route::post('/v1/demo/approve-eoi', [\App\Http\Controllers\DemoController::class, 'approveEoi']);
 
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
@@ -460,6 +462,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
+            Route::post('/units/{unitId}/handover-receipt', [HandoverController::class, 'uploadHandoverReceipt']);
             Route::post('/units/{unitId}/report', [HandoverController::class, 'saveHandoverReport']);
             Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);
