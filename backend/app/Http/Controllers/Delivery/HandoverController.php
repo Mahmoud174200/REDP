@@ -261,6 +261,92 @@ class HandoverController extends Controller
     }
 
     /**
+     * POST /v1/delivery/units/{unitId}/handover-receipt
+     * The handover officer uploads the unit-delivery receipt and signs it as the
+     * customer takes the unit. The signed receipt is stored as a Document that
+     * surfaces automatically in the homeowner's portal (Documents / الملفات).
+     */
+    public function uploadHandoverReceipt(Request $request, string $unitId)
+    {
+        $request->validate([
+            'receipt'        => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'signature_data' => 'nullable|string', // base64 signature captured at delivery
+            'notes'          => 'nullable|string|max:1000',
+        ]);
+
+        $unit = Unit::findOrFail($unitId);
+
+        // Resolve the homeowner (owner) + contract/reservation so the receipt is
+        // discoverable by the homeowner's document query (text-matched ocr_content).
+        $contract = \App\Models\Contract::where('unit_id', $unitId)
+            ->whereIn('status', ['active', 'completed', 'pending_signature'])
+            ->latest('signed_at')
+            ->first();
+        $reservation = \App\Models\Reservation::where('unit_id', $unitId)
+            ->latest('created_at')
+            ->first();
+        $ownerUserId = $contract?->client_id ?? $reservation?->client_id;
+
+        // Store the receipt file on the public disk (web-servable).
+        $url = FileUploadService::upload($request->file('receipt'), 'handover_receipts');
+
+        // Capture the officer's delivery signature and mark the unit handed over.
+        $unit->update([
+            'handover_status'    => 'signed_off',
+            'handover_signature' => $request->input('signature_data', $unit->handover_signature),
+            'handover_date'      => $unit->handover_date ?? now()->toDateString(),
+        ]);
+
+        $doc = \App\Models\Document::create([
+            'id'            => (string) Str::uuid(),
+            'title'         => "Unit Delivery Receipt (Handover) — {$unit->unit_number}",
+            'document_type' => \App\Models\Document::TYPE_DELIVERY_RECEIPT,
+            'unit_id'       => $unit->id,
+            'file_path'     => $url,
+            'status'        => 'indexed',
+            'signed_at'     => now(),
+            'signed_by'     => $request->user()?->id,
+            // Owner/contract/reservation ids embedded so the homeowner portal finds it.
+            'ocr_content'   => trim('delivery receipt handover unit ' . $unit->unit_number . ' '
+                . implode(' ', array_filter([$ownerUserId, $contract?->id, $reservation?->id]))
+                . ' ' . (string) $request->input('notes')),
+        ]);
+
+        // Notify the homeowner that the signed receipt is available.
+        try {
+            if ($ownerUserId) {
+                \App\Services\NotificationService::send(
+                    $ownerUserId,
+                    'push',
+                    $contract?->client?->email ?? '',
+                    'Delivery Receipt Ready 📄 / إيصال الاستلام جاهز',
+                    "Your signed unit delivery receipt for {$unit->unit_number} is now in your documents. "
+                    . "إيصال استلام وحدتك {$unit->unit_number} الموقّع أصبح متاحاً في مستنداتك."
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Handover receipt notification failed for unit {$unitId}: " . $e->getMessage());
+        }
+
+        AuditLogService::log('HANDOVER_RECEIPT_SIGNED', $request->user()?->id, [
+            'unit_id'     => $unitId,
+            'document_id' => $doc->id,
+            'owner_id'    => $ownerUserId,
+        ]);
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Delivery receipt uploaded and signed. It is now available in the homeowner portal.',
+            'document' => [
+                'id'        => $doc->id,
+                'title'     => $doc->title,
+                'file_path' => $doc->file_path,
+                'signed_at' => $doc->signed_at->toIso8601String(),
+            ],
+        ], 201);
+    }
+
+    /**
      * Update unit's handover date.
      */
     public function updateHandoverDate(Request $request, string $unitId)

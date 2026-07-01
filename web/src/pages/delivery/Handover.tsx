@@ -49,6 +49,9 @@ const Handover: React.FC = () => {
   const [handoverImages, setHandoverImages] = useState<string[]>([]);
   const [handoverStatus, setHandoverStatus] = useState<string>('pending');
   const [isUploading, setIsUploading] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
 
   const userStr = localStorage.getItem('redp_user');
@@ -262,6 +265,31 @@ const Handover: React.FC = () => {
       alert(err.response?.data?.message || 'Error processing sign-off.');
     } finally {
       setSigning(false);
+    }
+  };
+
+  const uploadDeliveryReceipt = async () => {
+    if (!selectedUnitId) { alert('Please select a unit.'); return; }
+    if (!receiptFile) { alert('Please choose the delivery receipt file.'); return; }
+    setUploadingReceipt(true);
+    const formData = new FormData();
+    formData.append('receipt', receiptFile);
+    formData.append('signature_data', 'Base64SignaturePathSampleData==');
+    try {
+      const res = await api.post(`/v1/delivery/units/${selectedUnitId}/handover-receipt`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data?.success) {
+        setReceiptUrl(res.data.document?.file_path || null);
+        setSigned(true);
+        setHandoverStatus('signed_off');
+        alert('Delivery receipt uploaded & signed. It is now in the homeowner portal.');
+      }
+    } catch (err: any) {
+      console.error('Failed to upload delivery receipt:', err);
+      alert(err.response?.data?.message || 'Error uploading delivery receipt.');
+    } finally {
+      setUploadingReceipt(false);
     }
   };
 
@@ -571,6 +599,35 @@ const Handover: React.FC = () => {
                   <button onClick={() => setSigned(false)} className="btn-secondary" style={{ padding: '12px 18px' }}>Clear</button>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Unit Delivery Receipt — uploaded & signed at handover, shown to the homeowner */}
+          <div className="glass-panel" style={{ padding: '24px', border: '1px dashed var(--border-glass)', background: 'rgba(197,168,128,0.06)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              🧾 Unit Delivery Receipt (إيصال استلام الوحدة)
+            </h3>
+            <p style={{ fontSize: '0.8rem', marginBottom: '16px', color: 'var(--text-muted)' }}>
+              Upload the signed delivery receipt handed to the customer. It appears automatically in the homeowner's documents. / ارفع إيصال الاستلام الموقّع — هيظهر تلقائيًا في مستندات العميل.
+            </p>
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+              style={{ marginBottom: '14px', display: 'block', width: '100%' }}
+            />
+            <button
+              onClick={uploadDeliveryReceipt}
+              className="btn-primary"
+              style={{ justifyContent: 'center', width: '100%' }}
+              disabled={uploadingReceipt || !receiptFile}
+            >
+              {uploadingReceipt ? 'Uploading & Signing…' : 'Upload & Sign Delivery Receipt'}
+            </button>
+            {receiptUrl && (
+              <a href={receiptUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '12px', fontSize: '0.82rem', color: 'var(--color-primary)', fontWeight: 700 }}>
+                ✅ View uploaded receipt / عرض الإيصال
+              </a>
             )}
           </div>
         </div>

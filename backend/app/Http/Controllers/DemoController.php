@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Broker;
+use App\Models\EoiQueue;
 use App\Models\EoiReservation;
 use App\Models\Lead;
 use App\Models\Project;
@@ -10,6 +11,7 @@ use App\Models\SystemConfig;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -27,6 +29,17 @@ use Illuminate\Support\Str;
  */
 class DemoController extends Controller
 {
+    /**
+     * Fixed identity for the demo customer ("Ahmed"). These exact values are
+     * shown in the unit-selection invite email (step 14) AND seeded as a real,
+     * loginable account by prioritizeClient(), so the visitor can actually sign
+     * in with the credentials the email displays.
+     */
+    public const DEMO_CLIENT_NAME     = 'Ahmed Mostafa';
+    public const DEMO_CLIENT_EMAIL    = 'ahmed.demo@example.com';
+    public const DEMO_CLIENT_PHONE    = '01001234567';
+    public const DEMO_CLIENT_PASSWORD = 'Mv@2026xy';
+
     public function status(): JsonResponse
     {
         return response()->json(['success' => true, 'data' => ['demo_mode' => $this->enabled()]]);
@@ -54,15 +67,22 @@ class DemoController extends Controller
             return response()->json(['success' => false, 'message' => 'Unsupported demo role.'], 422);
         }
 
-        $email = "demo.{$role}@redp.test";
+        // The demo client uses the SAME identity as the seeded EOI (email + phone),
+        // so the approved/invited EOI resolves for them on the unit-selection page.
+        $email = $role === 'client' ? self::DEMO_CLIENT_EMAIL : "demo.{$role}@redp.test";
         $user = User::firstOrNew(['email' => $email]);
         if (!$user->exists) {
             $user->id = (string) Str::uuid();
-            $user->name = 'Demo ' . ucwords(str_replace('_', ' ', $role));
+            $user->name = $role === 'client' ? self::DEMO_CLIENT_NAME : 'Demo ' . ucwords(str_replace('_', ' ', $role));
             $user->password = Hash::make(Str::random(24));
         }
         $user->role = $role;
         $user->status = 'active';
+        if ($role === 'client') {
+            $user->name     = self::DEMO_CLIENT_NAME;
+            $user->phone    = self::DEMO_CLIENT_PHONE;
+            $user->password = Hash::make(self::DEMO_CLIENT_PASSWORD);
+        }
         $user->save();
 
         $payload = $user->only(['id', 'name', 'email', 'role', 'status']);
@@ -108,36 +128,33 @@ class DemoController extends Controller
             return response()->json(['success' => false, 'message' => 'Demo mode is off.'], 403);
         }
 
-        // Prefer a real project; otherwise fall back to a STABLE demo id so the
-        // seed stays idempotent even on environments with no projects.
-        $project = Project::query()->first();
+        // Prefer the Creekview demo project (predictable, matches the unit the
+        // presenter selects); otherwise the first project; otherwise a stable id.
+        $project = Project::where('name', 'like', '%Creek%')->first() ?? Project::query()->first();
         $projectId = $project?->id ?? '00000000-0000-4000-8000-00000000de01';
 
         $lead = Lead::firstOrCreate(
-            ['phone' => '01001234567'],
+            ['phone' => self::DEMO_CLIENT_PHONE],
             [
                 'id' => (string) Str::uuid(),
                 'first_name' => 'Ahmed', 'last_name' => 'Mostafa',
-                'email' => 'ahmed.demo@example.com', 'national_id' => '29008011234567',
+                'email' => self::DEMO_CLIENT_EMAIL, 'national_id' => '29008011234567',
                 'status' => Lead::STATUS_NEW, 'source' => 'direct',
             ]
         );
 
-        $existing = EoiReservation::where('lead_id', $lead->id)
-            ->where('project_id', $projectId)
-            ->whereIn('status', [EoiReservation::STATUS_PENDING_REVIEW, EoiReservation::STATUS_APPROVED])
-            ->first();
-        if ($existing) {
-            return response()->json(['success' => true, 'reused' => true, 'queue_number' => $existing->queue_number, 'data' => $existing]);
-        }
+        // Reset any previous demo EOI so every demo run produces a fresh,
+        // visible pending booking (the unique lead+project index otherwise blocks it).
+        EoiReservation::where('lead_id', $lead->id)->forceDelete();
+        EoiQueue::where('lead_id', $lead->id)->forceDelete();
 
         $eoi = EoiReservation::create([
             'id' => (string) Str::uuid(),
             'lead_id' => $lead->id,
             'project_id' => $projectId,
-            'client_name' => 'Ahmed Mostafa',
-            'client_email' => 'ahmed.demo@example.com',
-            'client_phone' => '01001234567',
+            'client_name' => self::DEMO_CLIENT_NAME,
+            'client_email' => self::DEMO_CLIENT_EMAIL,
+            'client_phone' => self::DEMO_CLIENT_PHONE,
             'client_location' => EoiReservation::LOCATION_INSIDE_EGYPT,
             'payment_method' => EoiReservation::PAYMENT_INSTAPAY,
             'payment_amount' => 50000,
@@ -153,6 +170,103 @@ class DemoController extends Controller
             'residence_type' => 'owned',
             'cars_owned' => 2,
         ]);
+
+        return response()->json(['success' => true, 'queue_number' => $eoi->queue_number, 'data' => $eoi]);
+    }
+
+    /**
+     * POST /v1/demo/prioritize-client — create (or reset) the demo customer's
+     * login account using the EXACT credentials shown in the unit-selection
+     * invite email (step 14), so the visitor can actually log in afterwards and
+     * pick their unit. Gated by Demo Mode; idempotent — re-running just resets
+     * the password back to the known demo value.
+     */
+    public function prioritizeClient(): JsonResponse
+    {
+        if (!$this->enabled()) {
+            return response()->json(['success' => false, 'message' => 'Demo mode is off.'], 403);
+        }
+
+        $user = User::firstOrNew(['email' => self::DEMO_CLIENT_EMAIL]);
+        if (!$user->exists) {
+            $user->id = (string) Str::uuid();
+        }
+        $user->name     = self::DEMO_CLIENT_NAME;
+        $user->phone    = self::DEMO_CLIENT_PHONE;
+        $user->password = Hash::make(self::DEMO_CLIENT_PASSWORD);
+        $user->role     = 'client';
+        $user->status   = 'active';
+        $user->save();
+
+        // Make the demo EOI approved + INVITED so the customer can actually
+        // reserve a unit on the unit-selection page.
+        $lead = Lead::where('phone', self::DEMO_CLIENT_PHONE)->first();
+        $eoi = $lead ? EoiReservation::where('lead_id', $lead->id)->orderByDesc('created_at')->first() : null;
+        if ($eoi) {
+            $patch = [
+                'invited_at'                 => now(),
+                'email_sent_at'              => now(),
+                'contracting_deadline_hours' => 48,
+            ];
+            if ($eoi->status === EoiReservation::STATUS_PENDING_REVIEW) {
+                $patch['status']      = EoiReservation::STATUS_APPROVED;
+                $patch['reviewed_at'] = now();
+                if (!$eoi->order_number) {
+                    $patch['order_number'] = EoiReservation::generateOrderNumber();
+                }
+            }
+            $eoi->update($patch);
+            try {
+                EoiReservation::recalculateQueueNumbers($eoi->project_id);
+            } catch (\Throwable $e) {
+                // best-effort in the demo
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['email' => self::DEMO_CLIENT_EMAIL, 'project_id' => $eoi?->project_id],
+        ]);
+    }
+
+    /**
+     * POST /v1/demo/approve-eoi — Finance approves the demo's pending EOI for real
+     * (order number + queue position issued). Gated by Demo Mode.
+     */
+    public function approveEoi(): JsonResponse
+    {
+        if (!$this->enabled()) {
+            return response()->json(['success' => false, 'message' => 'Demo mode is off.'], 403);
+        }
+
+        $lead = Lead::where('phone', self::DEMO_CLIENT_PHONE)->first();
+        $eoi = $lead
+            ? EoiReservation::where('lead_id', $lead->id)->orderByDesc('created_at')->first()
+            : null;
+
+        if (!$eoi) {
+            return response()->json(['success' => false, 'message' => 'No demo EOI to approve — submit one first.'], 404);
+        }
+
+        if ($eoi->status !== EoiReservation::STATUS_PENDING_REVIEW) {
+            return response()->json(['success' => true, 'reused' => true, 'data' => $eoi]);
+        }
+
+        DB::transaction(function () use ($eoi) {
+            $eoi->update([
+                'status'       => EoiReservation::STATUS_APPROVED,
+                'order_number' => EoiReservation::generateOrderNumber(),
+                'reviewed_at'  => now(),
+                'review_notes' => 'Approved during live demo.',
+            ]);
+        });
+
+        try {
+            EoiReservation::recalculateQueueNumbers($eoi->project_id);
+            $eoi = $eoi->fresh();
+        } catch (\Throwable $e) {
+            // queue recalculation is best-effort in the demo
+        }
 
         return response()->json(['success' => true, 'queue_number' => $eoi->queue_number, 'data' => $eoi]);
     }
@@ -289,10 +403,15 @@ class DemoController extends Controller
                 'id' => 11, 'actor' => 'finance', 'icon' => 'CheckCircle',
                 'title' => 'Finance reviews & approves the EOI',
                 'title_ar' => 'الفايننس يراجع ويقبل الـ EOI',
-                'narration' => 'Finance opens the EOI review queue from their dashboard, verifies the payment receipt and approves it — an order number and queue position are issued.',
-                'narration_ar' => 'الفايننس بيفتح طابور مراجعة الـ EOI من الداشبورد بتاعته، يتأكد من إيصال الدفع ويقبله — وبيتولّد رقم أوردر ومكان في الطابور.',
+                'narration' => 'Finance opens the EOI review queue, verifies the payment receipt and approves it LIVE — an order number and queue position are issued.',
+                'narration_ar' => 'الفايننس بيفتح طابور مراجعة الـ EOI، يتأكد من إيصال الدفع ويقبله لايف — وبيتولّد رقم أوردر ومكان في الطابور.',
                 'mode' => 'navigate', 'route' => '/acquisition/eoi-reservations', 'auth_role' => 'finance_officer',
-                'duration_ms' => 11000,
+                'actions' => [
+                    ['type' => 'emit', 'event' => 'eoi-tab', 'value' => 'pending', 'delay' => 2400],
+                    ['type' => 'api',  'endpoint' => '/demo/approve-eoi', 'delay' => 2600],
+                    ['type' => 'emit', 'event' => 'eoi-tab', 'value' => 'all', 'delay' => 1800],
+                ],
+                'duration_ms' => 13000,
             ],
 
             // 6 — Approval email (styled email preview)
@@ -305,7 +424,7 @@ class DemoController extends Controller
                 'mode' => 'navigate',
                 'email' => [
                     'brand' => 'Mountain View',
-                    'to' => 'Ahmed Mostafa <ahmed.demo@example.com>',
+                    'to' => self::DEMO_CLIENT_NAME . ' <' . self::DEMO_CLIENT_EMAIL . '>',
                     'subject' => '🎉 Your EOI is approved — Order #EOI-2026-000142',
                     'subject_ar' => '🎉 تم قبول جدية حجزك — أوردر رقم EOI-2026-000142',
                     'lines' => [
@@ -334,6 +453,8 @@ class DemoController extends Controller
                 'narration' => 'The Head of Sales opens the Booking Priority board: full applicant data, a giant filter, and an AI priority score they can trust or override — deciding who books first by their own standards.',
                 'narration_ar' => 'مدير المبيعات بيفتح لوحة أولويات الحجز: بيانات كل عميل كاملة، فلترة عملاقة، و score أولوية بالـ AI يقدر يثق فيه أو يعدّله — ويقرر مين يحجز الأول حسب معاييره.',
                 'mode' => 'navigate', 'route' => '/sales/priorities', 'auth_role' => 'admin',
+                // Prepare the customer's real login account so the invite credentials work.
+                'actions' => [['type' => 'api', 'endpoint' => '/demo/prioritize-client', 'delay' => 2000]],
                 'duration_ms' => 11000,
             ],
 
@@ -347,7 +468,7 @@ class DemoController extends Controller
                 'mode' => 'navigate',
                 'email' => [
                     'brand' => 'Mountain View',
-                    'to' => 'Ahmed Mostafa <ahmed.demo@example.com>',
+                    'to' => self::DEMO_CLIENT_NAME . ' <' . self::DEMO_CLIENT_EMAIL . '>',
                     'subject' => "It's your turn — choose your unit now",
                     'subject_ar' => 'جه دورك — اختار وحدتك دلوقتي',
                     'lines' => [
@@ -360,7 +481,7 @@ class DemoController extends Controller
                         'تم ترشيحك بالأولوية لاختيار وحدتك في كريك فيو.',
                         'استخدم بيانات الدخول التالية لتسجيل الدخول واختيار وحدتك قبل انتهاء مدتك.',
                     ],
-                    'credentials' => ['username' => 'ahmed.demo@example.com', 'password' => 'Mv@2026xy'],
+                    'credentials' => ['username' => self::DEMO_CLIENT_EMAIL, 'password' => self::DEMO_CLIENT_PASSWORD],
                     'button' => 'Choose my unit',
                     'button_ar' => 'اختر وحدتي',
                 ],

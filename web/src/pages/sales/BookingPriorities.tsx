@@ -94,6 +94,14 @@ const BookingPriorities: React.FC = () => {
     // eslint-disable-next-line
   }, []);
 
+  // 🎬 Demo Mode: re-fetch when the live walkthrough performs a backend action.
+  useEffect(() => {
+    const onRefresh = () => load();
+    window.addEventListener('redp-demo-refresh', onRefresh);
+    return () => window.removeEventListener('redp-demo-refresh', onRefresh);
+    // eslint-disable-next-line
+  }, []);
+
   const recompute = async () => {
     setRecomputing(true);
     try {

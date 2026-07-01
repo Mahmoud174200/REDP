@@ -387,6 +387,21 @@ const EoiReservations: React.FC = () => {
     if (activeTab === 'rules') fetchConfigs();
   }, [activeTab, fetchStats, fetchLeadsAndProjects, fetchPending, fetchReservations, selectedQueueProject]);
 
+  // 🎬 Demo Mode: let the live walkthrough switch tabs and refresh after actions.
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const { action, value } = (e as CustomEvent).detail || {};
+      if (action === 'eoi-tab' && value) setActiveTab(value as TabId);
+    };
+    const onRefresh = () => { fetchStats(); fetchPending(); fetchReservations(); };
+    window.addEventListener('redp-demo-action', onAction);
+    window.addEventListener('redp-demo-refresh', onRefresh);
+    return () => {
+      window.removeEventListener('redp-demo-action', onAction);
+      window.removeEventListener('redp-demo-refresh', onRefresh);
+    };
+  }, [fetchStats, fetchPending, fetchReservations]);
+
   // ── Submit EOI ──
   const handleSubmit = async () => {
     if (submitting) return;
