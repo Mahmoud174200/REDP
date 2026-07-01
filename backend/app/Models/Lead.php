@@ -261,7 +261,15 @@ class Lead extends Model
         $agentIds = array_merge([$user->id], $subordinateIds);
 
         return match ($user->role) {
-            'tele_sales'    => $query->whereIn('tele_sales_agent_id', $agentIds),
+            // Own leads (self + subordinates) PLUS the shared inbound website pool —
+            // unassigned "I'm interested"/contact leads any tele-sales agent can pick up.
+            'tele_sales'    => $query->where(function ($q) use ($agentIds) {
+                $q->whereIn('tele_sales_agent_id', $agentIds)
+                  ->orWhere(function ($pool) {
+                      $pool->whereNull('tele_sales_agent_id')
+                           ->whereIn('source', ['website_interested', 'website_contact']);
+                  });
+            }),
             'broker'        => $query->where(function ($q) use ($user, $subordinateIds) {
                 // If they are freelance or company broker agents, find their broker profiles
                 $userBrokerId = $user->broker?->id;

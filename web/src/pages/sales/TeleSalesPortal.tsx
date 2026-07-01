@@ -40,6 +40,7 @@ const TeleSalesPortal: React.FC = () => {
   const [commissionsHistory, setCommissionsHistory] = useState<any[]>([]);
   const [commissionRules, setCommissionRules] = useState<any[]>([]);
   const [subordinatesPerformance, setSubordinatesPerformance] = useState<any[]>([]);
+  const [actionNeeded, setActionNeeded] = useState<any[]>([]);
 
   /* leads pagination & filtering */
   const [page, setPage] = useState(1);
@@ -73,6 +74,7 @@ const TeleSalesPortal: React.FC = () => {
   const [modalType, setModalType] = useState<'contact' | 'meeting' | 'transfer' | 'edit' | null>(null);
   const [contactType, setContactType] = useState('call');
   const [contactNotes, setContactNotes] = useState('');
+  const [contactFollowUp, setContactFollowUp] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingLocation, setMeetingLocation] = useState('Company HQ Office');
   const [meetingNotes, setMeetingNotes] = useState('');
@@ -124,6 +126,7 @@ const TeleSalesPortal: React.FC = () => {
         setCommissionsHistory(statsRes.data.commissions_history || []);
         setCommissionRules(statsRes.data.commission_rules || []);
         setSubordinatesPerformance(statsRes.data.subordinates_performance || []);
+        setActionNeeded(statsRes.data.action_needed || []);
       }
       if (projectsRes.data?.success) setProjects(projectsRes.data.data || []);
     } catch (err) { console.error(err); } finally { setIsLoading(false); }
@@ -191,8 +194,13 @@ const TeleSalesPortal: React.FC = () => {
     if (!selectedLead || !contactNotes) return;
     try {
       setIsLoading(true);
-      await api.put(`/v1/sales/tele/leads/${selectedLead.id}/contact`, { type: contactType, notes: contactNotes });
+      await api.put(`/v1/sales/tele/leads/${selectedLead.id}/contact`, {
+        type: contactType,
+        notes: contactNotes,
+        ...(contactFollowUp ? { follow_up_date: contactFollowUp } : {}),
+      });
       setContactNotes('');
+      setContactFollowUp('');
       closeModal();
       await fetchPortalData();
       await fetchLeads(page, searchVal, statusVal);
@@ -466,6 +474,74 @@ const TeleSalesPortal: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* ═══ ACTION NEEDED / FOLLOW-UPS ═══ */}
+      {actionNeeded.length > 0 && (
+        <div className="glass-panel" style={{ padding: '22px 24px', border: '1px solid rgba(239,68,68,0.18)', background: 'linear-gradient(135deg, rgba(239,68,68,0.03), rgba(245,158,11,0.02))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-bell" style={{ color: 'var(--color-danger)' }}></i>
+              Action Needed — Follow-ups (متابعات مطلوبة)
+              <span style={{ background: 'var(--color-danger)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '2px 10px', borderRadius: '20px' }}>{actionNeeded.length}</span>
+            </h3>
+            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }} onClick={fetchPortalData}>
+              <i className="fa-solid fa-rotate" style={{ fontSize: '0.75rem', marginRight: '5px' }}></i> Refresh
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '340px', overflowY: 'auto' }}>
+            {actionNeeded.map((a: any) => {
+              const sev = a.severity === 'high'
+                ? { bar: '#ef4444', chip: 'rgba(239,68,68,0.12)', text: '#ef4444' }
+                : a.severity === 'medium'
+                  ? { bar: '#f59e0b', chip: 'rgba(245,158,11,0.12)', text: '#d97706' }
+                  : { bar: '#3b82f6', chip: 'rgba(59,130,246,0.12)', text: '#2563eb' };
+              const reasonLabel: Record<string, string> = {
+                overdue_followup: 'Overdue follow-up', never_contacted: 'Never contacted', stale: 'Gone quiet',
+              };
+              return (
+                <div key={a.lead_id} style={{
+                  display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 16px',
+                  background: 'rgba(255,255,255,0.03)', borderRadius: '12px',
+                  borderLeft: `4px solid ${sev.bar}`, border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <strong style={{ fontSize: '0.9rem' }}>{a.name || 'Unnamed lead'}</strong>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: sev.chip, color: sev.text }}>
+                        {reasonLabel[a.reason] || a.reason}
+                      </span>
+                      {a.is_pool && (
+                        <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'rgba(139,92,246,0.12)', color: '#8b5cf6' }}>
+                          <i className="fa-solid fa-inbox" style={{ fontSize: '9px', marginRight: '4px' }}></i>POOL
+                        </span>
+                      )}
+                      {a.source?.startsWith('website') && (
+                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)' }}>🌐 website</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                      {a.detail_en}{a.project ? ` · ${a.project}` : ''}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: 'var(--text-muted)', whiteSpace: 'nowrap' }} dir="ltr">{a.phone}</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {a.phone && (
+                      <a href={`tel:${a.phone}`} className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.72rem' }} title="Call">
+                        <i className="fa-solid fa-phone" style={{ fontSize: '0.72rem' }}></i>
+                      </a>
+                    )}
+                    <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                      onClick={() => { setSelectedLead({ id: a.lead_id, first_name: a.name, last_name: '', phone: a.phone }); setModalType('contact'); }}>
+                      <i className="fa-solid fa-headset" style={{ fontSize: '0.72rem', marginRight: '5px' }}></i> Log Contact
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Commissions & Rates Widget */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '16px' }}>
@@ -1119,6 +1195,11 @@ const TeleSalesPortal: React.FC = () => {
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Notes</label>
                     <textarea className="form-control" value={contactNotes} onChange={e => setContactNotes(e.target.value)} placeholder="Conversation summary…" style={{ height: '100px' }} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Next follow-up (optional) — تذكير المتابعة القادمة</label>
+                    <input type="date" className="form-control" value={contactFollowUp} onChange={e => setContactFollowUp(e.target.value)} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Set a date to be reminded to follow up. Leave empty if no follow-up needed.</span>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                     <button type="button" className="btn-secondary" onClick={closeModal} disabled={isLoading}>Cancel</button>

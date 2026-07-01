@@ -80,6 +80,7 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
+    Route::post('/interested', [\App\Http\Controllers\PublicLandingController::class, 'submitInterest']);
     Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
 });
 
@@ -148,6 +149,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Dashboard
             Route::get('/dashboard', [TeleSalesController::class, 'dashboard']);
+            Route::get('/follow-ups', [TeleSalesController::class, 'followUps']);
         });
 
     // ── TIER 2: Real Estate Broker ──

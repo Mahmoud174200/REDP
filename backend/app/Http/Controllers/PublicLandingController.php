@@ -455,6 +455,101 @@ class PublicLandingController extends Controller
     }
 
     /**
+     * "I'm Interested" — a no-payment lead capture. A visitor who doesn't want to
+     * pay an EOI just leaves their contact details and is routed DIRECTLY to a
+     * tele-sales agent (least-loaded) who then reaches out to them.
+     */
+    public function submitInterest(Request $request): JsonResponse
+    {
+        $fields = $request->validate([
+            'first_name'            => 'required|string|max:255',
+            'last_name'             => 'nullable|string|max:255',
+            'phone'                 => 'required|string|max:255',
+            'email'                 => 'nullable|email|max:255',
+            'interested_project_id' => 'nullable|string|exists:projects,id',
+            'budget'                => 'nullable|numeric|min:0',
+            'payment_method'        => 'nullable|in:cash,installment',
+            'message'               => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $result = DB::transaction(function () use ($fields) {
+                $teleAgents = \App\Models\User::where('role', 'tele_sales')->get();
+
+                // Find or create the lead by phone/email (avoid duplicates).
+                $lead = Lead::when($fields['email'] ?? null, fn($q) => $q->where('email', $fields['email']))
+                    ->orWhere('phone', $fields['phone'])
+                    ->first();
+
+                if (!$lead) {
+                    $lead = new Lead(['id' => (string) Str::uuid()]);
+                }
+
+                $lead->fill([
+                    'first_name'            => $fields['first_name'],
+                    'last_name'             => $fields['last_name'] ?? ($lead->last_name ?? ''),
+                    'email'                 => $fields['email'] ?? $lead->email,
+                    'phone'                 => $fields['phone'],
+                    'source'                => $lead->source ?: 'website_interested',
+                    'interested_project_id' => $fields['interested_project_id'] ?? $lead->interested_project_id,
+                    'budget'                => $fields['budget'] ?? $lead->budget,
+                ]);
+
+                // payment_method is NOT NULL (defaults to 'installment') — only set it
+                // when the visitor actually chose one, so we never force a null.
+                if (!empty($fields['payment_method'])) {
+                    $lead->payment_method = $fields['payment_method'];
+                }
+
+                // Brand-new or still-new leads land in the shared tele-sales inbound
+                // pool (tele_sales_agent_id left NULL) so ANY tele-sales agent sees
+                // and can claim them — we don't yank an already-progressed lead back.
+                if (!$lead->exists || $lead->status === Lead::STATUS_NEW) {
+                    $lead->status = Lead::STATUS_NEW;
+                    $lead->current_tier = 'tier_1';
+                }
+
+                $lead->save();
+
+                Interaction::create([
+                    'id'        => (string) Str::uuid(),
+                    'lead_id'   => $lead->id,
+                    'type'      => Interaction::TYPE_CALL,
+                    'logged_by' => $lead->tele_sales_agent_id ?? $teleAgents->first()?->id,
+                    'notes'     => 'Website "I\'m Interested" request — awaiting tele-sales call back.'
+                        . (!empty($fields['message']) ? ' Note: ' . $fields['message'] : ''),
+                ]);
+
+                // Ping the whole tele-sales team so someone follows up quickly.
+                foreach ($teleAgents as $ta) {
+                    \App\Services\NotificationService::send(
+                        $ta->id,
+                        'push',
+                        '',
+                        'New Interested Lead 🔔 / عميل مهتم جديد',
+                        "{$fields['first_name']} left an interest request (phone: {$fields['phone']}). Please call back. "
+                        . "عميل جديد مهتم، برجاء التواصل معه."
+                    );
+                }
+
+                return $lead;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Thank you! Our sales team will contact you shortly. / شكراً لك، سيتواصل معك فريق المبيعات قريباً.',
+                'lead_id' => $result->id,
+            ], 201);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
      * Get project units grouped by building and floor for interactive 3D unit selection.
      */
     public function getProjectUnitsByBuilding(string $projectId): JsonResponse
