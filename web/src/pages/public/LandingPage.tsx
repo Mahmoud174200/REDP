@@ -103,6 +103,7 @@ const translations = {
     parkingSpaces: 'Total Parking Spaces',
     maxFloors: 'Max Allowed Floors',
     infraNotes: 'Infrastructure Notes',
+    sqm: 'm²',
     },
     ar: {
     navProjects: 'محفظة المشاريع',
@@ -199,6 +200,7 @@ const translations = {
     parkingSpaces: 'أماكن انتظار السيارات',
     maxFloors: 'أقصى عدد أدوار',
     infraNotes: 'ملاحظات البنية التحتية',
+    sqm: 'م²',
   }
 };
 
@@ -2985,7 +2987,7 @@ const LandingPage: React.FC = () => {
                                   {t.areaRange}
                                 </span>
                                 <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
-                                  {stats.minArea === stats.maxArea ? `${stats.minArea} م²` : `${stats.minArea} - ${stats.maxArea} م²`}
+                                  {stats.minArea === stats.maxArea ? `${stats.minArea} ${t.sqm}` : `${stats.minArea} - ${stats.maxArea} ${t.sqm}`}
                                 </strong>
                               </div>
                               <div>
@@ -3114,7 +3116,7 @@ const LandingPage: React.FC = () => {
                     <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
                       <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{t.greenArea}</span>
                       <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
-                        {Number(detailsProject.total_green_area).toLocaleString()} م²
+                        {Number(detailsProject.total_green_area).toLocaleString()} {t.sqm}
                       </strong>
                     </div>
                   )}
