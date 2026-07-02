@@ -69,3 +69,8 @@ mobile/*.fdb_rocket_state
 
 # Application specific assets
 pdf_pages/
+
+# Local demo database + heavy local model assets
+backend/database/*.sqlite
+web/public/*.fbx
+web/public/*.obj

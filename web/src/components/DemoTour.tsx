@@ -42,9 +42,8 @@ interface DemoStep {
 }
 
 interface DemoAction {
-  type: 'emit' | 'wait' | 'api';
+  type: 'emit' | 'wait';
   event?: string;
-  endpoint?: string;
   value?: any;
   delay?: number;
 }
@@ -178,12 +177,6 @@ export default function DemoTour() {
       } catch { /* keep going; page may show login */ }
       if (cancelled) return;
 
-      // When a step reveals login credentials in its email preview, make them
-      // real in the DB so the visitor can actually sign in with them afterwards.
-      if (step.email?.credentials) {
-        api.post('/demo/prioritize-client').catch(() => {});
-      }
-
       if (step.mode === 'scroll') {
         if (location.pathname !== '/') navigate('/');
         await sleep(550);
@@ -204,11 +197,6 @@ export default function DemoTour() {
           if (cancelled) return;
           if (a.type === 'emit' && a.event) {
             window.dispatchEvent(new CustomEvent('redp-demo-action', { detail: { action: a.event, value: a.value } }));
-          } else if (a.type === 'api' && a.endpoint) {
-            // Perform a real backend action live (approve EOI, prioritize client…),
-            // then tell any open dashboard page to re-fetch.
-            try { await api.post(a.endpoint); } catch { /* best effort in demo */ }
-            window.dispatchEvent(new CustomEvent('redp-demo-refresh'));
           }
           await sleep(a.delay ?? 800);
         }

@@ -64,8 +64,6 @@ Route::get('/v1/demo/status', [\App\Http\Controllers\DemoController::class, 'sta
 Route::get('/v1/demo/tour', [\App\Http\Controllers\DemoController::class, 'tour']);
 Route::post('/v1/demo/login', [\App\Http\Controllers\DemoController::class, 'login']);
 Route::post('/v1/demo/seed-eoi', [\App\Http\Controllers\DemoController::class, 'seedEoi']);
-Route::post('/v1/demo/prioritize-client', [\App\Http\Controllers\DemoController::class, 'prioritizeClient']);
-Route::post('/v1/demo/approve-eoi', [\App\Http\Controllers\DemoController::class, 'approveEoi']);
 
 // 🔓 Public Payment Webhooks (no auth required)
 Route::post('/finance/webhook/{gateway}', [PaymentController::class, 'webhookCallback']);
@@ -82,8 +80,11 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
-    Route::post('/interested', [\App\Http\Controllers\PublicLandingController::class, 'submitInterest']);
     Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
+
+    // 🤖 Public AI Assistant (agentic Gemini chatbot for website visitors)
+    Route::post('/assistant/chat', [\App\Http\Controllers\AssistantController::class, 'publicChat']);
+    Route::post('/assistant/clear', [\App\Http\Controllers\AssistantController::class, 'clear']);
 });
 
 // ── 🟠 Public Webhooks (Acquisition) ──
@@ -127,6 +128,15 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
     Route::get('/v1/client/eoi-invitation', [\App\Http\Controllers\PublicLandingController::class, 'getClientEoiInvitation']);
 
     // ══════════════════════════════════════════════════════════
+    // 🤖 AI ASSISTANT (agentic chatbot — staff & clients, role-scoped tools)
+    // ══════════════════════════════════════════════════════════
+    Route::post('/v1/assistant/chat', [\App\Http\Controllers\AssistantController::class, 'chat']);
+    Route::post('/v1/assistant/clear', [\App\Http\Controllers\AssistantController::class, 'clear']);
+    // 🎙️ Real-time voice (Gemini Live) — config + tool relay
+    Route::post('/v1/assistant/live-config', [\App\Http\Controllers\AssistantController::class, 'liveConfig']);
+    Route::post('/v1/assistant/live-tool', [\App\Http\Controllers\AssistantController::class, 'liveTool']);
+
+    // ══════════════════════════════════════════════════════════
     // 🔶 TIERED SALES RBAC MODULE
     // ══════════════════════════════════════════════════════════
 
@@ -151,7 +161,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Dashboard
             Route::get('/dashboard', [TeleSalesController::class, 'dashboard']);
-            Route::get('/follow-ups', [TeleSalesController::class, 'followUps']);
         });
 
     // ── TIER 2: Real Estate Broker ──
@@ -463,7 +472,6 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/units/{unitId}/checklist', [HandoverController::class, 'getChecklist']);
             Route::post('/snag', [HandoverController::class, 'reportSnag']);
             Route::post('/units/{unitId}/signoff', [HandoverController::class, 'signOff']);
-            Route::post('/units/{unitId}/handover-receipt', [HandoverController::class, 'uploadHandoverReceipt']);
             Route::post('/units/{unitId}/report', [HandoverController::class, 'saveHandoverReport']);
             Route::post('/units/{unitId}/images', [HandoverController::class, 'uploadHandoverImage']);
             Route::put('/units/{unitId}/handover-date', [HandoverController::class, 'updateHandoverDate']);

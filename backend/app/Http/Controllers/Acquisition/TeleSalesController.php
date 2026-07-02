@@ -237,14 +237,6 @@ class TeleSalesController extends Controller
             'follow_up_date' => 'nullable|date|after:today',
         ]);
 
-        // Claim from the shared inbound pool: once an agent actually works a lead
-        // it becomes theirs and leaves the unassigned pool.
-        if (!$lead->tele_sales_agent_id) {
-            $lead->tele_sales_agent_id = $user->id;
-            $lead->current_tier = $lead->current_tier ?: 'tier_1';
-            $lead->save();
-        }
-
         $interaction = $lead->interactions()->create([
             'id'             => (string) Str::uuid(),
             'type'           => $fields['type'],
@@ -288,9 +280,7 @@ class TeleSalesController extends Controller
             'notes'        => 'nullable|string|max:1000',
         ]);
 
-        // Claim from the shared inbound pool when the agent schedules a meeting.
-        $claim = $lead->tele_sales_agent_id ? [] : ['tele_sales_agent_id' => $user->id];
-        $lead->update(['status' => Lead::STATUS_VISIT_SCHEDULED] + $claim);
+        $lead->update(['status' => Lead::STATUS_VISIT_SCHEDULED]);
 
         // Log interaction for the meeting
         $lead->interactions()->create([
@@ -604,8 +594,6 @@ class TeleSalesController extends Controller
             ->where('status', 'active')
             ->get();
 
-        $actionNeeded = $this->buildActionNeeded($user);
-
         return response()->json([
             'success' => true,
             'stats'   => [
@@ -614,116 +602,14 @@ class TeleSalesController extends Controller
                 'contacted'         => $contacted,
                 'meetings_scheduled'=> $scheduled,
                 'transferred'       => $transferred,
-                'action_needed'     => count($actionNeeded),
                 'pending_commission'=> $pendingComm,
                 'approved_commission'=> $approvedComm,
                 'paid_commission'   => $paidComm,
                 'total_commission'  => $pendingComm + $approvedComm + $paidComm,
             ],
-            'action_needed'             => $actionNeeded,
             'subordinates_performance' => $subordinatesPerformance,
             'commissions_history'       => $commCalculations,
             'commission_rules'          => $commRules,
         ]);
-    }
-
-    /**
-     * GET /api/v1/sales/tele/follow-ups
-     * Standalone feed of leads that need an action (same logic as the dashboard
-     * card) so the portal can refresh it independently.
-     */
-    public function followUps(Request $request): JsonResponse
-    {
-        return response()->json([
-            'success'       => true,
-            'action_needed' => $this->buildActionNeeded($request->user()),
-        ]);
-    }
-
-    /**
-     * Builds the prioritised "needs action" work-list for a tele-sales agent:
-     *  - overdue_followup: a follow-up date was set and has now passed
-     *  - never_contacted : still 'new' (inbound pool leads never called)
-     *  - stale           : contacted but gone quiet with no follow-up planned
-     * Leads that already have a FUTURE follow-up/meeting are on track and excluded.
-     */
-    private function buildActionNeeded(User $user, int $staleDays = 3): array
-    {
-        $now = now();
-
-        $leads = Lead::forTier($user)
-            ->where('current_tier', 'tier_1')
-            ->whereNotIn('status', [Lead::STATUS_RESERVED, Lead::STATUS_CONTRACTED])
-            ->with(['interestedProject', 'interactions'])
-            ->get();
-
-        $actions = [];
-
-        foreach ($leads as $lead) {
-            $interactions   = $lead->interactions;
-            $futureFollowUp = $interactions->first(fn($i) => $i->follow_up_date && $i->follow_up_date->isFuture());
-            if ($futureFollowUp) {
-                continue; // on track — a follow-up/meeting is already booked
-            }
-
-            $dueFollowUp = $interactions
-                ->filter(fn($i) => $i->follow_up_date && $i->follow_up_date->isPast())
-                ->sortByDesc('follow_up_date')
-                ->first();
-            $lastActivity = $interactions->max('created_at') ?? $lead->created_at;
-            $daysSince    = $lastActivity ? (int) floor($lastActivity->diffInDays($now)) : 0;
-
-            $reason = null;
-            $severity = 'low';
-            $detailEn = '';
-            $detailAr = '';
-            $days = 0;
-
-            if ($dueFollowUp) {
-                $days     = (int) floor($dueFollowUp->follow_up_date->diffInDays($now));
-                $reason   = 'overdue_followup';
-                $severity = $days >= 2 ? 'high' : 'medium';
-                $detailEn = "Follow-up was due " . ($days <= 0 ? 'today' : "{$days} day(s) ago");
-                $detailAr = "متابعة مستحقة " . ($days <= 0 ? 'اليوم' : "من {$days} يوم");
-            } elseif ($lead->status === Lead::STATUS_NEW) {
-                $days     = (int) floor(($lead->created_at ?? $now)->diffInDays($now));
-                $reason   = 'never_contacted';
-                $severity = $days >= 1 ? 'high' : 'medium';
-                $detailEn = $days <= 0 ? 'New lead — call for the first time' : "New lead waiting {$days} day(s) — not contacted yet";
-                $detailAr = $days <= 0 ? 'عميل جديد — اتصل به لأول مرة' : "عميل جديد منتظر {$days} يوم — لم يتم التواصل بعد";
-            } elseif ($daysSince >= $staleDays) {
-                $days     = $daysSince;
-                $reason   = 'stale';
-                $severity = $days >= 7 ? 'high' : 'medium';
-                $detailEn = "No contact for {$days} day(s) and no follow-up planned";
-                $detailAr = "بدون تواصل منذ {$days} يوم ولا توجد متابعة مجدولة";
-            }
-
-            if (!$reason) {
-                continue;
-            }
-
-            $actions[] = [
-                'lead_id'      => $lead->id,
-                'name'         => trim($lead->first_name . ' ' . $lead->last_name),
-                'phone'        => $lead->phone,
-                'status'       => $lead->status,
-                'source'       => $lead->source,
-                'is_pool'      => $lead->tele_sales_agent_id === null,
-                'project'      => $lead->interestedProject?->name,
-                'reason'       => $reason,
-                'severity'     => $severity,
-                'days'         => $days,
-                'detail_en'    => $detailEn,
-                'detail_ar'    => $detailAr,
-                'last_activity'=> $lastActivity?->toDateTimeString(),
-            ];
-        }
-
-        // High severity first, then the longest-waiting.
-        $rank = ['high' => 0, 'medium' => 1, 'low' => 2];
-        usort($actions, fn($a, $b) => [$rank[$a['severity']], -$a['days']] <=> [$rank[$b['severity']], -$b['days']]);
-
-        return $actions;
     }
 }

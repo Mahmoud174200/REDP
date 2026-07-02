@@ -20,19 +20,6 @@ const translations = {
     heroSubtitle: 'Explore Mountain View exclusive communities, inspect live available unit configurations, and secure your launch priority through our digital EOI portal.',
     heroCta: 'Book Priority EOI Ticket',
     heroSecondary: 'Discover Compounds',
-    interestCta: "I'm Interested — Call Me Back",
-    interestModalTitle: 'Register Your Interest',
-    interestModalSubtitle: "No payment needed — just leave your details and our tele-sales team will call you back shortly.",
-    interestName: 'Full Name',
-    interestPhone: 'Phone Number',
-    interestEmail: 'Email (optional)',
-    interestBudget: 'Budget (optional)',
-    interestPayMethod: 'Preferred Payment',
-    interestPayCash: 'Cash',
-    interestPayInstallment: 'Installments',
-    interestMessage: 'Anything you want us to know? (optional)',
-    interestSubmit: 'Send & Request a Call',
-    interestSuccess: "Thank you! Our sales team will call you back shortly.",
     projectsTitle: 'Active Compound Portfolio',
     projectsSubtitle: 'Discover our landmarks, current construction phases, and live inventories.',
     projectLocation: 'Location',
@@ -116,7 +103,6 @@ const translations = {
     parkingSpaces: 'Total Parking Spaces',
     maxFloors: 'Max Allowed Floors',
     infraNotes: 'Infrastructure Notes',
-    sqm: 'm²',
     },
     ar: {
     navProjects: 'محفظة المشاريع',
@@ -130,19 +116,6 @@ const translations = {
     heroSubtitle: 'اكتشف مجتمعات ماونتن فيو الحصرية، وتصفح الوحدات المتاحة لحظياً، واحجز مكانك ذو الأولوية في الطرح عبر بوابة جدية الحجز الرقمية.',
     heroCta: 'احجز تذكرة EOI ذات أولوية',
     heroSecondary: 'تصفح المشاريع',
-    interestCta: 'مهتم — اتصلوا بي',
-    interestModalTitle: 'سجّل اهتمامك',
-    interestModalSubtitle: 'من غير أي دفع — سيب بياناتك وفريق التيلي سيلز هيتواصل معاك قريباً.',
-    interestName: 'الاسم بالكامل',
-    interestPhone: 'رقم الهاتف',
-    interestEmail: 'البريد الإلكتروني (اختياري)',
-    interestBudget: 'الميزانية (اختياري)',
-    interestPayMethod: 'طريقة الدفع المفضلة',
-    interestPayCash: 'كاش',
-    interestPayInstallment: 'تقسيط',
-    interestMessage: 'أي حاجة حابب تقولنا عليها؟ (اختياري)',
-    interestSubmit: 'إرسال وطلب مكالمة',
-    interestSuccess: 'شكراً لك! فريق المبيعات سيتصل بك قريباً.',
     projectsTitle: 'مشاريعنا النشطة',
     projectsSubtitle: 'اكتشف علاماتنا المعمارية البارزة، ومراحل البناء الحالية، والوحدات المتاحة لحظياً.',
     projectLocation: 'الموقع',
@@ -226,7 +199,6 @@ const translations = {
     parkingSpaces: 'أماكن انتظار السيارات',
     maxFloors: 'أقصى عدد أدوار',
     infraNotes: 'ملاحظات البنية التحتية',
-    sqm: 'م²',
   }
 };
 
@@ -619,53 +591,6 @@ const LandingPage: React.FC = () => {
   const [contactForm, setContactForm] = useState({ first_name: '', last_name: '', email: '', phone: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
   const [contactSuccessMsg, setContactSuccessMsg] = useState('');
-
-  // "I'm Interested" (no-payment lead capture → routed to tele-sales)
-  const [showInterestModal, setShowInterestModal] = useState(false);
-  const [interestProject, setInterestProject] = useState<any>(null);
-  const [interestForm, setInterestForm] = useState({ name: '', phone: '', email: '', budget: '', payment_method: '', message: '' });
-  const [sendingInterest, setSendingInterest] = useState(false);
-  const [interestSuccess, setInterestSuccess] = useState(false);
-  const [interestError, setInterestError] = useState('');
-
-  const openInterestModal = (project: any = null) => {
-    setInterestProject(project);
-    setInterestForm({ name: '', phone: '', email: '', budget: '', payment_method: '', message: '' });
-    setInterestSuccess(false);
-    setInterestError('');
-    setShowInterestModal(true);
-  };
-
-  const handleInterestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!interestForm.name.trim() || !interestForm.phone.trim()) {
-      setInterestError(lang === 'en' ? 'Please enter your name and phone.' : 'يرجى إدخال الاسم ورقم الهاتف.');
-      return;
-    }
-    setSendingInterest(true);
-    setInterestError('');
-    try {
-      const parts = interestForm.name.trim().split(/\s+/);
-      const payload: any = {
-        first_name: parts[0],
-        last_name: parts.slice(1).join(' '),
-        phone: interestForm.phone.trim(),
-      };
-      if (interestForm.email.trim()) payload.email = interestForm.email.trim();
-      if (interestProject?.id) payload.interested_project_id = interestProject.id;
-      if (interestForm.budget) payload.budget = parseFloat(interestForm.budget);
-      if (interestForm.payment_method) payload.payment_method = interestForm.payment_method;
-      if (interestForm.message.trim()) payload.message = interestForm.message.trim();
-
-      const res = await api.post('/v1/public/interested', payload);
-      if (res.data?.success) {
-        setInterestSuccess(true);
-      }
-    } catch (err: any) {
-      setInterestError(err.response?.data?.message || (lang === 'en' ? 'Submission failed. Please try again.' : 'فشل الإرسال. حاول مرة أخرى.'));
-    }
-    setSendingInterest(false);
-  };
 
   // EOI Modal States
   const [showEoiModal, setShowEoiModal] = useState(false);
@@ -1719,16 +1644,10 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 {projects.length > 0 ? (
-                  <>
-                    <button className="btn-luxury-primary" onClick={() => openEoiModal(projects.find(p => p.id === selectedProjectId) || projects[0])} style={{ padding: '16px', justifyContent: 'center', width: '100%', fontSize: '0.92rem' }}>
-                      <CreditCard size={18} />
-                      {t.heroCta}
-                    </button>
-                    <button className="btn-luxury-secondary" onClick={() => openInterestModal(projects.find(p => p.id === selectedProjectId) || projects[0])} style={{ padding: '13px', justifyContent: 'center', width: '100%', fontSize: '0.85rem', marginTop: '10px' }}>
-                      <Phone size={16} />
-                      {t.interestCta}
-                    </button>
-                  </>
+                  <button className="btn-luxury-primary" onClick={() => openEoiModal(projects.find(p => p.id === selectedProjectId) || projects[0])} style={{ padding: '16px', justifyContent: 'center', width: '100%', fontSize: '0.92rem' }}>
+                    <CreditCard size={18} />
+                    {t.heroCta}
+                  </button>
                 ) : (
                   <a href="#contact" className="btn-luxury-secondary" style={{ padding: '16px', justifyContent: 'center', width: '100%', fontSize: '0.92rem', textDecoration: 'none', textAlign: 'center' }}>
                     {t.navContact}
@@ -2286,74 +2205,6 @@ const LandingPage: React.FC = () => {
           © {new Date().getFullYear()} {t.footerRights}
         </p>
       </footer>
-
-      {/* ───────────────────────────────────────────────────
-         "I'M INTERESTED" MODAL — no-payment lead → tele-sales
-         ─────────────────────────────────────────────────── */}
-      {showInterestModal && (
-        <div className="modal-backdrop" onClick={() => setShowInterestModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 480, width: 'calc(100% - 32px)', padding: 32, borderRadius: '24px' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowInterestModal(false)} style={{ position: 'absolute', top: 16, [dir === 'rtl' ? 'left' : 'right']: 16, background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5c6c7f' }}>
-              <X size={18} />
-            </button>
-
-            {interestSuccess ? (
-              <div style={{ textAlign: 'center', padding: '20px 8px' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-                  <CheckCircle size={34} color="#10b981" />
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: 10 }}>{lang === 'en' ? 'Request Received!' : 'تم استلام طلبك!'}</h3>
-                <p style={{ fontSize: '0.9rem', color: '#5c6c7f', lineHeight: 1.6, marginBottom: 24 }}>{t.interestSuccess}</p>
-                <button className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: 14 }} onClick={() => setShowInterestModal(false)}>
-                  {t.eoiClose}
-                </button>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#003DA6,#001A70)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Phone size={20} color="#fff" />
-                  </div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{t.interestModalTitle}</h3>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: '#5c6c7f', lineHeight: 1.6, margin: '0 0 20px' }}>{t.interestModalSubtitle}</p>
-
-                {interestProject && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,61,166,0.05)', border: '1px solid rgba(0,61,166,0.12)', borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
-                    <Building size={16} color="#003DA6" />
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#003DA6' }}>{interestProject.name}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleInterestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input className="mv-input" placeholder={t.interestName + ' *'} value={interestForm.name} onChange={e => setInterestForm({ ...interestForm, name: e.target.value })} style={{ outline: 'none' }} />
-                  <input className="mv-input" placeholder={t.interestPhone + ' *'} value={interestForm.phone} onChange={e => setInterestForm({ ...interestForm, phone: e.target.value })} style={{ outline: 'none' }} dir="ltr" />
-                  <input className="mv-input" type="email" placeholder={t.interestEmail} value={interestForm.email} onChange={e => setInterestForm({ ...interestForm, email: e.target.value })} style={{ outline: 'none' }} dir="ltr" />
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <input className="mv-input" type="number" placeholder={t.interestBudget} value={interestForm.budget} onChange={e => setInterestForm({ ...interestForm, budget: e.target.value })} style={{ outline: 'none', flex: 1 }} dir="ltr" />
-                    <select className="mv-input" value={interestForm.payment_method} onChange={e => setInterestForm({ ...interestForm, payment_method: e.target.value })} style={{ outline: 'none', flex: 1 }}>
-                      <option value="">{t.interestPayMethod}</option>
-                      <option value="cash">{t.interestPayCash}</option>
-                      <option value="installment">{t.interestPayInstallment}</option>
-                    </select>
-                  </div>
-                  <textarea className="mv-input" rows={2} placeholder={t.interestMessage} value={interestForm.message} onChange={e => setInterestForm({ ...interestForm, message: e.target.value })} style={{ outline: 'none', resize: 'none' }} />
-
-                  {interestError && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <AlertCircle size={15} /> {interestError}
-                    </div>
-                  )}
-
-                  <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: 14, marginTop: 4 }} disabled={sendingInterest}>
-                    {sendingInterest ? (lang === 'en' ? 'Sending...' : 'جاري الإرسال...') : t.interestSubmit}
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ───────────────────────────────────────────────────
          EOI PAYMENT MODAL PORTAL (Simulated Pay Gate)
@@ -3134,7 +2985,7 @@ const LandingPage: React.FC = () => {
                                   {t.areaRange}
                                 </span>
                                 <strong style={{ fontSize: '1rem', color: '#ffffff' }}>
-                                  {stats.minArea === stats.maxArea ? `${stats.minArea} ${t.sqm}` : `${stats.minArea} - ${stats.maxArea} ${t.sqm}`}
+                                  {stats.minArea === stats.maxArea ? `${stats.minArea} م²` : `${stats.minArea} - ${stats.maxArea} م²`}
                                 </strong>
                               </div>
                               <div>
@@ -3263,7 +3114,7 @@ const LandingPage: React.FC = () => {
                     <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
                       <span style={{ display: 'block', fontSize: '0.65rem', color: '#8a9ab0', textTransform: 'uppercase' }}>{t.greenArea}</span>
                       <strong style={{ fontSize: '1rem', color: '#ffffff', display: 'block', marginTop: 4 }}>
-                        {Number(detailsProject.total_green_area).toLocaleString()} {t.sqm}
+                        {Number(detailsProject.total_green_area).toLocaleString()} م²
                       </strong>
                     </div>
                   )}

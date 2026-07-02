@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\Log;
 class GeminiProvider implements AiProviderInterface
 {
     protected ?string $apiKey;
+    protected string $model;
     protected LocalMockProvider $mockFallback;
 
     public function __construct()
     {
         // Try getting from config or env
         $this->apiKey = config('services.gemini.key') ?: env('GEMINI_API_KEY');
+        $this->model = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-2.5-flash');
         $this->mockFallback = new LocalMockProvider();
     }
 
@@ -26,7 +28,7 @@ class GeminiProvider implements AiProviderInterface
         }
 
         try {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $this->apiKey;
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key=" . $this->apiKey;
 
             $payload = [
                 'contents' => [
@@ -45,7 +47,9 @@ class GeminiProvider implements AiProviderInterface
                 ];
             }
 
-            $response = Http::timeout(10)->post($url, $payload);
+            $caBundle = env('CURL_CA_BUNDLE') ?: storage_path('cacert.pem');
+            $verify = (is_string($caBundle) && is_file($caBundle)) ? $caBundle : true;
+            $response = Http::withOptions(['verify' => $verify])->timeout(10)->post($url, $payload);
 
             if ($response->successful()) {
                 $data = $response->json();

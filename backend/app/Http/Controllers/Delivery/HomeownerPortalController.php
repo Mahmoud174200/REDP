@@ -121,9 +121,8 @@ class HomeownerPortalController extends Controller
         // 2. Query documents table for related files
         $contractId = $contract?->id;
         $reservationId = $reservation?->id;
-        $unitId = $unit?->id;
         if ($contractId || $reservationId || $userId) {
-            $docs = \App\Models\Document::where(function ($q) use ($userId, $contractId, $reservationId, $unitId) {
+            $docs = \App\Models\Document::where(function ($q) use ($userId, $contractId, $reservationId) {
                 $q->where('ocr_content', 'like', "%{$userId}%")
                   ->orWhere('title', 'like', "%{$userId}%");
                 if ($contractId) {
@@ -134,27 +133,17 @@ class HomeownerPortalController extends Controller
                     $q->orWhere('ocr_content', 'like', "%{$reservationId}%")
                       ->orWhere('title', 'like', "%{$reservationId}%");
                 }
-                if ($unitId) {
-                    // Direct link (e.g. signed unit delivery receipts).
-                    $q->orWhere('unit_id', $unitId);
-                }
             })->orderBy('created_at', 'desc')->get();
 
             foreach ($docs as $doc) {
                 if ($contract && $contract->document_path && $doc->file_path === $contract->document_path) {
                     continue;
                 }
-                $type = $doc->document_type === \App\Models\Document::TYPE_DELIVERY_RECEIPT
-                    ? 'delivery_receipt'
-                    : (stripos($doc->title, 'reservation') !== false
-                        ? 'reservation_form'
-                        : (stripos($doc->title, 'handover') !== false ? 'handover_timeline' : 'other'));
                 $files->push([
                     'id' => $doc->id,
                     'title' => $doc->title,
                     'file_path' => $doc->file_path,
-                    'type' => $type,
-                    'signed_at' => $doc->signed_at?->toDateTimeString(),
+                    'type' => stripos($doc->title, 'reservation') !== false ? 'reservation_form' : (stripos($doc->title, 'handover') !== false ? 'handover_timeline' : 'other'),
                     'created_at' => $doc->created_at->toDateTimeString(),
                 ]);
             }

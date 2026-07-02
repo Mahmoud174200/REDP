@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
         $egypt = EnterpriseCountry::updateOrCreate(
             ['code' => 'EG'],
             [
+                'id' => (string) Str::uuid(),
                 'name' => 'Egypt',
                 'phone_code' => '+20',
                 'currency_code' => 'EGP',
@@ -1707,9 +1708,6 @@ class DatabaseSeeder extends Seeder
             'rules_payload' => ['payload' => 'Timeline PDF generation.'],
             'active' => false,
         ]);
-
-        // ── Run Massive Dummy Data Seeder ──
-        $this->call(MassiveDummyDataSeeder::class);
 
         $this->call(PermissionSeeder::class);
         $this->call(LeadSourceSeeder::class);
