@@ -30,13 +30,20 @@ class HomeownerPortalController extends Controller
         $user = $request->user();
         $userId = $user->id;
 
-        // Find unit owned by this user (via active reservation or contract)
-        $contract = Contract::where('client_id', $userId)
+        // All units this client owns (one contract per unit) — powers the unit
+        // switcher so a single login can hold multiple properties.
+        $contracts = Contract::where('client_id', $userId)
             ->whereIn('status', ['active', 'completed', 'pending_signature'])
-            ->with(['unit.project', 'payments' => function ($q) {
-                $q->orderBy('due_date', 'asc');
-            }])
-            ->first();
+            ->with(['unit.project'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Pick the active unit: the one requested via ?contract_id=, else the first.
+        $requestedId = $request->query('contract_id');
+        $contract = ($requestedId ? $contracts->firstWhere('id', $requestedId) : null)
+            ?? $contracts->first();
+        // Load the payment schedule only for the selected contract.
+        $contract?->load(['payments' => fn($q) => $q->orderBy('due_date', 'asc')]);
 
         $reservation = Reservation::where('client_id', $userId)
             ->where('status', 'confirmed')
@@ -156,6 +163,16 @@ class HomeownerPortalController extends Controller
 
         return response()->json([
             'success' => true,
+            // Unit switcher: every property this login owns.
+            'units' => $contracts->map(fn($c) => [
+                'contract_id'     => $c->id,
+                'contract_number' => $c->contract_number,
+                'unit_id'         => $c->unit?->id,
+                'unit_number'     => $c->unit?->unit_number,
+                'project_name'    => $c->unit?->project?->name ?? 'N/A',
+                'status'          => $c->status,
+            ])->values(),
+            'selected_contract_id' => $contract?->id,
             'unit' => $unit ? [
                 'id' => $unit->id,
                 'unit_number' => $unit->unit_number,

@@ -40,6 +40,7 @@ import Workflows from './pages/delivery/Workflows';
 
 // 👑 Admin Pages
 import AdminPanel from './pages/admin/AdminPanel';
+import CampaignsPage from './pages/admin/CampaignsPage';
 import MasterPlanPage from './pages/admin/MasterPlanPage';
 
 // 🏢 Enterprise Pages
@@ -204,6 +205,7 @@ const App: React.FC = () => {
 
         {/* 👑 Admin routes */}
         <Route path="/admin/panel" element={<DashboardWrapper><AdminPanel /></DashboardWrapper>} />
+        <Route path="/admin/campaigns" element={<DashboardWrapper><CampaignsPage /></DashboardWrapper>} />
         <Route path="/admin/master-plan/:projectId" element={<DashboardWrapper><MasterPlanPage /></DashboardWrapper>} />
 
         {/* 🏢 Enterprise routes */}

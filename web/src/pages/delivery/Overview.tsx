@@ -164,6 +164,10 @@ const Overview: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [fileSearch, setFileSearch] = useState('');
 
+  // Multi-unit: a single login can own several properties and switch between them
+  const [ownedUnits, setOwnedUnits] = useState<any[]>([]);
+  const [selectedContractId, setSelectedContractId] = useState<string>('');
+
   // Handover Officer data
   const [scheduledHandovers, setScheduledHandovers] = useState<any[]>([]);
   const [recentSnags, setRecentSnags] = useState<any[]>([]);
@@ -277,12 +281,14 @@ const Overview: React.FC = () => {
     fetchData(user.role);
   }, []);
 
-  const fetchData = async (role: string) => {
+  const fetchData = async (role: string, contractId?: string) => {
     setIsLoading(true);
     try {
       if (role === 'client') {
-        // Fetch homeowner dashboard
-        const res = await api.get('/v1/delivery/homeowner/dashboard');
+        // Fetch homeowner dashboard (optionally for a specific owned unit)
+        const res = await api.get('/v1/delivery/homeowner/dashboard', {
+          params: contractId ? { contract_id: contractId } : {},
+        });
         if (res.data?.success) {
           setUnitInfo(res.data.unit);
           setFinancialSummary(res.data.financial_summary);
@@ -295,6 +301,8 @@ const Overview: React.FC = () => {
           setNotifications(res.data.notifications || []);
           setFiles(res.data.files || []);
           setEoiReservation(res.data.eoi_reservation || null);
+          setOwnedUnits(res.data.units || []);
+          setSelectedContractId(res.data.selected_contract_id || '');
         }
       } else {
         // Fetch handover officer dashboard
@@ -313,7 +321,7 @@ const Overview: React.FC = () => {
     }
   };
 
-  const refreshDashboard = () => fetchData(userRole);
+  const refreshDashboard = () => fetchData(userRole, userRole === 'client' ? (selectedContractId || undefined) : undefined);
 
   // ═══════════════════════════════════════════════════════════════
   // ACTION HANDLERS
@@ -812,9 +820,28 @@ const Overview: React.FC = () => {
             Manage your unit configurations, family members, guest passes, and service tickets in real-time.
           </p>
         </div>
-        <button onClick={refreshDashboard} className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '12px', cursor: 'pointer' }}>
-          <i className="fa-solid fa-rotate" style={{ fontSize: '12px' }}></i> Refresh Dashboard
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {ownedUnits.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', padding: '6px 10px 6px 14px' }}>
+              <i className="fa-solid fa-building-user" style={{ fontSize: '13px', color: 'var(--color-success)' }}></i>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>My Unit:</span>
+              <select
+                value={selectedContractId}
+                onChange={(e) => { setSelectedContractId(e.target.value); fetchData('client', e.target.value); }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}
+              >
+                {ownedUnits.map((u: any) => (
+                  <option key={u.contract_id} value={u.contract_id} style={{ background: '#1d2d24', color: '#fff' }}>
+                    {u.unit_number} — {u.project_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button onClick={refreshDashboard} className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '12px', cursor: 'pointer' }}>
+            <i className="fa-solid fa-rotate" style={{ fontSize: '12px' }}></i> Refresh Dashboard
+          </button>
+        </div>
       </div>
 
       {/* ═══ UNIT SUMMARY CARD ═══ */}
@@ -1267,13 +1294,13 @@ const Overview: React.FC = () => {
                 {contractInfo.document_path && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <a
-                      href={`${api.defaults.baseURL || ''}/v1/finance/contracts/${contractInfo.id}/pdf`}
+                      href={getPhotoUrl(contractInfo.document_path) || contractInfo.document_path}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-primary"
                       style={{ padding: '8px 16px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <i className="fa-solid fa-file-pdf" style={{ fontSize: '15px' }}></i> Download Contract PDF / تحميل العقد
+                      <i className="fa-solid fa-file-pdf" style={{ fontSize: '15px' }}></i> Download Contract / تحميل العقد
                     </a>
                   </div>
                 )}

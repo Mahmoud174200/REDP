@@ -407,6 +407,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
             Route::get('/contracts/{id}', [ContractController::class, 'show']);
             Route::post('/contracts/generate/{reservationId}', [ContractController::class, 'generate']);
             Route::post('/contracts/{id}/sign', [ContractController::class, 'sign']);
+            Route::post('/contracts/{id}/upload-document', [ContractController::class, 'uploadDocument']);
             Route::post('/contracts/{id}/submit-approval', [ContractController::class, 'submitForApproval']);
             Route::post('/contracts/{id}/cancel', [ContractController::class, 'cancel']);
             Route::post('/contracts/{id}/escalate-withdrawal', [ContractController::class, 'escalateWithdrawal']);
@@ -497,6 +498,11 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         // Configs
         Route::get('/configs', [\App\Http\Controllers\Admin\AdminController::class, 'getConfigs']);
         Route::post('/configs', [\App\Http\Controllers\Admin\AdminController::class, 'updateConfigs']);
+
+        // Marketing broadcast campaigns (filter customer base → multi-channel blast)
+        Route::get('/campaigns/filter-options', [\App\Http\Controllers\Admin\CampaignController::class, 'filterOptions']);
+        Route::post('/campaigns/preview', [\App\Http\Controllers\Admin\CampaignController::class, 'preview']);
+        Route::post('/campaigns/send', [\App\Http\Controllers\Admin\CampaignController::class, 'send']);
 
         // Projects
         Route::get('/projects', [\App\Http\Controllers\Admin\AdminController::class, 'getProjects']);
