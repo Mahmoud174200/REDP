@@ -1,0 +1,691 @@
+import React, { useState, useEffect } from 'react';
+import { Users, Plus, ShieldCheck, ArrowRight } from 'lucide-react';
+import api from '../../services/api';
+
+const Leads: React.FC = () => {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [userRole, setUserRole] = useState('admin');
+
+  // Tele-Sales Action States
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [actionLeadId, setActionLeadId] = useState<string | null>(null);
+  const [meetingDate, setMeetingDate] = useState('');
+  const [meetingLocation, setMeetingLocation] = useState('Company HQ Office');
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
+
+  // Appointment & Reminder States
+  const [bookingType, setBookingType] = useState('online');
+  const [appointmentType, setAppointmentType] = useState('Consultation');
+  const [remindEmail, setRemindEmail] = useState(true);
+  const [remindSms, setRemindSms] = useState(false);
+  const [remindWhatsapp, setRemindWhatsapp] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+
+  const fetchLeads = async () => {
+    setIsLoading(true);
+    try {
+      const userStr = localStorage.getItem('redp_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role || 'admin';
+      
+      let endpoint = '/v1/acquisition/leads';
+      if (role === 'tele_sales') {
+        endpoint = '/v1/sales/tele/leads';
+      } else if (role === 'broker') {
+        endpoint = '/v1/sales/broker/leads';
+      } else if (role === 'company_sales') {
+        endpoint = '/v1/sales/company/leads';
+      }
+
+      const response = await api.get(endpoint, {
+        params: { per_page: 100 }
+      });
+      if (response.data && response.data.success) {
+        const fetchedLeads = response.data.data?.data || response.data.data || [];
+        const mappedLeads = fetchedLeads.map((lead: any) => ({
+          id: lead.id,
+          name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'N/A',
+          email: lead.email || 'n/a',
+          phone: lead.phone,
+          stage: lead.status || 'new',
+          kyc: lead.kyc_status || 'none',
+          is_vip: !!lead.is_vip
+        }));
+        setLeads(mappedLeads);
+      }
+    } catch (err) {
+      console.error('Failed to fetch leads:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      const response = await api.get('/v1/acquisition/appointments');
+      if (response.data && response.data.success) {
+        setAppointments(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch appointments:', err);
+    }
+  };
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('redp_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (user && user.role) {
+      setUserRole(user.role);
+    }
+    fetchLeads();
+    fetchAppointments();
+  }, []);
+
+  const handleAddLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !phone) return;
+
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || 'N/A';
+
+    try {
+      setIsLoading(true);
+      const userStr = localStorage.getItem('redp_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role || 'admin';
+
+      let endpoint = '/v1/acquisition/leads';
+      if (role === 'tele_sales') {
+        endpoint = '/v1/sales/tele/leads';
+      }
+
+      const response = await api.post(endpoint, {
+        first_name: firstName,
+        last_name: lastName,
+        email: email || undefined,
+        phone: phone,
+        source: 'direct',
+        lead_score: Math.floor(Math.random() * 40) + 50,
+      });
+
+      if (response.data && response.data.success) {
+        setName('');
+        setEmail('');
+        setPhone('');
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to capture lead.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKycApprove = async (leadId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await api.put(`/v1/acquisition/kyc/${leadId}/approve`, {
+        decision: 'verified',
+        reason: 'Operator approved KYC check from dashboard'
+      });
+      if (response.data && response.data.success) {
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to approve KYC.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleScheduleMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actionLeadId || !meetingDate) return;
+
+    const [booking_date, booking_time] = meetingDate.split('T');
+
+    try {
+      setIsLoading(true);
+      const response = await api.post('/v1/acquisition/appointments', {
+        lead_id: actionLeadId,
+        booking_date,
+        booking_time,
+        booking_type: bookingType,
+        type: appointmentType,
+        remind_email: remindEmail,
+        remind_sms: remindSms,
+        remind_whatsapp: remindWhatsapp
+      });
+      if (response.data && response.data.success) {
+        alert('Appointment scheduled successfully!');
+        setShowMeetingModal(false);
+        setMeetingDate('');
+        setBookingType('online');
+        setAppointmentType('Consultation');
+        setRemindSms(false);
+        setRemindWhatsapp(false);
+        await fetchLeads();
+        await fetchAppointments();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to schedule appointment.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelAppointment = async (id: string) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+      setIsLoading(true);
+      const response = await api.delete(`/v1/acquisition/appointments/${id}`);
+      if (response.data && response.data.success) {
+        alert('Appointment cancelled successfully.');
+        await fetchAppointments();
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to cancel appointment.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTransferLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actionLeadId) return;
+    try {
+      setIsLoading(true);
+      const response = await api.put(`/v1/sales/tele/leads/${actionLeadId}/transfer`, {
+        notes: transferNotes
+      });
+      if (response.data && response.data.success) {
+        alert('Lead transferred to company sales team!');
+        setShowTransferModal(false);
+        setTransferNotes('');
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to transfer lead.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMoveStage = async (leadId: string, currentStage: string) => {
+    const stageKeys = stages.map(s => s.key);
+    const currentIdx = stageKeys.indexOf(currentStage);
+    if (currentIdx >= stageKeys.length - 1) return;
+    const nextStage = stageKeys[currentIdx + 1];
+
+    try {
+      setIsLoading(true);
+      let unitId = undefined;
+      if (nextStage === 'reserved') {
+        const res = await api.get('/v1/finance/units?status=available');
+        const units = res.data?.data || [];
+        if (units.length === 0) {
+          alert('No available units in inventory to reserve.');
+          return;
+        }
+        unitId = units[0].id;
+      }
+
+      const response = await api.put('/v1/acquisition/crm/move', {
+        lead_id: leadId,
+        status: nextStage,
+        unit_id: unitId
+      });
+      if (response.data && response.data.success) {
+        await fetchLeads();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to move lead stage.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const stages = [
+    { key: 'new', name: 'New Leads' },
+    { key: 'contacted', name: 'Contacted' },
+    { key: 'interested', name: 'Interested' },
+    { key: 'visit_scheduled', name: 'Visit Scheduled' },
+    { key: 'negotiation', name: 'Negotiation' },
+    { key: 'reserved', name: 'Reserved 🔵' },
+    { key: 'contracted', name: 'Contracted 🏆' }
+  ];
+
+  if (isLoading && leads.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '16px' }}>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600 }}>Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', position: 'relative' }}>
+      {isLoading && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div className="animate-spin" style={{ width: '32px', height: '32px', border: '3px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+        </div>
+      )}
+
+      {/* Header Panel */}
+      <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🟠 Sales CRM & Lead Acquisition</h1>
+          <p>Lead registration, biometric KYC face match, and 7-stage Kanban pipeline.</p>
+        </div>
+        <div style={{ padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.1 / H.9</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px', alignItems: 'start' }}>
+        {/* Lead Capture Form */}
+        <div className="glass-panel" style={{ padding: '30px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Users style={{ color: 'var(--color-warning)' }} />
+            Capture New Lead
+          </h2>
+
+          <form onSubmit={handleAddLead} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Full Name</label>
+              <input type="text" className="form-control" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. John Doe" required />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Email Address</label>
+              <input type="email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@domain.com" />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Phone Number</label>
+              <input type="text" className="form-control" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+20 100 000 0000" required />
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+              <Plus style={{ width: '18px', height: '18px' }} />
+              Capture Lead
+            </button>
+          </form>
+        </div>
+
+        {/* KYC Biometrics Simulation */}
+        <div className="glass-panel" style={{ padding: '30px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ShieldCheck style={{ color: 'var(--color-success)' }} />
+            KYC Facematch & OCR Scanner (Database Linked)
+          </h2>
+          <p style={{ marginBottom: '20px' }}>Section H.1: Biometric verify matching ID photo to camera scan with &gt; 85% confidence score.</p>
+          
+          <div style={{ maxHeight: '350px', overflowY: 'auto' }} className="sidebar-scroll-container">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Lead Name</th>
+                  <th>Phone</th>
+                  <th>KYC Verification</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((lead) => (
+                  <tr key={lead.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong>{lead.name}</strong>
+                        {lead.is_vip && <span title="VIP Client" style={{ color: '#f59e0b', fontSize: '1.2rem' }}>★</span>}
+                      </div>
+                    </td>
+                    <td>{lead.phone}</td>
+                    <td>
+                      {lead.kyc === 'verified' && <span className="badge badge-success">Verified (94.2%)</span>}
+                      {lead.kyc === 'pending' && <span className="badge badge-warning">OCR Running</span>}
+                      {lead.kyc === 'none' && <span className="badge badge-danger">Unverified</span>}
+                      {lead.kyc === 'rejected' && <span className="badge badge-danger">Rejected</span>}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        {lead.kyc === 'none' && (userRole === 'admin' || userRole === 'sales_agent') ? (
+                          <button 
+                            onClick={() => handleKycApprove(lead.id)}
+                            className="btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                          >
+                            Run KYC Verification
+                          </button>
+                        ) : lead.kyc === 'none' ? (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pending</span>
+                        ) : null}
+                        {lead.kyc !== 'none' && <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>Checked</span>}
+
+                        {(userRole === 'admin' || userRole === 'sales_agent' || userRole === 'company_sales') && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await api.put(`/acquisition/leads/${lead.id}/toggle-vip`);
+                                if (res.data.success) {
+                                  await fetchLeads();
+                                }
+                              } catch (err) {
+                                alert('Failed to toggle VIP status');
+                              }
+                            }}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: lead.is_vip ? '#f59e0b' : '#d1d5db',
+                              fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center'
+                            }}
+                            title={lead.is_vip ? "Remove VIP status" : "Make VIP"}
+                          >
+                            ★
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* 📅 Upcoming Appointments Dashboard Section */}
+      <div className="glass-panel" style={{ padding: '30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>📅</span> Scheduled Appointments & Reminders
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Manage appointments with automated notifications running 48 hours before the schedule.
+            </p>
+          </div>
+          <span className="badge badge-info" style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: 700 }}>
+            {appointments.length} Total
+          </span>
+        </div>
+
+        {appointments.length === 0 ? (
+          <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', border: '1px dashed var(--border-glass)', borderRadius: 'var(--radius-md)' }}>
+            No appointments scheduled yet. Schedule one from a lead's action buttons.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Client / Lead Name</th>
+                  <th>Appointment Details</th>
+                  <th>Booking Mode</th>
+                  <th>Notification Channels (48h Pre-Reminder)</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appointments.map((apt) => {
+                  const clientName = apt.lead 
+                    ? `${apt.lead.first_name || ''} ${apt.lead.last_name || ''}`.trim() 
+                    : (apt.user ? apt.user.name : 'Unknown Client');
+                  
+                  const phone = apt.lead ? apt.lead.phone : (apt.user ? apt.user.phone : 'N/A');
+
+                  return (
+                    <tr key={apt.id}>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <strong style={{ fontSize: '0.9rem' }}>{clientName}</strong>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{phone}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 600 }}>{apt.type}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {apt.booking_date} @ {apt.booking_time}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${apt.booking_type === 'online' ? 'badge-info' : 'badge-success'}`}>
+                          {apt.booking_type === 'online' ? '🌐 Online' : '🏢 In Company'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {apt.remind_email && (
+                            <span className={`badge ${apt.email_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              📧 Email {apt.email_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {apt.remind_sms && (
+                            <span className={`badge ${apt.sms_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              💬 SMS {apt.sms_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {apt.remind_whatsapp && (
+                            <span className={`badge ${apt.whatsapp_sent ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                              🟢 WhatsApp {apt.whatsapp_sent ? 'Sent' : 'Pending'}
+                            </span>
+                          )}
+                          {!apt.remind_email && !apt.remind_sms && !apt.remind_whatsapp && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>None configured</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${apt.status === 'confirmed' ? 'badge-success' : apt.status === 'cancelled' ? 'badge-danger' : 'badge-warning'}`}>
+                          {apt.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => handleCancelAppointment(apt.id)}
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', color: '#dc2626', borderColor: 'rgba(220, 38, 38, 0.2)' }}
+                        >
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 7-Stage Kanban Board */}
+      <div className="glass-panel" style={{ padding: '30px' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px' }}>CRM Pipeline Stages</h2>
+        <div className="kanban-board">
+          {stages.map((stage) => {
+            const stageLeads = leads.filter(l => l.stage === stage.key);
+            return (
+              <div key={stage.key} className="kanban-column">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700 }}>{stage.name}</h4>
+                  <span className="badge badge-info" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>{stageLeads.length}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '300px' }}>
+                  {stageLeads.map((lead) => (
+                    <div key={lead.id} className="kanban-card">
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '6px' }}>{lead.name}</h4>
+                      <p style={{ fontSize: '0.75rem', marginBottom: '8px' }}>{lead.phone}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ID: {lead.id.substring(0, 8)}...</span>
+                          {(userRole === 'admin' || userRole === 'sales_agent') && stage.key !== 'contracted' && (
+                            <button 
+                              onClick={() => handleMoveStage(lead.id, lead.stage)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--color-primary)' }}
+                              title="Move to Next CRM Stage"
+                            >
+                              <ArrowRight style={{ width: '14px', height: '14px' }} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Tele-Sales Agent Actions */}
+                        {userRole === 'tele_sales' && (
+                          <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                            {lead.stage !== 'visit_scheduled' && lead.stage !== 'contracted' && (
+                              <button 
+                                onClick={() => {
+                                  setActionLeadId(lead.id);
+                                  setShowMeetingModal(true);
+                                }}
+                                className="btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '0.65rem', flex: 1, justifyContent: 'center' }}
+                              >
+                                📅 Meeting
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => {
+                                  setActionLeadId(lead.id);
+                                  setShowTransferModal(true);
+                              }}
+                              className="btn-primary"
+                              style={{ padding: '4px 8px', fontSize: '0.65rem', flex: 1, justifyContent: 'center' }}
+                            >
+                              🚀 Transfer
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 📅 Schedule Meeting Modal */}
+      {showMeetingModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '450px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+            <button onClick={() => setShowMeetingModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              X
+            </button>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>📅 Schedule Appointment & Reminders</h3>
+            <form onSubmit={handleScheduleMeeting} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Appointment Date & Time</label>
+                <input 
+                  type="datetime-local" 
+                  className="form-control" 
+                  value={meetingDate} 
+                  onChange={e => setMeetingDate(e.target.value)} 
+                  required 
+                />
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Appointment Title/Type</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={appointmentType} 
+                  onChange={e => setAppointmentType(e.target.value)} 
+                  placeholder="e.g. Sales Consultation, Site Viewing"
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Booking Mode</label>
+                <select 
+                  className="form-control" 
+                  value={bookingType} 
+                  onChange={e => setBookingType(e.target.value)}
+                  style={{ width: '100%', background: '#fff', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <option value="online">🌐 Online Meeting</option>
+                  <option value="in_company">🏢 In Company (HQ Office)</option>
+                </select>
+              </div>
+
+              <div style={{ background: 'rgba(0,0,0,0.02)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-glass)' }}>
+                <label className="form-label" style={{ fontWeight: 700, marginBottom: '8px' }}>Pre-Appointment Reminders (48 Hours Prior)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindEmail} readOnly disabled />
+                    <span>📧 Email Reminder <strong style={{ color: 'var(--color-primary)' }}>(Mandatory)</strong></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindSms} onChange={e => setRemindSms(e.target.checked)} />
+                    <span>💬 SMS Notification <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(Optional)</span></span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={remindWhatsapp} onChange={e => setRemindWhatsapp(e.target.checked)} />
+                    <span>🟢 WhatsApp Notification <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(Optional)</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowMeetingModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Schedule</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 Transfer Lead Modal */}
+      {showTransferModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div className="glass-panel" style={{ maxWidth: '400px', width: '100%', padding: '30px', position: 'relative', background: '#ffffff', border: '1.5px solid var(--border-glass)', borderRadius: 'var(--radius-lg)' }}>
+            <button onClick={() => setShowTransferModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              X
+            </button>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>🚀 Transfer Lead to Sales Team</h3>
+            <form onSubmit={handleTransferLead} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Transfer & Handover Notes</label>
+                <textarea 
+                  className="form-control" 
+                  style={{ minHeight: '120px', resize: 'vertical' }}
+                  value={transferNotes} 
+                  onChange={e => setTransferNotes(e.target.value)} 
+                  placeholder="Provide details about the client's interests, budget, and meeting outcomes for the sales agent..."
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowTransferModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Transfer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default Leads;

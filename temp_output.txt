@@ -1,0 +1,12 @@
+
+DriveLetter FriendlyName FileSystemType DriveType HealthStatus OperationalStatus  SizeRemaining      Size
+----------- ------------ -------------- --------- ------------ -----------------  -------------      ----
+G                        NTFS           Fixed     Healthy      OK                     166.95 GB 325.21 GB
+                         NTFS           Fixed     Healthy      OK                      79.58 MB    768 MB
+E           New Volume   NTFS           Fixed     Healthy      OK                       69.9 GB 154.42 GB
+F           New Volume   NTFS           Fixed     Healthy      OK                      34.29 GB  49.15 GB
+D                        NTFS           Fixed     Warning      Full Repair Needed      23.05 GB 150.87 GB
+C                        NTFS           Fixed     Healthy      OK                       3.59 GB 270.66 GB
+                         NTFS           Fixed     Healthy      OK                      87.92 MB    910 MB
+
+
