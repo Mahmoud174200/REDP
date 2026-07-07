@@ -52,27 +52,13 @@ class MassiveDummyDataSeeder extends Seeder
     ];
 
     private array $buildingExteriors = [
-        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80',
-        'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80',
-        'https://images.unsplash.com/photo-1554435493-93422e8220c8?w=800&q=80',
-        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80',
-        'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80',
-        'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80',
-        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80',
+        'projects/generated/block_a1_exterior.png',
     ];
 
     private array $unitInteriors = [
-        'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80',
-        'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
-        'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80',
-        'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800&q=80',
-        'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80',
-        'https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=800&q=80',
-        'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80',
-        'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=800&q=80',
-        'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80',
-        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&q=80',
+        'projects/generated/patio_gallery_1.png',
+        'projects/generated/patio_gallery_2.png',
+        'projects/generated/patio_gallery_3.png',
     ];
 
     private array $viewTypes = ['garden', 'pool', 'street', 'sea', 'landmark'];

@@ -60,7 +60,12 @@ class ProjectMedia extends Model
      */
     public function getImageUrlAttribute(): string
     {
-        return asset('storage/' . $this->image_path);
+        if (empty($this->image_path)) {
+            return '';
+        }
+        return str_starts_with($this->image_path, 'http')
+            ? $this->image_path
+            : asset('storage/' . $this->image_path);
     }
 
     /**

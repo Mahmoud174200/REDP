@@ -396,7 +396,7 @@ class ProjectMediaController extends Controller
             $item = [
                 'id' => $m->id,
                 'reference_key' => $m->reference_key,
-                'image_url' => $m->image_path ? asset('storage/' . $m->image_path) : null,
+                'image_url' => $m->image_path ? (str_starts_with($m->image_path, 'http') ? $m->image_path : asset('storage/' . $m->image_path)) : null,
                 'caption' => $m->caption,
             ];
 
