@@ -61,6 +61,12 @@ class MassiveDummyDataSeeder extends Seeder
         'projects/generated/patio_gallery_3.png',
     ];
 
+    private array $unitLayouts = [
+        'projects/generated/apartment_finish_1.png',
+        'projects/generated/apartment_finish_2.png',
+        'projects/generated/apartment_finish_3.png',
+    ];
+
     private array $viewTypes = ['garden', 'pool', 'street', 'sea', 'landmark'];
     private array $unitTypes = ['apartment', 'villa', 'duplex', 'penthouse', 'office', 'commercial'];
     private array $orientations = ['north', 'south', 'east', 'west', 'north_east', 'north_west', 'south_east', 'south_west'];
@@ -411,7 +417,7 @@ class MassiveDummyDataSeeder extends Seeder
                             'orientation' => $this->orientations[array_rand($this->orientations)],
                             'building' => $building->name,
                             'layout_description' => $this->generateLayoutDesc($actualType, $area),
-                            'layout_image_url' => $this->unitInteriors[array_rand($this->unitInteriors)],
+                            'layout_image_url' => $this->unitLayouts[array_rand($this->unitLayouts)],
                             'price' => $area * $pricePerSqm,
                             'min_down_payment' => round($area * $pricePerSqm * 0.1, 2),
                             'status' => $status,
@@ -1168,7 +1174,7 @@ class MassiveDummyDataSeeder extends Seeder
                     'building_id' => $building->id,
                     'floor_id' => $floor?->id,
                     'phase' => 'Phase 1',
-                    'layout_image_url' => $unit->layout_image_url ?: $this->unitInteriors[array_rand($this->unitInteriors)],
+                    'layout_image_url' => $unit->layout_image_url ?: $this->unitLayouts[array_rand($this->unitLayouts)],
                 ]);
             }
         }
