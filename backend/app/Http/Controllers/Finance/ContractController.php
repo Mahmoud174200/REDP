@@ -406,6 +406,60 @@ class ContractController extends Controller
     }
 
     /**
+     * POST /finance/contracts/{id}/upload-document
+     * Upload the signed contract file (PDF/image). Stores it on the public disk,
+     * links it on the contract, and registers a Document so it surfaces in the
+     * owner's Homeowner Portal (Contract tab + Vault files).
+     */
+    public function uploadDocument(Request $request, string $id)
+    {
+        $request->validate([
+            'document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:20480',
+        ]);
+
+        $contract = Contract::with('unit')->findOrFail($id);
+
+        // Store on the public disk so the /storage URL is web-servable to the owner.
+        $url = \App\Services\FileUploadService::upload($request->file('document'), 'contracts', 'public');
+        $contract->update(['document_path' => $url]);
+
+        // Register a Document that the Homeowner Portal file query can match
+        // (it looks up client_id / contract_id / reservation_id in title/ocr_content).
+        \App\Models\Document::create([
+            'id'          => (string) \Illuminate\Support\Str::uuid(),
+            'title'       => 'Signed_Contract_' . $contract->contract_number . '.' . $request->file('document')->getClientOriginalExtension(),
+            'file_path'   => $url,
+            'ocr_content' => "Signed sale contract {$contract->contract_number}. Client: {$contract->client_id}. Contract: {$contract->id}. Reservation: {$contract->reservation_id}. Unit: " . ($contract->unit->unit_number ?? '—') . '.',
+            'status'      => 'indexed',
+        ]);
+
+        // Let the owner know their contract copy is available.
+        try {
+            if ($contract->client_id) {
+                \App\Services\NotificationService::send(
+                    $contract->client_id, 'push', '',
+                    'Your contract is available 📄 / نسخة عقدك متاحة',
+                    "A copy of your signed contract {$contract->contract_number} is now available in your Homeowner Portal. "
+                    . "نسخة من عقدك أصبحت متاحة في بوابة الملاك."
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Contract upload notify failed: ' . $e->getMessage());
+        }
+
+        AuditLogService::log('CONTRACT_DOCUMENT_UPLOAD', $request->user()->id, [
+            'contract_id' => $contract->id,
+            'contract_number' => $contract->contract_number,
+        ]);
+
+        return response()->json([
+            'success'       => true,
+            'message'       => 'Contract document uploaded and shared with the owner.',
+            'document_path' => $url,
+        ]);
+    }
+
+    /**
      * Cancel a contract.
      */
     public function cancel(Request $request, string $id)

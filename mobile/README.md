@@ -1,39 +1,46 @@
-# REDP Mobile App Scaffold
+# REDP Homeowner Mobile App (Flutter)
 
-This is the mobile app scaffolding for the **Real Estate Digital Platform (REDP)**, built using **Flutter**.
-
----
-
-## 🏗️ Directory Boundaries (Section DD)
-Each engineer has a designated screen directory structure within the app:
-- 🟠 **Acquisition :** Screens inside `lib/features/acquisition/` (Simulated in Tab 1)
-- 🔵 **Finance :** Screens inside `lib/features/finance/` (Simulated in Tab 2)
-- 🟢 **Delivery & Operations :** Screens inside `lib/features/delivery/` (Simulated in Tab 3 - Maintained as clean canvas skeleton)
+Native mobile app for **homeowners** to log in and view their unit(s), installment
+schedule, payment progress, and notifications — backed by the same Laravel API as
+the web portal.
 
 ---
 
-## 🚀 Running Locally
+## 📱 What it does
+- **Login** with email + password (homeowner/`client` accounts only).
+- **Dashboard**: unit details, repayment progress bar, paid vs remaining, next
+  installment due, full payment schedule, and notifications.
+- **Multi-unit switcher**: one login can own several units — switch between them
+  from the header dropdown (powered by `?contract_id=` on the dashboard endpoint).
+- Session persists via `shared_preferences` (stays logged in until logout).
 
-### 1. Prerequisites
-- **Flutter SDK** installed (v3.0.0 or higher) (https://flutter.dev/docs/get-started/install)
-- **Dart SDK** (included with Flutter)
-- A connected **Android Emulator**, **iOS Simulator**, or **Physical Device** with Developer Options enabled.
-
-### 2. Fetch Dependencies
-Navigate to the mobile directory and fetch all required pub packages (`dio`, `provider`, `shared_preferences`):
-```bash
-flutter pub get
+## 🗂 Structure
+```
+lib/
+  core/api_client.dart                     # dio client + token storage
+  features/homeowner/
+    homeowner_repository.dart              # /auth/login + /delivery/homeowner/dashboard
+    login_screen.dart                      # email/password sign-in
+    dashboard_screen.dart                  # unit + financials + schedule + switcher
+  main.dart                                # auth gate → login or dashboard
 ```
 
-### 3. Run the App
-Launch the compiler and execute on your connected device:
-```bash
-flutter run
-```
+## 🚀 Run
+1. Install the **Flutter SDK** (v3.0.0+).
+2. Start the backend: in `../backend` run `php artisan serve` (listens on `:8000`).
+3. From this folder:
+   ```bash
+   flutter pub get
+   flutter run
+   ```
 
----
+### API base URL
+`lib/core/api_client.dart` → `baseUrl`:
+- **Android emulator**: `http://10.0.2.2:8000/api/v1` (default — maps to host localhost).
+- **iOS simulator**: `http://127.0.0.1:8000/api/v1`.
+- **Physical device**: your computer's LAN IP, e.g. `http://192.168.1.20:8000/api/v1`
+  (device and computer on the same Wi-Fi).
 
-## 📁 Key Features Scaffolded
-1. **Onboarding Profile Selector:** Quickly sign in as Admin, Sales Agent, Finance Officer, or Delivery Engineer to test role access policies.
-2. **REST API Client Stub:** Connects with the Laravel API.
-3. **Decoupled Main Tabs:** Clean segregation of features so developers do not conflict with each other.
+## 🔑 Test login
+Any homeowner account, e.g. `bodyelml@gmail.com` (owns multiple units → the
+switcher appears).

@@ -7,7 +7,7 @@ import {
   Building2, Users, ChevronRight, ChevronLeft, MapPin, Layers, CheckCircle,
   Clock, Lock, DollarSign, FileText, ArrowRight, X, CreditCard, Banknote,
   Loader, ShieldCheck, RefreshCw, Calculator, SlidersHorizontal, Send, AlertTriangle,
-  Store, Search, UserCheck
+  Store, Search, UserCheck, ArrowUp
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -473,6 +473,23 @@ const ContractingModal: React.FC<{
     setBusy(false);
   };
 
+  const uploadDoc = async (file: File) => {
+    if (!contract || !file) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('document', file);
+      const res = await api.post(`/finance/contracts/${contract.id}/upload-document`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data?.success) {
+        setContract({ ...contract, document_path: res.data.document_path });
+        notify('Contract uploaded — shared with the owner');
+      } else notify(res.data?.message || 'Upload failed', 'error');
+    } catch (e: any) { notify(e.response?.data?.message || 'Failed to upload contract', 'error'); }
+    setBusy(false);
+  };
+
   const handover = async () => {
     if (!contract) return;
     setBusy(true);
@@ -642,9 +659,33 @@ const ContractingModal: React.FC<{
             <div style={{ textAlign: 'center', padding: '10px 0' }}>
               <CheckCircle size={42} color="#22c55e" />
               <h4 style={{ margin: '12px 0 4px' }}>Contract signed</h4>
-              <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: 22 }}>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: 18 }}>
                 {contract.accounting_handover_at ? 'This contract is already with Accounting.' : 'Hand the file over to Accounting to manage the payment schedule.'}
               </p>
+
+              {/* Upload signed contract → shared with the owner's Homeowner Portal */}
+              <div style={{ background: '#f8fafc', border: '1px dashed rgba(0,61,166,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 20, textAlign: 'left' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <FileText size={16} color="#003DA6" />
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>Signed contract document</span>
+                  </div>
+                  {contract.document_path ? (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <CheckCircle size={14} /> Uploaded &amp; shared with owner
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>PDF / JPG / PNG · up to 20MB</span>
+                  )}
+                </div>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, cursor: busy ? 'default' : 'pointer', background: contract.document_path ? '#fff' : '#003DA6', color: contract.document_path ? '#003DA6' : '#fff', border: '1px solid #003DA6', borderRadius: 9, padding: '8px 16px', fontSize: '0.78rem', fontWeight: 700, opacity: busy ? 0.6 : 1 }}>
+                  {busy ? <Loader size={14} className="spin" /> : <ArrowUp size={14} />}
+                  {contract.document_path ? 'Replace document' : 'Upload signed contract'}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} disabled={busy}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadDoc(f); e.currentTarget.value = ''; }} />
+                </label>
+              </div>
+
               {contract.accounting_handover_at ? (
                 <button onClick={onDone} style={{ ...primaryBtn, margin: '0 auto', background: '#16a34a' }}><CheckCircle size={16} /> Done</button>
               ) : (

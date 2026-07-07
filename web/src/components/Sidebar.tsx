@@ -113,7 +113,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
       title: 'System Settings',
       roles: ['admin'],
       items: [
-        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings, roles: ['admin'] }
+        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings, roles: ['admin'] },
+        { name: 'Marketing Campaigns', path: '/admin/campaigns', icon: Bell, roles: ['admin'] }
       ]
     },
     {
