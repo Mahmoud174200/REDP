@@ -85,6 +85,9 @@ Route::prefix('v1/public')->group(function () {
     // 🤖 Public AI Assistant (agentic Gemini chatbot for website visitors)
     Route::post('/assistant/chat', [\App\Http\Controllers\AssistantController::class, 'publicChat']);
     Route::post('/assistant/clear', [\App\Http\Controllers\AssistantController::class, 'clear']);
+    // 🎬 Photoreal talking-head video (D-ID) for the "Nour" character
+    Route::post('/assistant/avatar-video', [\App\Http\Controllers\AssistantController::class, 'avatarVideoCreate']);
+    Route::get('/assistant/avatar-video/{id}', [\App\Http\Controllers\AssistantController::class, 'avatarVideoStatus']);
 });
 
 // ── 🟠 Public Webhooks (Acquisition) ──

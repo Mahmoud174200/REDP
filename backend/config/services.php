@@ -31,4 +31,26 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    // ── Photoreal talking-head video for the customer character "Nour" ──
+    'avatar_video' => [
+        'provider' => env('AVATAR_VIDEO_PROVIDER', 'heygen'), // heygen | did
+    ],
+
+    // HeyGen (Video Generation API — needs an API-enabled plan)
+    'heygen' => [
+        'key' => env('HEYGEN_API_KEY'),
+        'avatar_id' => env('HEYGEN_AVATAR_ID', 'Daisy-inskirt-20220818'),
+        'character_type' => env('HEYGEN_CHARACTER_TYPE', ''), // avatar | talking_photo | '' (auto-try both)
+        'voice_id' => env('HEYGEN_VOICE_ID', ''),     // English female voice id (HeyGen)
+        'voice_ar' => env('HEYGEN_VOICE_AR', ''),     // Arabic female voice id (optional)
+    ],
+
+    // D-ID (alternative provider)
+    'did' => [
+        'key' => env('DID_API_KEY'),
+        'source_url' => env('DID_SOURCE_URL', 'https://create-images-results.d-id.com/DefaultPresenters/Noelle_f/image.jpeg'),
+        'voice_en' => env('DID_VOICE_EN', 'en-US-JennyNeural'),
+        'voice_ar' => env('DID_VOICE_AR', 'ar-EG-SalmaNeural'),
+    ],
+
 ];

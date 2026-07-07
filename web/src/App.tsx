@@ -76,6 +76,7 @@ import QualityManagement from './pages/enterprise/quality/QualityManagement';
 import VoipDialerWidget from './components/acquisition/VoipDialerWidget';
 import DemoTour from './components/DemoTour';
 import AiAssistant from './components/AiAssistant';
+import AnamAgent from './components/AnamAgent';
 
 // 🔒 Auth Guard component enforcing active session keys
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -165,10 +166,10 @@ const App: React.FC = () => {
         <Route path="/client-login" element={<ClientLogin />} />
 
         {/* 🏠 Public Landing Page */}
-        <Route path="/" element={<><LandingPage /><AiAssistant mode="public" /></>} />
+        <Route path="/" element={<><LandingPage /><AnamAgent /></>} />
 
         {/* 🏗️ Interactive 3D Unit Selection */}
-        <Route path="/unit-selection" element={<><InteractiveUnitSelection /><AiAssistant mode="public" /></>} />
+        <Route path="/unit-selection" element={<><InteractiveUnitSelection /><AnamAgent /></>} />
 
         {/* 🏠 Root landing routing logic */}
         <Route path="/dashboard" element={<HomeRedirect />} />
