@@ -1028,7 +1028,7 @@ class MasterPlanController extends Controller
         // Get the master plan image from project media
         $masterPlanMedia = $project->media->where('media_type', 'project_image')->first();
         $masterPlanImageUrl = $masterPlanMedia
-            ? asset('storage/' . $masterPlanMedia->file_path)
+            ? (str_starts_with($masterPlanMedia->image_path, 'http') ? $masterPlanMedia->image_path : asset('storage/' . $masterPlanMedia->image_path))
             : null;
 
         // Get hotspots with building data
@@ -1040,10 +1040,10 @@ class MasterPlanController extends Controller
                 $building = $enriched->building;
                 if (!$building) return null;
 
-                // Get building image from media
+                // Get building image from media (media_type = 'building', reference_key = building->name)
                 $buildingMedia = $building->project->media
-                    ->where('media_type', 'building_image')
-                    ->where('building_name', $building->name)
+                    ->where('media_type', 'building')
+                    ->where('reference_key', $building->name)
                     ->first();
 
                 return [
@@ -1061,7 +1061,7 @@ class MasterPlanController extends Controller
                         'total_floors' => $building->total_floors,
                         'status' => $building->status,
                         'image_url' => $buildingMedia
-                            ? asset('storage/' . $buildingMedia->file_path)
+                            ? (str_starts_with($buildingMedia->image_path, 'http') ? $buildingMedia->image_path : asset('storage/' . $buildingMedia->image_path))
                             : null,
                     ],
                     'units_summary' => $enriched->units_summary,

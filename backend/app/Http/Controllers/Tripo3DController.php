@@ -120,7 +120,7 @@ class Tripo3DController extends Controller
                     'media_type' => $media->media_type,
                     'building_name' => $media->reference_key,
                     'has_image' => !empty($media->image_path),
-                    'image_url' => $media->image_path ? asset('storage/' . $media->image_path) : null,
+                    'image_url' => $media->image_path ? (str_starts_with($media->image_path, 'http') ? $media->image_path : asset('storage/' . $media->image_path)) : null,
                     'model_3d_status' => $media->model_3d_status,
                     'model_3d_url' => $this->getModelUrl($media),
                     'tripo_task_id' => $media->tripo_task_id,
