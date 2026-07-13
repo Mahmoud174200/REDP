@@ -320,26 +320,66 @@ class EoiReservation extends Model
     /**
      * Evaluate custom admin rule on this reservation.
      */
+    /**
+     * Resolve a prioritization field to its value on this reservation (or its lead).
+     * Shared by the custom-rule evaluator and the queue sort, so both read a field
+     * exactly the same way.
+     */
+    public function fieldValue(string $field)
+    {
+        if (in_array($field, [
+            'payment_amount', 'payment_method', 'client_location', 'status',
+            'education', 'job_title', 'monthly_income', 'income_currency',
+            'marital_status', 'number_of_children', 'children_ages', 'children_schools',
+            'current_residence', 'residence_type', 'cars_owned', 'club_memberships'
+        ], true)) {
+            return $this->{$field};
+        }
+
+        $lead = $this->lead;
+        if ($lead && in_array($field, ['lead_score', 'source', 'status'], true)) {
+            return $lead->{$field};
+        }
+
+        return null;
+    }
+
+    /**
+     * Order two reservations by a field. Numeric fields compare numerically,
+     * everything else alphabetically. Missing values always sink to the bottom,
+     * regardless of direction.
+     */
+    protected static function compareByField(self $a, self $b, string $field, string $dir): int
+    {
+        $va = $a->fieldValue($field);
+        $vb = $b->fieldValue($field);
+
+        $aEmpty = ($va === null || $va === '');
+        $bEmpty = ($vb === null || $vb === '');
+        if ($aEmpty && $bEmpty) {
+            return 0;
+        }
+        if ($aEmpty) {
+            return 1;
+        }
+        if ($bEmpty) {
+            return -1;
+        }
+
+        $cmp = (is_numeric($va) && is_numeric($vb))
+            ? (floatval($va) <=> floatval($vb))
+            : strcasecmp((string) $va, (string) $vb);
+
+        return $dir === 'asc' ? $cmp : -$cmp;
+    }
+
     public function evaluateCustomRule(array $rule): bool
     {
         $field = $rule['field'] ?? '';
         $operator = $rule['operator'] ?? '';
         $value = $rule['value'] ?? '';
 
-        $fieldValue = null;
-        if (in_array($field, [
-            'payment_amount', 'payment_method', 'client_location', 'status',
-            'education', 'job_title', 'monthly_income', 'income_currency',
-            'marital_status', 'number_of_children', 'children_ages', 'children_schools',
-            'current_residence', 'residence_type', 'cars_owned', 'club_memberships'
-        ])) {
-            $fieldValue = $this->{$field};
-        } else {
-            $lead = $this->lead;
-            if ($lead && in_array($field, ['lead_score', 'source', 'status'])) {
-                $fieldValue = $lead->{$field};
-            }
-        }
+        $fieldValue = $this->fieldValue((string) $field);
 
         if (is_null($fieldValue)) {
             return false;
@@ -377,6 +417,12 @@ class EoiReservation extends Model
             $customRulesJson = DB::table('system_configs')->where('key', 'eoi_queue_custom_rules')->value('value') ?: '[]';
             $customRules = json_decode($customRulesJson, true) ?: [];
 
+            // Optional explicit ranking, e.g. "rank by payment_amount, highest first".
+            $sortField = DB::table('system_configs')->where('key', 'eoi_queue_sort_field')->value('value') ?: 'none';
+            $sortDir = DB::table('system_configs')->where('key', 'eoi_queue_sort_dir')->value('value') ?: 'desc';
+            $sortBasis = DB::table('system_configs')->where('key', 'eoi_queue_sort_basis')->value('value') ?: 'primary';
+            $hasSort = $sortField !== '' && $sortField !== 'none';
+
             foreach ($reservations as $res) {
                 $score = 0;
 
@@ -410,11 +456,27 @@ class EoiReservation extends Model
                 $res->calculated_score = $score;
             }
 
-            // Sort: highest score first, then FIFO by reviewed_at (or created_at)
-            $sorted = $reservations->sort(function ($a, $b) {
+            // Order: [explicit ranking field if primary] → highest score → [ranking
+            // field if tiebreak] → FIFO by reviewed_at (or created_at).
+            $sorted = $reservations->sort(function ($a, $b) use ($hasSort, $sortField, $sortDir, $sortBasis) {
+                if ($hasSort && $sortBasis === 'primary') {
+                    $cmp = self::compareByField($a, $b, $sortField, $sortDir);
+                    if ($cmp !== 0) {
+                        return $cmp;
+                    }
+                }
+
                 if ($a->calculated_score != $b->calculated_score) {
                     return $b->calculated_score <=> $a->calculated_score;
                 }
+
+                if ($hasSort && $sortBasis === 'tiebreak') {
+                    $cmp = self::compareByField($a, $b, $sortField, $sortDir);
+                    if ($cmp !== 0) {
+                        return $cmp;
+                    }
+                }
+
                 $timeA = $a->reviewed_at ? $a->reviewed_at->timestamp : $a->created_at->timestamp;
                 $timeB = $b->reviewed_at ? $b->reviewed_at->timestamp : $b->created_at->timestamp;
                 return $timeA <=> $timeB;

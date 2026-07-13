@@ -65,6 +65,17 @@ class AssistantToolkit
     /** Max tools exposed to the model per turn before dynamic filtering kicks in. */
     protected const TOOL_LIMIT = 24;
 
+    /** Fields a custom queue-prioritization rule may evaluate (mirrors the Queue Rules UI). */
+    protected const QUEUE_RULE_FIELDS = [
+        'payment_amount', 'lead_score', 'source', 'payment_method', 'education',
+        'job_title', 'monthly_income', 'income_currency', 'marital_status',
+        'number_of_children', 'current_residence', 'residence_type',
+        'cars_owned', 'club_memberships',
+    ];
+
+    /** Operators a custom queue-prioritization rule may use. */
+    protected const QUEUE_RULE_OPERATORS = ['>', '<', '=', '!=', '>=', '<='];
+
     protected string $audience;
     protected ?User $user;
 
@@ -407,6 +418,77 @@ class AssistantToolkit
                 'roles' => ['admin', 'finance_officer'],
             ],
 
+            'add_eoi_queue_rule' => [
+                'description' => "Add a CUSTOM prioritization rule to the EOI queue engine, then recalculate every project's queue. A rule gives extra priority points to clients whose field matches a condition — e.g. 'give 50 points when payment_amount > 1000000'. Rules only take effect in 'smart' queue mode.",
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'label' => ['type' => 'STRING', 'description' => 'Human label for the rule, e.g. "Premium Payment".'],
+                        'field' => ['type' => 'STRING', 'description' => 'Field to evaluate. One of: ' . implode(', ', self::QUEUE_RULE_FIELDS) . '.'],
+                        'operator' => ['type' => 'STRING', 'description' => 'One of: > < = != >= <='],
+                        'value' => ['type' => 'STRING', 'description' => 'Value to compare against, e.g. "1000000" or "cash".'],
+                        'weight' => ['type' => 'INTEGER', 'description' => 'Priority points awarded when the rule matches.'],
+                    ],
+                    'required' => ['label', 'field', 'operator', 'value', 'weight'],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
+            'remove_eoi_queue_rule' => [
+                'description' => "Remove one CUSTOM prioritization rule from the EOI queue engine (by its label, or by its 1-based position), then recalculate every project's queue.",
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'label' => ['type' => 'STRING', 'description' => 'Label of the rule to remove (case-insensitive).'],
+                        'index' => ['type' => 'INTEGER', 'description' => '1-based position of the rule to remove, if the label is unknown.'],
+                    ],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
+            'clear_eoi_queue_rules' => [
+                'description' => "Delete ALL custom prioritization rules from the EOI queue engine, then recalculate every project's queue. The standard weights (past client, cash, VIP, nationality) are NOT affected.",
+                'parameters' => null,
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
+            'set_eoi_queue_sort' => [
+                'description' => "RANK the EOI booking queue by a field — use this whenever the user says 'order/rank/sort them by X', 'put the highest X first', 'رتبهم حسب كذا'. Example: rank by payment_amount descending puts the biggest payers at the top. This is a true ordering, unlike custom rules which only award points on a condition. Automatically switches the queue to 'smart' mode (a field ranking is not FIFO) and recalculates every project's queue.",
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'field' => ['type' => 'STRING', 'description' => 'Field to rank by. One of: ' . implode(', ', self::QUEUE_RULE_FIELDS) . '.'],
+                        'direction' => ['type' => 'STRING', 'description' => "'desc' = highest/largest first (default), 'asc' = lowest/smallest first."],
+                        'basis' => ['type' => 'STRING', 'description' => "'primary' (default) = the field decides the order and the weights only break ties. 'tiebreak' = the weighted score decides first and the field only breaks ties."],
+                    ],
+                    'required' => ['field'],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
+            'clear_eoi_queue_sort' => [
+                'description' => "Stop ranking the EOI queue by a field and go back to ordering purely by the weighted priority score (then FIFO). Then recalculate every project's queue.",
+                'parameters' => null,
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
+            'recalculate_eoi_queues' => [
+                'description' => "Re-run the queue prioritization engine and renumber the booking queue for every project (or one project), without changing any settings. Use when asked to 'recalculate', 'refresh' or 're-rank' the queue.",
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'project' => ['type' => 'STRING', 'description' => 'Optional project name or id. Omit to recalculate all projects.'],
+                    ],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'finance_officer'],
+            ],
+
             // ── RAG Knowledge Base ──
             'search_knowledge_base' => [
                 'description' => "Search the company KNOWLEDGE BASE — internal documents, SOPs, policies, procedures, FAQs and uploaded files. ALWAYS use this for any question about company policy, rules, how a process works, 'what does the company say about…', refunds, cancellations, commissions, handover, KYC, payment rules, etc. Answer ONLY from what this returns and cite the source title(s).",
@@ -699,6 +781,8 @@ class AssistantToolkit
                 'approve_eoi_reservation', 'reject_eoi_reservation', 'batch_approve_eoi_reservations',
                 'invite_eoi_clients', 'resend_eoi_invitation', 'create_eoi_reservation',
                 'get_eoi_queue_settings', 'update_eoi_queue_settings',
+                'add_eoi_queue_rule', 'remove_eoi_queue_rule', 'clear_eoi_queue_rules',
+                'set_eoi_queue_sort', 'clear_eoi_queue_sort', 'recalculate_eoi_queues',
             ],
             '/acquisition/leads' => ['search_leads', 'get_lead_details', 'create_lead'],
             '/acquisition/crm' => ['search_leads', 'get_lead_details', 'create_lead'],
@@ -756,6 +840,12 @@ class AssistantToolkit
                 'create_eoi_reservation' => $this->createEoiReservation($args),
                 'get_eoi_queue_settings' => $this->getEoiQueueSettings(),
                 'update_eoi_queue_settings' => $this->updateEoiQueueSettings($args),
+                'add_eoi_queue_rule' => $this->addEoiQueueRule($args),
+                'remove_eoi_queue_rule' => $this->removeEoiQueueRule($args),
+                'clear_eoi_queue_rules' => $this->clearEoiQueueRules(),
+                'set_eoi_queue_sort' => $this->setEoiQueueSort($args),
+                'clear_eoi_queue_sort' => $this->clearEoiQueueSort(),
+                'recalculate_eoi_queues' => $this->recalculateEoiQueues($args),
                 'search_knowledge_base' => $this->searchKnowledgeBase($args),
                 'add_knowledge' => $this->addKnowledge($args),
                 'schedule_appointment' => $this->scheduleAppointment($args),
@@ -1702,6 +1792,92 @@ class AssistantToolkit
             'weight_vip' => (int) ($values['eoi_queue_weight_vip'] ?? $keys['eoi_queue_weight_vip']),
             'nationality_priority' => $values['eoi_queue_nationality_priority'] ?? $keys['eoi_queue_nationality_priority'],
             'weight_nationality' => (int) ($values['eoi_queue_weight_nationality'] ?? $keys['eoi_queue_weight_nationality']),
+            'custom_rules' => $this->readQueueRules(),
+            'ranking' => $this->readQueueSort(),
+        ];
+    }
+
+    /** The explicit "rank by field" setting, or null when ordering is purely by score. */
+    protected function readQueueSort(): ?array
+    {
+        $v = SystemConfig::whereIn('key', ['eoi_queue_sort_field', 'eoi_queue_sort_dir', 'eoi_queue_sort_basis'])
+            ->pluck('value', 'key');
+
+        $field = $v['eoi_queue_sort_field'] ?? 'none';
+        if ($field === '' || $field === 'none') {
+            return null;
+        }
+
+        return [
+            'field' => $field,
+            'direction' => $v['eoi_queue_sort_dir'] ?? 'desc',
+            'basis' => $v['eoi_queue_sort_basis'] ?? 'primary',
+        ];
+    }
+
+    protected function setEoiQueueSort(array $args): array
+    {
+        $field = trim((string) ($args['field'] ?? ''));
+        $dir = strtolower(trim((string) ($args['direction'] ?? 'desc')));
+        $basis = strtolower(trim((string) ($args['basis'] ?? 'primary')));
+
+        if ($field === '') {
+            return ['error' => 'Which field should the queue be ranked by? One of: ' . implode(', ', self::QUEUE_RULE_FIELDS) . '.'];
+        }
+        if (!in_array($field, self::QUEUE_RULE_FIELDS, true)) {
+            return ['error' => "Cannot rank by '{$field}'. Choose one of: " . implode(', ', self::QUEUE_RULE_FIELDS) . '.'];
+        }
+        if (!in_array($dir, ['asc', 'desc'], true)) {
+            $dir = 'desc';
+        }
+        if (!in_array($basis, ['primary', 'tiebreak'], true)) {
+            $basis = 'primary';
+        }
+
+        $wasMode = $this->getEoiQueueSettings()['mode'];
+
+        // A field ranking is not FIFO, so it only has meaning in smart mode.
+        $saved = $this->saveQueueConfigs([
+            'eoi_queue_sort_field' => $field,
+            'eoi_queue_sort_dir' => $dir,
+            'eoi_queue_sort_basis' => $basis,
+            'eoi_queue_mode' => 'smart',
+        ]);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        $order = $dir === 'desc' ? 'highest first' : 'lowest first';
+        $note = $basis === 'primary'
+            ? 'The field decides the order; the weighted score only breaks ties.'
+            : 'The weighted score decides the order; the field only breaks ties.';
+
+        return array_filter([
+            'success' => true,
+            'message' => "The booking queue is now ranked by {$field} ({$order}) and every project's queue was recalculated.",
+            'note' => $note,
+            'mode_changed' => $wasMode !== 'smart'
+                ? "Queue mode was switched from '{$wasMode}' to 'smart', because a field ranking cannot apply to a strict FIFO queue."
+                : null,
+            'settings' => $this->getEoiQueueSettings(),
+        ], fn ($v) => $v !== null);
+    }
+
+    protected function clearEoiQueueSort(): array
+    {
+        if ($this->readQueueSort() === null) {
+            return ['success' => true, 'message' => 'The queue was not ranked by any field; it already orders by the weighted priority score.'];
+        }
+
+        $saved = $this->saveQueueConfigs(['eoi_queue_sort_field' => 'none']);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Field ranking removed. The queue now orders by the weighted priority score, then first-come first-served. All project queues were recalculated.',
+            'settings' => $this->getEoiQueueSettings(),
         ];
     }
 
@@ -1727,20 +1903,201 @@ class AssistantToolkit
             return ['error' => 'No settings provided to update.'];
         }
 
-        // Reuse AdminController::updateConfigs so queues are recalculated for all projects.
+        $saved = $this->saveQueueConfigs($configs);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Queue settings updated and all project queues recalculated.',
+            'updated' => array_keys($configs),
+            'settings' => $this->getEoiQueueSettings(),
+        ];
+    }
+
+    /** The custom prioritization rules, as an array of {label, field, operator, value, weight}. */
+    protected function readQueueRules(): array
+    {
+        $raw = SystemConfig::where('key', 'eoi_queue_custom_rules')->value('value') ?: '[]';
+        $rules = json_decode($raw, true);
+
+        return is_array($rules) ? array_values($rules) : [];
+    }
+
+    /**
+     * Persist config keys through AdminController::updateConfigs so every
+     * project's queue is renumbered exactly the way the UI's Save button does.
+     */
+    protected function saveQueueConfigs(array $configs): array
+    {
         $sub = HttpRequest::create('/', 'POST', ['configs' => $configs]);
         $sub->setUserResolver(fn () => $this->user);
         try {
-            $response = app(AdminController::class)->updateConfigs($sub);
-            $data = $response->getData(true);
-            return [
-                'success' => $data['success'] ?? true,
-                'message' => 'Queue settings updated and all project queues recalculated.',
-                'updated' => array_keys($configs),
-            ];
+            app(AdminController::class)->updateConfigs($sub);
+            return ['success' => true];
         } catch (\Throwable $e) {
-            return ['error' => 'Failed to update queue settings: ' . $e->getMessage()];
+            return ['error' => 'Failed to save queue settings: ' . $e->getMessage()];
         }
+    }
+
+    protected function addEoiQueueRule(array $args): array
+    {
+        $label = trim((string) ($args['label'] ?? ''));
+        $field = trim((string) ($args['field'] ?? ''));
+        $operator = trim((string) ($args['operator'] ?? ''));
+        $value = trim((string) ($args['value'] ?? ''));
+        $weight = $args['weight'] ?? null;
+
+        if ($label === '' || $field === '' || $operator === '' || $value === '' || $weight === null) {
+            return ['error' => 'A rule needs a label, field, operator, value and weight.'];
+        }
+        if (!in_array($field, self::QUEUE_RULE_FIELDS, true)) {
+            return ['error' => "Field '{$field}' is not allowed. Choose one of: " . implode(', ', self::QUEUE_RULE_FIELDS) . '.'];
+        }
+        if (!in_array($operator, self::QUEUE_RULE_OPERATORS, true)) {
+            return ['error' => "Operator '{$operator}' is not allowed. Choose one of: " . implode(' ', self::QUEUE_RULE_OPERATORS) . '.'];
+        }
+
+        $rules = $this->readQueueRules();
+        foreach ($rules as $r) {
+            if (strcasecmp((string) ($r['label'] ?? ''), $label) === 0) {
+                return ['error' => "A rule labelled '{$label}' already exists. Remove it first, or pick another label."];
+            }
+        }
+
+        $rules[] = [
+            'label' => $label,
+            'field' => $field,
+            'operator' => $operator,
+            'value' => $value,
+            'weight' => (int) $weight,
+        ];
+
+        $saved = $this->saveQueueConfigs(['eoi_queue_custom_rules' => json_encode($rules)]);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        $settings = $this->getEoiQueueSettings();
+        $note = $settings['mode'] === 'smart'
+            ? null
+            : "Heads up: the queue is in 'normal' (FIFO) mode, so custom rules are stored but have no effect until the mode is switched to 'smart'.";
+
+        return array_filter([
+            'success' => true,
+            'message' => "Rule '{$label}' added ({$field} {$operator} {$value} → +{$weight} points) and all project queues recalculated.",
+            'custom_rules' => $rules,
+            'note' => $note,
+        ], fn ($v) => $v !== null);
+    }
+
+    protected function removeEoiQueueRule(array $args): array
+    {
+        $rules = $this->readQueueRules();
+        if (empty($rules)) {
+            return ['error' => 'There are no custom prioritization rules to remove.'];
+        }
+
+        $label = isset($args['label']) ? trim((string) $args['label']) : '';
+        $index = isset($args['index']) ? (int) $args['index'] : 0;
+
+        $pos = null;
+        if ($label !== '') {
+            foreach ($rules as $i => $r) {
+                if (strcasecmp((string) ($r['label'] ?? ''), $label) === 0) {
+                    $pos = $i;
+                    break;
+                }
+            }
+            if ($pos === null) {
+                return [
+                    'error' => "No custom rule labelled '{$label}'.",
+                    'existing_rules' => array_column($rules, 'label'),
+                ];
+            }
+        } elseif ($index >= 1 && $index <= count($rules)) {
+            $pos = $index - 1;
+        } else {
+            return [
+                'error' => 'Provide the label (or a valid 1-based index) of the rule to remove.',
+                'existing_rules' => array_column($rules, 'label'),
+            ];
+        }
+
+        $removed = $rules[$pos];
+        array_splice($rules, $pos, 1);
+
+        $saved = $this->saveQueueConfigs(['eoi_queue_custom_rules' => json_encode(array_values($rules))]);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        return [
+            'success' => true,
+            'message' => "Rule '" . ($removed['label'] ?? '') . "' removed and all project queues recalculated.",
+            'custom_rules' => array_values($rules),
+        ];
+    }
+
+    protected function clearEoiQueueRules(): array
+    {
+        $count = count($this->readQueueRules());
+        if ($count === 0) {
+            return ['success' => true, 'message' => 'There were no custom prioritization rules to clear.'];
+        }
+
+        $saved = $this->saveQueueConfigs(['eoi_queue_custom_rules' => '[]']);
+        if (isset($saved['error'])) {
+            return $saved;
+        }
+
+        return [
+            'success' => true,
+            'message' => "Removed all {$count} custom prioritization rule(s) and recalculated all project queues. Standard weights were left unchanged.",
+            'custom_rules' => [],
+        ];
+    }
+
+    protected function recalculateEoiQueues(array $args): array
+    {
+        $ref = trim((string) ($args['project'] ?? ''));
+
+        $projectIds = EoiReservation::where('status', EoiReservation::STATUS_APPROVED)
+            ->distinct()
+            ->pluck('project_id');
+
+        if ($ref !== '') {
+            $project = Project::where('id', $ref)
+                ->orWhere('name', 'like', '%' . $ref . '%')
+                ->first();
+            if (!$project) {
+                return ['error' => "No project matching '{$ref}'."];
+            }
+            $projectIds = $projectIds->filter(fn ($id) => $id === $project->id)->values();
+            if ($projectIds->isEmpty()) {
+                return ['error' => "Project '{$project->name}' has no approved EOI reservations to rank."];
+            }
+        }
+
+        if ($projectIds->isEmpty()) {
+            return ['success' => true, 'message' => 'No approved EOI reservations yet, so there is no queue to recalculate.'];
+        }
+
+        try {
+            foreach ($projectIds as $id) {
+                EoiReservation::recalculateQueueNumbers($id);
+            }
+        } catch (\Throwable $e) {
+            return ['error' => 'Failed to recalculate queues: ' . $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Recalculated the booking queue for ' . $projectIds->count() . ' project(s) using the current prioritization rules.',
+            'projects_recalculated' => $projectIds->count(),
+            'settings' => $this->getEoiQueueSettings(),
+        ];
     }
 
     /**

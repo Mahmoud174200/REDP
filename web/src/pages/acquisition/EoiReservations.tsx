@@ -88,6 +88,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   rejected: { label: 'Rejected', color: '#d32f2f', bg: 'rgba(211, 47, 47, 0.1)' },
 };
 
+// Fields the queue can be ranked by — mirrors QUEUE_RULE_FIELDS on the backend.
+const RANK_FIELDS = [
+  'payment_amount', 'lead_score', 'source', 'payment_method', 'education',
+  'job_title', 'monthly_income', 'income_currency', 'marital_status',
+  'number_of_children', 'current_residence', 'residence_type',
+  'cars_owned', 'club_memberships',
+];
+
 const formatCurrency = (amount: number | string) => {
   const n = typeof amount === 'string' ? parseFloat(amount) : amount;
   return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 0 }).format(n);
@@ -167,6 +175,9 @@ const EoiReservations: React.FC = () => {
     eoi_queue_weight_vip: '150',
     eoi_queue_nationality_priority: 'none',
     eoi_queue_weight_nationality: '40',
+    eoi_queue_sort_field: 'none',
+    eoi_queue_sort_dir: 'desc',
+    eoi_queue_sort_basis: 'primary',
   });
   const [customRules, setCustomRules] = useState<any[]>([]);
   const [loadingConfigs, setLoadingConfigs] = useState<boolean>(false);
@@ -294,6 +305,9 @@ const EoiReservations: React.FC = () => {
           eoi_queue_weight_vip: data.eoi_queue_weight_vip || '150',
           eoi_queue_nationality_priority: data.eoi_queue_nationality_priority || 'none',
           eoi_queue_weight_nationality: data.eoi_queue_weight_nationality || '40',
+          eoi_queue_sort_field: data.eoi_queue_sort_field || 'none',
+          eoi_queue_sort_dir: data.eoi_queue_sort_dir || 'desc',
+          eoi_queue_sort_basis: data.eoi_queue_sort_basis || 'primary',
         });
         try {
           setCustomRules(JSON.parse(data.eoi_queue_custom_rules || '[]'));
@@ -1882,6 +1896,67 @@ const EoiReservations: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Queue Ranking — order the queue by an applicant field */}
+          {queueConfigs.eoi_queue_mode === 'smart' && (
+            <div className="glass-panel" style={{ padding: '30px', marginBottom: '24px', animation: 'modal-fade-in 0.25s ease-out' }}>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>Queue Ranking</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '20px' }}>
+                Rank the queue directly by an applicant field — e.g. biggest payer first. Unlike a custom rule (which only awards points when a condition is met), this orders every applicant by the field's value.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '18px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Rank By Field</label>
+                  <select
+                    className="form-control"
+                    disabled={userRole !== 'admin'}
+                    value={queueConfigs.eoi_queue_sort_field}
+                    onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_sort_field: e.target.value }))}
+                  >
+                    <option value="none">No ranking (order by priority points)</option>
+                    {RANK_FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Direction</label>
+                  <select
+                    className="form-control"
+                    disabled={userRole !== 'admin' || queueConfigs.eoi_queue_sort_field === 'none'}
+                    value={queueConfigs.eoi_queue_sort_dir}
+                    onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_sort_dir: e.target.value }))}
+                  >
+                    <option value="desc">Highest / largest first</option>
+                    <option value="asc">Lowest / smallest first</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Ranking Basis</label>
+                  <select
+                    className="form-control"
+                    disabled={userRole !== 'admin' || queueConfigs.eoi_queue_sort_field === 'none'}
+                    value={queueConfigs.eoi_queue_sort_basis}
+                    onChange={e => setQueueConfigs(prev => ({ ...prev, eoi_queue_sort_basis: e.target.value }))}
+                  >
+                    <option value="primary">Field decides (points break ties)</option>
+                    <option value="tiebreak">Points decide (field breaks ties)</option>
+                  </select>
+                </div>
+              </div>
+
+              {queueConfigs.eoi_queue_sort_field !== 'none' && (
+                <p style={{ marginTop: '18px', padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.3)', border: '1px solid var(--border-glass)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Queue will be ordered by <code>{queueConfigs.eoi_queue_sort_field}</code>{' '}
+                  <strong>{queueConfigs.eoi_queue_sort_dir === 'desc' ? 'highest first' : 'lowest first'}</strong>.{' '}
+                  {queueConfigs.eoi_queue_sort_basis === 'primary'
+                    ? 'The field decides the order; priority points only break ties.'
+                    : 'Priority points decide the order; the field only breaks ties.'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Custom Rules Editor */}
           {queueConfigs.eoi_queue_mode === 'smart' && (
