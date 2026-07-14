@@ -105,6 +105,9 @@ Route::prefix('v1/webhooks')->group(function () {
 Route::post('/v1/brokers/register-lead', [BrokerController::class, 'registerLead']);
 Route::post('/v1/brokers/verify-lead-otp', [BrokerController::class, 'verifyLeadOtp']);
 
+// ── 🟠 Public Broker Agency Self-Service Registration (pending admin approval) ──
+Route::post('/v1/broker-companies/register', [\App\Http\Controllers\Acquisition\BrokerCompanyRegistrationController::class, 'register']);
+
 // ── 🟠 Public Attribution Tracking (Lead Attribution System) ──
 Route::get('/r/{slug}', [TrackingController::class, 'shortLink']);          // branded broker short link
 Route::prefix('v1/track')->group(function () {
@@ -210,6 +213,30 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
 
             // Dashboard
             Route::get('/dashboard', [BrokerSalesController::class, 'dashboard']);
+
+            // ── Broker Agency Management (Owner self-service) ──
+            $mgmtCtrl = \App\Http\Controllers\Acquisition\BrokerCompanyManagementController::class;
+            Route::prefix('company')->group(function () use ($mgmtCtrl) {
+                Route::get('/dashboard', [$mgmtCtrl, 'dashboard']);
+
+                // Employees
+                Route::get('/employees', [$mgmtCtrl, 'employees']);
+                Route::post('/employees', [$mgmtCtrl, 'storeEmployee']);
+                Route::get('/employees/{id}', [$mgmtCtrl, 'showEmployee']);
+                Route::put('/employees/{id}', [$mgmtCtrl, 'updateEmployee']);
+                Route::delete('/employees/{id}', [$mgmtCtrl, 'destroyEmployee']);
+                Route::post('/employees/{id}/reset-password', [$mgmtCtrl, 'resetPassword']);
+
+                // Teams
+                Route::get('/teams', [$mgmtCtrl, 'teams']);
+                Route::post('/teams', [$mgmtCtrl, 'storeTeam']);
+                Route::put('/teams/{id}', [$mgmtCtrl, 'updateTeam']);
+                Route::delete('/teams/{id}', [$mgmtCtrl, 'destroyTeam']);
+
+                // Projects the agency is responsible for
+                Route::get('/projects', [$mgmtCtrl, 'projects']);
+                Route::post('/projects/request', [$mgmtCtrl, 'requestProjects']);
+            });
         });
 
     // ── TIER 3: Company Sales Representative ──
@@ -324,6 +351,20 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/brokers/{brokerId}/leads', [BrokerController::class, 'getLeads']);
         Route::get('/brokers/{brokerId}/referral-links', [BrokerController::class, 'getReferralLinks']);
 
+        // ── Broker Agency Vetting & Project Assignment (Admin / Sales Manager) ──
+        $brokerCoCtrl = \App\Http\Controllers\Acquisition\BrokerCompanyAdminController::class;
+        Route::get('/broker-companies', [$brokerCoCtrl, 'index']);
+        Route::get('/broker-companies/project-requests', [$brokerCoCtrl, 'projectRequests']);
+        Route::get('/broker-companies/{id}', [$brokerCoCtrl, 'show']);
+        Route::middleware('role:admin')->group(function () use ($brokerCoCtrl) {
+            Route::post('/broker-companies/{id}/approve', [$brokerCoCtrl, 'approve']);
+            Route::post('/broker-companies/{id}/reject', [$brokerCoCtrl, 'reject']);
+            Route::post('/broker-companies/{id}/suspend', [$brokerCoCtrl, 'suspend']);
+            Route::post('/broker-companies/{id}/projects', [$brokerCoCtrl, 'assignProjects']);
+            Route::post('/broker-companies/{id}/projects/{projectId}/respond', [$brokerCoCtrl, 'respondProjectRequest']);
+            Route::delete('/broker-companies/{id}/projects/{projectId}', [$brokerCoCtrl, 'removeProject']);
+        });
+
         // ── VoIP Call Logs (Authenticated Dashboard) ──
         Route::get('/calls', [VoipCallController::class, 'index']);
 
@@ -370,7 +411,7 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/stats', [InventoryController::class, 'getStats']);
 
         // ── Client-facing financial operations ──
-        Route::middleware('role:client')->group(function () {
+        Route::middleware('role:client,company_sales,admin,sales_agent,broker')->group(function () {
             Route::post('/units/{id}/reserve', [InventoryController::class, 'reserveUnit']);
             Route::post('/charge', [PaymentController::class, 'chargeInstallment']);
         });

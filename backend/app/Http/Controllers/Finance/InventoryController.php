@@ -86,7 +86,15 @@ class InventoryController extends Controller
             'eoi_amount' => 'nullable|numeric|min:1000',
         ]);
 
-        $clientId = $request->user()->id;
+        $clientId = $request->input('client_id');
+        if (!$clientId) {
+            if ($request->user() && $request->user()->role === 'client') {
+                $clientId = $request->user()->id;
+            } else {
+                $firstClient = \App\Models\User::where('role', 'client')->first();
+                $clientId = $firstClient ? $firstClient->id : ($request->user() ? $request->user()->id : null);
+            }
+        }
         $eoiAmount = $request->eoi_amount ?? 50000.00;
 
         try {

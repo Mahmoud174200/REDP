@@ -195,6 +195,7 @@ class ApprovalEngine
         }
 
         $entityMetadata = $instance->metadata ?? [];
+        $result = null;
 
         foreach ($conditions as $cond) {
             $fieldVal = $entityMetadata[$cond->field] ?? null;
@@ -220,15 +221,18 @@ class ApprovalEngine
                     break;
             }
 
-            if ($cond->logic === 'or' && $match) {
-                return true;
-            }
-            if ($cond->logic === 'and' && !$match) {
-                return false;
+            if ($result === null) {
+                $result = $match;
+            } else {
+                if ($cond->logic === 'or') {
+                    $result = $result || $match;
+                } else {
+                    $result = $result && $match;
+                }
             }
         }
 
-        return true; // Default
+        return (bool) $result;
     }
 
     /**

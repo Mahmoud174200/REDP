@@ -5,11 +5,13 @@ import ClientLogin from './pages/auth/ClientLogin';
 import DashboardLayout from './components/DashboardLayout';
 import LandingPage from './pages/public/LandingPage';
 import InteractiveUnitSelection from './pages/public/InteractiveUnitSelection';
+import BrokerCompanyRegister from './pages/public/BrokerCompanyRegister';
 
 // 🟠 Acquisition Pages
 import Leads from './pages/acquisition/Leads';
 import CrmKanban from './pages/acquisition/CrmKanban';
 import Brokers from './pages/acquisition/Brokers';
+import BrokerCompanies from './pages/acquisition/BrokerCompanies';
 import KycApprovals from './pages/acquisition/KycApprovals';
 import Campaigns from './pages/acquisition/Campaigns';
 import EoiReservations from './pages/acquisition/EoiReservations';
@@ -17,6 +19,7 @@ import EoiReservations from './pages/acquisition/EoiReservations';
 // 🔶 Tiered Sales Portals
 import TeleSalesPortal from './pages/sales/TeleSalesPortal';
 import BrokerPortal from './pages/sales/BrokerPortal';
+import BrokerCompanyManagement from './pages/sales/BrokerCompanyManagement';
 import BookingPriorities from './pages/sales/BookingPriorities';
 import CompanySalesPortal from './pages/sales/CompanySalesPortal';
 import CompanySalesFlow from './pages/sales/CompanySalesFlow';
@@ -40,6 +43,7 @@ import Workflows from './pages/delivery/Workflows';
 
 // 👑 Admin Pages
 import AdminPanel from './pages/admin/AdminPanel';
+import MenuSettings from './pages/admin/MenuSettings';
 import CampaignsPage from './pages/admin/CampaignsPage';
 import MasterPlanPage from './pages/admin/MasterPlanPage';
 
@@ -166,6 +170,9 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/client-login" element={<ClientLogin />} />
 
+        {/* 🏢 Public Broker Agency Registration */}
+        <Route path="/broker-company/register" element={<BrokerCompanyRegister />} />
+
         {/* 🏠 Public Landing Page */}
         <Route path="/" element={<><LandingPage /><AnamAgent /></>} />
 
@@ -179,6 +186,7 @@ const App: React.FC = () => {
         <Route path="/acquisition/leads" element={<DashboardWrapper><Leads /></DashboardWrapper>} />
         <Route path="/acquisition/crm" element={<DashboardWrapper><CrmKanban /></DashboardWrapper>} />
         <Route path="/acquisition/brokers" element={<DashboardWrapper><Brokers /></DashboardWrapper>} />
+        <Route path="/acquisition/broker-companies" element={<DashboardWrapper><BrokerCompanies /></DashboardWrapper>} />
         <Route path="/acquisition/kyc" element={<DashboardWrapper><KycApprovals /></DashboardWrapper>} />
         <Route path="/acquisition/campaigns" element={<DashboardWrapper><Campaigns /></DashboardWrapper>} />
         <Route path="/acquisition/eoi-reservations" element={<DashboardWrapper><EoiReservations /></DashboardWrapper>} />
@@ -186,6 +194,7 @@ const App: React.FC = () => {
         {/* 🔶 Tiered Sales Portals */}
         <Route path="/sales/tele/dashboard" element={<DashboardWrapper><TeleSalesPortal /></DashboardWrapper>} />
         <Route path="/sales/broker/dashboard" element={<DashboardWrapper><BrokerPortal /></DashboardWrapper>} />
+        <Route path="/sales/broker/company" element={<DashboardWrapper><BrokerCompanyManagement /></DashboardWrapper>} />
         <Route path="/sales/priorities" element={<DashboardWrapper><BookingPriorities /></DashboardWrapper>} />
         <Route path="/sales/company/dashboard" element={<DashboardWrapper><CompanySalesFlow /></DashboardWrapper>} />
         <Route path="/sales/company/legacy" element={<DashboardWrapper><CompanySalesPortal /></DashboardWrapper>} />
@@ -209,6 +218,7 @@ const App: React.FC = () => {
 
         {/* 👑 Admin routes */}
         <Route path="/admin/panel" element={<DashboardWrapper><AdminPanel /></DashboardWrapper>} />
+        <Route path="/admin/menu-settings" element={<DashboardWrapper><MenuSettings /></DashboardWrapper>} />
         <Route path="/admin/campaigns" element={<DashboardWrapper><CampaignsPage /></DashboardWrapper>} />
         <Route path="/admin/master-plan/:projectId" element={<DashboardWrapper><MasterPlanPage /></DashboardWrapper>} />
 

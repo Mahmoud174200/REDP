@@ -24,17 +24,17 @@ interface Delegation { id: string; delegator_id: string; delegate_id: string; ty
 
 type Tab = 'companies' | 'countries' | 'regions' | 'branches' | 'departments' | 'teams' | 'positions' | 'hierarchy' | 'delegations' | 'commissions';
 
-const tabs: { key: Tab; label: string; icon: any }[] = [
-  { key: 'companies', label: 'Companies', icon: Building2 },
-  { key: 'countries', label: 'Countries', icon: Globe },
-  { key: 'regions', label: 'Regions', icon: MapPin },
-  { key: 'branches', label: 'Branches', icon: GitBranch },
-  { key: 'departments', label: 'Departments', icon: Network },
-  { key: 'teams', label: 'Teams', icon: Users },
-  { key: 'positions', label: 'Positions', icon: Briefcase },
-  { key: 'hierarchy', label: 'Hierarchy', icon: ArrowRight },
-  { key: 'delegations', label: 'Delegations', icon: Shield },
-  { key: 'commissions', label: 'Commissions', icon: Percent },
+const tabs: { key: Tab; label: string; singular: string; icon: any }[] = [
+  { key: 'companies', label: 'Companies', singular: 'Company', icon: Building2 },
+  { key: 'countries', label: 'Countries', singular: 'Country', icon: Globe },
+  { key: 'regions', label: 'Regions', singular: 'Region', icon: MapPin },
+  { key: 'branches', label: 'Branches', singular: 'Branch', icon: GitBranch },
+  { key: 'departments', label: 'Departments', singular: 'Department', icon: Network },
+  { key: 'teams', label: 'Teams', singular: 'Team', icon: Users },
+  { key: 'positions', label: 'Positions', singular: 'Position', icon: Briefcase },
+  { key: 'hierarchy', label: 'Hierarchy', singular: 'Hierarchy Assignment', icon: ArrowRight },
+  { key: 'delegations', label: 'Delegations', singular: 'Delegation', icon: Shield },
+  { key: 'commissions', label: 'Commissions', singular: 'Commission Rule', icon: Percent },
 ];
 
 // ── Generic Modal ──
@@ -743,7 +743,7 @@ const OrganizationManagement: React.FC = () => {
         </div>
         <button className="btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={16} />
-          Add {tabObj.label.slice(0, -1)}
+          Add {tabObj.singular}
         </button>
       </div>
 
@@ -757,7 +757,7 @@ const OrganizationManagement: React.FC = () => {
       </div>
 
       {/* Modal */}
-      <Modal open={modalOpen} title={`${editItem ? 'Edit' : 'New'} ${tabObj.label.slice(0, -1)}`} onClose={closeModal}>
+      <Modal open={modalOpen} title={`${editItem ? 'Edit' : 'New'} ${tabObj.singular}`} onClose={closeModal}>
         {renderForm()}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button className="btn-primary" onClick={handleSave} style={{ flex: 1 }}>

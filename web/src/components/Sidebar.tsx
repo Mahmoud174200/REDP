@@ -6,6 +6,7 @@ import {
   LogOut, Bell, BarChart3, Wrench, FileSearch, ShieldAlert, TrendingUp, X, Terminal,
   AlertTriangle, CreditCard, Phone, Handshake, Network, Shield, GitBranch, CheckSquare, MessageSquare, FolderTree, Award, Brain, Globe, Hammer
 } from 'lucide-react';
+import { menuItems } from '../config/sidebarMenu';
 
 interface SidebarProps {
   userRole: string;
@@ -17,10 +18,28 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Broker sub-role (owner/leader/agent) — inferred from the linked org position,
+  // used to reveal owner-only navigation (e.g. Company Management).
+  const brokerIsOwner = React.useMemo(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('redp_user') || '{}');
+      const code = u?.employeeHierarchy?.position?.code || u?.position?.code || '';
+      const title = u?.employeeHierarchy?.position?.title || u?.position?.title || '';
+      return code === 'POS-DH' || /Owner|Head|CEO/i.test(title);
+    } catch { return false; }
+  }, []);
+
   const [systemName, setSystemName] = React.useState(localStorage.getItem('system_name') || 'Ether REDP');
   const [systemLogoUrl, setSystemLogoUrl] = React.useState(localStorage.getItem('system_logo_url') || '');
   const [systemIconName, setSystemIconName] = React.useState(localStorage.getItem('system_icon_name') || 'Building2');
   const [systemIconUrl, setSystemIconUrl] = React.useState(localStorage.getItem('system_icon_url') || '');
+
+  // Admin-managed sidebar visibility (paths hidden or deleted from the menu).
+  const readCachedPaths = (key: string): string[] => {
+    try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+  };
+  const [hiddenPaths, setHiddenPaths] = React.useState<string[]>(() => readCachedPaths('sidebar_hidden'));
+  const [deletedPaths, setDeletedPaths] = React.useState<string[]>(() => readCachedPaths('sidebar_deleted'));
 
   React.useEffect(() => {
     const fetchSystemInfo = async () => {
@@ -36,6 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
           localStorage.setItem('system_logo_url', system_logo_url || '');
           localStorage.setItem('system_icon_name', system_icon_name || 'Building2');
           localStorage.setItem('system_icon_url', system_icon_url || '');
+
+          // Admin-managed sidebar visibility
+          const hidden = Array.isArray(res.data.data.sidebar_hidden) ? res.data.data.sidebar_hidden : [];
+          const deleted = Array.isArray(res.data.data.sidebar_deleted) ? res.data.data.sidebar_deleted : [];
+          setHiddenPaths(hidden);
+          setDeletedPaths(deleted);
+          localStorage.setItem('sidebar_hidden', JSON.stringify(hidden));
+          localStorage.setItem('sidebar_deleted', JSON.stringify(deleted));
         }
       } catch (err) {
         console.error('Failed to fetch system info:', err);
@@ -51,105 +78,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
     navigate('/login');
   };
 
-  const menuItems = [
-    {
-      title: 'Tier 1: Tele-Sales',
-      roles: ['admin', 'tele_sales'],
-      items: [
-        { name: 'Tele-Sales Portal', path: '/sales/tele/dashboard', icon: Phone }
-      ]
-    },
-    {
-      title: 'Tier 2: Broker Portal',
-      roles: ['admin', 'broker'],
-      items: [
-        { name: 'Broker Dashboard', path: '/sales/broker/dashboard', icon: Handshake }
-      ]
-    },
-    {
-      title: 'Tier 3: Company Sales',
-      roles: ['admin', 'company_sales'],
-      items: [
-        { name: 'Company Sales Portal', path: '/sales/company/dashboard', icon: Building2 }
-      ]
-    },
-    {
-      title: 'Acquisition',
-      roles: ['admin', 'sales_agent', 'company_sales'],
-      items: [
-        { name: 'Leads & Appointments', path: '/acquisition/leads', icon: Users },
-        { name: 'CRM Pipeline', path: '/acquisition/crm', icon: 'fa-solid fa-chart-simple' },
-        { name: 'Broker Portal', path: '/acquisition/brokers', icon: 'fa-solid fa-handshake' },
-        { name: 'KYC Approvals', path: '/acquisition/kyc', icon: 'fa-solid fa-shield-halved' },
-        { name: 'Campaigns Analytics', path: '/acquisition/campaigns', icon: 'fa-solid fa-bullhorn' },
-        { name: 'EOI Reservations', path: '/acquisition/eoi-reservations', icon: FileText },
-      ]
-    },
-    {
-      title: 'Finance & Contracts',
-      roles: ['admin', 'finance_officer', 'company_sales', 'executive'],
-      items: [
-        { name: 'Units Inventory', path: '/finance/inventory', icon: Building2, roles: ['admin', 'company_sales', 'broker', 'executive'] },
-        { name: 'Reserved Units', path: '/finance/reserved', icon: ShieldCheck, roles: ['admin', 'finance_officer', 'company_sales', 'broker', 'executive'] },
-        { name: 'Financial Overview', path: '/finance/payments', icon: CreditCard, roles: ['admin', 'finance_officer', 'executive'] },
-        { name: 'Plan Approvals', path: '/finance/plan-approvals', icon: CheckSquare, roles: ['admin', 'finance_officer'] },
-        { name: 'Contracts Vault', path: '/finance/contracts', icon: FileText, roles: ['admin', 'finance_officer', 'company_sales', 'executive'] },
-        { name: 'Collections Queue', path: '/finance/collections', icon: AlertTriangle, roles: ['admin', 'finance_officer', 'executive'] },
-      ]
-    },
-    {
-      title: 'Delivery & Platform',
-      roles: ['admin', 'delivery_engineer', 'handover_officer', 'client', 'project_manager', 'maintenance_manager', 'executive'],
-      items: [
-        { name: 'Handovers Control', path: '/delivery/overview', icon: Building2, roles: ['admin', 'handover_officer', 'client', 'executive'] },
-        { name: 'Maintenance Tickets', path: '/delivery/maintenance', icon: Wrench, roles: ['admin', 'delivery_engineer', 'maintenance_manager'] },
-        { name: 'My Handover Tasks', path: '/delivery/handover', icon: ShieldCheck, roles: ['admin', 'delivery_engineer', 'project_manager'] },
-        { name: 'Documents Vault', path: '/delivery/documents', icon: FileText, roles: ['admin', 'handover_officer', 'client', 'executive'] },
-        { name: 'BI Analytics', path: '/delivery/analytics', icon: BarChart3, roles: ['admin', 'handover_officer', 'project_manager', 'executive'] },
-        { name: 'Visual Workflows', path: '/delivery/workflows', icon: Terminal, roles: ['admin', 'handover_officer', 'project_manager'] },
-      ]
-    },
-    {
-      title: 'System Settings',
-      roles: ['admin'],
-      items: [
-        { name: 'Admin Control Panel', path: '/admin/panel', icon: Settings, roles: ['admin'] },
-        { name: 'Marketing Campaigns', path: '/admin/campaigns', icon: Bell, roles: ['admin'] }
-      ]
-    },
-    {
-      title: 'Enterprise',
-      roles: ['admin', 'executive', 'project_manager', 'finance_officer', 'legal_officer', 'company_sales'],
-      items: [
-        { name: 'Organization', path: '/enterprise/organization', icon: Network, roles: ['admin', 'executive'] },
-        { name: 'RBAC Engine', path: '/enterprise/rbac', icon: Shield, roles: ['admin'] },
-        { name: 'Approval Workflows', path: '/enterprise/workflows', icon: CheckSquare, roles: ['admin', 'executive'] },
-        { name: 'Legal Disputes', path: '/enterprise/legal', icon: FileText, roles: ['admin', 'executive', 'legal_officer'] },
-        { name: 'Customer 360', path: '/enterprise/customer360', icon: Users, roles: ['admin', 'executive', 'company_sales'] },
-        { name: 'Task Board', path: '/enterprise/tasks', icon: CheckSquare, roles: ['admin', 'executive', 'project_manager'] },
-        { name: 'Message Hub', path: '/enterprise/messages', icon: MessageSquare, roles: ['admin', 'executive'] },
-        { name: 'Audit Logs', path: '/enterprise/audit', icon: ShieldAlert, roles: ['admin'] },
-        { name: 'Chart of Accounts', path: '/enterprise/accounting/chart', icon: FolderTree, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'Journal Vouchers', path: '/enterprise/accounting/entries', icon: FileText, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'Financial Reports', path: '/enterprise/accounting/reports', icon: BarChart3, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'Expense Budgets', path: '/enterprise/accounting/budgets', icon: Award, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'Purchase Requests', path: '/enterprise/procurement/requests', icon: FileText, roles: ['admin', 'executive', 'finance_officer', 'project_manager'] },
-        { name: 'Requests for Quote (RFQ)', path: '/enterprise/procurement/rfqs', icon: MessageSquare, roles: ['admin', 'executive', 'project_manager'] },
-        { name: 'Purchase Orders (PO)', path: '/enterprise/procurement/orders', icon: FileText, roles: ['admin', 'executive', 'project_manager'] },
-        { name: 'Goods Receipts', path: '/enterprise/procurement/receipts', icon: CheckSquare, roles: ['admin', 'executive', 'project_manager'] },
-        { name: 'Vendor Invoices', path: '/enterprise/procurement/invoices', icon: Wallet, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'Commission Rules', path: '/enterprise/commission/rules', icon: Award, roles: ['admin', 'executive'] },
-        { name: 'Commission Ledger', path: '/enterprise/commission/ledger', icon: FileText, roles: ['admin', 'executive'] },
-        { name: 'Commission Payouts', path: '/enterprise/commission/payouts', icon: Wallet, roles: ['admin', 'executive', 'finance_officer'] },
-        { name: 'AI Predictive Operations', path: '/enterprise/ai', icon: Brain, roles: ['admin', 'executive'] },
-        { name: 'Executive BI Dashboard', path: '/enterprise/dashboard', icon: TrendingUp, roles: ['admin', 'executive'] },
-        { name: 'SaaS Tenant Config', path: '/enterprise/tenant', icon: Shield, roles: ['admin'] },
-        { name: 'Globalization & i18n', path: '/enterprise/globalization', icon: Globe, roles: ['admin'] },
-        { name: 'Construction Progress', path: '/enterprise/construction', icon: Hammer, roles: ['admin', 'executive', 'project_manager'] },
-        { name: 'Quality Inspections', path: '/enterprise/quality', icon: ShieldCheck, roles: ['admin', 'executive', 'project_manager', 'delivery_engineer'] },
-      ]
-    }
-  ];
+  // Sidebar menu is defined in ../config/sidebarMenu (shared with the admin
+  // "Menu Settings" page). Hidden/deleted paths come from system settings.
+  const hiddenSet = new Set(hiddenPaths);
+  const deletedSet = new Set(deletedPaths);
 
   return (
     <aside
@@ -241,15 +173,25 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, menuOpen = false, onClose }
             const hasAccess = section.roles.includes(userRole) || userRole === 'admin';
             if (!hasAccess) return null;
 
+            // Resolve the items this user can actually see (role + owner + admin-managed visibility)
+            const visibleItems = section.items.filter((item) => {
+              const hasItemAccess = !(item as any).roles || (item as any).roles.includes(userRole) || userRole === 'admin';
+              if (!hasItemAccess) return false;
+              if ((item as any).brokerOwnerOnly && userRole !== 'admin' && !brokerIsOwner) return false;
+              if (!(item as any).locked && (hiddenSet.has(item.path) || deletedSet.has(item.path))) return false;
+              return true;
+            });
+
+            // Skip the whole section (and its header) when nothing is visible
+            if (visibleItems.length === 0) return null;
+
             return (
               <div key={idx}>
                 <h3 style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.12em', marginBottom: '6px', paddingLeft: '10px' }}>
                   {section.title}
                 </h3>
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {section.items.map((item) => {
-                    const hasItemAccess = !(item as any).roles || (item as any).roles.includes(userRole) || userRole === 'admin';
-                    if (!hasItemAccess) return null;
+                  {visibleItems.map((item) => {
                     const isActive = location.pathname === item.path;
                     const Icon = item.icon;
                     return (

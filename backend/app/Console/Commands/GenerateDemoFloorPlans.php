@@ -77,10 +77,7 @@ class GenerateDemoFloorPlans extends Command
             [$building, $floor] = explode('|', $key);
             $placements = $this->floorPlacements(count($groupUnits));
 
-            $floorSvg = $this->buildFloorPlanSvg($building, (int) $floor, $groupUnits, $placements);
-            $slug = Str::slug($building) ?: 'building';
-            $floorPath = "projects/{$projectId}/floors/plan-{$slug}-{$floor}.svg";
-            Storage::disk('public')->put($floorPath, $floorSvg);
+            $floorPath = 'layouts/istockphoto-1260071659-612x612.jpg';
 
             ProjectMedia::updateOrCreate(
                 ['project_id' => $projectId, 'media_type' => 'floor_plan', 'reference_key' => $key],
@@ -94,17 +91,13 @@ class GenerateDemoFloorPlans extends Command
                     'x' => round($p['x'], 2), 'y' => round($p['y'], 2),
                     'w' => round($p['w'], 2), 'h' => round($p['h'], 2),
                 ];
-                if (!$u->layout_image_url || $this->option('force')) {
-                    $aptPath = "projects/{$projectId}/units/apt-{$u->id}.svg";
-                    Storage::disk('public')->put($aptPath, $this->buildApartmentSvg($u));
-                    $u->layout_image_url = $aptPath;
-                }
+                $u->layout_image_url = 'layouts/images.png';
                 $u->save();
                 $unitCount++;
             }
         }
 
-        $this->info("Done. {$floorCount} floor plans, {$unitCount} apartments, building image shared across all buildings.");
+        $this->info("Done. {$floorCount} floor plans updated, {$unitCount} apartments updated to global layout.");
         return self::SUCCESS;
     }
 

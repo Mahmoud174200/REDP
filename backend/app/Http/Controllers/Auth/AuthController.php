@@ -70,6 +70,25 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // ── Broker agency vetting gate ──
+        // Brokers belonging to an unapproved / suspended agency (or whose own
+        // account was deactivated) cannot sign in until an admin activates them.
+        if ($user->role === 'broker' && in_array($user->status, ['pending', 'inactive', 'suspended', 'rejected'], true)) {
+            $company = $user->company_id ? \App\Models\Company::find($user->company_id) : null;
+            $message = match ($company?->approval_status) {
+                \App\Models\Company::APPROVAL_PENDING   => 'Your broker agency registration is still pending admin review. You will be able to sign in once it is approved.',
+                \App\Models\Company::APPROVAL_REJECTED  => 'Your broker agency registration was not approved. Please contact support for details.',
+                \App\Models\Company::APPROVAL_SUSPENDED => 'Your broker agency account is currently suspended. Please contact support.',
+                default => 'Your broker account is not active. Please contact your agency manager or support.',
+            };
+
+            return response()->json([
+                'success'         => false,
+                'message'         => $message,
+                'approval_status' => $company?->approval_status ?? $user->status,
+            ], 403);
+        }
+
         $user->load(['company', 'department', 'team', 'position', 'employeeHierarchy.position', 'employeeHierarchy.team', 'broker']);
         $token = $user->createToken('redp_token')->plainTextToken;
 

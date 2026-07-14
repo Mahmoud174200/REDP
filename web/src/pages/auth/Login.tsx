@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, KeyRound, Mail, UserCheck, User, Phone, Check, Sparkles, Shield, ArrowRight, Compass } from 'lucide-react';
+import {
+  Building2, KeyRound, Mail, User, Phone, Sparkles, Shield, ArrowRight, Compass,
+  Crown, Briefcase, Users, UserRound, Headset, PhoneCall, Headphones, Store, Handshake, Laptop,
+  Wallet, HardHat, Truck, Wrench, Scale, House
+} from 'lucide-react';
 import api from '../../services/api';
 
 const Login: React.FC = () => {
@@ -134,6 +138,65 @@ const Login: React.FC = () => {
     setConfirmPassword('password');
   };
 
+  // Sandbox quick-fill profiles, grouped by department with color-coded accents & vector icons.
+  const quickFillGroups = [
+    {
+      label: 'Admin & Executive',
+      accent: '#b45309',
+      soft: 'rgba(180, 83, 9, 0.12)',
+      items: [
+        { key: 'admin', label: 'Admin', Icon: Crown },
+        { key: 'executive', label: 'Executive', Icon: Briefcase },
+      ],
+    },
+    {
+      label: 'Commercial Sales',
+      accent: '#003DA6',
+      soft: 'rgba(0, 61, 166, 0.12)',
+      items: [
+        { key: 'company_sales', label: 'Co-Sales Head', Icon: Building2 },
+        { key: 'company_sales_leader', label: 'Sales Leader', Icon: Users },
+        { key: 'company_sales_agent', label: 'Sales Agent', Icon: UserRound },
+        { key: 'sales_agent', label: 'Direct Agent', Icon: Headset },
+        { key: 'tele_sales', label: 'Tele-Sales Agent', Icon: Phone },
+        { key: 'tele_sales_manager', label: 'Tele-Sales Mgr', Icon: PhoneCall },
+        { key: 'tele_sales_head', label: 'Tele-Sales Head', Icon: Headphones },
+      ],
+    },
+    {
+      label: 'External Brokers',
+      accent: '#ea580c',
+      soft: 'rgba(234, 88, 12, 0.12)',
+      items: [
+        { key: 'broker_owner', label: 'Broker Owner', Icon: Store },
+        { key: 'broker_team_leader', label: 'Team Leader', Icon: Users },
+        { key: 'broker', label: 'Broker Agent', Icon: Handshake },
+        { key: 'freelance_broker', label: 'Freelancer', Icon: Laptop },
+      ],
+    },
+    {
+      label: 'Finance, Ops & Support',
+      accent: '#0f766e',
+      soft: 'rgba(15, 118, 110, 0.12)',
+      items: [
+        { key: 'finance_officer', label: 'Accounts', Icon: Wallet },
+        { key: 'project_manager', label: 'Project Mgr', Icon: HardHat },
+        { key: 'delivery_engineer', label: 'Delivery', Icon: Truck },
+        { key: 'handover', label: 'Handover', Icon: KeyRound },
+        { key: 'maintenance_manager', label: 'Facilities', Icon: Wrench },
+        { key: 'legal_officer', label: 'Legal', Icon: Scale },
+      ],
+    },
+    {
+      label: 'Client Portal',
+      accent: '#0891b2',
+      soft: 'rgba(8, 145, 178, 0.12)',
+      items: [
+        { key: 'client', label: 'Homeowner', Icon: House },
+      ],
+    },
+  ];
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -166,31 +229,89 @@ const Login: React.FC = () => {
           -ms-overflow-style: none !important;  /* IE and Edge */
           scrollbar-width: none !important;  /* Firefox */
         }
-        .quick-fill-btn {
-          border: 1px solid rgba(0, 15, 61, 0.08);
-          background: rgba(255, 255, 255, 0.85);
-          color: #0f172a;
-          border-radius: 20px;
-          padding: 6px 14px;
-          font-size: 0.72rem;
-          font-weight: 600;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0, 15, 61, 0.02);
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        /* ===== Quick-Fill Sandbox Profiles ===== */
+        .qf-panel {
+          padding: 16px;
+          border-radius: 18px;
+          background: linear-gradient(180deg, rgba(0,61,166,0.025) 0%, rgba(0,61,166,0.004) 100%);
+          border: 1px solid rgba(0, 61, 166, 0.08);
+          box-shadow: inset 0 1px 2px rgba(255,255,255,0.7);
+          max-height: 250px;
+          overflow-y: auto;
+        }
+        .qf-panel::-webkit-scrollbar { width: 5px; }
+        .qf-panel::-webkit-scrollbar-track { background: transparent; }
+        .qf-panel::-webkit-scrollbar-thumb { background: rgba(0,61,166,0.14); border-radius: 10px; }
+        .qf-title {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
+          font-size: 0.66rem;
+          text-transform: uppercase;
+          color: #003DA6;
+          font-weight: 800;
+          letter-spacing: 0.09em;
+          font-family: var(--font-title);
+          margin-bottom: 14px;
         }
-        .quick-fill-btn:hover {
-          background: #003DA6;
+        .qf-cat {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 0.56rem;
+          font-weight: 800;
+          letter-spacing: 0.11em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          margin-bottom: 7px;
+        }
+        .qf-cat::before {
+          content: '';
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--accent, #003DA6);
+          box-shadow: 0 0 0 3px var(--accentSoft, rgba(0,61,166,0.12));
+        }
+        .qf-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 5px 13px 5px 5px;
+          background: #ffffff;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+          border-radius: 13px;
+          cursor: pointer;
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #334155;
+          font-family: var(--font-body);
+          box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .qf-chip .qf-ico {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 9px;
+          background: var(--accentSoft);
+          color: var(--accent);
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .qf-chip:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 18px var(--accentSoft);
+        }
+        .qf-chip:hover .qf-ico {
+          background: var(--accent);
           color: #ffffff;
-          border-color: #003DA6;
-          transform: translateY(-1.5px);
-          box-shadow: 0 4px 12px rgba(0, 61, 166, 0.2);
+          transform: scale(1.06);
         }
-        .quick-fill-btn:active {
-          transform: translateY(0);
-        }
+        .qf-chip:active { transform: translateY(0); }
         .luxury-input-group {
           position: relative;
           transition: all 0.3s ease;
@@ -595,83 +716,40 @@ const Login: React.FC = () => {
             </button>
           </div>
 
-          {/* Quick-Fill Profiles section - Styled as luxury tags */}
+          {/* Quick-Fill Profiles section - Premium color-coded chips with vector icons */}
           {!isRegister && (
-            <div
-              style={{
-                padding: '14px',
-                borderRadius: '16px',
-                background: 'rgba(0, 61, 166, 0.01)',
-                border: '1px solid rgba(0, 61, 166, 0.05)',
-                boxShadow: 'inset 0 1px 1px rgba(0, 61, 166, 0.01)',
-                maxHeight: '220px',
-                overflowY: 'auto'
-              }}
-            >
-              <h4 style={{
-                fontSize: '0.65rem',
-                textTransform: 'uppercase',
-                color: '#003DA6',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                marginBottom: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <UserCheck style={{ width: '12px', height: '12px', color: '#003DA6' }} />
+            <div className="qf-panel">
+              <h4 className="qf-title">
+                <Sparkles style={{ width: '13px', height: '13px', color: '#003DA6' }} />
                 Quick-Fill Sandbox Profiles
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>ADMIN & EXECUTIVE</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    <button type="button" onClick={() => fillProfile('admin')} className="quick-fill-btn">👑 Admin</button>
-                    <button type="button" onClick={() => fillProfile('executive')} className="quick-fill-btn">👔 Executive</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {quickFillGroups.map((group) => (
+                  <div key={group.label}>
+                    <span
+                      className="qf-cat"
+                      style={{ '--accent': group.accent, '--accentSoft': group.soft } as React.CSSProperties}
+                    >
+                      {group.label}
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                      {group.items.map(({ key, label, Icon }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => fillProfile(key)}
+                          className="qf-chip"
+                          style={{ '--accent': group.accent, '--accentSoft': group.soft } as React.CSSProperties}
+                        >
+                          <span className="qf-ico">
+                            <Icon size={13} strokeWidth={2.4} />
+                          </span>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>COMMERCIAL SALES</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    <button type="button" onClick={() => fillProfile('company_sales')} className="quick-fill-btn">🏢 Co-Sales Head</button>
-                    <button type="button" onClick={() => fillProfile('company_sales_leader')} className="quick-fill-btn">🏢 Sales Leader</button>
-                    <button type="button" onClick={() => fillProfile('company_sales_agent')} className="quick-fill-btn">🏢 Sales Agent</button>
-                    <button type="button" onClick={() => fillProfile('sales_agent')} className="quick-fill-btn">🟠 Direct Agent</button>
-                    <button type="button" onClick={() => fillProfile('tele_sales')} className="quick-fill-btn">📞 Tele-Sales Agent</button>
-                    <button type="button" onClick={() => fillProfile('tele_sales_manager')} className="quick-fill-btn">📞 Tele-Sales Mgr</button>
-                    <button type="button" onClick={() => fillProfile('tele_sales_head')} className="quick-fill-btn">📞 Tele-Sales Head</button>
-                  </div>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>EXTERNAL BROKERS</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    <button type="button" onClick={() => fillProfile('broker_owner')} className="quick-fill-btn">🍊 Broker Owner</button>
-                    <button type="button" onClick={() => fillProfile('broker_team_leader')} className="quick-fill-btn">🍊 Team Leader</button>
-                    <button type="button" onClick={() => fillProfile('broker')} className="quick-fill-btn">🍊 Broker Agent</button>
-                    <button type="button" onClick={() => fillProfile('freelance_broker')} className="quick-fill-btn">🍊 Freelancer</button>
-                  </div>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>FINANCE, OPS & SUPPORT</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    <button type="button" onClick={() => fillProfile('finance_officer')} className="quick-fill-btn">🔵 Accounts</button>
-                    <button type="button" onClick={() => fillProfile('project_manager')} className="quick-fill-btn">🏗️ Project Mgr</button>
-                    <button type="button" onClick={() => fillProfile('delivery_engineer')} className="quick-fill-btn">🟢 Delivery</button>
-                    <button type="button" onClick={() => fillProfile('handover')} className="quick-fill-btn">🤝 Handover</button>
-                    <button type="button" onClick={() => fillProfile('maintenance_manager')} className="quick-fill-btn">🔧 Facilities</button>
-                    <button type="button" onClick={() => fillProfile('legal_officer')} className="quick-fill-btn">⚖️ Legal</button>
-                  </div>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 800, display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>CLIENT PORTAL</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    <button type="button" onClick={() => fillProfile('client')} className="quick-fill-btn">🐳 Homeowner</button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           )}
@@ -824,6 +902,28 @@ const Login: React.FC = () => {
               {!loading && <ArrowRight style={{ width: '14px', height: '14px', marginLeft: '2px' }} />}
             </button>
           </form>
+
+          {/* Broker Agency Registration CTA */}
+          {!isRegister && (
+            <div style={{
+              textAlign: 'center',
+              padding: '12px 14px',
+              borderRadius: '12px',
+              background: 'rgba(0, 61, 166, 0.03)',
+              border: '1px solid rgba(0, 61, 166, 0.08)'
+            }}>
+              <p style={{ fontSize: '0.76rem', color: '#64748b', margin: 0 }}>
+                Are you a brokerage agency?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/broker-company/register')}
+                  style={{ background: 'none', border: 'none', color: '#003DA6', fontWeight: 700, cursor: 'pointer', padding: 0, fontSize: '0.76rem' }}
+                >
+                  Register your agency →
+                </button>
+              </p>
+            </div>
+          )}
 
           {/* Elegant Footer */}
           <div style={{ textAlign: 'center', marginTop: '4px' }}>

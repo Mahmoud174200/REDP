@@ -61,9 +61,9 @@ class Customer360Service
 
         // 3. Reservations
         $reservations = collect();
-        if ($leadId) {
+        if ($clientId) {
             $reservations = Reservation::with('unit.project')
-                ->where('lead_id', $leadId)
+                ->where('client_id', $clientId)
                 ->orderBy('created_at', 'desc')
                 ->get();
         }

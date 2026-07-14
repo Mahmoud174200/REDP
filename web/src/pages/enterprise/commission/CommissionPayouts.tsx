@@ -122,6 +122,36 @@ const CommissionPayouts: React.FC = () => {
         </div>
       </div>
 
+      {/* Commission Process Guide Banner */}
+      <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)', marginBottom: 24, background: 'rgba(139, 92, 246, 0.04)', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#8b5cf6', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          💡 Payout Batches Life Cycle & Status Guide
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[
+            { step: 'A', title: 'Batch Created', desc: 'Calculations are bundled from ledger with status "Pending Approval".' },
+            { step: 'B', title: 'Route Workflows', desc: 'Sent dynamically through configured enterprise approval workflow stages.' },
+            { step: 'C', title: 'Approved', desc: 'Once approved by all validators, status advances to "Approved".' },
+            { step: 'D', title: 'Disburse', desc: 'Finance officer triggers "Disburse" to release funds via Bank/Stripe.' }
+          ].map((s, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, borderRadius: '50%',
+                background: '#8b5cf6', color: '#fff',
+                fontSize: '0.72rem', fontWeight: 800, flexShrink: 0
+              }}>
+                {s.step}
+              </span>
+              <div>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 2 }}>{s.title}</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="glass-panel" style={{ padding: 16, borderRadius: 'var(--radius-lg)', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '40%' }}>

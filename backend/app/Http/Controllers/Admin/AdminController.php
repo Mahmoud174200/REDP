@@ -195,6 +195,12 @@ class AdminController extends Controller
         // Demo mode flag (exposed publicly so the landing page can show the demo launcher)
         $configs['demo_mode'] = ($configs['demo_mode'] === 'true' || $configs['demo_mode'] === '1');
 
+        // Sidebar menu visibility (managed by admin, consumed by the sidebar for every role)
+        $hidden  = SystemConfig::where('key', 'sidebar_hidden')->first();
+        $deleted = SystemConfig::where('key', 'sidebar_deleted')->first();
+        $configs['sidebar_hidden']  = $hidden  ? (json_decode($hidden->value, true)  ?: []) : [];
+        $configs['sidebar_deleted'] = $deleted ? (json_decode($deleted->value, true) ?: []) : [];
+
         return response()->json([
             'success' => true,
             'data' => $configs

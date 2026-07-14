@@ -52,14 +52,29 @@ class BrokerSalesController extends Controller
      */
     public function listProjects(Request $request): JsonResponse
     {
-        $projects = Project::withCount('units')
-            ->with(['paymentPlans'])
-            ->orderBy('name')
-            ->get();
+        $user  = $request->user();
+        $query = Project::withCount('units')->with(['paymentPlans'])->orderBy('name');
+
+        // If the broker belongs to a broker agency that has been assigned
+        // specific projects, restrict browsing to those. Agencies with no
+        // assignments yet — and freelance brokers — keep full visibility.
+        if ($user->company_id) {
+            $company = \App\Models\Company::find($user->company_id);
+            if ($company && $company->is_broker_agency) {
+                $approvedProjectIds = \App\Models\BrokerCompanyProject::where('company_id', $company->id)
+                    ->where('status', \App\Models\BrokerCompanyProject::STATUS_APPROVED)
+                    ->pluck('project_id')
+                    ->toArray();
+
+                if (!empty($approvedProjectIds)) {
+                    $query->whereIn('id', $approvedProjectIds);
+                }
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'data'    => $projects,
+            'data'    => $query->get(),
         ]);
     }
 

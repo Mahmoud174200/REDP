@@ -15,11 +15,20 @@ class Company extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    public const APPROVAL_PENDING   = 'pending';
+    public const APPROVAL_ACTIVE    = 'active';
+    public const APPROVAL_REJECTED  = 'rejected';
+    public const APPROVAL_SUSPENDED = 'suspended';
+
     protected $fillable = [
         'id', 'name', 'legal_name', 'registration_number', 'tax_id',
         'type', 'parent_company_id', 'logo_url', 'address', 'city',
         'country_id', 'phone', 'email', 'website', 'status', 'settings',
         'developer_brokerage_rate', 'owner_commission_rate', 'leader_commission_rate', 'agent_commission_rate',
+        // Broker agency fields
+        'is_broker_agency', 'owner_user_id', 'license_no', 'tax_card_path',
+        'commercial_registry_path', 'bank_name', 'bank_iban', 'approval_status',
+        'applied_at', 'approved_at', 'approved_by', 'rejection_reason',
     ];
 
     protected $casts = [
@@ -28,6 +37,9 @@ class Company extends Model
         'owner_commission_rate' => 'float',
         'leader_commission_rate' => 'float',
         'agent_commission_rate' => 'float',
+        'is_broker_agency' => 'boolean',
+        'applied_at' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     // ── Relationships ──
@@ -85,6 +97,39 @@ class Company extends Model
     public function delegations(): HasMany
     {
         return $this->hasMany(Delegation::class);
+    }
+
+    // ── Broker Agency Relationships ──
+
+    /**
+     * The broker owner (manager) user account for this agency.
+     */
+    public function ownerUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    /**
+     * Projects this agency is responsible for (assignment / request pivot).
+     */
+    public function brokerProjects(): HasMany
+    {
+        return $this->hasMany(BrokerCompanyProject::class);
+    }
+
+    public function isBrokerAgency(): bool
+    {
+        return (bool) $this->is_broker_agency;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === self::APPROVAL_ACTIVE;
+    }
+
+    public function scopeBrokerAgencies($query)
+    {
+        return $query->where('is_broker_agency', true);
     }
 
     // ── Computed ──

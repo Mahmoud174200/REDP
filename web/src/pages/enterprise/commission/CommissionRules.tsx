@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import {
-  Award, Plus, Search, Calendar, RefreshCw, Layers
+  Award, Plus, Search, Calendar, RefreshCw, Layers, Edit3, Trash2
 } from 'lucide-react';
 
 interface Project {
@@ -59,6 +59,7 @@ const CommissionRules: React.FC = () => {
 
   // Modals
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -68,7 +69,8 @@ const CommissionRules: React.FC = () => {
     tier_type: 'sales_agent',
     min_deal_size: '',
     max_deal_size: '',
-    commission_percentage: ''
+    commission_percentage: '',
+    status: 'active'
   });
 
   useEffect(() => {
@@ -98,13 +100,22 @@ const CommissionRules: React.FC = () => {
 
   const handleSaveRule = async () => {
     try {
-      await api.post('/v1/enterprise/commissions/rules', {
+      const payload = {
         ...form,
         min_deal_size: form.min_deal_size ? parseFloat(form.min_deal_size) : null,
         max_deal_size: form.max_deal_size ? parseFloat(form.max_deal_size) : null,
-        commission_percentage: parseFloat(form.commission_percentage)
-      });
+        commission_percentage: parseFloat(form.commission_percentage),
+        status: form.status || 'active'
+      };
+
+      if (editingRuleId) {
+        await api.put(`/v1/enterprise/commissions/rules/${editingRuleId}`, payload);
+      } else {
+        await api.post('/v1/enterprise/commissions/rules', payload);
+      }
+
       setModalOpen(false);
+      setEditingRuleId(null);
       setForm({
         title: '',
         project_id: '',
@@ -112,11 +123,37 @@ const CommissionRules: React.FC = () => {
         tier_type: 'sales_agent',
         min_deal_size: '',
         max_deal_size: '',
-        commission_percentage: ''
+        commission_percentage: '',
+        status: 'active'
       });
       loadRules();
     } catch (err: any) {
       alert(err?.response?.data?.message || 'Error saving rule');
+    }
+  };
+
+  const handleEditClick = (rule: Rule) => {
+    setEditingRuleId(rule.id);
+    setForm({
+      title: rule.title,
+      project_id: rule.project_id || '',
+      unit_type: rule.unit_type || '',
+      tier_type: rule.tier_type,
+      min_deal_size: rule.min_deal_size ? parseFloat(rule.min_deal_size).toString() : '',
+      max_deal_size: rule.max_deal_size ? parseFloat(rule.max_deal_size).toString() : '',
+      commission_percentage: rule.commission_percentage ? parseFloat(rule.commission_percentage).toString() : '',
+      status: rule.status || 'active'
+    });
+    setModalOpen(true);
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this commission rule?')) return;
+    try {
+      await api.delete(`/v1/enterprise/commissions/rules/${id}`);
+      loadRules();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Error deleting rule');
     }
   };
 
@@ -185,7 +222,19 @@ const CommissionRules: React.FC = () => {
                   <h3 style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>{r.title}</h3>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Project: {r.project?.name || 'All Projects'}</span>
                 </div>
-                {getTierBadge(r.tier_type)}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  {getTierBadge(r.tier_type)}
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    background: r.status === 'active' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(107, 114, 128, 0.15)',
+                    color: r.status === 'active' ? '#10b981' : '#6b7280'
+                  }}>
+                    {r.status?.toUpperCase() || 'ACTIVE'}
+                  </span>
+                </div>
               </div>
 
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10 }}>
@@ -197,13 +246,35 @@ const CommissionRules: React.FC = () => {
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>Commission Payout:</span>
                 <span style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--color-primary)' }}>{parseFloat(r.commission_percentage)}%</span>
               </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10, borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: 10 }}>
+                <button className="btn-ghost" onClick={() => handleEditClick(r)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                  <Edit3 size={12} /> Edit
+                </button>
+                <button className="btn-ghost" onClick={() => handleDeleteRule(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: '0.75rem', color: '#ef4444', cursor: 'pointer' }}>
+                  <Trash2 size={12} color="#ef4444" /> Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       {/* Modal */}
-      <Modal open={modalOpen} title="Define New Commission Formula Rule" onClose={() => setModalOpen(false)}>
+      <Modal open={modalOpen} title={editingRuleId ? "Edit Commission Formula Rule" : "Define New Commission Formula Rule"} onClose={() => {
+        setModalOpen(false);
+        setEditingRuleId(null);
+        setForm({
+          title: '',
+          project_id: '',
+          unit_type: '',
+          tier_type: 'sales_agent',
+          min_deal_size: '',
+          max_deal_size: '',
+          commission_percentage: '',
+          status: 'active'
+        });
+      }}>
         <Field label="Rule Name / Title">
           <input type="text" style={inputStyle} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Q2 Broker Promo 2.5%" />
         </Field>
@@ -248,9 +319,33 @@ const CommissionRules: React.FC = () => {
           </Field>
         </div>
 
+        {editingRuleId && (
+          <Field label="Rule Status">
+            <select style={inputStyle} value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </Field>
+        )}
+
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-          <button className="btn-primary" disabled={!form.title || !form.commission_percentage} onClick={handleSaveRule} style={{ flex: 1 }}>Save Commission Rule</button>
-          <button className="btn-secondary" onClick={() => setModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+          <button className="btn-primary" disabled={!form.title || !form.commission_percentage} onClick={handleSaveRule} style={{ flex: 1 }}>
+            {editingRuleId ? 'Update Commission Rule' : 'Save Commission Rule'}
+          </button>
+          <button className="btn-secondary" onClick={() => {
+            setModalOpen(false);
+            setEditingRuleId(null);
+            setForm({
+              title: '',
+              project_id: '',
+              unit_type: '',
+              tier_type: 'sales_agent',
+              min_deal_size: '',
+              max_deal_size: '',
+              commission_percentage: '',
+              status: 'active'
+            });
+          }} style={{ flex: 1 }}>Cancel</button>
         </div>
       </Modal>
     </div>

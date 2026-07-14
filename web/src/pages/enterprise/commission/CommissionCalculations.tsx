@@ -132,9 +132,9 @@ const CommissionCalculations: React.FC = () => {
   const headerStyle: React.CSSProperties = { ...cellStyle, fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em', background: 'rgba(255,255,255,0.4)' };
 
   const filtered = calcs.filter(c => {
-    const nameMatch = c.user?.name.toLowerCase().includes(search.toLowerCase()) || 
-                      c.broker?.name.toLowerCase().includes(search.toLowerCase()) ||
-                      c.contract?.contract_number.toLowerCase().includes(search.toLowerCase());
+    const nameMatch = c.user?.name?.toLowerCase().includes(search.toLowerCase()) || 
+                      c.broker?.name?.toLowerCase().includes(search.toLowerCase()) ||
+                      c.contract?.contract_number?.toLowerCase().includes(search.toLowerCase());
     return !search || nameMatch;
   });
 
@@ -156,6 +156,36 @@ const CommissionCalculations: React.FC = () => {
             <FolderPlus size={14} /> Batch Payout ({selectedIds.length})
           </button>
         )}
+      </div>
+
+      {/* Commission Process Guide Banner */}
+      <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)', marginBottom: 24, background: 'rgba(59, 130, 246, 0.04)', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          💡 Understanding the Commission Process Flow
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[
+            { step: '1', title: 'Deal Booking', desc: 'Agent/broker closes a contract.' },
+            { step: '2', title: 'Calculations Ledger', desc: 'System automatically lists calculated commissions per payment.' },
+            { step: '3', title: 'Batch Payout', desc: 'Select calculations for a single agent/broker and batch them.' },
+            { step: '4', title: 'Approval & Payout', desc: 'Submit the batch through the Approval Workflow, then disburse.' }
+          ].map((s, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, borderRadius: '50%',
+                background: 'var(--color-primary)', color: '#fff',
+                fontSize: '0.72rem', fontWeight: 800, flexShrink: 0
+              }}>
+                {s.step}
+              </span>
+              <div>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 2 }}>{s.title}</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Toolbar */}
@@ -202,7 +232,7 @@ const CommissionCalculations: React.FC = () => {
                 <th style={headerStyle}>Recipient</th>
                 <th style={headerStyle}>Contract / Unit</th>
                 <th style={headerStyle}>Formula / Rule</th>
-                <th style={headerStyle}>deal amount</th>
+                <th style={headerStyle}>Deal Amount</th>
                 <th style={headerStyle}>Calculated Payout</th>
                 <th style={headerStyle}>Status</th>
               </tr>
@@ -224,7 +254,7 @@ const CommissionCalculations: React.FC = () => {
                   </td>
                   <td style={cellStyle}>
                     <div style={{ fontWeight: 700 }}>CTR: {c.contract?.contract_number}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Unit: {c.contract?.unit?.code}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Unit: {c.contract?.unit?.unit_number}</div>
                   </td>
                   <td style={cellStyle}>
                     <div>{c.rule?.title}</div>
