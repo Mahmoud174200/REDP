@@ -155,6 +155,9 @@ class AdminController extends Controller
             'eoi_queue_nationality_priority' => 'none',
             'eoi_queue_weight_nationality' => '40',
             'eoi_queue_custom_rules' => '[]',
+            'eoi_queue_sort_field' => 'none',
+            'eoi_queue_sort_dir' => 'desc',
+            'eoi_queue_sort_basis' => 'primary',
             'delay_penalty_percentage' => '1',
             'delay_penalty_enabled' => 'true',
             'delay_penalty_grace_days' => '0'
