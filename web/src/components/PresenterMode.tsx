@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
   X, ChevronLeft, ChevronRight, Eye, EyeOff, AlertTriangle, Quote, Sparkles, Copy, Check,
-  Zap, Play, Send, Mail, KeyRound,
+  Zap, Play, Send, Mail, KeyRound, Film,
 } from 'lucide-react';
 
 /**
@@ -55,6 +55,19 @@ interface EmailPreview {
   cta: string;
 }
 
+/**
+ * A phone-framed gallery for the act — real unit photos + a walkthrough video,
+ * shown as they appear inside the homeowner mobile app. A presentation aid,
+ * opened from the panel so the room sees the unit dashboard's media without a
+ * physical phone. Assets are served from web/public.
+ */
+interface MediaShow {
+  title: string;
+  images: string[];
+  video?: string;
+  note?: string;
+}
+
 interface Act {
   numeral: string;
   title: string;
@@ -76,6 +89,8 @@ interface Act {
   aiPrompts?: string[];
   /** The email this act causes to be sent. */
   email?: EmailPreview;
+  /** Unit photos + walkthrough video, shown phone-framed as the mobile app. */
+  media?: MediaShow;
   caution?: string;
 }
 
@@ -287,9 +302,69 @@ const ACTS: Act[] = [
   },
   {
     numeral: 'VII',
-    title: 'البروكر — قفل العميل والعمولة',
+    title: 'أحمد بيقعد مع الكومباني سيلز — العقد، بوابة الملّاك، والموبايل',
     from: 25,
-    to: 27,
+    to: 30,
+    role: 'admin',
+    route: '/sales/company/dashboard',
+    alsoVisit: [
+      { label: 'بوابة الملّاك على الويب (Delivery → Overview)', route: '/delivery/overview' },
+      { label: 'العقود', route: '/finance/contracts' },
+    ],
+    email: {
+      subject: 'Welcome to your Homeowner Portal — مرحباً بك في بوابة الملّاك',
+      to: 'Ahmed Mostafa',
+      lines: [
+        'أهلاً أحمد،',
+        'مبروك! عقدك بقى ساري، ووحدتك اتسجّلت باسمك.',
+        'استخدم البيانات دي تدخل بوابة الملّاك — تتابع وحدتك، جدول أقساطك، اللي دفعته واللي باقي عليك.',
+        'من فضلك غيّر الباسورد بعد أول دخول.',
+      ],
+      rows: [
+        ['رقم العقد', 'CT-2026-000142'],
+        ['الوحدة', 'GG-B12-0704'],
+        ['طريقة الدخول', 'الموبايل + الويب'],
+      ],
+      credentials: { email: 'ahmed.mostafa@example.com', password: 'Vb9m4Tze7q' },
+      cta: 'افتح بوابة الملّاك',
+    },
+    media: {
+      title: 'تطبيق الملّاك — داشبورد وحدة أحمد',
+      images: [
+        '/mountain_view_high.webp',
+        '/mountain_view_real.webp',
+        '/mountain_view_new.webp',
+        '/mountain_view_santorini.png',
+      ],
+      video: '/mountain_view_video.mp4',
+      note: 'دي الصور والفيديو اللي أحمد بيشوفهم لوحدته جوه التطبيق — دوس على الأسهم تقلّب الصور، وشغّل الفيديو قدامهم.',
+    },
+    say: [
+      'أحمد حجز وحدته. دلوقتي بيقعد مع مندوب الشركة وجهاً لوجه — ومن اللحظة دي لحد ما يمسك موبايله وهو مالك، كله على شاشة واحدة.',
+      'المندوب بيفتح المشروع → تبويب «العملاء الحاجزين»، ولاقى أحمد بالوحدة اللي اختارها بنفسه. مفيش إعادة إدخال ومفيش ورق — نفس الحجز ماشي معاه من أول EOI.',
+      'بيبنيله خطة السداد قدامه: مقدم، عدد أقساط، وجدول شهري بيتحسب لحظياً — والـ EOI اللي دفعه محسوم من المقدم. ولو الخطة فيها خصم خاص، زرار التوقيع مقفول لحد ما المالية توافق.',
+      'بيولّد العقد، أحمد يوقّعه، والمندوب يرفع نسخة العقد الموقّعة — واللحظة دي الوحدة بتتحوّل «مباعة».',
+      'في نفس الثانية السيستم بيفتح لأحمد حساب في بوابة الملّاك، بيولّد له باسورد مؤقت، وبيبعتله الإيميل ده. محدش عمل الحساب بإيده.',
+      'أحمد بيدخل بالبيانات دي — يلاقي داشبورد وحدته: صورة الوحدة، العقد، وجدول الأقساط بالكامل — مدفوع، متأخر، وقادم — والمتبقي عليه لحد آخر قسط.',
+      'ونفس الحساب بالظبط بيفتح على تطبيق الموبايل — أحمد شايف وحدته وأقساطه من جيبه. من زائر الساعة ٢ بالليل → مالك معاه تطبيق. السيستم قفل الدايرة.',
+    ],
+    scene: [
+      'روح Company Sales → افتح المشروع (Golden Gates) → تبويب «Reserved Clients».',
+      'لاقي أحمد في القايمة — الوحدة اللي حجزها ظاهرة جنب اسمه. دوس «Start Contract».',
+      'اختار «Standard Plan» → اختار خطة → Review: وقف على جدول الأقساط، المقدم، والـ EOI المخصوم.',
+      'Generate Contract → Sign Contract → ارفع نسخة العقد الموقّعة (Upload signed contract).',
+      'دوس «ورّي الإيميل اللي وصله» تحت — وقف على الإيميل والباسورد المؤقت اللي أحمد هيدخل بيهم.',
+      'دوس «ورّي صور وفيديو الوحدة على الموبايل» تحت — بيفتح شكل التطبيق بصور الوحدة والفيديو وشريط الأقساط، من غير ما تحتاج موبايل.',
+      'ولو معاك موبايل حقيقي: افتح تطبيق الملّاك، ادخل بإيميل أحمد والباسورد — «My Unit» و«Payments / جدول الأقساط»: مدفوع، متأخر، قادم.',
+    ],
+    caution:
+      'بوابة الملّاك بتتفتح بحساب أحمد نفسه: على الموبايل ادخل بإيميله والباسورد المؤقت من الإيميل. لو هتفتحها على الويب (Delivery → Overview) لازم تكون داخل بحسابه هو مش الأدمن. الإيميل + الباسورد بيتبعتوا أوتوماتيك لحظة توقيع العقد، وللوحدة الأولى بس — أي وحدة بعدها بتتزوّد للبورتال من غير باسورد جديد. خلّي تطبيق الموبايل فاتح ومسجّل دخول قبل العرض عشان ما تضيّعش وقت.',
+  },
+  {
+    numeral: 'VIII',
+    title: 'البروكر — قفل العميل والعمولة',
+    from: 30,
+    to: 32,
     role: 'broker',
     route: '/sales/broker/dashboard',
     alsoVisit: [{ label: 'مراجعة شركات التسويق (أدمن)', route: '/acquisition/broker-companies' }],
@@ -305,10 +380,10 @@ const ACTS: Act[] = [
     ],
   },
   {
-    numeral: 'VIII',
+    numeral: 'IX',
     title: 'الفلوس — لحظة المدير المالي',
-    from: 27,
-    to: 30,
+    from: 32,
+    to: 35,
     role: 'admin',
     route: '/finance/inventory',
     alsoVisit: [
@@ -349,6 +424,8 @@ const PresenterMode: React.FC = () => {
   const [ran, setRan] = useState<string[]>([]);
   const [asked, setAsked] = useState<string[]>([]);
   const [showEmail, setShowEmail] = useState(false);
+  const [showMedia, setShowMedia] = useState(false);
+  const [mediaIdx, setMediaIdx] = useState(0);
 
   const roleRef = useRef<Role | null>(null);
 
@@ -465,6 +542,8 @@ const PresenterMode: React.FC = () => {
     setRan([]);
     setAsked([]);
     setShowEmail(false);
+    setShowMedia(false);
+    setMediaIdx(0);
     setActive(true);
   }, []);
 
@@ -479,6 +558,8 @@ const PresenterMode: React.FC = () => {
       const clamped = Math.max(0, Math.min(LAST, next));
       setStep(clamped);
       setShowEmail(false);
+      setShowMedia(false);
+      setMediaIdx(0);
 
       const target = clamped >= 1 && clamped <= ACTS.length ? ACTS[clamped - 1] : null;
       if (!target) return;
@@ -670,7 +751,7 @@ const PresenterMode: React.FC = () => {
                 {COVER.tagline}
               </p>
 
-              <h4 style={{ ...sectionLabel, marginBottom: 16 }}>عرض الجلسة · ٣٠ دقيقة</h4>
+              <h4 style={{ ...sectionLabel, marginBottom: 16 }}>عرض الجلسة · ٣٥ دقيقة</h4>
               <div
                 style={{
                   display: 'grid',
@@ -891,11 +972,117 @@ const PresenterMode: React.FC = () => {
       </div>
     ) : null;
 
+  // ═══════════════ the unit's media, framed as the mobile app ═══════════════
+  // Real unit photos + a walkthrough video, shown inside a phone so the room sees
+  // exactly what the owner sees on their app — no physical device needed.
+  const media = act?.media;
+  const shot = media && media.images.length ? media.images[mediaIdx % media.images.length] : null;
+  const stepMedia = (dir: 1 | -1) =>
+    media && setMediaIdx(i => (i + dir + media.images.length) % media.images.length);
+  const mediaOverlay =
+    showMedia && media ? (
+      <div
+        dir="rtl"
+        onClick={() => setShowMedia(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100002,
+          background: 'rgba(6,12,20,0.8)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          fontFamily: '"Segoe UI", Tahoma, sans-serif',
+        }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: 'min(360px, 100%)',
+            maxHeight: '92vh',
+            background: '#0B1524',
+            borderRadius: 40,
+            border: '10px solid #05070C',
+            boxShadow: '0 40px 90px -25px rgba(0,0,0,0.85)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* phone status/app bar */}
+          <div style={{ background: '#003DA6', color: '#fff', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 800, fontSize: '0.9rem', flex: 1 }}>{media.title}</span>
+            <button onClick={() => setShowMedia(false)} style={{ ...iconBtn, color: '#fff', borderColor: 'rgba(255,255,255,0.35)' }}>
+              <X size={15} />
+            </button>
+          </div>
+
+          <div style={{ overflowY: 'auto', background: '#F2F6FC' }}>
+            {/* image gallery */}
+            {shot && (
+              <div style={{ position: 'relative', background: '#000' }}>
+                <img src={shot} alt="unit" style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }} />
+                {media.images.length > 1 && (
+                  <>
+                    <button onClick={() => stepMedia(-1)} style={galleryNav('right')}><ChevronRight size={18} /></button>
+                    <button onClick={() => stepMedia(1)} style={galleryNav('left')}><ChevronLeft size={18} /></button>
+                    <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                      {media.images.map((im, i) => (
+                        <span key={im} style={{ width: 7, height: 7, borderRadius: '50%', background: i === mediaIdx ? '#D9A855' : 'rgba(255,255,255,0.5)' }} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                <span style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(11,21,36,0.72)', color: '#fff', fontSize: '0.66rem', fontWeight: 800, padding: '4px 10px', borderRadius: 999 }}>
+                  Unit GG-B12-0704
+                </span>
+              </div>
+            )}
+
+            {/* walkthrough video */}
+            {media.video && (
+              <div style={{ padding: '14px 14px 4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 800, color: '#003DA6', marginBottom: 8 }}>
+                  <Film size={13} /> جولة داخل الوحدة
+                </div>
+                <video
+                  src={media.video}
+                  controls
+                  playsInline
+                  style={{ width: '100%', borderRadius: 14, display: 'block', background: '#000' }}
+                />
+              </div>
+            )}
+
+            {/* a strip that echoes the real dashboard's installments row */}
+            <div style={{ padding: 14 }}>
+              <div style={{ background: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 6px 20px rgba(15,23,42,0.05)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748B', marginBottom: 10 }}>الأقساط · Payments</div>
+                <div style={{ height: 8, borderRadius: 8, background: '#E2E8F0', overflow: 'hidden', marginBottom: 8 }}>
+                  <div style={{ width: '35%', height: '100%', background: '#22c55e' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#475569', fontWeight: 700 }}>
+                  <span>مدفوع 7/24</span>
+                  <span style={{ color: '#003DA6' }}>القسط الجاي · EGP 32,000</span>
+                </div>
+              </div>
+              {media.note && (
+                <p style={{ marginTop: 12, fontSize: '0.74rem', color: '#64748B', lineHeight: 1.7 }}>{media.note}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
   // ═══════════════ collapsed pill ═══════════════
   if (panelHidden) {
     return (
       <>
         {emailOverlay}
+        {mediaOverlay}
         <button
           onClick={() => setPanelHidden(false)}
           dir="rtl"
@@ -930,6 +1117,7 @@ const PresenterMode: React.FC = () => {
   return (
     <>
     {emailOverlay}
+    {mediaOverlay}
     <aside
       dir="rtl"
       style={{
@@ -1150,6 +1338,30 @@ const PresenterMode: React.FC = () => {
           </button>
         )}
 
+        {/* the unit's photos + video, framed as the mobile app */}
+        {act!.media && (
+          <button
+            onClick={() => { setMediaIdx(0); setShowMedia(true); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              justifyContent: 'center',
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              padding: '11px 12px',
+              borderRadius: 10,
+              cursor: 'pointer',
+              border: '1px solid rgba(217,168,85,0.4)',
+              background: 'rgba(217,168,85,0.1)',
+              color: '#D9A855',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Film size={14} /> ورّي صور وفيديو الوحدة على الموبايل
+          </button>
+        )}
+
         {/* what to click */}
         <div>
           <h4 style={sectionLabel}>المشهد</h4>
@@ -1274,6 +1486,23 @@ const sectionLabel: React.CSSProperties = {
   color: '#5C6E85',
   marginBottom: 9,
 };
+
+const galleryNav = (side: 'left' | 'right'): React.CSSProperties => ({
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  [side]: 10,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  border: 'none',
+  background: 'rgba(11,21,36,0.65)',
+  color: '#fff',
+  cursor: 'pointer',
+});
 
 const iconBtn: React.CSSProperties = {
   display: 'flex',
