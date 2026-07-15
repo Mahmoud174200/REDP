@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Broker;
 use App\Models\Project;
 use App\Models\Unit;
 use App\Models\Lead;
@@ -16,6 +17,46 @@ use Illuminate\Support\Str;
 
 class PublicLandingController extends Controller
 {
+    /**
+     * Resolve a broker referral/QR/promo code so the public EOI form can show the
+     * buyer WHO they are being credited to before they submit. Read-only and
+     * deliberately thin: it exposes only the display name, never contact details,
+     * and never reveals whether a code exists but is merely inactive.
+     */
+    public function resolveBroker(Request $request): JsonResponse
+    {
+        $code = trim((string) $request->query('code', ''));
+
+        if ($code === '') {
+            return response()->json(['success' => false, 'message' => 'Code is required.'], 422);
+        }
+
+        $broker = Broker::with('user:id,name')
+            ->where('status', Broker::STATUS_ACTIVE)
+            ->where(function ($q) use ($code) {
+                $q->where('referral_code', $code)
+                  ->orWhere('qr_token', $code)
+                  ->orWhere('promo_code', $code);
+            })
+            ->first();
+
+        if (! $broker) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This sales code is not valid. Please check it with your agent.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'code'         => $broker->referral_code,
+                'agent_name'   => $broker->user->name ?? null,
+                'agency_name'  => $broker->agency_name,
+            ],
+        ]);
+    }
+
     /**
      * Get all active/planning projects with payment plans and count of available units.
      */

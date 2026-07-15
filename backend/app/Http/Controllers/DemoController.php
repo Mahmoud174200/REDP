@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -97,6 +98,62 @@ class DemoController extends Controller
     }
 
     /**
+     * POST /v1/demo/login-invited — sign in as the client who was invited most
+     * recently, so the presentation can show the actual invited buyer opening the
+     * map and taking their unit. The invitation password is random and only ever
+     * emailed, so the presenter has no way to type it on stage; this mints a token
+     * instead of exposing or resetting it.
+     *
+     * Hard-gated on Demo Mode, and will only ever mint a token for a `client`.
+     */
+    public function loginInvited(Request $request): JsonResponse
+    {
+        if (!$this->enabled()) {
+            return response()->json(['success' => false, 'message' => 'Demo mode is off.'], 403);
+        }
+
+        $query = EoiReservation::whereNotNull('invited_at');
+        if ($projectId = $request->input('project_id')) {
+            $query->where('project_id', $projectId);
+        }
+
+        // A batch invite stamps everyone with the same `invited_at`, so that alone
+        // would hand back an arbitrary member of the batch. The buyer the room has
+        // been following all session is the one whose EOI was created last — break
+        // the tie on that, and the presentation keeps following the same person.
+        $reservation = $query
+            ->orderByDesc('invited_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No invited client yet — send the invitations first.',
+            ], 404);
+        }
+
+        $user = User::where('email', $reservation->client_email)->where('role', 'client')->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The invited client has no login account.',
+            ], 404);
+        }
+
+        $user->tokens()->delete();
+        $token = $user->createToken('demo-tour')->plainTextToken;
+
+        return response()->json([
+            'success'      => true,
+            'token'        => $token,
+            'user'         => $user->only(['id', 'name', 'email', 'role', 'status']),
+            'queue_number' => $reservation->queue_number,
+            'order_number' => $reservation->order_number,
+        ]);
+    }
+
+    /**
      * POST /v1/demo/seed-eoi — create a REAL pending EOI for the demo customer
      * so the Finance review step actually has something to approve. The receipt
      * can't be uploaded programmatically, so we seed it with a placeholder.
@@ -141,7 +198,7 @@ class DemoController extends Controller
             'client_location' => EoiReservation::LOCATION_INSIDE_EGYPT,
             'payment_method' => EoiReservation::PAYMENT_INSTAPAY,
             'payment_amount' => 50000,
-            'receipt_path' => 'eoi-receipts/demo-receipt.png',
+            'receipt_path' => $this->demoReceiptPath(),
             'status' => EoiReservation::STATUS_PENDING_REVIEW,
             'education' => "Bachelor's Degree",
             'job_title' => 'Marketing Manager',
@@ -155,6 +212,57 @@ class DemoController extends Controller
         ]);
 
         return response()->json(['success' => true, 'queue_number' => $eoi->queue_number, 'data' => $eoi]);
+    }
+
+    /**
+     * The demo EOI needs a receipt file that actually exists on the public disk,
+     * otherwise the reviewer's receipt viewer renders a broken image. storage/app/public
+     * is gitignored, so the asset cannot be shipped in the repo — write it on demand.
+     * SVG rather than a raster format because the GD extension is not guaranteed here.
+     */
+    private function demoReceiptPath(): string
+    {
+        $path = 'eoi-receipts/demo-receipt.svg';
+
+        if (! Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->put($path, $this->demoReceiptSvg());
+        }
+
+        return $path;
+    }
+
+    private function demoReceiptSvg(): string
+    {
+        $rows = [
+            ['Payer', 'Ahmed Mostafa'],
+            ['Phone', '01001234567'],
+            ['Method', 'InstaPay'],
+            ['Reference', 'DEMO-EOI-50K'],
+            ['Amount', 'EGP 50,000'],
+        ];
+
+        $y = 150;
+        $lines = '';
+        foreach ($rows as [$label, $value]) {
+            $lines .= <<<SVG
+              <text x="60" y="{$y}" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#64748b">{$label}</text>
+              <text x="240" y="{$y}" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600" fill="#0f172a">{$value}</text>
+
+            SVG;
+            $y += 38;
+        }
+
+        return <<<SVG
+        <svg xmlns="http://www.w3.org/2000/svg" width="560" height="380" viewBox="0 0 560 380" role="img" aria-label="Demo payment receipt">
+          <rect width="560" height="380" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+          <rect x="0" y="0" width="560" height="72" rx="16" fill="#1e3a8a"/>
+          <rect x="0" y="56" width="560" height="16" fill="#1e3a8a"/>
+          <text x="32" y="45" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#ffffff">Payment Receipt</text>
+          <text x="420" y="45" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#bfdbfe">DEMO SAMPLE</text>
+        {$lines}  <line x1="60" y1="{$y}" x2="500" y2="{$y}" stroke="#e2e8f0" stroke-width="1"/>
+          <text x="60" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#94a3b8">Generated for REDP demo mode — not a real transaction.</text>
+        </svg>
+        SVG;
     }
 
     private function enabled(): bool

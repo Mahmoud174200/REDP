@@ -40,7 +40,8 @@ class TrackingController extends Controller
 
     /**
      * GET /r/{slug}
-     * Branded broker short link → 302 to frontend register page with ?ref=.
+     * Branded broker short link → 302 to the public landing page with ?ref=, which the
+     * SPA captures and replays on the EOI submission so the broker gets credited.
      */
     public function shortLink(Request $request, string $slug): RedirectResponse
     {
@@ -49,7 +50,7 @@ class TrackingController extends Controller
         $frontend = rtrim(config('app.frontend_url', config('app.url')), '/');
 
         if (!$broker) {
-            return redirect()->away("{$frontend}/register");
+            return redirect()->away("{$frontend}/");
         }
 
         $broker->increment('referral_clicks');
@@ -60,7 +61,7 @@ class TrackingController extends Controller
         );
         $this->attribution->captureSession($request, $context, $anonId);
 
-        $target = "{$frontend}/register?ref={$broker->referral_code}";
+        $target = "{$frontend}/?ref={$broker->referral_code}";
 
         return redirect()->away($target)
             ->withCookie($this->anonCookie($anonId))
@@ -77,7 +78,7 @@ class TrackingController extends Controller
         $frontend = rtrim(config('app.frontend_url', config('app.url')), '/');
 
         if (!$broker) {
-            return redirect()->away("{$frontend}/register");
+            return redirect()->away("{$frontend}/");
         }
 
         $broker->increment('referral_clicks');
@@ -85,7 +86,7 @@ class TrackingController extends Controller
         $context = $this->attribution->resolveContext($request->merge(['qr' => $qrToken]));
         $this->attribution->captureSession($request, $context, $anonId);
 
-        return redirect()->away("{$frontend}/register?ref={$broker->referral_code}")
+        return redirect()->away("{$frontend}/?ref={$broker->referral_code}")
             ->withCookie($this->anonCookie($anonId))
             ->withCookie(Cookie::make(self::REF_COOKIE, $broker->referral_code, self::REF_TTL, null, null, true, true));
     }

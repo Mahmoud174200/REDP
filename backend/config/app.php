@@ -5,6 +5,14 @@ return [
     'env' => env('APP_ENV', 'production'),
     'debug' => (bool) env('APP_DEBUG', false),
     'url' => env('APP_URL', 'http://localhost'),
+
+    /*
+     * Where the React SPA lives. Every customer-facing link the API generates —
+     * invitation emails, broker referral links, QR redirects — points here, NOT at
+     * the API. Without it those links silently resolve to the backend and dead-end.
+     */
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5174'),
+
     'timezone' => env('APP_TIMEZONE', 'UTC'),
     'locale' => env('APP_LOCALE', 'en'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),

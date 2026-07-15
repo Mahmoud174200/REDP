@@ -63,6 +63,7 @@ Route::get('/v1/system-info', [\App\Http\Controllers\Admin\AdminController::clas
 Route::get('/v1/demo/status', [\App\Http\Controllers\DemoController::class, 'status']);
 Route::get('/v1/demo/tour', [\App\Http\Controllers\DemoController::class, 'tour']);
 Route::post('/v1/demo/login', [\App\Http\Controllers\DemoController::class, 'login']);
+Route::post('/v1/demo/login-invited', [\App\Http\Controllers\DemoController::class, 'loginInvited']);
 Route::post('/v1/demo/seed-eoi', [\App\Http\Controllers\DemoController::class, 'seedEoi']);
 
 // 🔓 Public Payment Webhooks (no auth required)
@@ -80,6 +81,8 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/units/{unitId}/3d-model/grid', [\App\Http\Controllers\Tripo3DController::class, 'getUnit3DGrid']);
     Route::post('/eoi/submit', [\App\Http\Controllers\PublicLandingController::class, 'submitEoi']);
     Route::post('/contact', [\App\Http\Controllers\PublicLandingController::class, 'submitContact']);
+    // Lets the public EOI form confirm the sales agent behind a referral code before submitting.
+    Route::get('/broker/resolve', [\App\Http\Controllers\PublicLandingController::class, 'resolveBroker']);
     Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
 
     // 🤖 Public AI Assistant (agentic Gemini chatbot for website visitors)

@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>REDP — دليل عرض ٣٠ دقيقة لمطوّر عقاري</title>
+
+<style>
+  :root {
+    --ground:      #F4F6FA;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF1F7;
+    --ink:         #0D1B2E;
+    --ink-soft:    #33465E;
+    --muted:       #5C6E85;
+    --line:        #D5DDE7;
+    --line-soft:   #E4EAF1;
+
+    --navy:        #17335E;
+    --navy-tint:   #E6ECF6;
+    --brass:       #9C6F1E;
+    --brass-tint:  #F7EEDC;
+
+    --safe:        #1B6F52;
+    --safe-tint:   #E2F0EA;
+    --danger:      #A32D38;
+    --danger-tint: #FAE7E9;
+    --warn:        #8A6512;
+    --warn-tint:   #F8EFD9;
+
+    --shadow: 0 1px 2px rgba(13,27,46,.05), 0 8px 24px -12px rgba(13,27,46,.18);
+
+    --ar: "Segoe UI", "Tahoma", "Noto Naskh Arabic", sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+    --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0A121D;
+      --surface:     #111C2A;
+      --surface-alt: #172435;
+      --ink:         #E7EDF4;
+      --ink-soft:    #BCCBDB;
+      --muted:       #8497AC;
+      --line:        #26374C;
+      --line-soft:   #1D2C3E;
+
+      --navy:        #7BA1E0;
+      --navy-tint:   #16273D;
+      --brass:       #D9A855;
+      --brass-tint:  #2A2313;
+
+      --safe:        #52BC90;
+      --safe-tint:   #12281F;
+      --danger:      #E97F89;
+      --danger-tint: #2C1519;
+      --warn:        #D4A63C;
+      --warn-tint:   #2A2211;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0A121D;
+    --surface:     #111C2A;
+    --surface-alt: #172435;
+    --ink:         #E7EDF4;
+    --ink-soft:    #BCCBDB;
+    --muted:       #8497AC;
+    --line:        #26374C;
+    --line-soft:   #1D2C3E;
+    --navy:        #7BA1E0;
+    --navy-tint:   #16273D;
+    --brass:       #D9A855;
+    --brass-tint:  #2A2313;
+    --safe:        #52BC90;
+    --safe-tint:   #12281F;
+    --danger:      #E97F89;
+    --danger-tint: #2C1519;
+    --warn:        #D4A63C;
+    --warn-tint:   #2A2211;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  :root[data-theme="light"] {
+    --ground:      #F4F6FA;
+    --surface:     #FFFFFF;
+    --surface-alt: #EDF1F7;
+    --ink:         #0D1B2E;
+    --ink-soft:    #33465E;
+    --muted:       #5C6E85;
+    --line:        #D5DDE7;
+    --line-soft:   #E4EAF1;
+    --navy:        #17335E;
+    --navy-tint:   #E6ECF6;
+    --brass:       #9C6F1E;
+    --brass-tint:  #F7EEDC;
+    --safe:        #1B6F52;
+    --safe-tint:   #E2F0EA;
+    --danger:      #A32D38;
+    --danger-tint: #FAE7E9;
+    --warn:        #8A6512;
+    --warn-tint:   #F8EFD9;
+    --shadow: 0 1px 2px rgba(13,27,46,.05), 0 8px 24px -12px rgba(13,27,46,.18);
+  }
+
+  html { direction: rtl; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--ar);
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ── Masthead ─────────────────────────────── */
+  .masthead {
+    padding: 56px 0 32px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 0;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-bottom: 14px;
+    direction: ltr;
+    text-align: right;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 4.6vw, 2.9rem);
+    font-weight: 800;
+    letter-spacing: -.015em;
+    line-height: 1.25;
+    text-wrap: balance;
+    margin-bottom: 14px;
+  }
+  .standfirst {
+    font-size: 1.06rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+  }
+
+  /* ── Clock ────────────────────────────────── */
+  .clockbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    margin: 0 -24px 44px;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .clock-face {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    direction: ltr;
+    min-width: 4.6ch;
+  }
+  .clock-now {
+    font-size: .84rem;
+    color: var(--muted);
+    flex: 1;
+    min-width: 180px;
+  }
+  .clock-now b { color: var(--navy); font-weight: 700; }
+  .btn {
+    font-family: var(--ar);
+    font-size: .82rem;
+    font-weight: 700;
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { background: var(--surface-alt); border-color: var(--muted); }
+  .btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .btn.go { background: var(--navy); border-color: var(--navy); color: var(--surface); }
+
+  /* ── Section shell ────────────────────────── */
+  section { margin-bottom: 68px; scroll-margin-top: 80px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 10px;
+  }
+  .sec-head h2 {
+    font-size: 1.42rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+  }
+  .sec-head .tag {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    direction: ltr;
+    margin-inline-start: auto;
+  }
+  .sec-intro {
+    color: var(--ink-soft);
+    margin: 16px 0 26px;
+    max-width: 68ch;
+  }
+
+  /* ── Pre-flight ───────────────────────────── */
+  .preflight {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .pf-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+  }
+  .pf-count {
+    font-family: var(--mono);
+    font-size: .84rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    direction: ltr;
+  }
+  .pf-count.done { color: var(--safe); }
+  .pf-label { font-size: .88rem; font-weight: 700; color: var(--ink-soft); }
+  .pf-item {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line-soft);
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .pf-item:last-child { border-bottom: 0; }
+  .pf-item:hover { background: var(--surface-alt); }
+  .pf-item input {
+    appearance: none;
+    flex: none;
+    width: 20px; height: 20px;
+    margin-top: 4px;
+    border: 1.5px solid var(--muted);
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface);
+  }
+  .pf-item input:checked { background: var(--safe); border-color: var(--safe); }
+  .pf-item input:checked::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    clip-path: polygon(20% 52%, 42% 72%, 80% 28%, 88% 38%, 43% 86%, 12% 60%);
+  }
+  .pf-item input:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .pf-body strong { display: block; font-size: .96rem; font-weight: 700; margin-bottom: 2px; }
+  .pf-body span { font-size: .87rem; color: var(--muted); }
+  .pf-item.checked .pf-body strong { text-decoration: line-through; color: var(--muted); }
+  .pf-body code { font-family: var(--mono); font-size: .82em; background: var(--surface-alt); padding: 1px 6px; border-radius: 5px; direction: ltr; display: inline-block; }
+  .pf-item.checked .pf-body code { background: transparent; }
+  .pf-crit {
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .08em;
+    color: var(--danger);
+    background: var(--danger-tint);
+    padding: 2px 7px;
+    border-radius: 4px;
+    direction: ltr;
+    vertical-align: 2px;
+    margin-inline-start: 6px;
+    font-weight: 700;
+  }
+
+  /* ── Pains grid ───────────────────────────── */
+  .pains { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  @media (min-width: 720px) { .pains { grid-template-columns: 1fr 1fr; } }
+  .pain { background: var(--surface); padding: 22px 24px; }
+  .pain h3 {
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 9px;
+    align-items: baseline;
+  }
+  .pain h3::before {
+    content: "";
+    flex: none;
+    width: 7px; height: 7px;
+    border-radius: 2px;
+    background: var(--danger);
+    transform: translateY(-1px);
+  }
+  .pain p { font-size: .9rem; color: var(--muted); margin-bottom: 12px; }
+  .pain .fix {
+    font-size: .9rem;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  .pain .fix b { color: var(--safe); font-weight: 700; }
+
+  /* ── Acts ─────────────────────────────────── */
+  .acts { display: flex; flex-direction: column; gap: 20px; }
+  .act {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s;
+  }
+  .act.live {
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-tint), var(--shadow);
+  }
+  .act-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .act-no {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--brass);
+    line-height: 1;
+    direction: ltr;
+    flex: none;
+  }
+  .act-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -.01em; }
+  .act-time {
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 4px 11px;
+    border-radius: 999px;
+    direction: ltr;
+    margin-inline-start: auto;
+    flex: none;
+  }
+  .act.live .act-time { background: var(--brass); border-color: var(--brass); color: #fff; }
+  :root[data-theme="dark"] .act.live .act-time { color: #1A1508; }
+
+  .act-body { padding: 22px; display: flex; flex-direction: column; gap: 20px; }
+
+  .routes { display: flex; flex-wrap: wrap; gap: 7px; }
+  .route {
+    font-family: var(--mono);
+    font-size: .78rem;
+    background: var(--navy-tint);
+    color: var(--navy);
+    border: 1px solid color-mix(in srgb, var(--navy) 22%, transparent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    direction: ltr;
+    font-weight: 600;
+  }
+
+  .block { }
+  .block > h4 {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 9px;
+    direction: ltr;
+    text-align: right;
+  }
+  .steps { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .steps li {
+    display: flex;
+    gap: 10px;
+    font-size: .93rem;
+    color: var(--ink-soft);
+  }
+  .steps li::before {
+    content: "";
+    flex: none;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--navy);
+    margin-top: .62em;
+  }
+
+  .say {
+    background: var(--brass-tint);
+    border-inline-start: 3px solid var(--brass);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+  }
+  .say h4 { color: var(--brass); }
+  .say p {
+    font-size: 1.02rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.8;
+  }
+  .say p + p { margin-top: 10px; }
+
+  .why {
+    font-size: .89rem;
+    color: var(--muted);
+    background: var(--surface-alt);
+    border-radius: 10px;
+    padding: 13px 16px;
+  }
+  .why b { color: var(--ink-soft); font-weight: 700; }
+
+  .caution {
+    display: flex;
+    gap: 10px;
+    font-size: .87rem;
+    color: var(--warn);
+    background: var(--warn-tint);
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-weight: 600;
+  }
+  .caution::before { content: "▲"; font-size: .7rem; margin-top: .35em; flex: none; }
+
+  /* ── Danger ───────────────────────────────── */
+  .danger-panel {
+    border: 1.5px solid var(--danger);
+    background: var(--danger-tint);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .dp-head {
+    padding: 16px 22px;
+    border-bottom: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+    font-weight: 800;
+    color: var(--danger);
+    font-size: 1rem;
+  }
+  .dp-list { list-style: none; }
+  .dp-list li {
+    display: flex;
+    gap: 14px;
+    padding: 14px 22px;
+    border-bottom: 1px solid color-mix(in srgb, var(--danger) 16%, transparent);
+    font-size: .92rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  .dp-list li:last-child { border-bottom: 0; }
+  .dp-list code {
+    font-family: var(--mono);
+    font-size: .78rem;
+    background: var(--surface);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+    padding: 3px 9px;
+    border-radius: 6px;
+    direction: ltr;
+    flex: none;
+    font-weight: 600;
+  }
+  .dp-list span { color: var(--ink-soft); flex: 1; min-width: 240px; }
+
+  /* ── Q&A ──────────────────────────────────── */
+  .qa { display: flex; flex-direction: column; gap: 12px; }
+  details {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  details[open] { border-color: var(--navy); }
+  summary {
+    padding: 15px 20px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: .97rem;
+    list-style: none;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before {
+    content: "؟";
+    font-family: var(--serif);
+    font-weight: 700;
+    color: var(--brass);
+    flex: none;
+  }
+  summary:hover { background: var(--surface-alt); }
+  summary:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
+  details > div {
+    padding: 0 20px 18px 20px;
+    color: var(--ink-soft);
+    font-size: .93rem;
+    border-top: 1px solid var(--line-soft);
+    padding-top: 15px;
+  }
+  details > div b { color: var(--ink); font-weight: 700; }
+
+  /* ── Logins ───────────────────────────────── */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th, td { padding: 12px 16px; text-align: right; border-bottom: 1px solid var(--line-soft); font-size: .9rem; }
+  th {
+    background: var(--surface-alt);
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td code { font-family: var(--mono); font-size: .82rem; direction: ltr; display: inline-block; color: var(--navy); font-weight: 600; }
+
+  footer {
+    border-top: 2px solid var(--ink);
+    padding-top: 22px;
+    color: var(--muted);
+    font-size: .86rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">REDP · Demo Run-Sheet · 30 min</div>
+    <h1>عرض السيستم لمطوّر عقاري</h1>
+    <p class="standfirst">
+      قصة واحدة متصلة: مشتري بيدخل الموقع، يدفع جدية حجز، يستلم دوره في الطابور، بروكر بياخد عمولته،
+      المحاسبة بتتقفل لوحدها، والعميل بيدخل بورتال بيته. ٦ فصول في ٣٠ دقيقة — ومحدش بيفتح صفحة مش جاهزة.
+    </p>
+  </header>
+
+  <div class="clockbar">
+    <span class="clock-face" id="clock">00:00</span>
+    <span class="clock-now" id="now">اضغط «ابدأ» أول ما تفتح الشاشة قدامهم.</span>
+    <button class="btn go" id="startBtn">ابدأ</button>
+    <button class="btn" id="resetBtn">صفّر</button>
+  </div>
+
+  <!-- ══ PRE-FLIGHT ══ -->
+  <section id="preflight">
+    <div class="sec-head">
+      <h2>قبل ما تدخل الأوضة</h2>
+      <span class="tag">pre-flight</span>
+    </div>
+    <p class="sec-intro">
+      دوس على كل بند بعد ما تتأكد منه. البنود المعلّمة <b>حرجة</b> هي اللي لو غلطت فيها العرض بيقف قدام العميل —
+      مش بيطلّع رسالة خطأ، بيفضل بيحمّل أو بيوريهم شاشة فاضية.
+    </p>
+
+    <div class="preflight">
+      <div class="pf-bar">
+        <span class="pf-label">جاهزية الاستعراض</span>
+        <span class="pf-count" id="pfCount">0 / 7</span>
+      </div>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>MySQL شغال<span class="pf-crit">حرج</span></strong>
+          <span>من XAMPP Control Panel — اضغط Start جنب MySQL مش Apache بس. لو مقفول، السيستم كله بيتجمّد ويفضل «Loading» بلا نهاية بدل ما يقول إن فيه غلط.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>الباك إند والفرونت شغالين</strong>
+          <span><code>php artisan serve</code> على 8000 و <code>npm run dev</code> على 5174. افتح الاتنين قبل المييتنج بربع ساعة مش وقتها.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>الإيصالات بتظهر<span class="pf-crit">حرج</span></strong>
+          <span>افتح <code>/acquisition/eoi-reservations</code> واضغط على أي إيصال. لازم الصورة تبان. لو مكسورة، الـ <code>storage</code> symlink راح — شغّل <code>php artisan storage:link</code>.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>مشروع الديمو فيه وحدات وخرايط<span class="pf-crit">حرج</span></strong>
+          <span>امشي على <code>/unit-selection?project=…</code> لحد ما توصل لشقة وتضغط Reserve. لو أسماء المباني في جدول الوحدات مش مطابقة لأسمائها في معرض الصور، الخرايط <b>مش هتظهر ومش هيطلع أي خطأ</b> — بروفة كاملة واحدة بتكشف ده.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>فيه وحدة <code>available</code> جاهزة تتحجز</strong>
+          <span>محتاج وحدة واحدة على الأقل حالتها متاحة عشان تعمل عليها الحجز الحي في الفصل الخامس.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>فيه دفعة متأخرة في الداتا</strong>
+          <span>عشان تقرير الأعمار (Aging) في Collections يبان فيه أرقام حقيقية مش جدول فاضي.</span>
+        </span>
+      </label>
+
+      <label class="pf-item">
+        <input type="checkbox">
+        <span class="pf-body">
+          <strong>مسار الـ Approval Workflow متظبّط<span class="pf-crit">حرج</span></strong>
+          <span>لو مفيش workflow متعرّف لنوع <code>commission_payout</code>، محرّك الموافقات <b>بيوافق تلقائياً في صمت</b> — يعني لحظة «الموافقة» اللي هتتكلم عنها هتعدي من غير ما حد يشوف حاجة. اتأكد من <code>/enterprise/workflows</code>.</span>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <!-- ══ THE THESIS ══ -->
+  <section id="pains">
+    <div class="sec-head">
+      <h2>الخمس أوجاع اللي بتبيع السيستم</h2>
+      <span class="tag">the pitch</span>
+    </div>
+    <p class="sec-intro">
+      ماتبدأش بمميزات. ابدأ بوجع هو عارفه كويس. لو دخلت الأوضة وقلت الخمسة دول وهو بيهزّ راسه —
+      باقي الـ ٣٠ دقيقة بقت مجرد إثبات.
+    </p>
+
+    <div class="pains">
+      <div class="pain">
+        <h3>يوم الطرح بيتدار بالتليفونات</h3>
+        <p>ميت عميل دفعوا في نفس اليوم. مين يختار أول؟ القرار بيتاخد بمكالمات وواسطة، والنتيجة خناقات وسمعة محروقة — وأنت مش قادر تثبت إنك كنت عادل حتى لو كنت.</p>
+        <p class="fix"><b>الحل:</b> ترتيب الطابور بيتحسب بقاعدة معلنة قبل الطرح، بتتطبّق على الكل مرة واحدة، والأسبقية بالوقت هي الفاصل الأخير. تقدر تطبع الترتيب وتدافع عنه.</p>
+      </div>
+
+      <div class="pain">
+        <h3>خناقة العمولة: مين جاب العميل؟</h3>
+        <p>بروكر بيجيب عميل، العميل بيرجع تاني من إعلان أو من الشوروم، وبروكر تاني بيدّعي إنه بتاعه. الخناقة دي بتاكل وقت الإدارة وبتخسّرك بروكرز كويسين.</p>
+        <p class="fix"><b>الحل:</b> أول بروكر بيسجّل العميل بياخد قفل ٩٠ يوم — بس مش بكلامه هو: <b>العميل نفسه بيأكّد بكود بيوصله على واتساب</b>. أي بروكر تاني بيتمنع فوراً.</p>
+      </div>
+
+      <div class="pain">
+        <h3>الوحدة اتباعت مرتين</h3>
+        <p>مندوبين في فرعين مختلفين بيبيعوا نفس الشقة في نفس الدقيقة. بتكتشفها بعد ما الاتنين دفعوا.</p>
+        <p class="fix"><b>الحل:</b> الحجز بيقفل صف الوحدة في الداتابيز نفسها. التاني بيترفض في نفس اللحظة — <b>مش سياسة، ده منع فيزيائي</b>.</p>
+      </div>
+
+      <div class="pain">
+        <h3>الخصومات بتتكتشف متأخر</h3>
+        <p>المبيعات بتدي خصم عشان تقفل الصفقة، والمالية بتعرف بعد التوقيع. الهامش بيتاكل وانت شايف رقم غلط.</p>
+        <p class="fix"><b>الحل:</b> أي خطة سداد فيها خصم بتقف في طابور المالية، و<b>العقد ما بيتوقّعش أصلاً</b> قبل ما المحاسب يوافق. مش تنبيه — بوابة.</p>
+      </div>
+
+      <div class="pain">
+        <h3>عمولة بتتدفع على فلوس ما اتحصّلتش</h3>
+        <p>بتدفع عمولة البروكر عند التوقيع، وبعدين العميل يتعثّر في الأقساط. الفلوس طلعت والإيراد ما دخلش.</p>
+        <p class="fix"><b>الحل:</b> العمولة بتتحسب لحظة <b>تحصيل كل قسط</b>، مش لحظة التوقيع. بتدفع من فلوس في إيدك.</p>
+      </div>
+
+      <div class="pain">
+        <h3>الدفاتر منفصلة عن العمليات</h3>
+        <p>المحاسب بيقيّد يدوي من ملفات إكسل بتوصله متأخرة، والميزان دايماً وراء الواقع.</p>
+        <p class="fix"><b>الحل:</b> توقيع العقد وتحصيل القسط <b>بيقيّدوا قيد اليومية بنفسهم</b> — قيد مزدوج، ميزان مراجعة وقائمة دخل من نفس الدفتر.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ RUN SHEET ══ -->
+  <section id="runsheet">
+    <div class="sec-head">
+      <h2>السيناريو — ٦ فصول</h2>
+      <span class="tag">run-sheet</span>
+    </div>
+    <p class="sec-intro">
+      عميل واحد، وحدة واحدة، من أول ما دخل الموقع لحد ما استلم مفتاحه. متقفزش بين الموديولات —
+      خلّي كل شاشة تبان كأنها نتيجة طبيعية للي قبلها. لو شغّلت المؤقّت فوق، الفصل اللي المفروض تكون فيه بيتلوّن لوحده.
+    </p>
+
+    <div class="acts">
+
+      <!-- ACT I -->
+      <article class="act" data-from="0" data-to="3">
+        <div class="act-head">
+          <span class="act-no">I</span>
+          <span class="act-title">الافتتاحية — الوجع</span>
+          <span class="act-time">0:00 – 3:00</span>
+        </div>
+        <div class="act-body">
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li>الشاشة مقفولة أو على شعار المشروع. متفتحش السيستم لسه.</li>
+              <li>اقعد، وقول الخمس أوجاع اللي فوق — واحدة واحدة، وبص في عينه بعد كل واحدة.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«قبل ما أوريك أي شاشة — أنا عايز أتأكد إني فاهم مشاكلك صح. لو الخمسة دول مش وجعك، السيستم ده مش ليك.»</p>
+          </div>
+          <div class="why">
+            <b>ليه:</b> المطوّر شاف عشرين عرض CRM قبلك، كلهم بدأوا بشاشة. اللي بيفرق إنك تبدأ بمشكلته هو، وتديله فرصة يقول «لأ، الوجع بتاعي حاجة تانية» — ساعتها انت كسبت المييتنج مش خسرته.
+          </div>
+        </div>
+      </article>
+
+      <!-- ACT II -->
+      <article class="act" data-from="3" data-to="8">
+        <div class="act-head">
+          <span class="act-no">II</span>
+          <span class="act-title">المشتري بيختار بنفسه</span>
+          <span class="act-time">3:00 – 8:00</span>
+        </div>
+        <div class="act-body">
+          <div class="routes">
+            <span class="route">/</span>
+            <span class="route">/unit-selection?project=…</span>
+          </div>
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li>افتح الموقع <b>من غير تسجيل دخول</b> — ده مهم يشوفه بعينه.</li>
+              <li>الماستر بلان → اضغط على مبنى → البرج بطوابقه → اضغط طابق.</li>
+              <li>خريطة الطابق بتفتح والشقق عليها <b>مناطق ضغط ملوّنة بحالتها</b> — أخضر متاح، أصفر محجوز، أحمر مباع.</li>
+              <li>اضغط شقة متاحة → الصورة والمساحة والسعر → <b>Reserve</b>.</li>
+              <li>استمارة جدية الحجز: بياناته → مستوى المعيشة → طريقة الدفع → <b>رفع الإيصال</b>. ابعتها.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«العميل ده لسه ما كلّمش حد من مبيعاتك. اختار شقته بنفسه، ودفع جدية الحجز، ورفع الإيصال — الساعة ٢ بالليل.»</p>
+            <p>«ولاحظ إني سألته عن دخله وتعليمه وعربياته. مش فضول — دي هي اللي هترتّب بيها الطابور بعد شوية.»</p>
+          </div>
+          <div class="why">
+            <b>ليه بيهمه:</b> بيشوف إن قمع المبيعات بيشتغل من غير مندوبين، وإن كل عميل بيدخل الداتابيز بملف كامل مش اسم وتليفون. الوصلة اللي بتربط الفصل ده باللي بعده هي أسئلة مستوى المعيشة — اذكرها هنا عشان يستنى الرد.
+          </div>
+        </div>
+      </article>
+
+      <!-- ACT III -->
+      <article class="act" data-from="8" data-to="14">
+        <div class="act-head">
+          <span class="act-no">III</span>
+          <span class="act-title">طابور الطرح — قلب العرض</span>
+          <span class="act-time">8:00 – 14:00</span>
+        </div>
+        <div class="act-body">
+          <div class="routes">
+            <span class="route">/acquisition/eoi-reservations</span>
+          </div>
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li>تبويب <b>Pending Review</b> — الطلب اللي لسه باعته انت أهو، والإيصال مرفق. افتح الإيصال قدامهم.</li>
+              <li>اضغط <b>Approve</b> → بيتولّد رقم أوردر رسمي <code>EOI-2026-000123</code> ورقم دور في الطابور.</li>
+              <li>روح تبويب <b>Queue Rules</b> — <b>ده المشهد اللي هتقفل بيه الصفقة</b>.</li>
+              <li>ورّيه الوضع الافتراضي: <b>Normal</b> = أسبقية بالوقت بحتة. صفر اجتهاد.</li>
+              <li>حوّله لـ <b>Smart</b> وورّيه الأوزان: عميل سابق ‎+100‎، كاش ‎+50‎، VIP ‎+150‎، وقواعد تكتبها انت (مثلاً: دخل فوق ١٥٠ ألف ‎+30‎).</li>
+              <li>غيّر وزن واحد واحفظ → <b>الطابور بيتحسب من الأول للكل</b> قدامهم.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«القاعدة دي بتتعلن قبل الطرح، وبتتطبّق على المية عميل مرة واحدة. أنا ما أقدرش أرفع واحد بعينه — أقدر أغيّر القاعدة للكل بس.»</p>
+            <p>«ولو اتساوى اتنين في كل حاجة؟ اللي دفع الأول بياخد الأول. الوقت هو الحكم الأخير دايماً.»</p>
+            <p>«وكل موافقة وكل تغيير في القاعدة مكتوب في سجل التدقيق باسم اللي عمله وساعته. لو عميل خد على خاطره، عندك ورق.»</p>
+          </div>
+          <div class="why">
+            <b>ليه ده أقوى جزء عندك:</b> ده مش «فيتشر»، ده حل لمشكلة سمعة. المطوّر بيدفع عشان يقدر يقول لعميل زعلان «مفيش واسطة، دي القاعدة وكانت معلنة» — <b>ويقدر يثبتها</b>. لو معاك وقت لجزء واحد بس، خليه ده.
+          </div>
+          <div class="caution">
+            متقولش إن مدير المبيعات بيسحب ويفلت في الطابور. لوحة الأولويات (Booking Priorities) نظام تاني منفصل ومش بيغيّر رقم الطابور — لو فتحتها، قدّمها كـ«لوحة قرار للإدارة» مش كترتيب العميل.
+          </div>
+        </div>
+      </article>
+
+      <!-- ACT IV -->
+      <article class="act" data-from="14" data-to="19">
+        <div class="act-head">
+          <span class="act-no">IV</span>
+          <span class="act-title">البروكر وشركات التسويق</span>
+          <span class="act-time">14:00 – 19:00</span>
+        </div>
+        <div class="act-body">
+          <div class="routes">
+            <span class="route">/sales/broker/dashboard</span>
+            <span class="route">/acquisition/broker-companies</span>
+            <span class="route">/sales/broker/company</span>
+          </div>
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li>ادخل كبروكر → <b>Overview</b>: لينك الإحالة بتاعه و<b>QR</b> يطبعه ويحطه في معرضه.</li>
+              <li>تبويب <b>Lead Protection Lock</b>: سجّل عميل برقم تليفون → السيستم بيبعت كود للعميل نفسه على واتساب → العميل بيأكّد → قفل ٩٠ يوم.</li>
+              <li>جرّب تسجّل <b>نفس الرقم</b> من بروكر تاني → بيترفض فوراً ويقوله العميل ده متسجّل بالفعل.</li>
+              <li>روح <b>Broker Agencies</b> كأدمن: شركة تسويق سجّلت نفسها من الموقع، وباعتة <b>البطاقة الضريبية والسجل التجاري</b>. راجع → وافق.</li>
+              <li>ادخل بحساب صاحب الشركة → بيدير موظفينه وفِرَقه بنفسه، وكل مندوب بياخد كود إحالة خاص بيه.</li>
+              <li>اذكر تقسيم العمولة: المندوب + قائد الفريق + صاحب الشركة — تلات نسب بتتحسب أوتوماتيك.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«خلّي بالك مين اللي أكّد العلاقة — <b>العميل نفسه</b>، مش البروكر. علشان كده القفل ده بيصمد قدام أي خناقة.»</p>
+            <p>«وشركة التسويق بتسجّل نفسها وترفع ورقها، وانت بتراجع وتوافق. الحساب <b>مش بيفتح خالص</b> قبل موافقتك.»</p>
+          </div>
+          <div class="why">
+            <b>ليه بيهمه:</b> البروكرز أكبر قناة بيع عنده وأكبر صداع إداري. هنا بيشوف إنه بيوسّع الشبكة من غير ما يوسّع فريق العمليات.
+          </div>
+        </div>
+      </article>
+
+      <!-- ACT V -->
+      <article class="act" data-from="19" data-to="26">
+        <div class="act-head">
+          <span class="act-no">V</span>
+          <span class="act-title">الفلوس — لحظة المدير المالي</span>
+          <span class="act-time">19:00 – 26:00</span>
+        </div>
+        <div class="act-body">
+          <div class="routes">
+            <span class="route">/finance/inventory</span>
+            <span class="route">/finance/plan-approvals</span>
+            <span class="route">/enterprise/accounting/entries</span>
+            <span class="route">/enterprise/commission/ledger</span>
+            <span class="route">/finance/collections</span>
+          </div>
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li><b>Inventory</b> → احجز وحدة. قول جملة القفل (تحت).</li>
+              <li>ابني <b>خطة سداد</b>: خصم، مقدم، ٥ سنين، فايدة، اضف عضوية نادي → الجدول بيتولّد بتواريخه.</li>
+              <li>الخطة فيها خصم → دخلت <b>Plan Approvals</b> عند المالية. ادخل كمحاسب ووافق.</li>
+              <li>وقّع العقد → الوحدة بقت <b>مباعة</b>، والعميل <b>اتبعتله إيميل ببيانات دخوله على البورتال أوتوماتيك</b>.</li>
+              <li><b>Journal Entries</b> → ورّيهم القيد اللي اتقيّد <b>لوحده</b> من التوقيع. مدين/دائن، قيد مزدوج.</li>
+              <li><b>Commission Ledger</b> → العمولة اتحسبت لما القسط اتحصّل. اعمل دفعة صرف → دخلت مسار موافقات.</li>
+              <li><b>Collections</b> → تقرير الأعمار: ٣٠/٦٠/٩٠ يوم، الغرامات، والإعفاء بسجل.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«الوحدة دي اتقفل صفّها في الداتابيز. لو مندوب تاني ضغط حجز في نفس الجزء من الثانية — بيترفض. <b>ده مش سياسة إدارية، ده منع على مستوى قاعدة البيانات.</b>»</p>
+            <p>«الخطة دي فيها خصم، فالعقد <b>ما ينفعش يتوقّع</b> قبل ما المالية توافق. مش هيوصلها إشعار وتزهق منه — الزرار نفسه مقفول.»</p>
+            <p>«والقيد ده — محدش كتبه. اتقيّد لوحده لحظة التوقيع. محاسبك بيراجع مش بيدخّل.»</p>
+            <p>«والعمولة؟ اتحسبت لما <b>القسط دخل خزنتك</b>، مش لما العقد اتوقّع. انت بتدفع من فلوس قبضتها.»</p>
+          </div>
+          <div class="why">
+            <b>ليه ده الفصل اللي بيقفل:</b> لو المدير المالي في الأوضة، القيد التلقائي هو اللحظة اللي بيبطّل فيها يبص في تليفونه. الحجات التلاتة دي (قفل الصف، بوابة الخصم، العمولة على التحصيل) كلها بتقول نفس الرسالة: <b>السيستم بيمنع الغلط، مش بيبلّغ عنه بعد ما يحصل.</b>
+          </div>
+          <div class="caution">
+            في تبويب Collections، ركّز على <b>تقرير الأعمار</b> — هو المحسوب من الدفعات الحقيقية. طابور التحصيل نفسه ممكن يبان فاضي على داتا جديدة.
+          </div>
+        </div>
+      </article>
+
+      <!-- ACT VI -->
+      <article class="act" data-from="26" data-to="30">
+        <div class="act-head">
+          <span class="act-no">VI</span>
+          <span class="act-title">بعد البيع — والإقفال</span>
+          <span class="act-time">26:00 – 30:00</span>
+        </div>
+        <div class="act-body">
+          <div class="routes">
+            <span class="route">/delivery/overview</span>
+            <span class="route">/enterprise/customer360</span>
+            <span class="route">/enterprise/audit</span>
+          </div>
+          <div class="block">
+            <h4>المشهد</h4>
+            <ul class="steps">
+              <li>ادخل <b>بحساب العميل</b> — نفس الصفحة بتتحوّل لبورتال بيته: جدول أقساطه، عقده، أفراد أسرته، عربياته وكود البوابة، طلبات الصيانة، وطلب إعادة بيع.</li>
+              <li>اذكر التسليم: معاينة، تسجيل الملاحظات بصورها، وتوقيع العميل بالاستلام.</li>
+              <li>افتح <b>Customer 360</b> ثانيتين: كل حاجة عن الشخص ده في شاشة واحدة — مبيعات ومالية وصيانة وقضايا.</li>
+              <li>اقفل على <b>Audit Logs</b>.</li>
+            </ul>
+          </div>
+          <div class="say">
+            <h4>قول كده</h4>
+            <p>«العميل ده ما حدّش عمله حساب. لما وقّع العقد، السيستم بعتله بياناته لوحده.»</p>
+            <p>«وآخر حاجة — كل اللي شفته النهارده مكتوب هنا: مين عمل إيه، إمتى، ومن أنهي جهاز. لو حصلت خناقة بعد سنتين، الإجابة موجودة.»</p>
+          </div>
+          <div class="why">
+            <b>الإقفال:</b> متسألش «إيه رأيك؟». اسأل سؤال بيخلّيه يتخيّل نفسه بيستخدمه: <b>«لو الطرح الجاي بتاعك بعد شهرين — تحب نبدأ بأنهي مشروع؟»</b>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ══ DANGER ══ -->
+  <section id="danger">
+    <div class="sec-head">
+      <h2>متفتحش الصفحات دي</h2>
+      <span class="tag">do not open</span>
+    </div>
+    <p class="sec-intro">
+      دي صفحات موجودة في القايمة وشكلها كامل، بس اللي جواها أرقام ثابتة أو محرّك وهمي.
+      لو مطوّر فاهم سأل فيها سؤال، هتقع. لو حد طلبها صراحة، قول الجملة المكتوبة جنبها — الصراحة هنا بتكسب ثقة، والمراوغة بتخسّرها.
+    </p>
+
+    <div class="danger-panel">
+      <div class="dp-head">أرقام ثابتة أو محرّكات وهمية</div>
+      <ul class="dp-list">
+        <li>
+          <code>/delivery/analytics</code>
+          <span>تقريباً كله أرقام مكتوبة بالإيد — نسب إشغال وتدفق نقدي متخيّلين. متفتحهاش خالص.</span>
+        </li>
+        <li>
+          <code>/delivery/documents</code>
+          <span>الـ OCR بيلفّق النص من عنوان الملف وبيحط رقم قومي وهمي ثابت. رفع الملفات والبحث حقيقيين — «قراءة المستندات» لأ.</span>
+        </li>
+        <li>
+          <code>/enterprise/dashboard</code>
+          <span>المؤشرات الستة فوق <b>حقيقية</b> ومحسوبة من الداتا. <b>كل الرسوم البيانية</b> تحتها ثابتة. ورّي الأرقام، متنزلش للجراف.</span>
+        </li>
+        <li>
+          <code>/enterprise/ai</code>
+          <span>تقييم العملاء ومخاطر التحصيل قواعد منطقية شفافة (وده كويس — سمّيه «محرّك قواعد»). <b>توقّع المبيعات مزيّف</b> (منحنى رياضي على رقم ثابت). ومتقولش «ذكاء اصطناعي متدرّب» — قول «مدعوم بنموذج لغوي».</span>
+        </li>
+        <li>
+          <code>/acquisition/kyc</code>
+          <span>مسار العمل والتخزين والمراجعة اليدوية حقيقيين، بس <b>مطابقة الوجه بترجّع أرقام عشوائية</b>. لو اتسأل: «المسار مبني بالكامل، وربط مزوّد التحقق (زي Rekognition) توصيلة واحدة.»</span>
+        </li>
+        <li>
+          <code>/enterprise/rbac</code>
+          <span>شاشة صلاحيات مبهرة (٨٣ صلاحية) بس <b>مفيش endpoint واحد بيتحقق منها</b> — الحماية الفعلية بالأدوار العامة. متقولش «صلاحيات دقيقة مفعّلة».</span>
+        </li>
+        <li>
+          <code>/enterprise/tenant</code>
+          <span>عزل البيانات بين الشركات متطبّق على ٤ جداول بس — <b>الوحدات والعقود والدفعات مش معزولة</b>. متبيعش الحكاية كـ SaaS جاهز.</span>
+        </li>
+        <li>
+          <code>/enterprise/globalization</code>
+          <span>الترجمة حقيقية والسيستم فعلاً ثنائي اللغة. بس <b>أسعار الصرف مكتوبة بالإيد</b> — مفيش مصدر حي.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="caution" style="margin-top:18px">
+      وخلي بالك من ده: <code style="font-family:var(--mono);direction:ltr">/finance/payments</code> بيفتح شاشة <b>النظرة المالية العامة</b>، و<code style="font-family:var(--mono);direction:ltr">/finance/ledger</code> بيفتح <b>دفتر الدفعات</b>. الاسمين مقلوبين — متلغبطش قدامهم.
+    </div>
+  </section>
+
+  <!-- ══ Q&A ══ -->
+  <section id="qa">
+    <div class="sec-head">
+      <h2>الأسئلة اللي هتتسأل</h2>
+      <span class="tag">objections</span>
+    </div>
+    <p class="sec-intro">مطوّر شاطر هيسأل الأربعة دول. جهّز الرد قبل ما يسأل.</p>
+
+    <div class="qa">
+      <details>
+        <summary>«طب إيه اللي يمنعني أعدّل الطابور لصالح حد؟»</summary>
+        <div>
+          <b>ده أهم سؤال هيتسأل — وهو في صالحك.</b> الرد: «تقدر تغيّر القاعدة، مش الشخص. ولو غيّرت القاعدة، بتتغيّر على المية عميل مرة واحدة، والتغيير نفسه مسجّل باسمك وساعته. يعني الواسطة مش مستحيلة — بس بقت <b>مرئية ومكلّفة</b>. وده بالظبط اللي محتاجه عشان تقدر تقول لأ.»
+        </div>
+      </details>
+
+      <details>
+        <summary>«الداتا بتاعتي هتتنقل إزاي؟»</summary>
+        <div>
+          متخترعش رقم. قول: «ده أول سؤال بنجاوب عليه في ورشة الاكتشاف، مش في العرض. عندك النهاردة إيه — إكسل، أوراكل، سيستم محلي؟» — وخلّي الإجابة بتاعته تفتحلك المييتنج اللي بعده. <b>الاعتراف بإن الإجابة محتاجة شغل بيوريك محترف، مش العكس.</b>
+        </div>
+      </details>
+
+      <details>
+        <summary>«فين ربط الدفع الإلكتروني؟ فوري، فيزا؟»</summary>
+        <div>
+          الصراحة هنا سهلة والمكسب كبير: «دلوقتي العميل بيرفع إيصال والمحاسب بيراجعه — وده بالمناسبة اللي بيحصل في السوق فعلاً. ربط بوابة الدفع نقطة واحدة في السيستم، مش إعادة بناء.» <b>متقولش إنه موجود</b> — نقطة الويب هوك فاضية.
+        </div>
+      </details>
+
+      <details>
+        <summary>«الموبايل؟»</summary>
+        <div>
+          فيه تطبيق Flutter لبورتال العميل (المالك) فعلاً. بس <b>الموظفين شغالين من الويب</b>. قول ده بالظبط كده — لا تزوّد ولا تنقّص.
+        </div>
+      </details>
+
+      <details>
+        <summary>«ده كله كام؟»</summary>
+        <div>
+          <b>متسعّرش في المييتنج الأول.</b> قول: «السعر بيعتمد على عدد المشاريع والوحدات وحجم الفريق. سيبني أفهم حجمك الأول ونبعتلك عرض مكتوب.» — والمييتنج التاني ده هو اللي كنت بتحاول تحجزه من الأصل.
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ══ LOGINS ══ -->
+  <section id="logins">
+    <div class="sec-head">
+      <h2>الحسابات اللي هتبدّل بينها</h2>
+      <span class="tag">accounts</span>
+    </div>
+    <p class="sec-intro">
+      العرض بيحتاج تبديل أدوار ٤ مرات. <b>افتح كل دور في تبويب متصفح منفصل قبل ما تبدأ</b> —
+      تسجيل الخروج والدخول قدامهم بياكل من وقتك وبيكسر الإيقاع.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الفصل</th>
+            <th>الدور</th>
+            <th>التبويب فيه إيه</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>II</td>
+            <td>زائر (بدون دخول)</td>
+            <td><code>/unit-selection?project=…</code></td>
+          </tr>
+          <tr>
+            <td>III</td>
+            <td>أدمن</td>
+            <td><code>/acquisition/eoi-reservations</code></td>
+          </tr>
+          <tr>
+            <td>IV</td>
+            <td>بروكر</td>
+            <td><code>/sales/broker/dashboard</code></td>
+          </tr>
+          <tr>
+            <td>V</td>
+            <td>محاسب / أدمن</td>
+            <td><code>/finance/inventory</code></td>
+          </tr>
+          <tr>
+            <td>VI</td>
+            <td>عميل</td>
+            <td><code>/delivery/overview</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="caution" style="margin-top:18px">
+      لو «وضع الديمو» مفعّل من إعدادات النظام، السيستم بيقدر يسجّل دخول تلقائي بحسابات <code style="font-family:var(--mono);direction:ltr">demo.*@redp.test</code> — جرّبها قبل بيوم، مش وانت قدامهم.
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      الفصول الستة كلها مبنية على أجزاء مشتغلة فعلاً في السيستم — مفيش شاشة في السيناريو ده بتعرض رقم ملفّق.
+      الأجزاء اللي لسه محتاجة شغل متجمّعة في قسم «متفتحش الصفحات دي» عشان تعرفها انت، مش عشان تخبّيها.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    // ── Pre-flight checklist ───────────────────
+    var items = Array.prototype.slice.call(document.querySelectorAll('.pf-item'));
+    var counter = document.getElementById('pfCount');
+
+    function refresh() {
+      var done = 0;
+      items.forEach(function (item) {
+        var box = item.querySelector('input');
+        item.classList.toggle('checked', box.checked);
+        if (box.checked) done++;
+      });
+      counter.textContent = done + ' / ' + items.length;
+      counter.classList.toggle('done', done === items.length);
+    }
+
+    items.forEach(function (item) {
+      item.querySelector('input').addEventListener('change', refresh);
+    });
+    refresh();
+
+    // ── Demo clock ─────────────────────────────
+    var acts = Array.prototype.slice.call(document.querySelectorAll('.act'));
+    var face = document.getElementById('clock');
+    var now = document.getElementById('now');
+    var startBtn = document.getElementById('startBtn');
+    var resetBtn = document.getElementById('resetBtn');
+
+    var seconds = 0;
+    var timer = null;
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    function paint() {
+      face.textContent = pad(Math.floor(seconds / 60)) + ':' + pad(seconds % 60);
+
+      var minutes = seconds / 60;
+      var current = null;
+
+      acts.forEach(function (act) {
+        var from = Number(act.dataset.from);
+        var to = Number(act.dataset.to);
+        var live = timer !== null && minutes >= from && minutes < to;
+        act.classList.toggle('live', live);
+        if (live) current = act;
+      });
+
+      if (timer === null) {
+        now.textContent = seconds === 0
+          ? 'اضغط «ابدأ» أول ما تفتح الشاشة قدامهم.'
+          : 'متوقّف.';
+      } else if (current) {
+        var title = current.querySelector('.act-title').textContent;
+        var left = Math.ceil(Number(current.dataset.to) - minutes);
+        now.innerHTML = 'دلوقتي: <b>' + title + '</b> — فاضل ' + left + ' دقيقة';
+      } else {
+        now.innerHTML = '<b>الوقت خلص.</b> اقفل بسؤال المشروع الجاي.';
+      }
+    }
+
+    function tick() {
+      seconds++;
+      paint();
+    }
+
+    startBtn.addEventListener('click', function () {
+      if (timer === null) {
+        timer = setInterval(tick, 1000);
+        startBtn.textContent = 'وقّف';
+      } else {
+        clearInterval(timer);
+        timer = null;
+        startBtn.textContent = 'كمّل';
+      }
+      paint();
+    });
+
+    resetBtn.addEventListener('click', function () {
+      clearInterval(timer);
+      timer = null;
+      seconds = 0;
+      startBtn.textContent = 'ابدأ';
+      paint();
+    });
+
+    paint();
+  })();
+</script>
+
+</body>
+</html>

@@ -6,6 +6,7 @@ import DashboardLayout from './components/DashboardLayout';
 import LandingPage from './pages/public/LandingPage';
 import InteractiveUnitSelection from './pages/public/InteractiveUnitSelection';
 import BrokerCompanyRegister from './pages/public/BrokerCompanyRegister';
+import { captureReferralFromUrl } from './utils/referral';
 
 // 🟠 Acquisition Pages
 import Leads from './pages/acquisition/Leads';
@@ -80,6 +81,7 @@ import QualityManagement from './pages/enterprise/quality/QualityManagement';
 // 📞 Global Components
 import VoipDialerWidget from './components/acquisition/VoipDialerWidget';
 import DemoTour from './components/DemoTour';
+import PresenterMode from './components/PresenterMode';
 import AiAssistant from './components/AiAssistant';
 import AnamAgent from './components/AnamAgent';
 
@@ -163,6 +165,12 @@ const HomeRedirect: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // A broker's link can land on any route, and the buyer usually submits the EOI
+  // several pages later — so grab the code before the query string is navigated away.
+  React.useEffect(() => {
+    captureReferralFromUrl();
+  }, []);
+
   return (
     <Router>
       <Routes>
@@ -173,7 +181,9 @@ const App: React.FC = () => {
         {/* 🏢 Public Broker Agency Registration */}
         <Route path="/broker-company/register" element={<BrokerCompanyRegister />} />
 
-        {/* 🏠 Public Landing Page */}
+        {/* 🏠 Public Landing Page
+            Nour (AnamAgent) is the only assistant out front — one bubble, one voice.
+            The text assistant stays on the dashboard side. */}
         <Route path="/" element={<><LandingPage /><AnamAgent /></>} />
 
         {/* 🏗️ Interactive 3D Unit Selection */}
@@ -258,6 +268,9 @@ const App: React.FC = () => {
 
       {/* 🎬 Demo Mode — live auto-walkthrough driver (persists across routes) */}
       <DemoTour />
+
+      {/* 🎤 Presenter Mode — the 30-min pitch script, paced by the person in the room */}
+      <PresenterMode />
     </Router>
   );
 };

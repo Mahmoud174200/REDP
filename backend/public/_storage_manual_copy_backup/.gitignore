@@ -1,0 +1,5 @@
+*
+!.gitignore
+!projects/
+!projects/generated/
+!projects/generated/**

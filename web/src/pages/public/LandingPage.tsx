@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import SalesAgentField from '../../components/SalesAgentField';
+import { getReferral } from '../../utils/referral';
+import { DEMO_BUYER, makeDemoReceipt, sleep, submitEoi } from '../../utils/demoEoi';
 import {
   Globe, Building, MapPin, Calendar, Compass, Layers, CheckCircle,
   Phone, Mail, ArrowRight, ArrowLeft, Star, CreditCard, Lock, ChevronDown,
-  Info, AlertCircle, Play, Menu, X, Shield, ArrowUpRight
+  Info, AlertCircle, Play, Menu, X, Shield, ArrowUpRight, Presentation
 } from 'lucide-react';
 
 const translations = {
@@ -604,6 +607,7 @@ const LandingPage: React.FC = () => {
     cars_owned: '', club_memberships: ''
   });
   const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
+  const [agentCode, setAgentCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
@@ -778,56 +782,132 @@ const LandingPage: React.FC = () => {
     setShowEoiModal(true);
   };
 
-  // 🎬 Demo Mode: let the live walkthrough drive the real EOI flow via component state.
+  /* 🎬 Demo Mode + Presenter Mode drive the REAL EOI from here.
+   *
+   * This is the whole point of an EOI and the reason it lives on the landing page
+   * rather than the unit map: 50k buys a PLACE IN THE PROJECT'S QUEUE, not an
+   * apartment. The buyer picks a compound, pays, and waits to be ranked and
+   * invited — only then does he choose a unit. So no unit is attached here.
+   *
+   * The receipt is drawn on a canvas at click time (see utils/demoEoi), which
+   * means the presenter never opens a file picker and a genuine pending EOI hits
+   * the database — the one Finance approves in the next act.
+   */
+  const eoiReceiptRef = useRef<File | null>(null);
+
+  // The autopilot opens the modal and submits moments later, in one listener call.
+  // `eoiProject` state is a render behind by then; this ref isn't.
+  const eoiProjectRef = useRef<any>(null);
+  eoiProjectRef.current = eoiProject;
+
   useEffect(() => {
-    const onDemoAction = (e: Event) => {
+    const onDemoAction = async (e: Event) => {
       const { action, value } = (e as CustomEvent).detail || {};
+
       switch (action) {
         case 'open-eoi': {
-          const proj = projects.find(p => p.id === selectedProjectId) || projects[activeProjectIndex] || projects[0];
-          if (proj) openEoiModal(proj);
+          const hint = String(value || '').toLowerCase();
+          const proj =
+            (hint && projects.find((p: any) => (p.name || '').toLowerCase().includes(hint))) ||
+            projects.find((p: any) => p.id === selectedProjectId) ||
+            projects[activeProjectIndex] ||
+            projects[0];
+          if (proj) openEoiModal(proj);   // no unit — an EOI is a queue place
           break;
         }
+
         case 'fill-contact':
+          setEoiStep(1);
           setEoiForm(prev => ({
             ...prev,
-            first_name: 'Ahmed', last_name: 'Mostafa',
-            email: 'ahmed.demo@example.com', phone: '01001234567', national_id: '29008011234567',
+            first_name: DEMO_BUYER.first_name,
+            last_name: DEMO_BUYER.last_name,
+            email: DEMO_BUYER.email,
+            phone: DEMO_BUYER.phone,
+            national_id: DEMO_BUYER.national_id,
           }));
           break;
+
         case 'fill-profile':
+          setEoiStep(2);
           setEoiForm(prev => ({
             ...prev,
-            education: "Bachelor's Degree", job_title: 'Marketing Manager',
-            monthly_income: '85000', income_currency: 'EGP', marital_status: 'married',
-            number_of_children: '2', children_ages: '6, 9', children_schools: 'British International School',
-            current_residence: 'New Cairo', residence_type: 'owned', cars_owned: '2', club_memberships: 'Wadi Degla',
+            education: DEMO_BUYER.education,
+            job_title: DEMO_BUYER.job_title,
+            monthly_income: DEMO_BUYER.monthly_income,
+            income_currency: DEMO_BUYER.income_currency,
+            marital_status: DEMO_BUYER.marital_status,
+            number_of_children: DEMO_BUYER.number_of_children,
+            children_ages: DEMO_BUYER.children_ages,
+            children_schools: DEMO_BUYER.children_schools,
+            current_residence: DEMO_BUYER.current_residence,
+            residence_type: DEMO_BUYER.residence_type,
+            cars_owned: DEMO_BUYER.cars_owned,
+            club_memberships: DEMO_BUYER.club_memberships,
           }));
           break;
-        case 'fill-eoi': // (legacy: fill everything at once)
-          setEoiForm(prev => ({
-            ...prev,
-            first_name: 'Ahmed', last_name: 'Mostafa',
-            email: 'ahmed.demo@example.com', phone: '01001234567', national_id: '29008011234567',
-            education: "Bachelor's Degree", job_title: 'Marketing Manager',
-            monthly_income: '85000', income_currency: 'EGP', marital_status: 'married',
-            number_of_children: '2', children_ages: '6, 9', children_schools: 'British International School',
-            current_residence: 'New Cairo', residence_type: 'owned', cars_owned: '2', club_memberships: 'Wadi Degla',
-          }));
+
+        case 'fill-payment': {
+          setEoiStep(3);
+          setClientLocation('inside_egypt');
+          setPaymentMethod('instapay');
+          const receipt = await makeDemoReceipt();
+          eoiReceiptRef.current = receipt;
+          setReceiptFile(receipt);
           break;
+        }
+
+        case 'submit-eoi': {
+          const project = eoiProjectRef.current;
+          if (!project) break;
+          const receipt = eoiReceiptRef.current ?? (await makeDemoReceipt());
+
+          setEoiProcessing(true);
+          setErrorMessage('');
+          try {
+            const res = await submitEoi({
+              form: DEMO_BUYER,
+              projectId: project.id,
+              location: 'inside_egypt',
+              method: 'instapay',
+              receipt,
+              ref: (getReferral()?.code || '').trim(),
+            });
+            if (res.data?.success) {
+              setEoiResult(res.data);
+              setEoiStep(4);
+            }
+          } catch (err: any) {
+            console.error(err);
+            setErrorMessage(err.response?.data?.message || 'EOI submission failed.');
+          }
+          setEoiProcessing(false);
+          break;
+        }
+
+        // The whole thing, hands off — for when the clock is against you.
+        case 'eoi-autopilot': {
+          const fire = (a: string, v?: any) =>
+            window.dispatchEvent(new CustomEvent('redp-demo-action', { detail: { action: a, value: v } }));
+          fire('open-eoi', value);
+          await sleep(1100);
+          fire('fill-contact');
+          await sleep(1700);
+          fire('fill-profile');
+          await sleep(2000);
+          fire('fill-payment');
+          await sleep(1800);
+          fire('submit-eoi');
+          break;
+        }
+
         case 'eoi-step': setEoiStep(value); break;
         case 'set-location': setClientLocation(value); break;
         case 'set-payment': setPaymentMethod(value); break;
         case 'close-eoi': setShowEoiModal(false); break;
-        case 'submit-eoi':
-          // Demo can't upload a real receipt, so create the EOI via the gated demo API
-          // and show the same success screen the real flow shows.
-          api.post('/demo/seed-eoi')
-            .then(res => { setEoiResult(res.data); setEoiStep(4); })
-            .catch(() => { setEoiResult({ queue_number: null, data: {} }); setEoiStep(4); });
-          break;
       }
     };
+
     window.addEventListener('redp-demo-action', onDemoAction);
     return () => window.removeEventListener('redp-demo-action', onDemoAction);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -908,6 +988,13 @@ const LandingPage: React.FC = () => {
       formData.append('residence_type', eoiForm.residence_type);
       formData.append('cars_owned', eoiForm.cars_owned);
       formData.append('club_memberships', eoiForm.club_memberships);
+
+      // Credits the broker: AttributionService reads `ref` and locks lead ownership.
+      // Absent, the sale is attributed as direct.
+      const ref = (agentCode || getReferral()?.code || '').trim();
+      if (ref) {
+        formData.append('ref', ref);
+      }
 
       const res = await api.post('/v1/public/eoi/submit', formData, {
         headers: {
@@ -1540,19 +1627,37 @@ const LandingPage: React.FC = () => {
               </p>
 
               {demoOn && (
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('redp-demo-start', { detail: { lang } }))}
-                  style={{
-                    marginTop: 28, display: 'inline-flex', alignItems: 'center', gap: 10,
-                    padding: '14px 26px', borderRadius: 999, cursor: 'pointer',
-                    border: '1px solid rgba(255,255,255,0.35)', fontWeight: 800, fontSize: '0.95rem',
-                    background: 'linear-gradient(135deg, #16a34a, #0891b2)', color: '#fff',
-                    boxShadow: '0 14px 34px -10px rgba(22,163,74,0.6)',
-                  }}
-                >
-                  <Play size={18} fill="#fff" />
-                  {lang === 'en' ? 'Start Guided Demo' : 'ابدأ الجولة التعريفية'}
-                </button>
+                <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('redp-demo-start', { detail: { lang } }))}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 10,
+                      padding: '14px 26px', borderRadius: 999, cursor: 'pointer',
+                      border: '1px solid rgba(255,255,255,0.35)', fontWeight: 800, fontSize: '0.95rem',
+                      background: 'linear-gradient(135deg, #16a34a, #0891b2)', color: '#fff',
+                      boxShadow: '0 14px 34px -10px rgba(22,163,74,0.6)',
+                    }}
+                  >
+                    <Play size={18} fill="#fff" />
+                    {lang === 'en' ? 'Start Guided Demo' : 'ابدأ الجولة التعريفية'}
+                  </button>
+
+                  {/* Presenter Mode — for the person pitching, not the visitor watching. */}
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('redp-presenter-start'))}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 10,
+                      padding: '14px 26px', borderRadius: 999, cursor: 'pointer',
+                      border: '1px solid rgba(217,168,85,0.55)', fontWeight: 800, fontSize: '0.95rem',
+                      background: 'rgba(11,21,36,0.55)', color: '#D9A855',
+                      backdropFilter: 'blur(6px)',
+                      boxShadow: '0 14px 34px -14px rgba(0,0,0,0.7)',
+                    }}
+                  >
+                    <Presentation size={18} />
+                    {lang === 'en' ? 'Presenter Mode (30 min)' : 'وضع العرض (٣٠ دقيقة)'}
+                  </button>
+                </div>
               )}
 
               <div className="hero-stats-row" style={{ display: 'flex', gap: 36, marginTop: 40, borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: 30, flexWrap: 'wrap' }}>
@@ -2323,6 +2428,14 @@ const LandingPage: React.FC = () => {
                         onChange={e => setEoiForm({ ...eoiForm, national_id: e.target.value })}
                       />
                     </div>
+
+                    <SalesAgentField
+                      lang={lang}
+                      value={agentCode}
+                      onChange={setAgentCode}
+                      labelStyle={{ fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', display: 'block', marginBottom: 8 }}
+                      inputClassName="mv-input"
+                    />
 
                     <button type="submit" className="btn-luxury-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
                       {lang === 'en' ? 'Continue' : 'متابعة'}

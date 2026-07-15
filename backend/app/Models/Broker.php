@@ -84,8 +84,8 @@ class Broker extends Model
      */
     public function getReferralUrlAttribute(): string
     {
-        $baseUrl = config('app.frontend_url', 'https://redp.com');
-        return "{$baseUrl}/register?ref={$this->referral_code}";
+        $baseUrl = rtrim(config('app.frontend_url', 'https://redp.com'), '/');
+        return "{$baseUrl}/?ref={$this->referral_code}";
     }
 
     /**

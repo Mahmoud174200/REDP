@@ -14,6 +14,16 @@ use App\Models\EoiReservation;
 class EoiEmailService
 {
     /**
+     * Base URL of the SPA. Every button in these emails must land the client on the
+     * app, not the API — a hardcoded host here means a dead button in the client's
+     * inbox, which is invisible from our side.
+     */
+    private static function frontend(): string
+    {
+        return rtrim((string) config('app.frontend_url'), '/');
+    }
+
+    /**
      * Send approval confirmation email to the client.
      */
     public static function sendApprovalEmail(EoiReservation $reservation): void
@@ -176,7 +186,7 @@ class EoiEmailService
         string $password,
         string $projectId
     ): string {
-        $loginUrl = "http://localhost:5173/client-login?project=" . $projectId;
+        $loginUrl = self::frontend() . '/client-login?project=' . $projectId;
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
@@ -359,6 +369,7 @@ class EoiEmailService
         string $amount,
         string $reviewDate
     ): string {
+        $appUrl = self::frontend();
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
@@ -439,7 +450,7 @@ class EoiEmailService
 
                     <!-- Call to Action button -->
                     <div style="text-align: center; margin-bottom: 30px;">
-                        <a href="http://localhost:5173/unit-selection" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                        <a href="{$appUrl}/unit-selection" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
                             Explore Projects & Master Plan
                         </a>
                     </div>
@@ -474,6 +485,7 @@ class EoiEmailService
         string $reason,
         string $reviewDate
     ): string {
+        $appUrl = self::frontend();
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
@@ -531,7 +543,7 @@ class EoiEmailService
 
                     <!-- Action Button -->
                     <div style="text-align: center; margin-bottom: 30px;">
-                        <a href="http://localhost:5173/unit-selection" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                        <a href="{$appUrl}/unit-selection" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
                             Re-submit EOI Reservation
                         </a>
                     </div>
@@ -568,6 +580,7 @@ class EoiEmailService
         string $amount,
         string $reviewDate
     ): string {
+        $appUrl = self::frontend();
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
@@ -642,7 +655,7 @@ class EoiEmailService
 
                     <!-- Button -->
                     <div style="text-align: center; margin-bottom: 30px;">
-                        <a href="http://localhost:5173/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                        <a href="{$appUrl}/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
                             Go to My Client Portal
                         </a>
                     </div>
@@ -678,6 +691,7 @@ class EoiEmailService
         string $reason,
         string $reviewDate
     ): string {
+        $appUrl = self::frontend();
         return <<<HTML
         <div style="font-family: 'Inter', Arial, sans-serif; background-color: #f4f6fc; padding: 40px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 61, 166, 0.05); border: 1px solid rgba(0, 61, 166, 0.05); text-align: left;">
@@ -735,7 +749,7 @@ class EoiEmailService
 
                     <!-- Button -->
                     <div style="text-align: center; margin-bottom: 30px;">
-                        <a href="http://localhost:5173/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
+                        <a href="{$appUrl}/dashboard" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #003DA6 0%, #001A70 100%); color: #ffffff; font-family: 'Outfit', Arial, sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 30px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0, 61, 166, 0.25);">
                             Re-upload Payment Receipt
                         </a>
                     </div>

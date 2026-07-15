@@ -374,7 +374,7 @@ class ContractController extends Controller
         $email = htmlspecialchars($client->email, ENT_QUOTES);
         $unit = htmlspecialchars($contract->unit->unit_number ?? '—', ENT_QUOTES);
         $num = htmlspecialchars($contract->contract_number, ENT_QUOTES);
-        $loginUrl = 'http://localhost:5173/client-login';
+        $loginUrl = rtrim((string) config('app.frontend_url'), '/') . '/client-login';
         return <<<HTML
         <div style="font-family:Arial,sans-serif;background:#f4f6fc;padding:40px 20px;">
           <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,61,166,.06)">

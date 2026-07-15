@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Users, Plus, Star, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 
 const Leads: React.FC = () => {
@@ -54,7 +54,6 @@ const Leads: React.FC = () => {
           email: lead.email || 'n/a',
           phone: lead.phone,
           stage: lead.status || 'new',
-          kyc: lead.kyc_status || 'none',
           is_vip: !!lead.is_vip
         }));
         setLeads(mappedLeads);
@@ -123,23 +122,6 @@ const Leads: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to capture lead.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKycApprove = async (leadId: string) => {
-    try {
-      setIsLoading(true);
-      const response = await api.put(`/v1/acquisition/kyc/${leadId}/approve`, {
-        decision: 'verified',
-        reason: 'Operator approved KYC check from dashboard'
-      });
-      if (response.data && response.data.success) {
-        await fetchLeads();
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to approve KYC.');
     } finally {
       setIsLoading(false);
     }
@@ -288,7 +270,7 @@ const Leads: React.FC = () => {
       <div className="glass-panel" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '6px' }}>🟠 Sales CRM & Lead Acquisition</h1>
-          <p>Lead registration, biometric KYC face match, and 7-stage Kanban pipeline.</p>
+          <p>Lead registration, appointment scheduling, and a 7-stage Kanban pipeline.</p>
         </div>
         <div style={{ padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-warning)' }}>MODULE: H.1 / H.9</span>
@@ -326,22 +308,21 @@ const Leads: React.FC = () => {
           </form>
         </div>
 
-        {/* KYC Biometrics Simulation */}
+        {/* Client Directory & VIP flagging */}
         <div className="glass-panel" style={{ padding: '30px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShieldCheck style={{ color: 'var(--color-success)' }} />
-            KYC Facematch & OCR Scanner (Database Linked)
+            <Star style={{ color: 'var(--color-warning)' }} />
+            Client Directory
           </h2>
-          <p style={{ marginBottom: '20px' }}>Section H.1: Biometric verify matching ID photo to camera scan with &gt; 85% confidence score.</p>
-          
+          <p style={{ marginBottom: '20px' }}>Every captured lead in one place. Flag a client as VIP to give them priority weight in the launch queue.</p>
+
           <div style={{ maxHeight: '350px', overflowY: 'auto' }} className="sidebar-scroll-container">
             <table className="premium-table">
               <thead>
                 <tr>
                   <th>Lead Name</th>
                   <th>Phone</th>
-                  <th>KYC Verification</th>
-                  <th>Action</th>
+                  <th>VIP</th>
                 </tr>
               </thead>
               <tbody>
@@ -355,49 +336,32 @@ const Leads: React.FC = () => {
                     </td>
                     <td>{lead.phone}</td>
                     <td>
-                      {lead.kyc === 'verified' && <span className="badge badge-success">Verified (94.2%)</span>}
-                      {lead.kyc === 'pending' && <span className="badge badge-warning">OCR Running</span>}
-                      {lead.kyc === 'none' && <span className="badge badge-danger">Unverified</span>}
-                      {lead.kyc === 'rejected' && <span className="badge badge-danger">Rejected</span>}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        {lead.kyc === 'none' && (userRole === 'admin' || userRole === 'sales_agent') ? (
-                          <button 
-                            onClick={() => handleKycApprove(lead.id)}
-                            className="btn-secondary" 
-                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                          >
-                            Run KYC Verification
-                          </button>
-                        ) : lead.kyc === 'none' ? (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Pending</span>
-                        ) : null}
-                        {lead.kyc !== 'none' && <span style={{ color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>Checked</span>}
-
-                        {(userRole === 'admin' || userRole === 'sales_agent' || userRole === 'company_sales') && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const res = await api.put(`/acquisition/leads/${lead.id}/toggle-vip`);
-                                if (res.data.success) {
-                                  await fetchLeads();
-                                }
-                              } catch (err) {
-                                alert('Failed to toggle VIP status');
+                      {(userRole === 'admin' || userRole === 'sales_agent' || userRole === 'company_sales') ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await api.put(`/acquisition/leads/${lead.id}/toggle-vip`);
+                              if (res.data.success) {
+                                await fetchLeads();
                               }
-                            }}
-                            style={{
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              color: lead.is_vip ? '#f59e0b' : '#d1d5db',
-                              fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center'
-                            }}
-                            title={lead.is_vip ? "Remove VIP status" : "Make VIP"}
-                          >
-                            ★
-                          </button>
-                        )}
-                      </div>
+                            } catch (err) {
+                              alert('Failed to toggle VIP status');
+                            }
+                          }}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: lead.is_vip ? '#f59e0b' : '#d1d5db',
+                            fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center'
+                          }}
+                          title={lead.is_vip ? "Remove VIP status" : "Make VIP"}
+                        >
+                          ★
+                        </button>
+                      ) : (
+                        lead.is_vip
+                          ? <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>VIP</span>
+                          : <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

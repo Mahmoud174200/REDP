@@ -304,6 +304,37 @@ const AiAssistant: React.FC<Props> = ({ mode }) => {
     [input, loading, endpoint, respondWithVoice, lang]
   );
 
+  // An ask fires on a timer, so it must reach for the current `send` rather than
+  // the one that existed when the event arrived — that one closes over a `loading`
+  // and a `lang` from before the panel opened.
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
+  /**
+   * Presenter Mode asks the questions from its script panel — one click and the
+   * question is in the box and sent. Typing Arabic in front of a room is how
+   * typos (and dead air) happen.
+   *   window.dispatchEvent(new CustomEvent('redp-ai-ask', { detail: { text, lang: 'ar' } }))
+   * With no `text`, this just opens the panel.
+   */
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const { text, lang: wanted } = ((e as CustomEvent).detail || {}) as {
+        text?: string;
+        lang?: Lang;
+      };
+      setIncomingCall(false);
+      setOpen(true);
+      if (wanted === 'ar' || wanted === 'en') setLang(wanted);
+      // Let the panel mount — and the language land — before the message goes.
+      if (text) setTimeout(() => sendRef.current(text), 320);
+    };
+    window.addEventListener('redp-ai-ask', onAsk);
+    return () => window.removeEventListener('redp-ai-ask', onAsk);
+  }, []);
+
   const toggleMic = useCallback(() => {
     if (!SpeechRecognitionImpl) {
       alert(T[lang].noMic);
@@ -410,12 +441,17 @@ const AiAssistant: React.FC<Props> = ({ mode }) => {
   // Hang up if the widget unmounts.
   useEffect(() => () => { liveClientRef.current?.stop(); }, []);
 
-  // Ring a "Talk to your sales" call shortly after the page opens (customers only).
+  // Ring a "Talk to your sales" call shortly after the page opens (clients only).
+  //
+  // Public pages are Nour's — <AnamAgent /> already rings there, as the photoreal
+  // avatar that takes the video call. If this widget is ever mounted out front
+  // again, it must NOT ring too: two identical "Nour is calling" popups on one
+  // screen is what that looked like.
   useEffect(() => {
+    if (mode === 'public') return;
     let role = '';
     try { role = JSON.parse(localStorage.getItem('redp_user') || '{}').role || ''; } catch { /* ignore */ }
-    const customer = mode === 'public' || role === 'client';
-    if (!customer) return;
+    if (role !== 'client') return;
     const timer = setTimeout(() => setIncomingCall(true), 1200);
     return () => clearTimeout(timer);
   }, [mode]);

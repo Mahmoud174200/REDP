@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
+import SalesAgentField from '../../components/SalesAgentField';
+import { getReferral } from '../../utils/referral';
+import { BLANK_EOI_FORM, sleep, submitEoi, type EoiForm } from '../../utils/demoEoi';
 import {
   Building, Layers, MapPin, ArrowRight, ArrowLeft, ChevronRight,
   ChevronLeft, Home, Eye, Maximize, Plus, Minus, RotateCcw, DollarSign, Compass, CheckCircle,
@@ -265,6 +268,9 @@ interface ProjectListItem {
 
 type Step = 'projects' | 'buildings' | 'floors' | 'units';
 
+type ReserveForm = EoiForm;
+const BLANK_RESERVE_FORM = BLANK_EOI_FORM;
+
 /* ═══════════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════════ */
@@ -445,17 +451,12 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
   }, [selectedUnit]);
 
   // Reservation form
-  const [reserveForm, setReserveForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', national_id: '',
-    education: '', job_title: '', monthly_income: '', income_currency: 'USD',
-    marital_status: 'single', number_of_children: '0', children_ages: '',
-    children_schools: '', current_residence: '', residence_type: 'owned',
-    cars_owned: '', club_memberships: ''
-  });
+  const [reserveForm, setReserveForm] = useState<ReserveForm>(BLANK_RESERVE_FORM);
   const [clientLocation, setClientLocation] = useState<'inside_egypt' | 'outside_egypt' | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'instapay' | 'international_bank_transfer' | ''>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
+  const [agentCode, setAgentCode] = useState('');
   const [reserveStep, setReserveStep] = useState<1 | 2 | 3>(1);
   const [reserveProcessing, setReserveProcessing] = useState(false);
   const [reserveResult, setReserveResult] = useState<any>(null);
@@ -608,23 +609,32 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
     }
   }, [currentStep]);
 
-  const openReserveModal = () => {
+  const openReserveModal = useCallback(() => {
     setShowReserveModal(true);
-    setReserveForm({
-      first_name: '', last_name: '', email: '', phone: '', national_id: '',
-      education: '', job_title: '', monthly_income: '', income_currency: 'USD',
-      marital_status: 'single', number_of_children: '0', children_ages: '',
-      children_schools: '', current_residence: '', residence_type: 'owned',
-      cars_owned: '', club_memberships: ''
-    });
+    setReserveForm(BLANK_RESERVE_FORM);
     setClientLocation('');
     setPaymentMethod('');
     setReceiptFile(null);
     setPassportFile(null);
+    setAgentCode('');   // SalesAgentField re-prefills from the captured referral on mount.
     setReserveStep(1);
     setReserveError('');
     setReserveResult(null);
-  };
+  }, []);
+
+  /** The unit the buyer just took is gone for everyone else — say so on the map. */
+  const markUnitReserved = useCallback((unitId: string) => {
+    setSelectedFloor(f =>
+      f
+        ? {
+            ...f,
+            units: f.units.map(u => (u.id === unitId ? { ...u, status: 'reserved' } : u)),
+            available_units: Math.max(0, f.available_units - 1),
+          }
+        : f
+    );
+    setSelectedUnit(u => (u && u.id === unitId ? { ...u, status: 'reserved' } : u));
+  }, []);
 
   const handleReserveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -668,54 +678,20 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
     setReserveProcessing(true);
     setReserveError('');
     try {
-      const formData = new FormData();
-      formData.append('first_name', reserveForm.first_name);
-      formData.append('last_name', reserveForm.last_name);
-      formData.append('email', reserveForm.email);
-      formData.append('phone', reserveForm.phone);
-      if (reserveForm.national_id) {
-        formData.append('national_id', reserveForm.national_id);
-      }
-      formData.append('project_id', selectedProject?.id || '');
-      formData.append('unit_id', selectedUnit?.id || '');
-      formData.append('eoi_amount', '50000.00');
-      formData.append('client_location', clientLocation);
-      formData.append('payment_method', paymentMethod);
-      formData.append('receipt', receiptFile);
-      if (passportFile) {
-        formData.append('passport', passportFile);
-      }
-
-      // Add Standard of Living fields
-      formData.append('education', reserveForm.education);
-      formData.append('job_title', reserveForm.job_title);
-      formData.append('monthly_income', reserveForm.monthly_income);
-      formData.append('income_currency', reserveForm.income_currency);
-      formData.append('marital_status', reserveForm.marital_status);
-      formData.append('number_of_children', reserveForm.number_of_children);
-      formData.append('children_ages', reserveForm.children_ages);
-      formData.append('children_schools', reserveForm.children_schools);
-      formData.append('current_residence', reserveForm.current_residence);
-      formData.append('residence_type', reserveForm.residence_type);
-      formData.append('cars_owned', reserveForm.cars_owned);
-      formData.append('club_memberships', reserveForm.club_memberships);
-
-      const res = await api.post('/v1/public/eoi/submit', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const res = await submitEoi({
+        form: reserveForm,
+        projectId: selectedProject?.id || '',
+        unitId: selectedUnit?.id || '',
+        location: clientLocation,
+        method: paymentMethod,
+        receipt: receiptFile,
+        passport: passportFile,
+        ref: (agentCode || getReferral()?.code || '').trim(),
       });
 
       if (res.data?.success) {
         setReserveResult(res.data);
-        // Update unit status locally
-        if (selectedFloor && selectedUnit) {
-          const updatedUnits = selectedFloor.units.map(u =>
-            u.id === selectedUnit.id ? { ...u, status: 'reserved' } : u
-          );
-          setSelectedFloor({ ...selectedFloor, units: updatedUnits, available_units: selectedFloor.available_units - 1 });
-          setSelectedUnit({ ...selectedUnit, status: 'reserved' });
-        }
+        if (selectedUnit) markUnitReserved(selectedUnit.id);
       }
     } catch (err: any) {
       console.error(err);
@@ -728,21 +704,17 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
     setReserveProcessing(true);
     setReserveError('');
     try {
+      const ref = (agentCode || getReferral()?.code || '').trim();
+
       const res = await api.post('/v1/public/eoi/submit', {
         project_id: selectedProject?.id,
         unit_id: selectedUnit?.id,
+        ...(ref ? { ref } : {}),
       });
 
       if (res.data?.success) {
         setReserveResult(res.data);
-        // Update unit status locally
-        if (selectedFloor && selectedUnit) {
-          const updatedUnits = selectedFloor.units.map(u =>
-            u.id === selectedUnit.id ? { ...u, status: 'reserved' } : u
-          );
-          setSelectedFloor({ ...selectedFloor, units: updatedUnits, available_units: selectedFloor.available_units - 1 });
-          setSelectedUnit({ ...selectedUnit, status: 'reserved' });
-        }
+        if (selectedUnit) markUnitReserved(selectedUnit.id);
       }
     } catch (err: any) {
       console.error(err);
@@ -750,6 +722,152 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
     }
     setReserveProcessing(false);
   };
+
+  /* ═══ Presenter autopilot ═══
+   * This page is where the *invited* client lands — the one who already paid his
+   * EOI, cleared review, ranked into the queue and got the email. He is not here
+   * to pay; he is here to spend the place he already bought. So all the presenter
+   * needs from this page is: walk the map, and take the unit.
+   */
+
+  // The autopilot needs the freshest selections *between* awaits, and the
+  // listener's closure is a render behind. A ref written on every render isn't.
+  const liveRef = useRef({ projects, buildings, selectedProject, selectedUnit });
+  liveRef.current = { projects, buildings, selectedProject, selectedUnit };
+
+  const autoPickUnit = useCallback(async (projectHint?: string) => {
+    const list = liveRef.current.projects;
+    const hint = String(projectHint || '').toLowerCase();
+    const project =
+      (hint && list.find(p => p.name.toLowerCase().includes(hint))) ||
+      list.find(p => p.units_count > 0) ||
+      list[0];
+    if (!project) return;
+
+    if (liveRef.current.selectedProject?.id !== project.id) {
+      await handleSelectProject(project.id);
+      await sleep(1000);   // the buildings view animates in
+    }
+
+    const buildings = liveRef.current.buildings;
+    const building = buildings.find(b => b.available_units > 0) || buildings[0];
+    if (!building) return;
+    handleSelectBuilding(building);
+    await sleep(1000);
+
+    const floor = building.floors.find(f => f.available_units > 0) || building.floors[0];
+    if (!floor) return;
+    handleSelectFloor(floor);
+    await sleep(1000);
+
+    const unit = floor.units.find(u => u.status === 'available');
+    if (unit) handleSelectUnit(unit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleSelectBuilding, handleSelectFloor, handleSelectUnit]);
+
+  /**
+   * The invited client's one-click reserve, driven from the autopilot.
+   *
+   * It reads the project and unit from `liveRef` — NOT component state — on
+   * purpose. The presenter fires this from an event listener whose closure is a
+   * render (or several) behind, so `selectedUnit` in scope may still be null; a
+   * stale null here posts `unit_id: undefined`, the backend can't see an invited
+   * reservation, and it drops to the public path that demands the full form.
+   * The ref is always current, so the buyer reserves the unit that's really open.
+   */
+  const reserveInvitedFromRef = useCallback(async () => {
+    const project = liveRef.current.selectedProject;
+    const unit = liveRef.current.selectedUnit;
+    if (!project || !unit) return;
+
+    setShowReserveModal(true);
+    setReserveProcessing(true);
+    setReserveError('');
+    try {
+      const ref = (getReferral()?.code || '').trim();
+      const res = await api.post('/v1/public/eoi/submit', {
+        project_id: project.id,
+        unit_id: unit.id,
+        ...(ref ? { ref } : {}),
+      });
+      if (res.data?.success) {
+        setReserveResult(res.data);
+        markUnitReserved(unit.id);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setReserveError(err.response?.data?.message || t.errorOccurred);
+    }
+    setReserveProcessing(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markUnitReserved, t.errorOccurred]);
+
+  useEffect(() => {
+    const onAction = async (e: Event) => {
+      const { action, value } = (e as CustomEvent).detail || {};
+
+      switch (action) {
+        // Step 1 — walk the map for the invited buyer and land on a free unit.
+        case 'pick-unit':
+          await autoPickUnit(value);
+          break;
+
+        // Step 2 — open the reserve dialog so the room reads the eligibility line
+        // ("Welcome back … queue #N"). Nothing is committed yet.
+        case 'open-claim':
+          if (!liveRef.current.selectedUnit || liveRef.current.selectedUnit.status !== 'available') {
+            await autoPickUnit(value);
+            await sleep(600);
+          }
+          setReserveResult(null);
+          setReserveError('');
+          setShowReserveModal(true);
+          break;
+
+        // Step 3 — the single click. The unit locks to his name.
+        case 'confirm-claim':
+          if (!liveRef.current.selectedUnit || liveRef.current.selectedUnit.status !== 'available') {
+            await autoPickUnit(value);
+            await sleep(600);
+          }
+          await reserveInvitedFromRef();
+          break;
+
+        // The whole act, hands off — for when the clock is against you.
+        case 'claim-unit':
+          if (!liveRef.current.selectedUnit || liveRef.current.selectedUnit.status !== 'available') {
+            await autoPickUnit(value);
+            await sleep(900);
+          }
+          setReserveResult(null);
+          setShowReserveModal(true);
+          await sleep(1200);
+          await reserveInvitedFromRef();
+          break;
+      }
+    };
+
+    window.addEventListener('redp-demo-action', onAction);
+    return () => window.removeEventListener('redp-demo-action', onAction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPickUnit, reserveInvitedFromRef]);
+
+  // Presenter Mode swaps the visitor for the invited client without leaving this
+  // route, so React Router never remounts us. Re-read the session on its signal,
+  // otherwise the buyer's one-click reserve stays behind a "please sign in".
+  useEffect(() => {
+    const onSessionChange = () => {
+      const loggedIn = !!localStorage.getItem('redp_token');
+      setIsLoggedIn(loggedIn);
+      if (loggedIn) {
+        fetchInvitationStatus();
+      } else {
+        setEoiInvitation(null);
+      }
+    };
+    window.addEventListener('redp-session-changed', onSessionChange);
+    return () => window.removeEventListener('redp-session-changed', onSessionChange);
+  }, []);
 
   /* ─── Helpers ─── */
   const getStatusColor = (status: string) => {
@@ -3021,6 +3139,14 @@ const InteractiveUnitSelection: React.FC<InteractiveUnitSelectionProps> = ({ emb
                         onBlur={e => { e.currentTarget.style.borderColor = 'rgba(0,61,166,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
                       />
                     </div>
+
+                    <SalesAgentField
+                      lang={lang}
+                      value={agentCode}
+                      onChange={setAgentCode}
+                      labelStyle={labelStyle}
+                      inputStyle={inputStyle}
+                    />
 
                     <button
                       type="submit"
