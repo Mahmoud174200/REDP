@@ -23,6 +23,7 @@ use App\Http\Controllers\Enterprise\TaskController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Services\Ai\KnowledgeBaseService;
 use App\Services\NotificationService;
+use App\Services\OfferPdfService;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
@@ -608,6 +609,52 @@ class AssistantToolkit
                 'audiences' => ['internal'],
                 'roles' => ['*'],
             ],
+
+            // ── Sales collateral ──
+            'generate_unit_offer' => [
+                'description' => 'Generate a rich, multi-page bilingual (Arabic + English) PDF property "offer" brochure for a single AVAILABLE (unsold) unit. The PDF includes the full compound story, master plan, amenities, the unit specs and its layout image, and every available payment plan with a computed installment schedule — ready to send to a client. Returns a downloadable PDF link. Only works for units whose status is "available".',
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'unit_number' => ['type' => 'STRING', 'description' => 'The unit number to build the offer for (e.g. "A-101").'],
+                        'project_name' => ['type' => 'STRING', 'description' => 'Optional project/compound name to disambiguate when the same unit number exists in more than one project.'],
+                    ],
+                    'required' => ['unit_number'],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'sales_agent', 'tele_sales', 'company_sales', 'head_of_sales', 'executive', 'broker', 'finance_officer'],
+            ],
+
+            'list_available_units_for_offer' => [
+                'description' => 'List the currently AVAILABLE (unsold) units in a compound so the user can choose. Use this FIRST when the user asks for a price offer for a compound but has not said whether they want one specific unit or all units. Returns the unit numbers, type, area, bedrooms and price so you can present them as options.',
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'project_name' => ['type' => 'STRING', 'description' => 'The project/compound name.'],
+                    ],
+                    'required' => ['project_name'],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'sales_agent', 'tele_sales', 'company_sales', 'head_of_sales', 'executive', 'broker', 'finance_officer'],
+            ],
+
+            'generate_compound_offer' => [
+                'description' => 'Generate a bilingual (Arabic + English) PDF PRICE-LIST offer covering the available units of a WHOLE compound — the compound story, master plan, amenities, a full price list of every available unit, and the payment plans. Optionally pass unit_numbers to include only a chosen subset of units instead of all of them. Returns a downloadable PDF link. Use generate_unit_offer instead when the client wants a detailed offer for ONE specific unit.',
+                'parameters' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'project_name' => ['type' => 'STRING', 'description' => 'The project/compound name.'],
+                        'unit_numbers' => [
+                            'type' => 'ARRAY',
+                            'description' => 'Optional. A chosen subset of unit numbers to include. Omit to include ALL available units in the compound.',
+                            'items' => ['type' => 'STRING'],
+                        ],
+                    ],
+                    'required' => ['project_name'],
+                ],
+                'audiences' => ['internal'],
+                'roles' => ['admin', 'sales_agent', 'tele_sales', 'company_sales', 'head_of_sales', 'executive', 'broker', 'finance_officer'],
+            ],
         ];
     }
 
@@ -786,7 +833,9 @@ class AssistantToolkit
             ],
             '/acquisition/leads' => ['search_leads', 'get_lead_details', 'create_lead'],
             '/acquisition/crm' => ['search_leads', 'get_lead_details', 'create_lead'],
-            '/finance/inventory' => ['get_inventory_summary', 'search_available_units', 'list_projects'],
+            '/finance/inventory' => ['get_inventory_summary', 'search_available_units', 'list_projects', 'generate_unit_offer', 'generate_compound_offer', 'list_available_units_for_offer', 'get_project_details'],
+            '/finance/reserved' => ['get_inventory_summary', 'search_available_units', 'generate_unit_offer', 'generate_compound_offer', 'list_available_units_for_offer'],
+            '/admin/panel' => ['list_projects', 'search_available_units', 'generate_unit_offer', 'generate_compound_offer', 'list_available_units_for_offer', 'get_project_details'],
             '/finance/collections' => ['get_client_financials', 'get_sales_overview'],
             '/finance' => ['get_client_financials', 'get_sales_overview', 'get_inventory_summary'],
             '/delivery/maintenance' => ['create_maintenance_ticket', 'list_documents'],
@@ -854,6 +903,9 @@ class AssistantToolkit
                 'list_tasks' => $this->listTasks($args),
                 'send_notification' => $this->sendNotification($args),
                 'list_documents' => $this->listDocuments($args),
+                'generate_unit_offer' => $this->generateUnitOffer($args),
+                'list_available_units_for_offer' => $this->listAvailableUnitsForOffer($args),
+                'generate_compound_offer' => $this->generateCompoundOffer($args),
                 default => ['error' => 'Unknown tool.'],
             };
         } catch (\Throwable $e) {
@@ -978,6 +1030,187 @@ class AssistantToolkit
         }
 
         return $data;
+    }
+
+    /**
+     * Generate a bilingual PDF offer brochure for a single available unit and
+     * return a downloadable link. The link is also surfaced as an attachment
+     * on the assistant reply so the UI can render a download button.
+     */
+    protected function generateUnitOffer(array $args): array
+    {
+        $unitNumber = trim((string) ($args['unit_number'] ?? ''));
+        if ($unitNumber === '') {
+            return ['error' => 'A unit_number is required to build an offer.'];
+        }
+
+        $q = Unit::query()->with('project')->where('unit_number', $unitNumber);
+
+        if (!empty($args['project_name'])) {
+            $project = Project::where('name', 'LIKE', '%' . $args['project_name'] . '%')->first();
+            if (!$project) {
+                return ['error' => "No project found matching '{$args['project_name']}'."];
+            }
+            $q->where('project_id', $project->id);
+        }
+
+        $matches = $q->get();
+
+        if ($matches->isEmpty()) {
+            return ['error' => "No unit numbered '{$unitNumber}' was found" . (!empty($args['project_name']) ? " in {$args['project_name']}." : '.')];
+        }
+
+        // Ambiguous only when the SAME number spans different compounds and the
+        // caller didn't say which — then ask. Duplicates within one project are
+        // resolved by taking the first available match.
+        if (empty($args['project_name']) && $matches->pluck('project_id')->unique()->count() > 1) {
+            return [
+                'error' => "Unit '{$unitNumber}' exists in more than one compound. Please specify the project_name.",
+                'candidates' => $matches->map(fn ($u) => [
+                    'unit_number' => $u->unit_number,
+                    'project' => $u->project->name ?? null,
+                    'status' => $u->status,
+                ])->unique('project')->values()->all(),
+            ];
+        }
+
+        $unit = $matches->first(fn ($u) => strtolower((string) $u->status) === 'available');
+        if (!$unit) {
+            $status = $matches->first()->status;
+            return ['error' => "Unit {$unitNumber} is '{$status}', not available. An offer can only be generated for available (unsold) units."];
+        }
+
+        try {
+            $result = (new OfferPdfService())->generateForUnit($unit);
+        } catch (\Throwable $e) {
+            Log::warning('[AssistantToolkit] offer generation failed: ' . $e->getMessage());
+            return ['error' => 'Could not generate the offer PDF: ' . $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'unit_number' => $unit->unit_number,
+            'project' => $unit->project->name ?? null,
+            'price_egp' => (float) $unit->price,
+            'pages' => $result['pages'],
+            'pdf_url' => $result['url'],
+            'filename' => $result['filename'],
+            'attachment' => [
+                'type' => 'pdf',
+                'title' => 'عرض عقاري / Property Offer — ' . $unit->unit_number,
+                'url' => $result['url'],
+                'filename' => $result['filename'],
+            ],
+            'message' => "A {$result['pages']}-page PDF offer for unit {$unit->unit_number} is ready. A download button is shown to the user automatically. Just tell them the offer is ready and to click the download button below. Do NOT write, invent or repeat any URL/link — the button already has the correct one.",
+        ];
+    }
+
+    /**
+     * List the available units of a compound so the assistant can present the
+     * user with a choice (one unit vs the whole compound vs a subset).
+     */
+    protected function listAvailableUnitsForOffer(array $args): array
+    {
+        $project = Project::where('name', 'LIKE', '%' . ($args['project_name'] ?? '') . '%')->first();
+        if (!$project) {
+            return ['error' => "No project found matching '" . ($args['project_name'] ?? '') . "'."];
+        }
+
+        $units = $this->availableUnitsForProject($project);
+        if ($units->isEmpty()) {
+            return ['project' => $project->name, 'count' => 0, 'units' => [], 'message' => 'There are no available units in this compound right now.'];
+        }
+
+        $mapped = $units->map(fn ($u) => [
+            'unit_number' => $u->unit_number,
+            'type' => $u->type,
+            'bedrooms' => $u->bedrooms,
+            'area_m2' => $u->area ? (float) $u->area : null,
+            'view' => $u->view_type,
+            'price_egp' => (float) $u->price,
+        ])->all();
+
+        return [
+            'project' => $project->name,
+            'count' => count($mapped),
+            'price_from' => (float) $units->min('price'),
+            'price_to' => (float) $units->max('price'),
+            'units' => $mapped,
+            'options' => [
+                'single' => 'Generate a detailed offer for ONE unit → use generate_unit_offer with that unit_number.',
+                'all' => 'Generate a price-list offer for ALL available units → use generate_compound_offer with no unit_numbers.',
+                'subset' => 'Generate for a chosen subset → use generate_compound_offer with unit_numbers set.',
+            ],
+            'message' => "Found {$mapped[0]['unit_number']} and " . (count($mapped) - 1) . " other available units. Ask the user whether they want an offer for one specific unit, for all available units, or for a chosen subset — then call the matching tool.",
+        ];
+    }
+
+    /**
+     * Generate a compound-wide (or subset) PDF price-list offer.
+     */
+    protected function generateCompoundOffer(array $args): array
+    {
+        $project = Project::where('name', 'LIKE', '%' . ($args['project_name'] ?? '') . '%')->first();
+        if (!$project) {
+            return ['error' => "No project found matching '" . ($args['project_name'] ?? '') . "'."];
+        }
+
+        $units = $this->availableUnitsForProject($project);
+
+        // Optional subset filter.
+        $requested = $args['unit_numbers'] ?? null;
+        if (is_array($requested) && count($requested)) {
+            $wanted = array_map(fn ($n) => strtolower(trim((string) $n)), $requested);
+            $units = $units->filter(fn ($u) => in_array(strtolower((string) $u->unit_number), $wanted, true))->values();
+            if ($units->isEmpty()) {
+                return ['error' => 'None of the requested unit numbers are available in ' . $project->name . '.'];
+            }
+        }
+
+        if ($units->isEmpty()) {
+            return ['error' => 'There are no available units to include for ' . $project->name . '.'];
+        }
+
+        try {
+            $result = (new OfferPdfService())->generateForCompound($project, $units);
+        } catch (\Throwable $e) {
+            Log::warning('[AssistantToolkit] compound offer failed: ' . $e->getMessage());
+            return ['error' => 'Could not generate the compound offer PDF: ' . $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'project' => $project->name,
+            'units_included' => $result['units'],
+            'price_from' => (float) $units->min('price'),
+            'price_to' => (float) $units->max('price'),
+            'pages' => $result['pages'],
+            'pdf_url' => $result['url'],
+            'filename' => $result['filename'],
+            'attachment' => [
+                'type' => 'pdf',
+                'title' => 'عرض أسعار / Price Offer — ' . $project->name . ' (' . $result['units'] . ' units)',
+                'url' => $result['url'],
+                'filename' => $result['filename'],
+            ],
+            'message' => "A {$result['pages']}-page price-list PDF for {$result['units']} available units in {$project->name} is ready. A download button is shown to the user automatically. Just tell them the offer is ready and to click the download button below. Do NOT write, invent or repeat any URL/link — the button already has the correct one.",
+        ];
+    }
+
+    /**
+     * Available units of a project within its released phases (shared helper).
+     *
+     * @return \Illuminate\Support\Collection<int,Unit>
+     */
+    protected function availableUnitsForProject(Project $project)
+    {
+        $released = $project->released_phases ?: ['Phase 1'];
+        return Unit::where('project_id', $project->id)
+            ->where('status', 'available')
+            ->whereIn('phase', $released)
+            ->orderBy('type')
+            ->orderBy('price')
+            ->get();
     }
 
     protected function createLead(array $args): array

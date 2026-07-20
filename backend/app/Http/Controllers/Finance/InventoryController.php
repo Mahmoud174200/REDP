@@ -7,6 +7,7 @@ use App\Models\Unit;
 use App\Models\Project;
 use App\Models\Reservation;
 use App\Services\AuditLogService;
+use App\Services\OfferPdfService;
 use App\Events\ReservationConfirmed;
 use App\Events\Finance\UnitStatusChanged;
 use Illuminate\Http\Request;
@@ -73,6 +74,63 @@ class InventoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $unit,
+        ]);
+    }
+
+    /**
+     * Stream a generated offer PDF inline. Public + same origin as the API so
+     * the link works in a new tab without a bearer token and without relying on
+     * the public/storage symlink. Filename is validated to prevent traversal.
+     */
+    public function serveOffer(string $filename)
+    {
+        $filename = basename($filename);
+        if (!preg_match('/^offer-[A-Za-z0-9\-]+\.pdf$/', $filename)) {
+            abort(404);
+        }
+        $path = storage_path('app/public/offers/' . $filename);
+        if (!is_file($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
+    }
+
+    /**
+     * Generate a bilingual PDF "offer" brochure for an available unit and
+     * return a downloadable link. Same engine the AI assistant uses.
+     */
+    public function generateOffer(Request $request, string $id)
+    {
+        $unit = Unit::with('project')->findOrFail($id);
+
+        if (strtolower((string) $unit->status) !== 'available') {
+            return response()->json([
+                'success' => false,
+                'message' => "Unit {$unit->unit_number} is '{$unit->status}', not available. An offer can only be generated for available (unsold) units.",
+            ], 422);
+        }
+
+        try {
+            $result = (new OfferPdfService())->generateForUnit($unit);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not generate the offer PDF: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'url' => $result['url'],
+                'filename' => $result['filename'],
+                'pages' => $result['pages'],
+                'unit_number' => $unit->unit_number,
+                'project' => $unit->project->name ?? null,
+            ],
         ]);
     }
 

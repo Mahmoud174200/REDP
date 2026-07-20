@@ -42,7 +42,11 @@
       "Bash(curl -s \"http://127.0.0.1:8000/api/v1/public/projects/fe29317c-5e3a-4342-a747-6f16c09cd4ea/interactive-map\")",
       "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); $h=$d[\"data\"][\"hotspots\"]??[]; echo \"hotspots: \".count\\($h\\).\"\\\\n\"; foreach\\(array_slice\\($h,0,3\\) as $x\\){ echo \"  \".\\($x[\"building\"][\"name\"]??\"?\"\\).\" @ \\(\".$x[\"x_percent\"].\",\".$x[\"y_percent\"].\"\\) units:\".\\($x[\"units_summary\"][\"total\"]??\\($x[\"availability_status\"]??\"?\"\\)\\).\"\\\\n\"; }')",
       "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); $bs=$d[\"data\"][\"buildings\"]??[]; echo \"buildings: \".count\\($bs\\).\"\\\\n\"; $b=$bs[0]; echo \"first: \".$b[\"name\"].\" floors:\".$b[\"total_floors\"].\" units:\".$b[\"total_units\"].\" avail:\".$b[\"available_units\"].\"\\\\n\"; $u=$b[\"floors\"][0][\"units\"][0]; echo \"unit \".$u[\"unit_number\"].\" hotspot:\".json_encode\\($u[\"floor_plan_hotspot\"]\\).\" layout:\".\\(\\($u[\"layout_image_url\"]\\)?\"yes\":\"no\"\\).\"\\\\n\";')",
-      "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); echo \"floor_plan_images: \".count\\($d[\"data\"][\"floor_plan_images\"]??[]\\).\"\\\\n\"; echo \"master_plan: \".\\($d[\"data\"][\"project_image_svg\"]?:$d[\"data\"][\"project_image\"]?:\"none\"\\).\"\\\\n\";')"
+      "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); echo \"floor_plan_images: \".count\\($d[\"data\"][\"floor_plan_images\"]??[]\\).\"\\\\n\"; echo \"master_plan: \".\\($d[\"data\"][\"project_image_svg\"]?:$d[\"data\"][\"project_image\"]?:\"none\"\\).\"\\\\n\";')",
+      "Bash(curl -s -o /dev/null -w '  HTTP %{http_code} | %{content_type} | %{size_download}b\\\\n' http://127.0.0.1:8000/api/v1/public/finance/offers/offer-golden-gates-compound-85u-b28d528c.pdf)",
+      "Bash(curl -s -o /dev/null -w \"  HTTP %{http_code}\\\\n\" \"http://127.0.0.1:8000/api/v1/public/finance/offers/offer-golden-gates-all-available-units-d779f04c-352b-4394-a16f-79883652a65a.pdf\")",
+      "Bash(rm -f tc.php t.php)",
+      "Bash(grep -n 'return $this->band\\(' app/Services/OfferPdfService.php)"
     ]
   }
 }

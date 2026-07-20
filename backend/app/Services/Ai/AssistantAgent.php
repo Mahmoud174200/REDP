@@ -88,6 +88,7 @@ class AssistantAgent
         $contents[] = ['role' => 'user', 'parts' => [['text' => $message]]];
 
         $toolsUsed = [];
+        $attachments = [];
         $replyText = '';
         $tokens = 0;
 
@@ -128,6 +129,12 @@ class AssistantAgent
                     $result = $toolkit->execute($fnName, $fnArgs);
                     $toolsUsed[] = $fnName;
 
+                    // Surface any file a tool produced (e.g. a generated offer PDF)
+                    // so the UI can render a download button next to the reply.
+                    if (is_array($result) && !empty($result['attachment']) && is_array($result['attachment'])) {
+                        $attachments[] = $result['attachment'];
+                    }
+
                     $responseParts[] = [
                         'functionResponse' => [
                             'name' => $fnName,
@@ -166,6 +173,7 @@ class AssistantAgent
         return [
             'reply' => $replyText,
             'tools_used' => array_values(array_unique($toolsUsed)),
+            'attachments' => $attachments,
             'configured' => true,
         ];
     }
@@ -313,7 +321,18 @@ PROMPT;
                 . "(e.g. 'سارة علي' → 'Sara Ali', 'أحمد' → 'Ahmed', 'Mohamed' → 'محمد'). Only after both fail, say you couldn't find them and ask for a phone or email.\n"
                 . "RE-CHECK ON REPEAT — if the user asks something you previously said you 'couldn't find' or 'don't have info on', DO NOT simply repeat that earlier answer. "
                 . "Data and tools change between messages, so you MUST actually call the lookup tool again (including the transliteration retry) before responding. "
-                . "Do NOT reply with only a promise like 'I'm searching now' / 'أنا ببحث دلوقتي' — actually invoke the tool in this same turn and answer from its result.";
+                . "Do NOT reply with only a promise like 'I'm searching now' / 'أنا ببحث دلوقتي' — actually invoke the tool in this same turn and answer from its result.\n"
+                . "PROPERTY OFFERS / عروض الأسعار — you can generate polished bilingual PDF offer brochures:\n"
+                . "  • For ONE specific unit → call generate_unit_offer (unit_number). It only works for AVAILABLE (unsold) units.\n"
+                . "  • For a WHOLE compound's available units (a price list) → call generate_compound_offer (project_name), optionally with a unit_numbers subset.\n"
+                . "  When the user asks for a price offer for a compound WITHOUT saying whether they mean one unit or all units "
+                . "(e.g. 'اعملي عرض سعر بالشقق المتاحة في كذا', 'a price offer for the available units in X'), do NOT guess: FIRST call "
+                . "list_available_units_for_offer(project_name), then show them the available units and ask them to choose between "
+                . "(1) عرض لوحدة واحدة معينة، (2) عرض لكل الوحدات المتاحة، أو (3) عرض لمجموعة يختارها. "
+                . "After they choose, call the matching tool.\n"
+                . "CRITICAL — after any offer tool succeeds, a download BUTTON is automatically attached to your reply in the UI. "
+                . "NEVER write, guess, invent, reconstruct or paste a file URL/link in your text (not even from the tool result). "
+                . "Doing so produces broken links. Simply tell the user their offer is ready and to click the download button that appears below your message.";
         } else {
             $base .= "\n\nCONTEXT: You are the public assistant on the company website, talking to potential buyers. "
                 . "Be persuasive but honest, help them find a suitable unit, and capture their contact details as a lead when they show interest.";

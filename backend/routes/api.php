@@ -85,6 +85,10 @@ Route::prefix('v1/public')->group(function () {
     Route::get('/broker/resolve', [\App\Http\Controllers\PublicLandingController::class, 'resolveBroker']);
     Route::get('/projects/{projectId}/interactive-map', [\App\Http\Controllers\Admin\MasterPlanController::class, 'getInteractiveMap']);
 
+    // 📄 Serve a generated property-offer PDF (streamed by Laravel, same origin as the API).
+    Route::get('/finance/offers/{filename}', [InventoryController::class, 'serveOffer'])
+        ->where('filename', '[A-Za-z0-9\-\.]+');
+
     // 🤖 Public AI Assistant (agentic Gemini chatbot for website visitors)
     Route::post('/assistant/chat', [\App\Http\Controllers\AssistantController::class, 'publicChat']);
     Route::post('/assistant/clear', [\App\Http\Controllers\AssistantController::class, 'clear']);
@@ -412,6 +416,10 @@ Route::middleware(['auth:sanctum', 'maintenance'])->group(function () {
         Route::get('/units', [InventoryController::class, 'index']);
         Route::get('/units/{id}', [InventoryController::class, 'show']);
         Route::get('/stats', [InventoryController::class, 'getStats']);
+
+        // Generate a bilingual PDF offer brochure for an available unit.
+        Route::middleware('role:admin,company_sales,sales_agent,head_of_sales,tele_sales,broker,finance_officer,executive')
+            ->post('/units/{id}/offer-pdf', [InventoryController::class, 'generateOffer']);
 
         // ── Client-facing financial operations ──
         Route::middleware('role:client,company_sales,admin,sales_agent,broker')->group(function () {

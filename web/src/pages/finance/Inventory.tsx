@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X, Edit, Plus } from 'lucide-react';
+import { Building2, Wallet, Lock, Unlock, TrendingUp, Filter, Search, DollarSign, BarChart3, Eye, X, Edit, Plus, FileText } from 'lucide-react';
 import api from '../../services/api';
 
 interface UnitData {
@@ -34,6 +34,9 @@ const Inventory: React.FC = () => {
   // User Management Role State
   const [user, setUser] = useState<any>(null);
   const [canManage, setCanManage] = useState(false);
+
+  // Offer PDF generation state
+  const [offerLoading, setOfferLoading] = useState(false);
 
   // Projects list for Unit creation and Phase management
   const [projects, setProjects] = useState<any[]>([]);
@@ -196,6 +199,30 @@ const Inventory: React.FC = () => {
         }, 1200);
       }, 1000);
     }, 800);
+  };
+
+  // Generate a bilingual PDF offer brochure for an available unit, then open it.
+  const generateOffer = async (unitId: string) => {
+    setOfferLoading(true);
+    try {
+      const res = await api.post(`/v1/finance/units/${unitId}/offer-pdf`);
+      const url = res.data?.data?.url;
+      if (url) {
+        // Always rebuild against the API origin the app talks to, so the link
+        // works regardless of the backend's configured APP_URL host.
+        const origin = (api.defaults.baseURL || '').replace(/\/api(\/v1)?\/?$/i, '').replace(/\/$/, '');
+        let path = url;
+        try { if (/^https?:\/\//i.test(url)) path = new URL(url).pathname; } catch { /* keep */ }
+        const abs = origin + (path.startsWith('/') ? path : '/' + path);
+        window.open(abs, '_blank', 'noopener');
+      } else {
+        alert('The offer was generated but no link was returned.');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to generate the offer PDF.');
+    } finally {
+      setOfferLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -605,6 +632,18 @@ const Inventory: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {selectedUnit.status.toLowerCase() === 'available' && (
+                <button
+                  className="btn-secondary"
+                  disabled={offerLoading}
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: offerLoading ? 0.7 : 1 }}
+                  onClick={() => generateOffer(selectedUnit.id)}
+                  title="Generate a bilingual PDF offer brochure with compound details, layout & all payment plans"
+                >
+                  <FileText style={{ width: '14px', height: '14px' }} />
+                  {offerLoading ? 'Generating offer…' : 'Generate Offer PDF'}
+                </button>
+              )}
               {selectedUnit.status.toLowerCase() === 'available' && (
                 <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px' }} onClick={() => { setSelectedUnit(null); simulateRowLock(selectedUnit.id); }}>
                   <Lock style={{ width: '14px', height: '14px' }} />

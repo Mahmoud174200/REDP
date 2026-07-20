@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, Send, X, Mic, Volume2, VolumeX, Trash2, Phone, PhoneOff, Video } from 'lucide-react';
+import { MessageCircle, Send, X, Mic, Volume2, VolumeX, Trash2, Phone, PhoneOff, Video, FileText } from 'lucide-react';
 import api from '../services/api';
 import { LiveVoiceClient, type LiveState } from '../lib/liveVoice';
 import NourAvatar, { type NourState } from './NourAvatar';
@@ -22,7 +22,8 @@ import { VisemePlayer, estimateSpeechMs, REST, type MouthShape } from '../lib/vi
  * ─────────────────────────────────────────────────────────
  */
 
-type Msg = { role: 'user' | 'assistant'; text: string };
+type Attachment = { type?: string; title?: string; url: string; filename?: string };
+type Msg = { role: 'user' | 'assistant'; text: string; attachments?: Attachment[] };
 type Lang = 'en' | 'ar';
 
 interface Props {
@@ -34,6 +35,26 @@ const SpeechRecognitionImpl: any =
   (typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
 
 const hasArabic = (t: string) => /[؀-ۿ]/.test(t);
+
+// Origin of the backend that the app already talks to successfully.
+const apiOrigin = (): string => {
+  const base = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1') as string;
+  return base.replace(/\/api(\/v1)?\/?$/i, '').replace(/\/$/, '');
+};
+
+// Resolve any file URL the API returned. We ALWAYS rebuild it against the API
+// origin (keeping only the path), so a link like http://localhost:8000/storage/…
+// still works even when the backend's APP_URL host differs from where it's served.
+const resolveFileUrl = (url: string): string => {
+  if (!url) return url;
+  try {
+    if (/^https?:\/\//i.test(url)) {
+      const u = new URL(url);
+      return apiOrigin() + u.pathname + u.search;
+    }
+  } catch { /* fall through */ }
+  return apiOrigin() + (url.startsWith('/') ? url : '/' + url);
+};
 
 const uid = () =>
   'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -289,7 +310,10 @@ const AiAssistant: React.FC<Props> = ({ mode }) => {
           context: { page: window.location.pathname },
         });
         const reply: string = res.data?.data?.reply ?? '…';
-        setMessages((m) => [...m, { role: 'assistant', text: reply }]);
+        const attachments: Attachment[] = Array.isArray(res.data?.data?.attachments)
+          ? res.data.data.attachments.filter((a: any) => a && a.url)
+          : [];
+        setMessages((m) => [...m, { role: 'assistant', text: reply, attachments }]);
         respondWithVoice(reply);
       } catch (e: any) {
         const errText =
@@ -700,7 +724,7 @@ const AiAssistant: React.FC<Props> = ({ mode }) => {
           const rtl = hasArabic(m.text);
           const mine = m.role === 'user';
           return (
-            <div key={i} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', gap: '6px' }}>
               <div
                 dir={rtl ? 'rtl' : 'ltr'}
                 style={{
@@ -718,6 +742,34 @@ const AiAssistant: React.FC<Props> = ({ mode }) => {
               >
                 {m.text}
               </div>
+              {m.attachments?.map((a, k) => (
+                <a
+                  key={k}
+                  href={resolveFileUrl(a.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '82%',
+                    padding: '10px 12px', borderRadius: '12px', textDecoration: 'none',
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+                    color: '#e8eaf2', fontSize: '0.8rem',
+                  }}
+                >
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                    background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
+                  }}>
+                    <FileText size={16} color="#fff" />
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <b style={{ fontSize: '0.78rem' }}>{a.title || (lang === 'ar' ? 'تحميل ملف PDF' : 'Download PDF')}</b>
+                    <span style={{ fontSize: '0.68rem', opacity: 0.85, color: '#93c5fd' }}>
+                      {lang === 'ar' ? '↗ اضغط لفتح الـ PDF' : '↗ Click to open the PDF'}
+                    </span>
+                  </span>
+                </a>
+              ))}
             </div>
           );
         })}
