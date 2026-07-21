@@ -309,7 +309,7 @@ class OfferPdfService
             . '<div style="height:8mm;"></div>' . $stats
             . '</div>';
 
-        return $this->band('01', 'عن الكومبوند', 'About the compound') . $body . $this->lifestyleBand('60mm') . '<pagebreak />';
+        return $this->band('01', 'عن الكومبوند', 'About the compound') . $body . $this->lifestyleBand('58mm') . '<pagebreak />';
     }
 
     protected function masterPlanPage(Project $project): string
@@ -355,7 +355,7 @@ class OfferPdfService
             . '<h3 class="subhead">على مقربة منك <span class="muted">/ Around you</span></h3>'
             . '<table width="100%" style="border-collapse:collapse;">' . $cells . '</table>'
             . '</div>';
-        return $this->band('03', 'الموقع وسهولة الوصول', 'Location & connectivity') . $body . $this->lifestyleBand('86mm') . '<pagebreak />';
+        return $this->band('03', 'الموقع وسهولة الوصول', 'Location & connectivity') . $body . $this->lifestyleBand('84mm') . '<pagebreak />';
     }
 
     protected function amenitiesPage(Project $project, $amenities): string
@@ -416,7 +416,7 @@ class OfferPdfService
 
         $body = '<div class="pad"><div style="height:8mm;"></div>' . $tiles
             . '<div style="height:8mm;"></div>' . $facts . '</div>';
-        return $this->band('05', 'البنية التحتية والإحصائيات', 'Infrastructure & statistics') . $body . $this->lifestyleBand('78mm') . '<pagebreak />';
+        return $this->band('05', 'البنية التحتية والإحصائيات', 'Infrastructure & statistics') . $body . $this->lifestyleBand('90mm') . '<pagebreak />';
     }
 
     protected function unitOverviewPage(Unit $unit): string
@@ -435,7 +435,7 @@ class OfferPdfService
         for ($i = 0; $i < count($specs); $i += 4) {
             $grid .= '<tr>';
             for ($j = $i; $j < $i + 4 && $j < count($specs); $j++) {
-                $grid .= '<td width="25%" style="padding:5px;">' . $this->specTile($specs[$j][0], $specs[$j][1], $specs[$j][2]) . '</td>';
+                $grid .= $this->specTile($specs[$j][0], $specs[$j][1], $specs[$j][2], 25);
             }
             $grid .= '</tr>';
         }
@@ -461,11 +461,11 @@ class OfferPdfService
             : '';
 
         $body = '<div class="pad"><div style="height:7mm;"></div>'
-            . '<table width="100%" style="border-collapse:collapse;">' . $grid . '</table>'
+            . '<table width="100%" cellspacing="5" style="border-collapse:separate;">' . $grid . '</table>'
             . '<div style="height:6mm;"></div>' . $facts
             . ($extraBar ? '<div style="height:6mm;"></div>' . $extraBar : '')
             . '</div>';
-        return $this->band('06', 'تفاصيل الوحدة', 'Unit details', 'متاحة الآن · Available') . $body . $this->lifestyleBand('64mm') . '<pagebreak />';
+        return $this->band('06', 'تفاصيل الوحدة', 'Unit details', 'متاحة الآن · Available') . $body . $this->lifestyleBand('88mm') . '<pagebreak />';
     }
 
     protected function unitLayoutPage(Unit $unit, Project $project): string
@@ -506,7 +506,7 @@ class OfferPdfService
         $body = '<div class="pad"><div style="height:9mm;"></div>' . $hero
             . '<div style="height:7mm;"></div>' . $facts
             . '<div style="height:9mm;"></div>' . $cta . '</div>';
-        return $this->band('08', 'السعر', 'Pricing') . $body . $this->lifestyleBand('78mm') . '<pagebreak />';
+        return $this->band('08', 'السعر', 'Pricing') . $body . $this->lifestyleBand('90mm') . '<pagebreak />';
     }
 
     // ── Compound price-list ────────────────────────────────
@@ -586,7 +586,7 @@ class OfferPdfService
             . '<th>#</th><th>النظام / Plan</th><th class="num">مقدم / DP</th><th class="num">أقساط / Inst.</th><th class="num">خصم / Disc.</th><th class="num">' . ($unit ? 'الصافي / Net' : '—') . '</th>'
             . '</tr></thead><tbody>' . $rows . '</tbody></table>'
             . '</div>';
-        return $this->band($unit ? '09' : '07', 'أنظمة السداد المتاحة', 'Available payment plans') . $body . $this->lifestyleBand('78mm') . '<pagebreak />';
+        return $this->band($unit ? '09' : '07', 'أنظمة السداد المتاحة', 'Available payment plans') . $body . $this->lifestyleBand('90mm') . '<pagebreak />';
     }
 
     protected function paymentPlanPage(?Unit $unit, ProjectPaymentPlan $plan, int $idx, int $total, $units = null): string
@@ -625,7 +625,7 @@ class OfferPdfService
             . '<div style="height:6mm;"></div>' . $extra . $descAr
             . '<p class="note" style="margin-top:6mm;">جدول توضيحي — تُثبَّت مواعيد الأقساط في عقد الحجز الرسمي. / Illustrative; exact due dates are fixed in the reservation contract.</p>'
             . '</div>';
-        return $this->band(str_pad((string) $idx, 2, '0', STR_PAD_LEFT) . '·' . $total, $nameAr, $nameEn) . $body . $this->lifestyleBand('72mm') . '<pagebreak />';
+        return $this->band(str_pad((string) $idx, 2, '0', STR_PAD_LEFT) . '·' . $total, $nameAr, $nameEn) . $body . $this->lifestyleBand('78mm') . '<pagebreak />';
     }
 
     protected function scheduleTable(array $c, int $n): string
@@ -663,7 +663,7 @@ class OfferPdfService
             $rows .= '<tr><td class="tnum">' . ($i + 1) . '</td><td><div class="ar" style="font-weight:bold;color:' . $this->ink . ';">' . htmlspecialchars($t[0]) . '</div><div class="en muted" style="font-size:8.5pt;">' . htmlspecialchars($t[1]) . '</div></td></tr>';
         }
         $body = '<div class="pad"><div style="height:8mm;"></div><table class="terms">' . $rows . '</table></div>';
-        return $this->band('·', 'الشروط والأحكام', 'Terms & conditions') . $body . $this->lifestyleBand('92mm') . '<pagebreak />';
+        return $this->band('·', 'الشروط والأحكام', 'Terms & conditions') . $body . $this->lifestyleBand('104mm') . '<pagebreak />';
     }
 
     protected function contactPage(Project $project, ?string $unitNumber): string
@@ -685,7 +685,7 @@ class OfferPdfService
             . '<div style="height:5mm;"></div>' . $facts
             . '<div style="height:11mm;"></div><div style="text-align:center;"><span class="cta">احجز وحدتك اليوم · Reserve your unit today</span></div>'
             . '</div>';
-        return $this->band('·', 'تواصل معنا', 'Contact & next steps') . $body . $this->lifestyleBand('78mm') . '<pagebreak />';
+        return $this->band('·', 'تواصل معنا', 'Contact & next steps') . $body . $this->lifestyleBand('90mm') . '<pagebreak />';
     }
 
     protected function backCoverPage(Project $project): string
@@ -722,18 +722,22 @@ class OfferPdfService
         $w = (int) floor(100 / max(1, count($tiles)));
         $cells = '';
         foreach ($tiles as $t) {
-            $cells .= '<td width="' . $w . '%" style="padding:4px;">' . $this->specTile($t[0], $t[1], $t[2]) . '</td>';
+            $cells .= $this->specTile($t[0], $t[1], $t[2], $w);
         }
-        return '<table width="100%" style="border-collapse:collapse;"><tr>' . $cells . '</tr></table>';
+        return '<table width="100%" cellspacing="5" style="border-collapse:separate;"><tr>' . $cells . '</tr></table>';
     }
 
-    protected function specTile(string $value, string $ar, string $en): string
+    /**
+     * One stat tile as a styled <td> (mpdf renders cell backgrounds/borders
+     * reliably, unlike a <div> nested inside a cell). Wrap in a spaced table.
+     */
+    protected function specTile(string $value, string $ar, string $en, int $widthPct = 25): string
     {
-        return '<div class="tile">'
+        return '<td class="tile" width="' . $widthPct . '%">'
             . '<div class="tile-n">' . htmlspecialchars((string) $value) . '</div>'
             . '<div class="tile-ar ar">' . htmlspecialchars($ar) . '</div>'
             . '<div class="tile-en">' . htmlspecialchars($en) . '</div>'
-            . '</div>';
+            . '</td>';
     }
 
     protected function amenityCard(string $ar, string $en, string $extra): string
@@ -800,8 +804,8 @@ class OfferPdfService
             .band-ar { color: #fff; font-size: 24pt; font-weight: bold; line-height: 1.05; }
             .rulebar { height: 3px; background: {$this->gold}; }
 
-            .card { border: 1px solid {$this->line}; border-radius: 10px; padding: 14px 16px; background: {$this->cream}; }
-            .card.p0 { padding: 4px 0; }
+            .card { border: 1px solid #D8CDB4; border-radius: 10px; padding: 14px 16px; background: {$this->cream}; }
+            .card.p0 { padding: 2px 6px; }
 
             table.facts { width: 100%; border-collapse: collapse; }
             table.facts td { padding: 8px 14px; font-size: 9.5pt; border-bottom: 1px solid {$this->line}; vertical-align: middle; }
@@ -820,12 +824,13 @@ class OfferPdfService
             table.grid tbody tr:nth-child(even) td { background: {$this->cream}; }
             table.grid tr.total td { font-weight: bold; background: {$this->goldSoft}; border-top: 2px solid {$this->gold}; color: {$this->navy}; }
 
-            .tile { border: 1px solid {$this->line}; border-radius: 10px; background: {$this->cream}; padding: 12px 6px; text-align: center; }
+            .tilecell { padding: 4px; }
+            .tile { border: 1px solid #D8CDB4; border-radius: 10px; background: #F4EEE0; padding: 14px 4px 12px; text-align: center; }
             .tile-n { font-size: 17pt; font-weight: bold; color: {$this->navy}; }
-            .tile-ar { font-weight: bold; font-size: 8.5pt; color: {$this->ink}; margin-top: 1mm; }
-            .tile-en { color: {$this->muted}; font-size: 7pt; }
+            .tile-ar { font-weight: bold; font-size: 8.5pt; color: {$this->ink}; margin-top: 4mm; }
+            .tile-en { color: {$this->muted}; font-size: 7pt; margin-top: 1mm; }
 
-            .amenity { border: 1px solid {$this->line}; border-radius: 9px; background: #fff; }
+            .amenity { border: 1px solid #D8CDB4; border-radius: 9px; background: {$this->cream}; }
             .amenity td { padding: 11px 13px; }
             .am-ar { font-weight: bold; font-size: 10pt; color: {$this->navy}; }
             .am-en { color: {$this->muted}; font-size: 8pt; }
@@ -938,16 +943,19 @@ class OfferPdfService
         $this->bandPool = [];
         $this->bandCursor = 0;
 
-        $candidates = [$project->image_url];
+        // Prefer distinct lifestyle photos (building/gallery) so bottom bands do
+        // not repeat the cover/hero images. Cover + master plan are last resorts.
+        $candidates = [];
         try {
             foreach (ProjectMedia::where('project_id', $project->id)
-                ->whereIn('media_type', ['building', 'cover_gallery'])
+                ->whereIn('media_type', ['cover_gallery', 'building'])
                 ->pluck('image_path') as $ip) {
                 $candidates[] = $ip;
             }
         } catch (\Throwable $e) {
             // best effort
         }
+        $candidates[] = $project->image_url;
         $candidates[] = $project->master_plan_image_url;
 
         $seen = [];
